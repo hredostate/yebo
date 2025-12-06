@@ -496,8 +496,10 @@ class ErrorBoundary extends React.Component<
     }
 
     static getDerivedStateFromError(error: Error) {
-        // Only store a safe, sanitized error message for display
-        const safeMessage = error.message || 'An unexpected error occurred';
+        // In production, use a generic message. In development, show the actual error.
+        const safeMessage = process.env.NODE_ENV === 'development' 
+            ? (error.message || 'An unexpected error occurred')
+            : 'An unexpected error occurred';
         return { hasError: true, errorMessage: safeMessage };
     }
 
