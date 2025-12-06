@@ -384,8 +384,9 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                     addToast={addToast}
                     allRequests={safeLeaveRequests}
                     onUpdateStatus={async (requestId: number, status: LeaveRequestStatus): Promise<boolean> => {
-                        // Convert LeaveRequestStatus enum to the expected 'Approved' | 'Rejected' format
-                        // Only Approved and Rejected are actionable statuses from the approval view
+                        // LeaveApprovalView uses LeaveRequestStatus enum (lowercase: 'approved', 'rejected')
+                        // but the parent handler expects capitalized strings ('Approved', 'Rejected')
+                        // This conversion maintains the existing API contract
                         const mappedStatus = status === LeaveRequestStatus.Approved ? 'Approved' : 
                                             status === LeaveRequestStatus.Rejected ? 'Rejected' : 
                                             null;
@@ -495,10 +496,13 @@ class ErrorBoundary extends React.Component<
     }
 
     static getDerivedStateFromError(error: Error) {
-        return { hasError: true, errorMessage: error.toString() };
+        // Only store a safe, sanitized error message for display
+        const safeMessage = error.message || 'An unexpected error occurred';
+        return { hasError: true, errorMessage: safeMessage };
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        // Log full error details to console for debugging
         console.error('HR Payroll Module Error:', error, errorInfo);
     }
 
@@ -519,9 +523,10 @@ class ErrorBoundary extends React.Component<
                     >
                         Try Again
                     </button>
-                    {this.state.errorMessage && (
+                    {/* Only show error details in development mode */}
+                    {process.env.NODE_ENV === 'development' && this.state.errorMessage && (
                         <details className="mt-4 text-xs text-slate-500 max-w-md">
-                            <summary className="cursor-pointer">Error details</summary>
+                            <summary className="cursor-pointer">Error details (dev only)</summary>
                             <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded overflow-auto">
                                 {this.state.errorMessage}
                             </pre>
