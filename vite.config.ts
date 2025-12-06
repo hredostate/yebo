@@ -52,6 +52,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png}'],
+        // Clean up outdated caches on activation
+        cleanupOutdatedCaches: true,
+        // Skip waiting to activate new service worker immediately
+        skipWaiting: true,
+        // Claim clients to take control immediately
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /\.(?:png|gif|jpg|jpeg|svg)$/i,
@@ -68,4 +74,17 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // Generate source maps for debugging
+    sourcemap: false,
+    // Ensure unique chunk names with content hash
+    rollupOptions: {
+      output: {
+        // Use content hash in filenames for better cache invalidation
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
+  }
 });

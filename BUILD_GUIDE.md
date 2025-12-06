@@ -275,6 +275,16 @@ npm run build
 - Check test/live environment settings match your API keys
 - Review Paystack dashboard for error details
 
+### Updates Not Showing After Deployment
+The application includes automatic cache-busting mechanisms, but some users may need to clear their browser cache after updates:
+
+- **For developers**: Hard refresh with Ctrl+F5 (Windows/Linux) or Cmd+Shift+R (Mac)
+- **For users**: Instruct them to hard refresh or clear site data
+- **Content-hashed files**: All JS/CSS files now have unique hashes that change with updates
+- **Service Worker**: Automatically detects and installs updates
+
+📖 **For detailed cache management, see [`CACHE_BUSTING_GUIDE.md`](./CACHE_BUSTING_GUIDE.md)**
+
 ---
 
 ## 📞 Support & Resources

@@ -211,8 +211,29 @@ Before building the frontend, you must deploy the new backend functions.
 1.  Log in to your hosting provider (e.g., Vercel, Netlify, AWS S3, Hostinger).
 2.  Follow their instructions for deploying a static site.
 3.  You will typically drag-and-drop the **contents** of the `dist` folder or connect your Git repository and point the build command to `npm run build` and the publish directory to `dist`.
+4.  **IMPORTANT**: Upload ALL files from the dist folder, not just changed files. This ensures proper cache invalidation.
 
-### Step 4: Final Checks
+### Step 4: Clear CDN Cache (If Applicable)
+
+If you're using a CDN (Cloudflare, AWS CloudFront, etc.), you must clear the cache after deployment:
+
+- **Cloudflare**: Go to Caching → Purge Everything
+- **AWS CloudFront**: Create an Invalidation for `/*`
+- **Other CDNs**: Check their documentation for cache clearing
+
+### Step 5: Verify Deployment & Handle Browser Caching
+
+After deployment, it's critical to ensure users see the updated version:
+
+1.  **Test in incognito/private mode**: Open the site in a private browser window to verify changes
+2.  **Check file timestamps**: Verify that index.html and sw.js have current timestamps
+3.  **Inform users**: If this is a major update, inform users to hard refresh (Ctrl+F5 or Cmd+Shift+R)
+
+**Important**: The application now uses automatic cache-busting with content-hashed filenames and service worker auto-updates. However, some users may need to clear their cache to see updates immediately.
+
+📖 **For detailed cache management instructions, see [`CACHE_BUSTING_GUIDE.md`](./CACHE_BUSTING_GUIDE.md)**
+
+### Step 6: Final Checks
 
 1.  Visit your domain name in a web browser. The School Guardian 360 login page should appear.
 2.  Test the sign-up and login functionality to ensure it is correctly communicating with your Supabase backend.

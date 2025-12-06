@@ -105,6 +105,20 @@ Run the migration scripts in the `supabase/migrations/` folder in this order:
 
 See the detailed instructions in [`supabase/migrations/README.md`](./supabase/migrations/README.md) for step-by-step guidance on applying these migrations.
 
+### Updates Not Showing After Deployment
+
+If you've deployed an update but users are still seeing the old version, this is typically a browser caching issue. The application now includes automatic cache-busting mechanisms:
+
+- All JavaScript and CSS files have content-hashed filenames
+- Service worker automatically detects and installs updates
+- HTML files are never cached
+
+**Quick Fix for Users:**
+- Windows/Linux: Press `Ctrl + F5` to hard refresh
+- Mac: Press `Cmd + Shift + R` to hard refresh
+
+📖 **For complete deployment and caching guidance, see [`CACHE_BUSTING_GUIDE.md`](./CACHE_BUSTING_GUIDE.md)**
+
 ### Other Common Issues
 
 - **White Screen on Load**: Check browser console for errors and verify your `.env` file has correct Supabase credentials
