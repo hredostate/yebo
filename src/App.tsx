@@ -418,22 +418,22 @@ const App: React.FC = () => {
                              error?.response?.status === HTTP_TOO_MANY_REQUESTS ||
                              error?.code === HTTP_TOO_MANY_REQUESTS;
         
-        // Check for rate limit related messages
+        // Check for rate limit related messages (but not quota exhaustion)
         const hasRateLimitMessage = error?.message && (
             error.message.toLowerCase().includes('rate limit') ||
-            error.message.toLowerCase().includes('quota exceeded') ||
             error.message.toLowerCase().includes('too many requests')
         );
         
         return has429Status || hasRateLimitMessage;
     };
 
-    // Helper function to check if error is a quota exhaustion error
+    // Helper function to check if error is a quota exhaustion error (more specific than rate limit)
     const isQuotaExhaustedError = (error: any): boolean => {
         const errorMessage = error?.message?.toLowerCase() || '';
-        return errorMessage.includes('quota') || 
-               errorMessage.includes('exceeded') ||
-               errorMessage.includes('billing');
+        // Check for quota-specific indicators (more specific than rate limit)
+        return errorMessage.includes('quota') && errorMessage.includes('exceed') ||
+               errorMessage.includes('billing') ||
+               errorMessage.includes('quota exhausted');
     };
 
     // Helper to check if AI is currently in cooldown
@@ -794,10 +794,10 @@ const App: React.FC = () => {
                             } catch (e) {
                                 console.warn('[Orders] Full query failed, falling back to basic query without order_notes:', e);
                                 // Fallback: simpler query without order_notes
-                                const { data, error } = await supabase.from('orders')
+                                const fallbackResult = await supabase.from('orders')
                                     .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
                                     .order('created_at', { ascending: false });
-                                return { data: data ?? [], error };
+                                return { data: fallbackResult.data ?? [], error: fallbackResult.error };
                             }
                         };
 
