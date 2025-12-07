@@ -3217,6 +3217,78 @@ const App: React.FC = () => {
         addToast('Survey deleted.', 'success');
     }, [addToast]);
 
+    // ... (Curriculum handlers)
+    const handleSaveCurriculum = useCallback(async (
+        teachingAssignmentId: number,
+        weeksData: { week_number: number; expected_topics: string }[]
+    ): Promise<boolean> => {
+        if (!userProfile || userType !== 'staff') return false;
+        const staffProfile = userProfile as UserProfile;
+        
+        try {
+            // Check if curriculum exists for this teaching assignment
+            const { data: existingCurriculum } = await supabase
+                .from('curriculum')
+                .select('id')
+                .eq('teaching_entity_id', teachingAssignmentId)
+                .maybeSingle();
+            
+            let curriculumId: number;
+            
+            if (existingCurriculum) {
+                curriculumId = existingCurriculum.id;
+            } else {
+                // Create new curriculum
+                const { data: newCurriculum, error: createError } = await Offline.insert('curriculum', {
+                    teaching_entity_id: teachingAssignmentId,
+                    school_id: staffProfile.school_id
+                });
+                
+                if (createError || !newCurriculum) {
+                    addToast(`Error creating curriculum: ${createError?.message || 'Unknown error'}`, 'error');
+                    return false;
+                }
+                curriculumId = newCurriculum.id;
+            }
+            
+            // Delete existing weeks for this curriculum
+            await supabase.from('curriculum_weeks').delete().eq('curriculum_id', curriculumId);
+            
+            // Insert new weeks (only non-empty ones)
+            const weeksToInsert = weeksData
+                .filter(w => w.expected_topics && w.expected_topics.trim())
+                .map(w => ({
+                    curriculum_id: curriculumId,
+                    week_number: w.week_number,
+                    expected_topics: w.expected_topics
+                }));
+            
+            if (weeksToInsert.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('curriculum_weeks')
+                    .insert(weeksToInsert);
+                
+                if (insertError) {
+                    addToast(`Error saving curriculum weeks: ${insertError.message}`, 'error');
+                    return false;
+                }
+            }
+            
+            // Refresh curriculum data
+            const { data: refreshedCurricula } = await supabase.from('curriculum').select('*');
+            if (refreshedCurricula) setCurricula(refreshedCurricula);
+            
+            const { data: refreshedWeeks } = await supabase.from('curriculum_weeks').select('*');
+            if (refreshedWeeks) setCurriculumWeeks(refreshedWeeks);
+            
+            addToast('Curriculum saved successfully.', 'success');
+            return true;
+        } catch (error: any) {
+            addToast(`Error saving curriculum: ${error.message}`, 'error');
+            return false;
+        }
+    }, [userProfile, userType, addToast]);
+
     // ... (Lesson Plan handlers)
     const handleSaveLessonPlan = useCallback(async (planData: Partial<LessonPlan>, generateWithAi: boolean, file: File | null) => {
         if (!userProfile) return null;
@@ -3309,6 +3381,62 @@ const App: React.FC = () => {
             addToast("Lesson plan approved.", "success");
         }
    }, [addToast]);
+
+    // --- Score Entry Handlers ---
+    const handleSaveScores = useCallback(async (scores: Partial<ScoreEntry>[]): Promise<boolean> => {
+        if (!userProfile || userType !== 'staff') return false;
+        
+        try {
+            // Bulk upsert scores using the unique constraint (term_id, academic_class_id, subject_name, student_id)
+            const { error } = await supabase
+                .from('score_entries')
+                .upsert(scores, { onConflict: 'term_id,academic_class_id,subject_name,student_id' });
+            
+            if (error) {
+                addToast(`Error saving scores: ${error.message}`, 'error');
+                return false;
+            }
+            
+            // Refresh score entries
+            const { data: refreshedScores } = await supabase.from('score_entries').select('*');
+            if (refreshedScores) setScoreEntries(refreshedScores);
+            
+            addToast('Scores saved successfully.', 'success');
+            return true;
+        } catch (error: any) {
+            addToast(`Error saving scores: ${error.message}`, 'error');
+            return false;
+        }
+    }, [userProfile, userType, addToast]);
+
+    const handleSubmitScoresForReview = useCallback(async (assignmentId: number): Promise<boolean> => {
+        if (!userProfile || userType !== 'staff') return false;
+        
+        try {
+            const { error } = await Offline.update('teaching_assignments', 
+                { submitted_at: new Date().toISOString() }, 
+                { id: assignmentId }
+            );
+            
+            if (error) {
+                addToast(`Error submitting scores for review: ${error.message}`, 'error');
+                return false;
+            }
+            
+            // Refresh academic assignments
+            const { data: refreshedAssignments } = await supabase
+                .from('teaching_assignments')
+                .select('*, term:terms(*), academic_class:academic_classes(*, assessment_structure:assessment_structures(*)), teacher:user_profiles!teacher_user_id(*)');
+            
+            if (refreshedAssignments) setAcademicAssignments(refreshedAssignments as any);
+            
+            addToast('Scores submitted for review successfully.', 'success');
+            return true;
+        } catch (error: any) {
+            addToast(`Error submitting scores: ${error.message}`, 'error');
+            return false;
+        }
+    }, [userProfile, userType, addToast]);
 
     // --- Campus Handlers ---
     const handleSaveCampus = useCallback(async (campus: Partial<Campus>) => {
