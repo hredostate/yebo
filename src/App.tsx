@@ -375,6 +375,9 @@ const App: React.FC = () => {
     const addItem = <T extends {}>(setter: React.Dispatch<React.SetStateAction<T[]>>, item: T) => setter(prev => [item, ...prev]);
     const deleteItem = <T extends {id: number | string}>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: number | string) => setter(prev => prev.filter(i => i.id !== id));
 
+    // HTTP status code constants
+    const HTTP_TOO_MANY_REQUESTS = 429;
+
     // --- Toast Handlers ---
     const removeToast = useCallback((id: number) => {
         setToasts(prev => prev.filter(t => t.id !== id));
@@ -390,9 +393,9 @@ const App: React.FC = () => {
     // Helper function to check if error is a rate limit error
     const isRateLimitError = (error: any): boolean => {
         // Check for various rate limit error formats
-        const has429Status = error?.status === 429 || 
-                             error?.response?.status === 429 ||
-                             error?.code === 429;
+        const has429Status = error?.status === HTTP_TOO_MANY_REQUESTS || 
+                             error?.response?.status === HTTP_TOO_MANY_REQUESTS ||
+                             error?.code === HTTP_TOO_MANY_REQUESTS;
         
         // Check for rate limit related messages
         const hasRateLimitMessage = error?.message && (
@@ -2227,16 +2230,20 @@ const App: React.FC = () => {
         return true;
     }, [addToast]);
 
+    /**
+     * Placeholder implementation for weekly compliance check.
+     * 
+     * @remarks
+     * This is a NO-OP function added to fix a ReferenceError.
+     * Clicking the compliance check button will only show an info message.
+     * 
+     * @todo Implement actual compliance logic:
+     * - Check lesson plan submission rates
+     * - Verify teacher attendance compliance
+     * - Review policy adherence metrics
+     * - Generate compliance report
+     */
     const handleRunWeeklyComplianceCheck = useCallback(async (): Promise<void> => {
-        // ⚠️ WARNING: This is a NO-OP placeholder implementation
-        // The button in ComplianceTracker will show this message but perform no actual checks
-        // This function was added to fix a ReferenceError but does not implement real validation
-        // 
-        // TODO: Implement the following:
-        // - Check lesson plan submission rates
-        // - Verify teacher attendance compliance
-        // - Review policy adherence metrics
-        // - Generate compliance report
         console.warn("handleRunWeeklyComplianceCheck called - placeholder implementation, no actual checks performed");
         addToast('Feature not yet implemented. Compliance checks coming soon.', 'info');
     }, [addToast]);
