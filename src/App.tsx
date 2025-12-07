@@ -495,13 +495,13 @@ const App: React.FC = () => {
             clearTimeout(profileLoadTimeoutRef.current);
         }
 
-        // Set a 15-second timeout for profile loading
+        // Set a 30-second timeout for profile loading (increased from 15s for slow connections)
         profileLoadTimeoutRef.current = setTimeout(() => {
-            console.error('[Auth] Profile loading timeout after 15 seconds');
+            console.error('[Auth] Profile loading timeout after 30 seconds');
             setProfileLoadError('Profile loading timed out. Please try again.');
             setIsProfileLoading(false);
             setBooting(false);
-        }, 15000);
+        }, 30000);
 
         try {
             let staffProfile: any = null;
@@ -771,8 +771,27 @@ const App: React.FC = () => {
                              if (error) throw error;
                              return data ?? [];
                         };
+                        
+                        const fetchOrders = async () => {
+                            // Try full orders query with order_notes, fallback to simpler one if it fails
+                            try {
+                                const fullQuery = await supabase.from('orders')
+                                    .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))')
+                                    .order('created_at', { ascending: false });
+                                
+                                if (fullQuery.error) throw fullQuery.error;
+                                return fullQuery.data ?? [];
+                            } catch (e) {
+                                console.warn('[Orders] Full query failed, using fallback without notes:', e);
+                                const fallbackQuery = await supabase.from('orders')
+                                    .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
+                                    .order('created_at', { ascending: false });
+                                return fallbackQuery.data ?? [];
+                            }
+                        };
 
-                        const queries = [
+                        // PHASE 1: Critical data needed for dashboard
+                        const criticalQueries = [
                             // Bypassing cache if forceRefresh is true for critical lists (users, students)
                             forceRefresh 
                                 ? fetchUsers().then(data => { cache.set('users', data); return data; }) 
@@ -793,6 +812,10 @@ const App: React.FC = () => {
                                 if (error) throw error;
                                 return data ?? [];
                             }),
+                        ];
+
+                        // PHASE 2: Background data that can load after UI is shown
+                        const backgroundQueries = [
                             supabase.from('announcements').select('*, author:user_profiles(name)').order('created_at', { ascending: false }),
                             supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
                             supabase.from('positive_behavior').select('*, student:students(name), author:user_profiles(name)').order('created_at', { ascending: false }),
@@ -842,131 +865,178 @@ const App: React.FC = () => {
                             supabase.from('teacher_shifts').select('*'),
                             supabase.from('assessment_structures').select('*'),
                             supabase.from('teaching_entities').select('*, teacher:user_profiles!user_id(name), class:classes(name), arm:arms(name), subject:subjects(name))'),
-                            supabase.from('orders').select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))').order('created_at', { ascending: false }),
+                            fetchOrders(),
                         ];
                         
-                        // Use Promise.allSettled to allow partial failure
-                        const results = await Promise.allSettled(queries);
+                        // Load critical data first (Phase 1)
+                        console.log('[Data Fetch] Phase 1: Loading critical data...');
+                        const criticalResults = await Promise.allSettled(criticalQueries);
                         
-                        // Helper to safely extract data from result - always returns array for array types
-                        const getData = (index: number): any[] => {
-                            const res = results[index];
+                        // Log critical query results
+                        criticalResults.forEach((result, index) => {
+                            if (result.status === 'rejected') {
+                                console.error(`[Data Fetch] Critical query ${index} failed:`, result.reason);
+                            }
+                        });
+                        
+                        // Set critical data immediately
+                        const getCriticalData = (index: number): any[] => {
+                            const res = criticalResults[index];
                             if (res.status !== 'fulfilled') return [];
                             const value = res.value as any;
-                            // Check for Supabase response format
                             if (value && typeof value === 'object' && 'data' in value) {
-                                // Ensure we return an array
                                 const data = value.data;
                                 return Array.isArray(data) ? data : [];
                             }
-                            // For Offline.selectCached which returns data directly
                             return Array.isArray(value) ? value : [];
                         };
                         
-                        // Helper for single-object data (like school settings)
-                        const getSingleData = (index: number): any => {
-                            const res = results[index];
-                            if (res.status !== 'fulfilled') return null;
-                            const value = res.value as any;
-                            if (value && typeof value === 'object' && 'data' in value) {
-                                return value.data;
-                            }
-                            return value;
-                        };
-            
-                        setUsers(getData(0));
-                        setReports(getData(1));
-                        setStudents(getData(2));
-                        setTasks(getData(3));
-                        setAnnouncements(getData(4));
-                        setNotifications(getData(5));
-                        setPositiveRecords(getData(6));
-                        setStudentAwards(getData(7));
-                        setStaffAwards(getData(8));
-                        setInterventionPlans(getData(9));
-                        setSipLogs(getData(10));
-                        setLessonPlans(getData(11));
-                        setSchoolSettings(getSingleData(12));
-                        setLivingPolicy(getData(13));
-                        setCalendarEvents(getData(14));
-                        setInventory(getData(15));
-                        setAllSubjects(getData(16));
-                        setAllClasses(getData(17));
-                        setAllArms(getData(18));
-                        setSurveys(getData(19));
-                        setTakenSurveys(new Set(getData(20).map((r: any) => r.quiz_id)));
-                        setWeeklyRatings(getData(21));
-                        setTeams(getData(22));
-                        setTeamFeedback(getData(23));
-                        setCurricula(getData(24));
-                        setCurriculumWeeks(getData(25));
-                        const classGroupsData = getData(26);
-                        console.log('Class groups fetched:', classGroupsData);
-                        setClassGroups(classGroupsData);
-                        setSchoolConfig(getSingleData(27));
-                        setTerms(getData(28));
-                        setAcademicClasses(getData(29));
-                        setAcademicAssignments(getData(30));
-                        const schemesData = getData(31);
-                        const rulesData = getData(32);
-                        setAcademicClassStudents(getData(33));
-                        setScoreEntries(getData(34));
-                        setStudentTermReports(getData(35));
-                        setAuditLogs(getData(36));
-                        setAssessments(getData(37));
-                        setAssessmentScores(getData(38));
-                        setStudentTermReportSubjects(getData(39));
-                        setCoverageVotes(getData(40));
-                        setRewards(getData(41));
-                        setPayrollRuns(getData(42));
-                        setPayrollItems(getData(43));
-                        setPayrollAdjustments(getData(44));
-                        setCampuses(getData(45));
-                        setTeacherCheckins(getData(46));
-                        setLeaveTypes(getData(47));
-                        setLeaveRequests(getData(48));
-                        setTeacherShifts(getData(49));
-                        setAssessmentStructures(getData(50));
-                        setTeachingEntities(getData(51));
-                        setOrders(getData(52));
-
-                        const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
-                            ...scheme,
-                            rules: (rulesData as GradingSchemeRule[]).filter(rule => rule.grading_scheme_id === scheme.id)
-                        }));
-                        setGradingSchemes(combinedSchemes);
-
-                        const settings = getSingleData(12);
-                        if (settings?.school_documents) {
-                            const docs = settings.school_documents;
-                            if (docs.daily_briefing) setDailyBriefing(docs.daily_briefing);
-                            if (docs.curriculum_report) setCurriculumReport(docs.curriculum_report);
-                            if (docs.health_report) setSchoolHealthReport(docs.health_report);
-                            if (docs.improvement_plan) setImprovementPlan(docs.improvement_plan);
-                        }
-                        
-                        // Clear timeout and mark as loaded successfully
-                        if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
-                        setIsProfileLoading(false);
-                        console.log('[Auth] Staff profile loaded successfully');
+                        setUsers(getCriticalData(0));
+                        setReports(getCriticalData(1));
+                        setStudents(getCriticalData(2));
+                        setTasks(getCriticalData(3));
                         
                         // Check for critical failures
-                        const criticalIndices = [0, 1]; // Users, Reports
-                        const criticalErrors = criticalIndices.filter(i => results[i].status === 'rejected').length;
+                        const criticalErrors = criticalResults.filter(r => r.status === 'rejected').length;
                         if (criticalErrors > 0) {
                             addToast("Some core data failed to load. The app may not function correctly.", "error");
                         }
+                        
+                        // Clear timeout and mark profile as loaded
+                        if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
+                        setIsProfileLoading(false);
+                        setBooting(false);
+                        console.log('[Auth] Critical data loaded, showing dashboard...');
+                        
+                        // Navigate to staff default view immediately
+                        setCurrentView(VIEWS.DASHBOARD);
+                        
+                        // Load background data (Phase 2) asynchronously
+                        console.log('[Data Fetch] Phase 2: Loading background data...');
+                        Promise.allSettled(backgroundQueries).then(backgroundResults => {
+                            // Log background query results
+                            backgroundResults.forEach((result, index) => {
+                                if (result.status === 'rejected') {
+                                    console.error(`[Data Fetch] Background query ${index} failed:`, result.reason);
+                                }
+                            });
+                            
+                            // Helper to safely extract data from result - always returns array for array types
+                            const getData = (index: number): any[] => {
+                                const res = backgroundResults[index];
+                                if (res.status !== 'fulfilled') return [];
+                                const value = res.value as any;
+                                // Check for Supabase response format
+                                if (value && typeof value === 'object' && 'data' in value) {
+                                    // Ensure we return an array
+                                    const data = value.data;
+                                    return Array.isArray(data) ? data : [];
+                                }
+                                // For Offline.selectCached which returns data directly
+                                return Array.isArray(value) ? value : [];
+                            };
+                            
+                            // Helper for single-object data (like school settings)
+                            const getSingleData = (index: number): any => {
+                                const res = backgroundResults[index];
+                                if (res.status !== 'fulfilled') return null;
+                                const value = res.value as any;
+                                if (value && typeof value === 'object' && 'data' in value) {
+                                    return value.data;
+                                }
+                                return value;
+                            };
+                
+                            setAnnouncements(getData(0));
+                            setNotifications(getData(1));
+                            setPositiveRecords(getData(2));
+                            setStudentAwards(getData(3));
+                            setStaffAwards(getData(4));
+                            setInterventionPlans(getData(5));
+                            setSipLogs(getData(6));
+                            setLessonPlans(getData(7));
+                            setSchoolSettings(getSingleData(8));
+                            setLivingPolicy(getData(9));
+                            setCalendarEvents(getData(10));
+                            setInventory(getData(11));
+                            setAllSubjects(getData(12));
+                            setAllClasses(getData(13));
+                            setAllArms(getData(14));
+                            setSurveys(getData(15));
+                            setTakenSurveys(new Set(getData(16).map((r: any) => r.quiz_id)));
+                            setWeeklyRatings(getData(17));
+                            setTeams(getData(18));
+                            setTeamFeedback(getData(19));
+                            setCurricula(getData(20));
+                            setCurriculumWeeks(getData(21));
+                            const classGroupsData = getData(22);
+                            console.log('Class groups fetched:', classGroupsData);
+                            setClassGroups(classGroupsData);
+                            setSchoolConfig(getSingleData(23));
+                            setTerms(getData(24));
+                            setAcademicClasses(getData(25));
+                            setAcademicAssignments(getData(26));
+                            const schemesData = getData(27);
+                            const rulesData = getData(28);
+                            setAcademicClassStudents(getData(29));
+                            setScoreEntries(getData(30));
+                            setStudentTermReports(getData(31));
+                            setAuditLogs(getData(32));
+                            setAssessments(getData(33));
+                            setAssessmentScores(getData(34));
+                            setStudentTermReportSubjects(getData(35));
+                            setCoverageVotes(getData(36));
+                            setRewards(getData(37));
+                            setPayrollRuns(getData(38));
+                            setPayrollItems(getData(39));
+                            setPayrollAdjustments(getData(40));
+                            setCampuses(getData(41));
+                            setTeacherCheckins(getData(42));
+                            setLeaveTypes(getData(43));
+                            setLeaveRequests(getData(44));
+                            setTeacherShifts(getData(45));
+                            setAssessmentStructures(getData(46));
+                            setTeachingEntities(getData(47));
+                            setOrders(getData(48));
 
-                        analyzeAtRiskStudents(getData(2), getData(1));
-                        generateTaskSuggestions(getData(1));
+                            const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
+                                ...scheme,
+                                rules: (rulesData as GradingSchemeRule[]).filter(rule => rule.grading_scheme_id === scheme.id)
+                            }));
+                            setGradingSchemes(combinedSchemes);
+
+                            const settings = getSingleData(8);
+                            if (settings?.school_documents) {
+                                const docs = settings.school_documents;
+                                if (docs.daily_briefing) setDailyBriefing(docs.daily_briefing);
+                                if (docs.curriculum_report) setCurriculumReport(docs.curriculum_report);
+                                if (docs.health_report) setSchoolHealthReport(docs.health_report);
+                                if (docs.improvement_plan) setImprovementPlan(docs.improvement_plan);
+                            }
+                            
+                            console.log('[Auth] Background data loaded successfully');
+
+                            analyzeAtRiskStudents(getCriticalData(2), getCriticalData(1));
+                            generateTaskSuggestions(getCriticalData(1));
+                        });
                     } catch (error: any) {
-                        console.error('Background data fetching error:', error);
-                        addToast(`Failed to fetch all application data: ${error.message}`, 'error');
-                    } finally {
+                        console.error('[Auth] Critical data fetching error:', error);
+                        
+                        // Clear timeout
+                        if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
+                        setIsProfileLoading(false);
                         setBooting(false);
                         
-                        // Navigate to staff default view
-                        setCurrentView(VIEWS.DASHBOARD);
+                        // Do NOT logout if it's a schema error, so the Setup screen can show
+                        if (error.message && (error.message.includes('relation') || error.message.includes('does not exist') || error.code === 'PGRST204')) {
+                            setDbError(error.message);
+                        } else {
+                            setProfileLoadError(`Failed to load profile: ${error.message}`);
+                            addToast(`Failed to fetch user data: ${error.message}. You will be logged out.`, 'error');
+                            setUserProfile(null);
+                            setUserType(null);
+                            handleLogout();
+                        }
                     }
                 })();
             }
@@ -3634,9 +3704,21 @@ const App: React.FC = () => {
             }
         }
         
-        // Refresh orders
-        const { data: newOrders } = await supabase.from('orders').select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))').order('created_at', { ascending: false });
-        if (newOrders) setOrders(newOrders as any);
+        // Refresh orders with fallback
+        try {
+            const fullQuery = await supabase.from('orders')
+                .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))')
+                .order('created_at', { ascending: false });
+            
+            if (fullQuery.error) throw fullQuery.error;
+            if (fullQuery.data) setOrders(fullQuery.data as any);
+        } catch (e) {
+            console.warn('[Orders] Full query failed, using fallback without notes:', e);
+            const { data: newOrders } = await supabase.from('orders')
+                .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
+                .order('created_at', { ascending: false });
+            if (newOrders) setOrders(newOrders as any);
+        }
 
         return true;
     }, [userProfile, inventory, addToast]);

@@ -631,6 +631,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 return <StudentReportView studentId={Number(param1)} termId={Number(param2)} onBack={() => actions.setCurrentView(VIEWS.STUDENT_ROSTER)} />;
              }
              return <div>Report not found.</div>;
+        case VIEWS.HR_PAYROLL:
         case VIEWS.PAYROLL:
              return <PayrollPortal 
                 userProfile={data.userProfile}
