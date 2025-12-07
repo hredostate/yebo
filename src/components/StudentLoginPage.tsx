@@ -52,8 +52,7 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
         // Cast supabase.auth to any to bypass potential type definition mismatches
         const { error } = await (supabase.auth as any).signInWithPassword({ email, password });
         if (error) throw error;
-        // Force navigation hash update to ensure App router syncs immediately
-        window.location.hash = "My Subjects";
+        // Navigation will be handled by App.tsx after profile loads
       } else if (authView === 'signup') {
         const { data, error } = await (supabase.auth as any).signUp({
           email,
