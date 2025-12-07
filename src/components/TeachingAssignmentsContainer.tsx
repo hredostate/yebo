@@ -4,7 +4,7 @@
 import React from 'react';
 import TeachingAssignmentsManager from './TeachingAssignmentsManager';
 // FIX: Changed 'TeachingAssignment' to 'AcademicTeachingAssignment' to match the expected data structure.
-import type { UserProfile, AcademicTeachingAssignment, BaseDataObject, ClassGroup, AcademicClass } from '../types';
+import type { UserProfile, AcademicTeachingAssignment, BaseDataObject, ClassGroup, AcademicClass, Term } from '../types';
 
 type Props = {
   users: UserProfile[];
@@ -14,6 +14,7 @@ type Props = {
   arms: BaseDataObject[];
   classGroups: ClassGroup[];
   academicClasses: AcademicClass[];
+  terms: Term[];
   onCreateAssignment: (
     assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
     groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
@@ -29,17 +30,37 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
   arms,
   classGroups,
   academicClasses,
+  terms,
   onCreateAssignment,
   onDeleteAssignment,
 }) => {
-  const handleCreate = async (data: { user_id: string; subject_id: number; academic_class_id: number }): Promise<void> => {
-    const academicClass = academicClasses.find(ac => ac.id === data.academic_class_id);
-    const subject = subjects.find(s => s.id === data.subject_id);
-    const teacher = users.find(u => u.id === data.user_id);
+  const handleSave = async (as: Partial<AcademicTeachingAssignment>): Promise<boolean> => {
+    // This is a new/existing assignment being saved from the form
+    // For now, we don't support editing existing assignments through this interface
+    // We only support creating new ones
+    if (as.id) {
+      console.warn('Editing existing assignments is not yet supported through this interface');
+      return false;
+    }
+    
+    if (!as.teacher_user_id || !as.subject_name || !as.academic_class_id) {
+      console.error('Missing required fields for assignment creation');
+      return false;
+    }
+    
+    // Find the subject by name to get its ID
+    const subject = subjects.find(s => s.name === as.subject_name);
+    if (!subject) {
+      console.error(`Could not find subject with name: ${as.subject_name}`);
+      return false;
+    }
+    
+    const academicClass = academicClasses.find(ac => ac.id === as.academic_class_id);
+    const teacher = users.find(u => u.id === as.teacher_user_id);
 
-    if (!academicClass || !subject || !teacher) {
+    if (!academicClass || !teacher) {
         console.error("Could not find all required data for assignment creation.");
-        return;
+        return false;
     }
 
     const classRecord = classes.find(c => c.name === academicClass.level);
@@ -47,14 +68,14 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
 
     if (!classRecord) {
         console.error(`Could not find a base 'class' matching level: ${academicClass.level}`);
-        return;
+        return false;
     }
 
     const groupName = `${subject.name} - ${academicClass.name}`;
 
     const assignmentData = {
-        teacher_user_id: data.user_id,
-        subject_id: data.subject_id,
+        teacher_user_id: as.teacher_user_id,
+        subject_id: subject.id,
         class_id: classRecord.id,
         arm_id: armRecord ? armRecord.id : null,
     };
@@ -65,17 +86,17 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
         group_type: 'subject_teacher' as const,
     };
 
-    await onCreateAssignment(assignmentData, groupData);
+    return await onCreateAssignment(assignmentData, groupData);
   };
   
-  const handleDelete = async (assignmentId: number): Promise<void> => {
+  const handleDelete = async (assignmentId: number): Promise<boolean> => {
     const classGroup = classGroups.find(cg => cg.teaching_entity_id === assignmentId);
     if (!classGroup) {
         console.error("Could not find class group for assignment", assignmentId);
-        return;
+        return false;
     }
     
-    await onDeleteAssignment(classGroup.id);
+    return await onDeleteAssignment(classGroup.id);
   };
 
   return (
@@ -83,10 +104,11 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
       users={users}
       assignments={assignments}
       academicClasses={academicClasses}
-// @ts-ignore
-      onCreateAssignment={handleCreate}
-// @ts-ignore
-      onDeleteAssignment={handleDelete}
+      terms={terms}
+      classes={classes}
+      arms={arms}
+      onSave={handleSave}
+      onDelete={handleDelete}
     />
   );
 };

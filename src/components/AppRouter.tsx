@@ -445,6 +445,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 arms={data.allArms}
                 classGroups={data.classGroups}
                 academicClasses={data.academicClasses}
+                terms={data.terms}
                 onCreateAssignment={actions.handleCreateClassAssignment}
                 onDeleteAssignment={actions.handleDeleteClassAssignment}
              />;
