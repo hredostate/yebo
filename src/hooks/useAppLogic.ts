@@ -16,7 +16,8 @@ import type {
   CheckinAnomaly, TeacherRatingWeekly, Curriculum, CurriculumWeek, LessonPlan,
   Assessment, AssessmentScore, ClassGroup, SurveyWithQuestions,
   CalendarEvent, LivingPolicySnippet, NavigationContext, StudentAward,
-  CoverageVote, CreatedCredential, RoleTitle, TaskStatus, StudentProfile
+  CoverageVote, CreatedCredential, RoleTitle, TaskStatus, StudentProfile,
+  UserRoleAssignment, StudentTermReportSubject, ScoreEntry, AtRiskTeacher
 } from '../types';
 import { VIEWS } from '../constants';
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_SOCIAL_ANALYTICS } from '../services/mockData';
@@ -53,7 +54,7 @@ export const useAppLogic = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [interventionPlans, setInterventionPlans] = useState<StudentInterventionPlan[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [atRiskTeachers, setAtRiskTeachers] = useState<any[]>([]);
+  const [atRiskTeachers, setAtRiskTeachers] = useState<AtRiskTeacher[]>([]);
   const [socialMediaAnalytics, setSocialMediaAnalytics] = useState<SocialMediaAnalytics[]>([]);
   const [policyInquiries, setPolicyInquiries] = useState<PolicyInquiry[]>([]);
   const [curriculumReport, setCurriculumReport] = useState<CurriculumReport | null>(null);
@@ -80,7 +81,7 @@ export const useAppLogic = () => {
   const [teacherShifts, setTeacherShifts] = useState<TeacherShift[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [assessmentStructures, setAssessmentStructures] = useState<AssessmentStructure[]>([]);
-  const [userRoleAssignments, setUserRoleAssignments] = useState<any[]>([]);
+  const [userRoleAssignments, setUserRoleAssignments] = useState<UserRoleAssignment[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [rewards, setRewards] = useState<RewardStoreItem[]>([]);
   const [schoolHealthReport, setSchoolHealthReport] = useState<SchoolHealthReport | null>(null);
@@ -93,8 +94,8 @@ export const useAppLogic = () => {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount | null>(null);
   const [checkinAnomalies, setCheckinAnomalies] = useState<CheckinAnomaly[]>([]);
   const [weeklyRatings, setWeeklyRatings] = useState<TeacherRatingWeekly[]>([]);
-  const [scoreEntries, setScoreEntries] = useState<any[]>([]);
-  const [studentTermReportSubjects, setStudentTermReportSubjects] = useState<any[]>([]);
+  const [scoreEntries, setScoreEntries] = useState<ScoreEntry[]>([]);
+  const [studentTermReportSubjects, setStudentTermReportSubjects] = useState<StudentTermReportSubject[]>([]);
   const [coverageVotes, setCoverageVotes] = useState<CoverageVote[]>([]);
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [curriculumWeeks, setCurriculumWeeks] = useState<CurriculumWeek[]>([]);

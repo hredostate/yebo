@@ -197,6 +197,14 @@ export interface RoleDetails {
     aiRoutingInstructions?: string;
 }
 
+export interface UserRoleAssignment {
+    id: number;
+    user_id: string;
+    role_id: number;
+    school_id: number;
+    created_at?: string;
+}
+
 export interface PositiveBehaviorRecord {
     id: number;
     student_id: number;
@@ -773,6 +781,17 @@ export interface StudentTermReport {
     is_published: boolean;
     created_at: string;
     term?: Term;
+}
+
+export interface StudentTermReportSubject {
+    id: number;
+    report_id: number;
+    subject_name: string;
+    score: number;
+    grade: string;
+    position?: number;
+    teacher_comment?: string;
+    created_at?: string;
 }
 
 export interface AuditLog {
