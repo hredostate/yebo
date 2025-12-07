@@ -223,6 +223,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 // Constants
 const AI_RATE_LIMIT_COOLDOWN_MS = 120000; // 2 minutes
+const AI_QUOTA_EXHAUSTION_COOLDOWN_MS = 600000; // 10 minutes
 
 const App: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
@@ -425,6 +426,14 @@ const App: React.FC = () => {
         );
         
         return has429Status || hasRateLimitMessage;
+    };
+
+    // Helper function to check if error is a quota exhaustion error
+    const isQuotaExhaustedError = (error: any): boolean => {
+        const errorMessage = error?.message?.toLowerCase() || '';
+        return errorMessage.includes('quota') || 
+               errorMessage.includes('exceeded') ||
+               errorMessage.includes('billing');
     };
 
     // Helper to check if AI is currently in cooldown
@@ -772,6 +781,26 @@ const App: React.FC = () => {
                              return data ?? [];
                         };
 
+                        // Fetch orders with graceful fallback if order_notes relation fails
+                        const fetchOrders = async () => {
+                            try {
+                                // Try full query with order_notes first
+                                const { data, error } = await supabase.from('orders')
+                                    .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))')
+                                    .order('created_at', { ascending: false });
+                                
+                                if (error) throw error;
+                                return { data: data ?? [], error: null };
+                            } catch (e) {
+                                console.warn('[Orders] Full query failed, falling back to basic query without order_notes:', e);
+                                // Fallback: simpler query without order_notes
+                                const { data, error } = await supabase.from('orders')
+                                    .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
+                                    .order('created_at', { ascending: false });
+                                return { data: data ?? [], error };
+                            }
+                        };
+
                         const queries = [
                             // Bypassing cache if forceRefresh is true for critical lists (users, students)
                             forceRefresh 
@@ -842,7 +871,7 @@ const App: React.FC = () => {
                             supabase.from('teacher_shifts').select('*'),
                             supabase.from('assessment_structures').select('*'),
                             supabase.from('teaching_entities').select('*, teacher:user_profiles!user_id(name), class:classes(name), arm:arms(name), subject:subjects(name))'),
-                            supabase.from('orders').select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))').order('created_at', { ascending: false }),
+                            fetchOrders(),
                         ];
                         
                         // Use Promise.allSettled to allow partial failure
@@ -1302,8 +1331,11 @@ const App: React.FC = () => {
             }
         } catch (e: any) { 
             console.error("At-risk student analysis failed:", e);
-            if (isRateLimitError(e)) {
-                setAiCooldown(); // Use default cooldown
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             }
         }
@@ -1421,8 +1453,16 @@ const App: React.FC = () => {
             }
         } catch (e: any) { 
             console.error("Task suggestion generation failed:", e);
-            if (isRateLimitError(e)) {
-                setAiCooldown(); // Use default cooldown
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+                
+                // Provide fallback suggestions
+                const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+                setTaskSuggestions(fallbackSuggestions);
+                setAreFallbackSuggestions(true);
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI suggestions temporarily unavailable - showing recommended tasks', 'warning');
                 
                 // Provide fallback suggestions instead of leaving the user with nothing
@@ -1522,7 +1562,11 @@ const App: React.FC = () => {
              if(session.user) fetchData(session.user, true);
          } catch(e: any) { 
              console.error(e); 
-             if (isRateLimitError(e)) {
+             if (isQuotaExhaustedError(e)) {
+                 setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                 addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+             } else if (isRateLimitError(e)) {
+                 setAiCooldown();
                  addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
              } else {
                  addToast(`Failed: ${e.message}`, 'error');
@@ -1635,7 +1679,11 @@ const App: React.FC = () => {
             }
          } catch (e: any) {
              console.error(e);
-             if (isRateLimitError(e)) {
+             if (isQuotaExhaustedError(e)) {
+                 setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                 addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+             } else if (isRateLimitError(e)) {
+                 setAiCooldown();
                  addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
              } else {
                  addToast('Failed to analyze risks.', 'error');
@@ -1683,7 +1731,11 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error(e);
-            if (isRateLimitError(e)) {
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate inquiries.', 'error');
@@ -1724,7 +1776,11 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error(e);
-            if (isRateLimitError(e)) {
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate report.', 'error');
@@ -1786,7 +1842,11 @@ const App: React.FC = () => {
             throw new Error("Failed to parse digest");
         } catch (e: any) {
             console.error(e);
-            if (isRateLimitError(e)) {
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast("Failed to generate daily briefing.", "error");
@@ -1900,7 +1960,11 @@ const App: React.FC = () => {
                 analysis = extractAndParseJson(textFromGemini(response));
             } catch (e: any) {
                 console.error("Real-time analysis failed", e);
-                if (isRateLimitError(e)) {
+                if (isQuotaExhaustedError(e)) {
+                    setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                    console.debug("AI quota exhausted during report submission - skipping analysis");
+                } else if (isRateLimitError(e)) {
+                    setAiCooldown();
                     // Silently skip analysis on rate limit for report submission
                     // Don't show toast here as it's not critical to report submission
                     console.debug("AI rate limit hit during report submission - skipping analysis");
@@ -2460,8 +2524,11 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error('Generate awards error:', e);
-            if (isRateLimitError(e)) {
-                setAiCooldown(); // Use default cooldown
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate awards. Please try again.', 'error');
@@ -2505,8 +2572,11 @@ const App: React.FC = () => {
             return null;
         } catch (e: any) {
             console.error('Generate insight error:', e);
-            if (isRateLimitError(e)) {
-                setAiCooldown(); // Use default cooldown
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
+                setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate student insight. Please try again.', 'error');
@@ -3634,9 +3704,19 @@ const App: React.FC = () => {
             }
         }
         
-        // Refresh orders
-        const { data: newOrders } = await supabase.from('orders').select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))').order('created_at', { ascending: false });
-        if (newOrders) setOrders(newOrders as any);
+        // Refresh orders with fallback for order_notes
+        try {
+            const { data: newOrders } = await supabase.from('orders')
+                .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))')
+                .order('created_at', { ascending: false });
+            if (newOrders) setOrders(newOrders as any);
+        } catch (e) {
+            console.warn('[Orders] Full query failed, falling back to basic query without order_notes:', e);
+            const { data: newOrders } = await supabase.from('orders')
+                .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
+                .order('created_at', { ascending: false });
+            if (newOrders) setOrders(newOrders as any);
+        }
 
         return true;
     }, [userProfile, inventory, addToast]);
@@ -3682,6 +3762,23 @@ const App: React.FC = () => {
              addToast('Note deleted.', 'success');
          }
     }, [addToast]);
+    
+    const handleSaveSocialLinks = useCallback(async (socialLinks: SocialAccount): Promise<void> => {
+        if (!schoolSettings) {
+            addToast('School settings not available', 'error');
+            return;
+        }
+        
+        try {
+            const success = await handleUpdateSchoolSettings({ social_accounts: socialLinks });
+            if (success) {
+                setSocialAccounts(socialLinks);
+                addToast('Social media links saved successfully', 'success');
+            }
+        } catch (error: any) {
+            addToast(`Failed to save social links: ${error.message}`, 'error');
+        }
+    }, [schoolSettings, handleUpdateSchoolSettings, addToast]);
     
     const handleRunPayroll = useCallback(async (staffPay: Record<string, { base_pay: string, commission: string }>) => {
         const items = Object.entries(staffPay).map(([userId, pay]) => ({
@@ -4275,7 +4372,10 @@ Generate a JSON object with:
             return improvementPlan;
         } catch (e: any) {
             console.error(e);
-            if (isRateLimitError(e)) {
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
                 setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
@@ -4402,7 +4502,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             return report;
         } catch (e: any) {
             console.error(e);
-            if (isRateLimitError(e)) {
+            if (isQuotaExhaustedError(e)) {
+                setAiCooldown(AI_QUOTA_EXHAUSTION_COOLDOWN_MS);
+                addToast('AI quota exhausted. Please check your Gemini API billing or wait for quota reset.', 'warning');
+            } else if (isRateLimitError(e)) {
                 setAiCooldown();
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
