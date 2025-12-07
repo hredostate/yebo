@@ -4032,9 +4032,9 @@ const App: React.FC = () => {
 
     // --- Student Account Handlers ---
     const handleOpenCreateStudentAccountModal = useCallback(() => {
-        // This is a UI handler - simply set a state or trigger modal
-        // The actual implementation depends on modal state management
-        addToast('Opening student account creation modal...', 'info');
+        // TODO: Implement modal state management to open student account creation modal
+        // This is a UI handler that should set a state variable to open the modal
+        addToast('Student account creation feature coming soon.', 'info');
         return true;
     }, [addToast]);
 
@@ -4165,14 +4165,14 @@ const App: React.FC = () => {
     const handleGenerateImprovementPlan = useCallback(async (): Promise<any> => {
         if (!userProfile) return null;
         try {
-            // AI-powered school improvement plan generation
+            // TODO: Implement AI-powered school improvement plan generation
+            // This should analyze school data and generate actionable improvement plans
             if (isAiInCooldown()) {
                 addToast('AI service is in cooldown. Please try again in a few minutes.', 'info');
                 return null;
             }
             
-            addToast('Generating improvement plan...', 'info');
-            // This would typically involve AI analysis
+            addToast('Improvement plan generation feature coming soon.', 'info');
             const plan = {
                 areas_of_improvement: [],
                 recommendations: [],
@@ -4188,8 +4188,9 @@ const App: React.FC = () => {
     const handleGenerateCoverageDeviationReport = useCallback(async (): Promise<any> => {
         if (!userProfile) return null;
         try {
-            addToast('Generating coverage deviation report...', 'info');
-            // Analyze curriculum coverage vs planned coverage
+            // TODO: Implement curriculum coverage deviation analysis
+            // This should analyze curriculum coverage vs planned coverage and generate reports
+            addToast('Coverage deviation report generation feature coming soon.', 'info');
             const report = {
                 deviations: [],
                 summary: {},
