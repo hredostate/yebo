@@ -387,279 +387,6 @@ const App: React.FC = () => {
         setTimeout(() => removeToast(id), 5000);
     }, [removeToast]);
 
-    // --- Auth Logic & Data Fetching ---
-    
-    useEffect(() => {
-        // Clear reload lock on successful app mount
-        sessionStorage.removeItem('sg360_reload_lock');
-
-        // Auth Listener
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (!session) setBooting(false);
-        });
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, session) => {
-            setSession(session);
-            
-            if (event === 'PASSWORD_RECOVERY') {
-                setCurrentView(VIEWS.PROFILE);
-                addToast("Password recovery link verified. Please update your password now.", "info");
-            }
-            
-            if (!session) {
-                setBooting(false);
-                setUserProfile(null);
-            } else {
-                fetchData(session.user);
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-            // Cleanup timeout on unmount
-            if (profileLoadTimeoutRef.current) {
-                clearTimeout(profileLoadTimeoutRef.current);
-            }
-        };
-    }, [addToast, fetchData]);
-
-    // --- Realtime Updates ---
-    useEffect(() => {
-        if (!session?.user) return;
-
-        const channel = supabase.channel('app_updates')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${session.user.id}` },
-                (payload) => {
-                    console.log('Profile updated remotely', payload);
-                    fetchData(session.user, true);
-                    addToast('Your profile has been updated.', 'info');
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'user_role_assignments', filter: `user_id=eq.${session.user.id}` },
-                (payload) => {
-                    console.log('Role assignments updated remotely', payload);
-                    fetchData(session.user, true);
-                    addToast('Your permissions have been updated.', 'info');
-                }
-            )
-            // NEW: Listen for notifications
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` },
-                (payload) => {
-                     const newNotif = payload.new as Notification;
-                     setNotifications(prev => [newNotif, ...prev]);
-                     addToast(newNotif.message, 'info');
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [session, addToast]); 
-
-
-    useEffect(() => {
-        const currentHash = decodeURIComponent(window.location.hash.substring(1));
-        let targetView = currentView;
-        
-        // Handle leading slash if present
-        if (targetView.startsWith('/')) targetView = targetView.substring(1);
-        let targetHash = currentHash;
-        if (targetHash.startsWith('/')) targetHash = targetHash.substring(1);
-        
-        // Ignore auth tokens in hash logic to prevent view loop
-        if (targetHash.includes('access_token=') || targetHash.includes('error=')) {
-            return; 
-        }
-
-        // Do not override hash if currentView is Dashboard but hash is something else (e.g. a public page)
-        // Only sync if they are truly different and we want to enforce state -> URL sync
-        if (targetView !== targetHash && targetHash !== 'student-login' && targetHash !== 'public-ratings' && targetHash !== 'teacher-login') {
-             window.location.hash = targetView;
-        }
-    }, [currentView]);
-
-    useEffect(() => {
-        const handleHashChange = () => {
-            try {
-                let hash = decodeURIComponent(window.location.hash.substring(1));
-                if (hash.startsWith('/')) hash = hash.substring(1);
-                
-                // Ignore auth tokens in hash
-                if (hash.includes('access_token=') || hash.includes('error=')) {
-                    return; 
-                }
-                
-                const targetView = hash || 'Dashboard';
-                setCurrentView(targetView);
-            } catch (e) {
-                console.warn("Error decoding hash:", e);
-            }
-        };
-        
-        window.addEventListener('hashchange', handleHashChange);
-        // Trigger once on mount to capture initial hash
-        handleHashChange();
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
-
-    // --- Handle AI Navigation ---
-    const handleAINavigation = useCallback((context: NavigationContext) => {
-        if (context.targetView === 'create_task_modal') {
-            // Task creation is a modal, not a view change
-            setIsTaskModalOpen(true);
-            // If there's task data, we might need to pass it to the modal directly or via state
-            // Since TaskFormModal doesn't take initialData yet, we can pass it via navContext
-            // but we need to ensure we clear it when closing the modal.
-            setNavContext(context);
-        } else {
-            // Standard View Navigation
-            setCurrentView(context.targetView);
-            setNavContext(context);
-        }
-    }, []);
-
-
-    useEffect(() => {
-        const [view, param] = currentView.split('/');
-        if (view === 'Student Profile' && param) {
-            const studentId = Number(param);
-            if (selectedStudent?.id !== studentId) {
-                const student = students.find(s => s.id === studentId);
-                if (student) {
-                    setSelectedStudent(student);
-                } else if (students.length > 0) {
-                    // Only clear if we actually have students loaded and still didn't find a match
-                    // This prevents clearing on initial load before students are fetched
-                     setSelectedStudent(null);
-                }
-            }
-        } else {
-            if (selectedStudent) {
-                setSelectedStudent(null);
-            }
-        }
-    }, [currentView, students, selectedStudent]);
-    
-    useEffect(() => {
-        const handleHashChange = () => setHash(window.location.hash);
-        window.addEventListener('hashchange', handleHashChange);
-        setHash(window.location.hash);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
-    
-    useEffect(() => {
-        if (userType === 'student' && !['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'].includes(currentView) && !currentView.startsWith('Student Report/')) {
-             setCurrentView('My Subjects');
-        }
-    }, [userType, currentView]);
-
-    useEffect(() => {
-        if (userProfile === undefined && session) {
-            const timer = setTimeout(() => {
-                setDbError("Request timed out. The server is taking too long to respond. Please check your internet connection or try again later.");
-            }, 15000);
-            return () => clearTimeout(timer);
-        }
-    }, [userProfile, session]);
-
-    // --- ALERT GENERATION LOGIC ---
-    useEffect(() => {
-        if (reports.length > 0) {
-            const criticalReports = reports.filter(r => 
-                (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && 
-                r.status !== 'treated'
-            );
-            
-            const reportAlerts: Alert[] = criticalReports.map(r => ({
-                id: r.id * 1000, 
-                title: `${r.analysis?.urgency} Priority Report`,
-                description: r.analysis?.summary || r.report_text.substring(0, 50) + '...',
-                severity: r.analysis?.urgency as any,
-                type: 'safety',
-                sourceId: r.id,
-                sourceType: 'report'
-            }));
-
-            setAlerts(prev => {
-                const otherAlerts = prev.filter(a => a.sourceType !== 'report');
-                return [...otherAlerts, ...reportAlerts];
-            });
-        }
-    }, [reports]);
-
-    // --- TASK REMINDERS LOGIC ---
-    useEffect(() => {
-        if (tasks.length === 0) return;
-
-        const checkReminders = () => {
-            const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-            tasks.forEach(task => {
-                if (task.status === TaskStatus.Completed) return;
-                if (task.reminder_sent) return; 
-                if (!task.reminder_minutes_before) return;
-
-                let shouldNotify = false;
-                let message = '';
-
-                // Logic for reminders based on due date
-                if (task.reminder_minutes_before >= 1440) {
-                    // 1 Day before
-                    if (task.due_date === tomorrowStr) {
-                        shouldNotify = true;
-                        message = `Reminder: Task "${task.title}" is due tomorrow.`;
-                    }
-                } else {
-                    // Same day reminder (5, 30, 60 mins - treated as "Day of" for simplicity without due_time)
-                    if (task.due_date === todayStr) {
-                         shouldNotify = true;
-                         message = `Reminder: Task "${task.title}" is due today.`;
-                    }
-                }
-
-                if (shouldNotify) {
-                    addToast(message, 'info');
-                    // Mark as sent in DB
-                    Offline.update('tasks', { reminder_sent: true }, { id: task.id });
-                    // Optimistically update local state to prevent repeated toasts in this session
-                    updateState(setTasks, { ...task, reminder_sent: true });
-                }
-            });
-        };
-        
-        // Check immediately and then every minute
-        checkReminders();
-        const timer = setInterval(checkReminders, 60000);
-        return () => clearInterval(timer);
-    }, [tasks, addToast]);
-
-
-    // --- REACTIVE AI ANALYSIS TRIGGER ---
-    useEffect(() => {
-        if (reports.length > 0 && students.length > 0 && !booting) {
-            const timer = setTimeout(() => {
-                analyzeAtRiskStudents(students, reports);
-                generateTaskSuggestions(reports);
-            }, 2000); // Debounce to prevent thrashing on rapid updates
-            return () => clearTimeout(timer);
-        }
-    }, [reports, students, booting]);
-
-
     const handleLogout = useCallback(async () => {
         if (!supabase) return;
         try {
@@ -676,6 +403,7 @@ const App: React.FC = () => {
         setCurrentView('Dashboard');
         window.location.hash = '';
     }, []);
+
 
     const fetchData = useCallback(async (user: User, forceRefresh: boolean = false) => {
         if (!supabase) return;
@@ -1187,6 +915,277 @@ const App: React.FC = () => {
             setBooting(false);
         }
     }, [addToast, handleLogout]); 
+    // --- Auth Logic & Data Fetching ---
+    
+    useEffect(() => {
+        // Clear reload lock on successful app mount
+        sessionStorage.removeItem('sg360_reload_lock');
+
+        // Auth Listener
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            if (!session) setBooting(false);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, session) => {
+            setSession(session);
+            
+            if (event === 'PASSWORD_RECOVERY') {
+                setCurrentView(VIEWS.PROFILE);
+                addToast("Password recovery link verified. Please update your password now.", "info");
+            }
+            
+            if (!session) {
+                setBooting(false);
+                setUserProfile(null);
+            } else {
+                fetchData(session.user);
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+            // Cleanup timeout on unmount
+            if (profileLoadTimeoutRef.current) {
+                clearTimeout(profileLoadTimeoutRef.current);
+            }
+        };
+    }, [addToast, fetchData]);
+
+    // --- Realtime Updates ---
+    useEffect(() => {
+        if (!session?.user) return;
+
+        const channel = supabase.channel('app_updates')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${session.user.id}` },
+                (payload) => {
+                    console.log('Profile updated remotely', payload);
+                    fetchData(session.user, true);
+                    addToast('Your profile has been updated.', 'info');
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'user_role_assignments', filter: `user_id=eq.${session.user.id}` },
+                (payload) => {
+                    console.log('Role assignments updated remotely', payload);
+                    fetchData(session.user, true);
+                    addToast('Your permissions have been updated.', 'info');
+                }
+            )
+            // NEW: Listen for notifications
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` },
+                (payload) => {
+                     const newNotif = payload.new as Notification;
+                     setNotifications(prev => [newNotif, ...prev]);
+                     addToast(newNotif.message, 'info');
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [session, addToast]); 
+
+
+    useEffect(() => {
+        const currentHash = decodeURIComponent(window.location.hash.substring(1));
+        let targetView = currentView;
+        
+        // Handle leading slash if present
+        if (targetView.startsWith('/')) targetView = targetView.substring(1);
+        let targetHash = currentHash;
+        if (targetHash.startsWith('/')) targetHash = targetHash.substring(1);
+        
+        // Ignore auth tokens in hash logic to prevent view loop
+        if (targetHash.includes('access_token=') || targetHash.includes('error=')) {
+            return; 
+        }
+
+        // Do not override hash if currentView is Dashboard but hash is something else (e.g. a public page)
+        // Only sync if they are truly different and we want to enforce state -> URL sync
+        if (targetView !== targetHash && targetHash !== 'student-login' && targetHash !== 'public-ratings' && targetHash !== 'teacher-login') {
+             window.location.hash = targetView;
+        }
+    }, [currentView]);
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            try {
+                let hash = decodeURIComponent(window.location.hash.substring(1));
+                if (hash.startsWith('/')) hash = hash.substring(1);
+                
+                // Ignore auth tokens in hash
+                if (hash.includes('access_token=') || hash.includes('error=')) {
+                    return; 
+                }
+                
+                const targetView = hash || 'Dashboard';
+                setCurrentView(targetView);
+            } catch (e) {
+                console.warn("Error decoding hash:", e);
+            }
+        };
+        
+        window.addEventListener('hashchange', handleHashChange);
+        // Trigger once on mount to capture initial hash
+        handleHashChange();
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    // --- Handle AI Navigation ---
+    const handleAINavigation = useCallback((context: NavigationContext) => {
+        if (context.targetView === 'create_task_modal') {
+            // Task creation is a modal, not a view change
+            setIsTaskModalOpen(true);
+            // If there's task data, we might need to pass it to the modal directly or via state
+            // Since TaskFormModal doesn't take initialData yet, we can pass it via navContext
+            // but we need to ensure we clear it when closing the modal.
+            setNavContext(context);
+        } else {
+            // Standard View Navigation
+            setCurrentView(context.targetView);
+            setNavContext(context);
+        }
+    }, []);
+
+
+    useEffect(() => {
+        const [view, param] = currentView.split('/');
+        if (view === 'Student Profile' && param) {
+            const studentId = Number(param);
+            if (selectedStudent?.id !== studentId) {
+                const student = students.find(s => s.id === studentId);
+                if (student) {
+                    setSelectedStudent(student);
+                } else if (students.length > 0) {
+                    // Only clear if we actually have students loaded and still didn't find a match
+                    // This prevents clearing on initial load before students are fetched
+                     setSelectedStudent(null);
+                }
+            }
+        } else {
+            if (selectedStudent) {
+                setSelectedStudent(null);
+            }
+        }
+    }, [currentView, students, selectedStudent]);
+    
+    useEffect(() => {
+        const handleHashChange = () => setHash(window.location.hash);
+        window.addEventListener('hashchange', handleHashChange);
+        setHash(window.location.hash);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+    
+    useEffect(() => {
+        if (userType === 'student' && !['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'].includes(currentView) && !currentView.startsWith('Student Report/')) {
+             setCurrentView('My Subjects');
+        }
+    }, [userType, currentView]);
+
+    useEffect(() => {
+        if (userProfile === undefined && session) {
+            const timer = setTimeout(() => {
+                setDbError("Request timed out. The server is taking too long to respond. Please check your internet connection or try again later.");
+            }, 15000);
+            return () => clearTimeout(timer);
+        }
+    }, [userProfile, session]);
+
+    // --- ALERT GENERATION LOGIC ---
+    useEffect(() => {
+        if (reports.length > 0) {
+            const criticalReports = reports.filter(r => 
+                (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && 
+                r.status !== 'treated'
+            );
+            
+            const reportAlerts: Alert[] = criticalReports.map(r => ({
+                id: r.id * 1000, 
+                title: `${r.analysis?.urgency} Priority Report`,
+                description: r.analysis?.summary || r.report_text.substring(0, 50) + '...',
+                severity: r.analysis?.urgency as any,
+                type: 'safety',
+                sourceId: r.id,
+                sourceType: 'report'
+            }));
+
+            setAlerts(prev => {
+                const otherAlerts = prev.filter(a => a.sourceType !== 'report');
+                return [...otherAlerts, ...reportAlerts];
+            });
+        }
+    }, [reports]);
+
+    // --- TASK REMINDERS LOGIC ---
+    useEffect(() => {
+        if (tasks.length === 0) return;
+
+        const checkReminders = () => {
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+            tasks.forEach(task => {
+                if (task.status === TaskStatus.Completed) return;
+                if (task.reminder_sent) return; 
+                if (!task.reminder_minutes_before) return;
+
+                let shouldNotify = false;
+                let message = '';
+
+                // Logic for reminders based on due date
+                if (task.reminder_minutes_before >= 1440) {
+                    // 1 Day before
+                    if (task.due_date === tomorrowStr) {
+                        shouldNotify = true;
+                        message = `Reminder: Task "${task.title}" is due tomorrow.`;
+                    }
+                } else {
+                    // Same day reminder (5, 30, 60 mins - treated as "Day of" for simplicity without due_time)
+                    if (task.due_date === todayStr) {
+                         shouldNotify = true;
+                         message = `Reminder: Task "${task.title}" is due today.`;
+                    }
+                }
+
+                if (shouldNotify) {
+                    addToast(message, 'info');
+                    // Mark as sent in DB
+                    Offline.update('tasks', { reminder_sent: true }, { id: task.id });
+                    // Optimistically update local state to prevent repeated toasts in this session
+                    updateState(setTasks, { ...task, reminder_sent: true });
+                }
+            });
+        };
+        
+        // Check immediately and then every minute
+        checkReminders();
+        const timer = setInterval(checkReminders, 60000);
+        return () => clearInterval(timer);
+    }, [tasks, addToast]);
+
+
+    // --- REACTIVE AI ANALYSIS TRIGGER ---
+    useEffect(() => {
+        if (reports.length > 0 && students.length > 0 && !booting) {
+            const timer = setTimeout(() => {
+                analyzeAtRiskStudents(students, reports);
+                generateTaskSuggestions(reports);
+            }, 2000); // Debounce to prevent thrashing on rapid updates
+            return () => clearTimeout(timer);
+        }
+    }, [reports, students, booting]);
 
     const analyzeAtRiskStudents = useCallback(async (allStudents: Student[], allReports: ReportRecord[]) => {
         if (!aiClient || allStudents.length === 0 || allReports.length === 0) return;
