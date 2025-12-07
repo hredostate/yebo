@@ -1,34 +1,20 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { supabase } from '../services/supabaseClient';
+import React, { useMemo } from 'react';
 import type { UserProfile, PayrollAdjustment } from '../types';
 import Spinner from './common/Spinner';
 import { BanknotesIcon } from './common/icons';
 
 interface MyAdjustmentsViewProps {
     currentUser: UserProfile;
+    adjustments?: PayrollAdjustment[];
+    isLoading?: boolean;
 }
 
-const MyAdjustmentsView: React.FC<MyAdjustmentsViewProps> = ({ currentUser }) => {
-    const [adjustments, setAdjustments] = useState<PayrollAdjustment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchAdjustments = async () => {
-            setIsLoading(true);
-            const { data, error } = await supabase
-                .from('payroll_adjustments')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
-            
-            if (!error && data) {
-                setAdjustments(data);
-            }
-            setIsLoading(false);
-        }
-        fetchAdjustments();
-    }, [currentUser.id]);
+const MyAdjustmentsView: React.FC<MyAdjustmentsViewProps> = ({ 
+    currentUser, 
+    adjustments = [], 
+    isLoading = false 
+}) => {
 
     const { totalAdditions, totalDeductions, pendingCount } = useMemo(() => {
         let additions = 0;

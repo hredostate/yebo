@@ -7,19 +7,34 @@ import { PlusCircleIcon } from './common/icons';
 interface LeaveRequestViewProps {
     currentUser: UserProfile;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    leaveRequests?: LeaveRequest[];
+    leaveTypes?: LeaveType[];
+    onSave?: (data: Partial<LeaveRequest>) => Promise<boolean>;
+    onDelete?: (id: number) => Promise<boolean>;
 }
 
-const LeaveRequestView: React.FC<LeaveRequestViewProps> = ({ currentUser, addToast }) => {
-    const [requests, setRequests] = useState<LeaveRequest[]>([]);
-    const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+const LeaveRequestView: React.FC<LeaveRequestViewProps> = ({ 
+    currentUser, 
+    addToast,
+    leaveRequests: propsRequests,
+    leaveTypes: propsTypes,
+    onSave,
+    onDelete
+}) => {
+    // Only fetch internally if props not provided (fallback for standalone use)
+    const [internalRequests, setInternalRequests] = useState<LeaveRequest[]>([]);
+    const [internalTypes, setInternalTypes] = useState<LeaveType[]>([]);
+    const [isLoading, setIsLoading] = useState(!propsRequests);
     const [isFormOpen, setIsFormOpen] = useState(false);
+
+    const requests = propsRequests || internalRequests;
+    const leaveTypes = propsTypes || internalTypes;
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         const { data: types, error: typesError } = await supabase.from('leave_types').select('*');
         if (typesError) addToast('Failed to load leave types.', 'error');
-        else setLeaveTypes(types || []);
+        else setInternalTypes(types || []);
 
         const { data: requestsData, error: requestsError } = await supabase
             .from('leave_requests')
@@ -28,16 +43,30 @@ const LeaveRequestView: React.FC<LeaveRequestViewProps> = ({ currentUser, addToa
             .order('start_date', { ascending: false });
 
         if (requestsError) addToast('Failed to load leave history.', 'error');
-        else setRequests(requestsData || []);
+        else setInternalRequests(requestsData || []);
 
         setIsLoading(false);
     }, [currentUser.id, addToast]);
 
+    // Only fetch if props not provided
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        if (!propsRequests || !propsTypes) {
+            fetchData();
+        }
+    }, [propsRequests, propsTypes, fetchData]);
 
     const handleSave = async (data: Partial<Omit<LeaveRequest, 'id'>>) => {
+        // Use provided onSave if available, otherwise use internal implementation
+        if (onSave) {
+            const success = await onSave(data as Partial<LeaveRequest>);
+            if (success && !propsRequests) {
+                // Only refetch if using internal state
+                await fetchData();
+            }
+            return success;
+        }
+        
+        // Fallback to internal implementation
         const { error } = await supabase.from('leave_requests').insert({
             ...data,
             requester_id: currentUser.id,

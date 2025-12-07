@@ -667,7 +667,10 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 teams={data.teams}
              />;
         case VIEWS.MY_ADJUSTMENTS:
-             return <MyAdjustmentsView currentUser={data.userProfile} />;
+             return <MyAdjustmentsView 
+                currentUser={data.userProfile} 
+                adjustments={data.payrollAdjustments?.filter((a: any) => a.user_id === data.userProfile.id)}
+             />;
         case VIEWS.STUDENT_FINANCE:
              return <StudentFinanceView 
                 addToast={actions.addToast}

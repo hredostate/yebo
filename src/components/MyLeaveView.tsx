@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import React, { useState } from 'react';
 import type { LeaveRequest, LeaveType, UserProfile, LeaveRequestStatus } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon } from './common/icons';
@@ -71,23 +70,7 @@ const MyLeaveView: React.FC<MyLeaveViewProps> = ({ currentUser, addToast, leaveR
         }
     };
     
-    // Internal backup fetch if props are empty (optional, for standalone testing)
-    const [internalRequests, setInternalRequests] = useState<LeaveRequest[]>([]);
-    useEffect(() => {
-        if (leaveRequests.length === 0) {
-            const fetchInternal = async () => {
-                const { data } = await supabase
-                    .from('leave_requests')
-                    .select('*, leave_type:leave_types!leave_type_id(*)')
-                    .eq('requester_id', currentUser.id)
-                    .order('start_date', { ascending: false });
-                if (data) setInternalRequests(data);
-            };
-            fetchInternal();
-        }
-    }, [leaveRequests.length, currentUser.id]);
-
-    const displayRequests = leaveRequests.length > 0 ? leaveRequests : internalRequests;
+    const displayRequests = leaveRequests;
 
     return (
         <div className="space-y-6 animate-fade-in">
