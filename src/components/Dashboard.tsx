@@ -50,6 +50,7 @@ interface DashboardProps {
   users: UserProfile[];
   userPermissions: string[];
   taskSuggestions: SuggestedTask[];
+  areFallbackSuggestions?: boolean;
   sipLogs: SIPLog[];
   todaysCheckin: TeacherCheckin | null | undefined;
   onNavigate: (view: string) => void;
@@ -72,7 +73,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-    const { userProfile, onNavigate, onViewStudent, taskSuggestions, onAcceptTaskSuggestion, onDismissTaskSuggestion, users, onViewIntervention, sipLogs, todaysCheckin, handleCheckinOut, campuses, addToast } = props;
+    const { userProfile, onNavigate, onViewStudent, taskSuggestions, areFallbackSuggestions, onAcceptTaskSuggestion, onDismissTaskSuggestion, users, onViewIntervention, sipLogs, todaysCheckin, handleCheckinOut, campuses, addToast } = props;
     const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
     
     const userWidgetConfig = useMemo(() => {
@@ -228,6 +229,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 <div className="mb-8 glass-panel rounded-2xl p-1">
                      <TaskSuggestionsWidget 
                         taskSuggestions={taskSuggestions}
+                        areFallbackSuggestions={areFallbackSuggestions}
                         onAcceptSuggestion={onAcceptTaskSuggestion}
                         onDismissSuggestion={onDismissTaskSuggestion}
                         users={users}

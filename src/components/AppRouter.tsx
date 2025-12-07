@@ -150,6 +150,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users}
                 userPermissions={data.userPermissions}
                 taskSuggestions={data.taskSuggestions}
+                areFallbackSuggestions={data.areFallbackSuggestions}
                 sipLogs={data.sipLogs}
                 todaysCheckin={data.todaysCheckinForDashboard}
                 onNavigate={actions.setCurrentView}

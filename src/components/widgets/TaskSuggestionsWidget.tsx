@@ -5,12 +5,13 @@ import SearchableSelect from '../common/SearchableSelect';
 
 interface TaskSuggestionsWidgetProps {
   taskSuggestions: SuggestedTask[];
+  areFallbackSuggestions?: boolean;
   onAcceptSuggestion: (suggestion: SuggestedTask, assigneeId: string) => void;
   onDismissSuggestion: (suggestionId: string) => void;
   users: UserProfile[];
 }
 
-const TaskSuggestionsWidget: React.FC<TaskSuggestionsWidgetProps> = ({ taskSuggestions, onAcceptSuggestion, onDismissSuggestion, users }) => {
+const TaskSuggestionsWidget: React.FC<TaskSuggestionsWidgetProps> = ({ taskSuggestions, areFallbackSuggestions, onAcceptSuggestion, onDismissSuggestion, users }) => {
   const [assigneeIds, setAssigneeIds] = useState<Record<string, string>>({});
 
   const assignableUsers = useMemo(() => 
@@ -50,8 +51,17 @@ const TaskSuggestionsWidget: React.FC<TaskSuggestionsWidgetProps> = ({ taskSugge
     <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 animate-fade-in col-span-1 md:col-span-2">
       <div className="flex items-center mb-3">
         <WandIcon className="w-6 h-6 text-purple-600 mr-2" />
-        <h3 className="font-bold text-slate-900 dark:text-white">AI Task Suggestions</h3>
+        <h3 className="font-bold text-slate-900 dark:text-white">
+          {areFallbackSuggestions ? 'Recommended Tasks' : 'AI Task Suggestions'}
+        </h3>
       </div>
+      {areFallbackSuggestions && (
+        <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            <span className="font-semibold">⚠️ AI suggestions temporarily unavailable</span> - Showing recommended tasks based on your role and recent activity.
+          </p>
+        </div>
+      )}
       <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
         {taskSuggestions.map(suggestion => {
           const selectedAssigneeId = assigneeIds[suggestion.id] || '';
@@ -59,7 +69,11 @@ const TaskSuggestionsWidget: React.FC<TaskSuggestionsWidgetProps> = ({ taskSugge
             <div key={suggestion.id} className="p-3 bg-purple-500/10 rounded-lg border border-purple-200/60 dark:border-purple-800/60 flex items-center justify-between gap-4 flex-wrap">
               <div className="flex-grow">
                 <p className="font-semibold text-sm text-purple-800 dark:text-purple-300">{suggestion.title}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">From Recent Report Analysis (AI suggests: {suggestion.suggestedRole})</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                  {areFallbackSuggestions 
+                    ? `Recommended for: ${suggestion.suggestedRole}` 
+                    : `From Recent Report Analysis (AI suggests: ${suggestion.suggestedRole})`}
+                </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="w-48">

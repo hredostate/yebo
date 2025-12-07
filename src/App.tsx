@@ -366,6 +366,7 @@ const App: React.FC = () => {
     const [curriculumReport, setCurriculumReport] = useState<CurriculumReport | null>(null);
     const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null);
     const [taskSuggestions, setTaskSuggestions] = useState<SuggestedTask[]>([]);
+    const [areFallbackSuggestions, setAreFallbackSuggestions] = useState(false);
     const [schoolHealthReport, setSchoolHealthReport] = useState<SchoolHealthReport | null>(null);
     const [improvementPlan, setImprovementPlan] = useState<SchoolImprovementPlan | null>(null);
     const [checkinAnomalies, setCheckinAnomalies] = useState<CheckinAnomaly[]>([]);
@@ -1306,33 +1307,135 @@ const App: React.FC = () => {
         }
     }, [aiClient, addToast]);
 
+    // Generate fallback task suggestions based on user role and context
+    const generateFallbackTaskSuggestions = useCallback((allReports: ReportRecord[], userRole: RoleTitle | undefined): SuggestedTask[] => {
+        const urgentReports = allReports.filter(r => (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && !tasks.some(t => t.report_id === r.id));
+        
+        // Role-based default suggestions
+        const roleBasedSuggestions: Record<string, Array<{ title: string; description: string; priority: TaskPriority; suggestedRole: string }>> = {
+            'Admin': [
+                { title: 'Review Urgent Reports', description: 'Check and address all high-priority reports that require immediate attention', priority: TaskPriority.High, suggestedRole: 'Admin' },
+                { title: 'Update School Policies', description: 'Review and update school policies based on recent feedback', priority: TaskPriority.Medium, suggestedRole: 'Admin' },
+                { title: 'Check System Health', description: 'Verify all school systems are operating correctly', priority: TaskPriority.Medium, suggestedRole: 'Admin' },
+            ],
+            'Principal': [
+                { title: 'Review Staff Performance', description: 'Assess recent staff performance and provide feedback', priority: TaskPriority.High, suggestedRole: 'Principal' },
+                { title: 'Address Parent Concerns', description: 'Review and respond to pending parent communications', priority: TaskPriority.High, suggestedRole: 'Principal' },
+                { title: 'Weekly School Walkthrough', description: 'Conduct classroom observations and facility inspection', priority: TaskPriority.Medium, suggestedRole: 'Principal' },
+            ],
+            'Team Lead': [
+                { title: 'Team Check-in Meeting', description: 'Schedule and conduct weekly team coordination meeting', priority: TaskPriority.Medium, suggestedRole: 'Team Lead' },
+                { title: 'Review Team Reports', description: 'Check progress on team tasks and provide support where needed', priority: TaskPriority.High, suggestedRole: 'Team Lead' },
+                { title: 'Monitor Team Attendance', description: 'Track team member attendance and address any patterns', priority: TaskPriority.Medium, suggestedRole: 'Team Lead' },
+            ],
+            'Teacher': [
+                { title: 'Update Lesson Plans', description: 'Review and update lesson plans for the upcoming week', priority: TaskPriority.Medium, suggestedRole: 'Teacher' },
+                { title: 'Grade Pending Assignments', description: 'Complete grading for submitted student work', priority: TaskPriority.High, suggestedRole: 'Teacher' },
+                { title: 'Check Student Progress', description: 'Review students who may need additional support', priority: TaskPriority.Medium, suggestedRole: 'Teacher' },
+            ],
+            'Counselor': [
+                { title: 'Follow up with At-Risk Students', description: 'Check in with students flagged for additional support', priority: TaskPriority.Critical, suggestedRole: 'Counselor' },
+                { title: 'Review Intervention Plans', description: 'Update and assess effectiveness of current intervention strategies', priority: TaskPriority.High, suggestedRole: 'Counselor' },
+                { title: 'Schedule Parent Conferences', description: 'Arrange meetings with parents of students needing support', priority: TaskPriority.High, suggestedRole: 'Counselor' },
+            ],
+            'Maintenance': [
+                { title: 'Facility Safety Inspection', description: 'Conduct routine safety check of school facilities', priority: TaskPriority.High, suggestedRole: 'Maintenance' },
+                { title: 'Address Pending Repairs', description: 'Complete outstanding maintenance requests', priority: TaskPriority.High, suggestedRole: 'Maintenance' },
+                { title: 'Equipment Maintenance', description: 'Perform scheduled maintenance on school equipment', priority: TaskPriority.Medium, suggestedRole: 'Maintenance' },
+            ],
+        };
+
+        const suggestions: SuggestedTask[] = [];
+        
+        // If there are urgent reports, prioritize creating tasks from those
+        if (urgentReports.length > 0) {
+            urgentReports.slice(0, 3).forEach((report, index) => {
+                suggestions.push({
+                    id: `fallback-report-${report.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    reportId: report.id,
+                    title: `Address: ${report.analysis?.summary?.substring(0, 40) || 'Urgent Report'}...`,
+                    description: report.analysis?.summary || report.report_text.substring(0, 100),
+                    priority: report.analysis?.urgency === 'Critical' ? TaskPriority.Critical : TaskPriority.High,
+                    suggestedRole: report.assigned_to_role || userRole || 'Admin',
+                });
+            });
+        }
+        
+        // Add role-based suggestions if user role is available
+        if (userRole && roleBasedSuggestions[userRole]) {
+            const roleSuggestions = roleBasedSuggestions[userRole];
+            const numToAdd = Math.min(3 - suggestions.length, roleSuggestions.length);
+            
+            for (let i = 0; i < numToAdd; i++) {
+                const suggestion = roleSuggestions[i];
+                suggestions.push({
+                    id: `fallback-role-${userRole}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    title: suggestion.title,
+                    description: suggestion.description,
+                    priority: suggestion.priority,
+                    suggestedRole: suggestion.suggestedRole,
+                });
+            }
+        } else if (suggestions.length === 0) {
+            // Generic fallback for roles without specific suggestions
+            suggestions.push({
+                id: `fallback-generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                title: 'Review Pending Tasks',
+                description: 'Check all pending tasks and prioritize important items',
+                priority: TaskPriority.Medium,
+                suggestedRole: userRole || 'Admin',
+            });
+        }
+        
+        return suggestions.slice(0, 5); // Return up to 5 suggestions
+    }, [tasks]);
+
     const generateTaskSuggestions = useCallback(async (allReports: ReportRecord[]) => {
         if (!aiClient || allReports.length === 0) return;
         
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
-            console.log('AI in cooldown, skipping task suggestions');
+            console.log('AI in cooldown, using fallback task suggestions');
+            const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+            setTaskSuggestions(fallbackSuggestions);
+            setAreFallbackSuggestions(true);
             return;
         }
         
         try {
             const urgentReports = allReports.filter(r => (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && !tasks.some(t => t.report_id === r.id));
-            if (urgentReports.length === 0) { setTaskSuggestions([]); return; }
+            if (urgentReports.length === 0) { 
+                setTaskSuggestions([]);
+                setAreFallbackSuggestions(false);
+                return; 
+            }
             const prompt = `Analyze these urgent school reports and suggest concrete, actionable tasks. For each report, generate one task. Return a JSON array of objects, each with "reportId" (number), "title" (string, max 50 chars), "description" (string, max 150 chars), "priority" (string: 'High' or 'Critical'), and "suggestedRole" (string, one of: 'Admin', 'Principal', 'Counselor', 'Team Lead', 'Maintenance'). Reports:\n${urgentReports.map(r => `ID ${r.id}: "${r.report_text}" - Summary: ${r.analysis?.summary}`).join('\n')}`;
             const response = await aiClient.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { reportId: { type: Type.NUMBER }, title: { type: Type.STRING }, description: { type: Type.STRING }, priority: { type: Type.STRING, enum: ['High', 'Critical'] }, suggestedRole: { type: Type.STRING, enum: ['Admin', 'Principal', 'Counselor', 'Team Lead', 'Maintenance'] }, } } } } });
             const results = extractAndParseJson<Omit<SuggestedTask, 'id'>[]>(textFromGemini(response));
             if (results && Array.isArray(results)) {
                 const suggestions: SuggestedTask[] = results.map(res => ({ ...res, id: `sugg-${res.reportId}-${Date.now()}` }));
                 setTaskSuggestions(suggestions);
+                setAreFallbackSuggestions(false);
             }
         } catch (e: any) { 
             console.error("Task suggestion generation failed:", e);
             if (isRateLimitError(e)) {
                 setAiCooldown(); // Use default cooldown
-                addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
+                addToast('AI suggestions temporarily unavailable - showing recommended tasks', 'warning');
+                
+                // Provide fallback suggestions instead of leaving the user with nothing
+                const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+                setTaskSuggestions(fallbackSuggestions);
+                setAreFallbackSuggestions(true);
+            } else {
+                // For non-rate-limit errors, also provide fallback suggestions
+                console.warn('Using fallback suggestions due to error:', e.message);
+                const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+                setTaskSuggestions(fallbackSuggestions);
+                setAreFallbackSuggestions(true);
             }
         }
-    }, [aiClient, tasks, addToast]);
+    }, [aiClient, tasks, addToast, generateFallbackTaskSuggestions, userProfile]);
 
     const handleGenerateForesight = useCallback(async (question: string): Promise<UPSSGPTResponse | null> => {
         if (!aiClient) { addToast("AI client is not available.", "error"); return null; }
@@ -3524,6 +3627,7 @@ const App: React.FC = () => {
                                         policyInquiries,
                                         curriculumReport,
                                         taskSuggestions,
+                                        areFallbackSuggestions,
                                         alerts,
                                         coverageVotes,
                                         rewards,
