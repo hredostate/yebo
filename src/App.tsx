@@ -1114,6 +1114,15 @@ const App: React.FC = () => {
         // Clear reload lock on successful app mount
         sessionStorage.removeItem('sg360_reload_lock');
 
+        // Log debug mode status
+        if (debugMode) {
+            console.log('%c[DEBUG MODE] Debug logging is enabled', 'color: #10b981; font-weight: bold; font-size: 14px;');
+            console.log('%cTo disable: localStorage.removeItem("debug_mode")', 'color: #6b7280; font-size: 12px;');
+        } else {
+            console.log('%cTip: Enable debug mode for detailed logging', 'color: #6b7280; font-size: 12px;');
+            console.log('%clocalStorage.setItem("debug_mode", "true")', 'color: #6b7280; font-size: 12px;');
+        }
+
         // Auth Listener
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
