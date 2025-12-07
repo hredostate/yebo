@@ -1,29 +1,42 @@
 
 import React from 'react';
-import type { StudentTermReport, Student, GradingScheme, SchoolConfig, Term } from '../types';
+import type { StudentTermReport, Student, GradingScheme, SchoolConfig, Term, AssessmentComponent } from '../types';
 
 interface ResultSheetProps {
     report: StudentTermReport;
     student: Student;
     subjects: Array<{
         subject_name: string;
+        component_scores?: Record<string, number>; // e.g. { "CA1": 10, "CA2": 15, "Exam": 50 }
         ca_score: number;
         exam_score: number;
         total_score: number;
         grade: string;
         remark: string;
         teacher_comment?: string;
+        subject_position?: number;
     }>;
+    assessmentComponents?: AssessmentComponent[]; // Component definitions like [{ name: "CA1", max_score: 10 }]
     gradingScheme: GradingScheme;
     schoolConfig: SchoolConfig | null;
     term: Term;
     classPosition: number;
     classSize: number;
+    gradeLevelPosition?: number;
+    gradeLevelSize?: number;
 }
+
+// Helper function to get ordinal suffix (1st, 2nd, 3rd, etc.)
+const getOrdinal = (n: number | undefined | null): string => {
+    if (!n) return '-';
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 // Design 1: Modern Gradient Card Design
 export const ModernGradientResultSheet: React.FC<ResultSheetProps> = ({
-    report, student, subjects, gradingScheme, schoolConfig, term, classPosition, classSize
+    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize
 }) => {
     const getGradeColor = (grade: string) => {
         const colors: Record<string, string> = {
@@ -90,8 +103,20 @@ export const ModernGradientResultSheet: React.FC<ResultSheetProps> = ({
                             <div className="flex-1">
                                 <p className="font-bold text-slate-800">{subject.subject_name}</p>
                                 <div className="flex gap-4 text-sm text-slate-500 mt-1">
-                                    <span>CA: {subject.ca_score}</span>
-                                    <span>Exam: {subject.exam_score}</span>
+                                    {subject.component_scores && Object.keys(subject.component_scores).length > 0 ? (
+                                        // Show component breakdown if available
+                                        <>
+                                            {Object.entries(subject.component_scores).map(([name, score]) => (
+                                                <span key={name}>{name}: {score}</span>
+                                            ))}
+                                        </>
+                                    ) : (
+                                        // Fallback to CA/Exam if no components
+                                        <>
+                                            <span>CA: {subject.ca_score}</span>
+                                            <span>Exam: {subject.exam_score}</span>
+                                        </>
+                                    )}
                                     <span className="font-bold text-slate-700">Total: {subject.total_score}</span>
                                 </div>
                             </div>
@@ -133,8 +158,14 @@ export const ModernGradientResultSheet: React.FC<ResultSheetProps> = ({
 
 // Design 2: Banded Rows Table Design (Classic)
 export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
-    report, student, subjects, gradingScheme, schoolConfig, term, classPosition, classSize
+    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize
 }) => {
+    const getOrdinalSuffix = (n: number) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return s[(v - 20) % 10] || s[v] || s[0];
+    };
+
     return (
         <div className="bg-white max-w-4xl mx-auto print:shadow-none">
             {/* Formal Header */}
@@ -180,7 +211,7 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
                         <tr>
                             <td className="border border-slate-300 p-2 bg-slate-100 font-semibold">Class:</td>
                             <td className="border border-slate-300 p-2">{student.grade} {student.arm}</td>
-                            <td className="border border-slate-300 p-2 bg-slate-100 font-semibold">Position:</td>
+                            <td className="border border-slate-300 p-2 bg-slate-100 font-semibold">Position in Arm:</td>
                             <td className="border border-slate-300 p-2">{classPosition}<sup>{getOrdinalSuffix(classPosition)}</sup> out of {classSize}</td>
                         </tr>
                         <tr>
@@ -189,6 +220,12 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
                             <td className="border border-slate-300 p-2 bg-slate-100 font-semibold">Average:</td>
                             <td className="border border-slate-300 p-2 font-bold text-indigo-700">{report.average_score?.toFixed(2)}%</td>
                         </tr>
+                        {gradeLevelPosition && gradeLevelSize && (
+                            <tr>
+                                <td className="border border-slate-300 p-2 bg-slate-100 font-semibold">Position in Grade:</td>
+                                <td className="border border-slate-300 p-2" colSpan={3}>{gradeLevelPosition}<sup>{getOrdinalSuffix(gradeLevelPosition)}</sup> out of {gradeLevelSize}</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -200,10 +237,27 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
                         <tr className="bg-slate-800 text-white">
                             <th className="border border-slate-600 p-2 text-left">S/N</th>
                             <th className="border border-slate-600 p-2 text-left">Subject</th>
-                            <th className="border border-slate-600 p-2 text-center">CA Score</th>
-                            <th className="border border-slate-600 p-2 text-center">Exam Score</th>
+                            {assessmentComponents && assessmentComponents.length > 0 ? (
+                                // Dynamic component columns
+                                <>
+                                    {assessmentComponents.map((comp, idx) => (
+                                        <th key={idx} className="border border-slate-600 p-2 text-center">
+                                            {comp.name}
+                                            <br />
+                                            <span className="text-xs font-normal">/{comp.max_score}</span>
+                                        </th>
+                                    ))}
+                                </>
+                            ) : (
+                                // Fallback to CA/Exam columns
+                                <>
+                                    <th className="border border-slate-600 p-2 text-center">CA Score</th>
+                                    <th className="border border-slate-600 p-2 text-center">Exam Score</th>
+                                </>
+                            )}
                             <th className="border border-slate-600 p-2 text-center">Total</th>
                             <th className="border border-slate-600 p-2 text-center">Grade</th>
+                            <th className="border border-slate-600 p-2 text-center">Position</th>
                             <th className="border border-slate-600 p-2 text-left">Remark</th>
                         </tr>
                     </thead>
@@ -212,8 +266,22 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
                             <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                 <td className="border border-slate-300 p-2 text-center">{idx + 1}</td>
                                 <td className="border border-slate-300 p-2 font-medium">{subject.subject_name}</td>
-                                <td className="border border-slate-300 p-2 text-center">{subject.ca_score}</td>
-                                <td className="border border-slate-300 p-2 text-center">{subject.exam_score}</td>
+                                {assessmentComponents && assessmentComponents.length > 0 ? (
+                                    // Render component scores dynamically
+                                    <>
+                                        {assessmentComponents.map((comp, compIdx) => (
+                                            <td key={compIdx} className="border border-slate-300 p-2 text-center">
+                                                {subject.component_scores?.[comp.name] ?? '-'}
+                                            </td>
+                                        ))}
+                                    </>
+                                ) : (
+                                    // Fallback to CA/Exam
+                                    <>
+                                        <td className="border border-slate-300 p-2 text-center">{subject.ca_score}</td>
+                                        <td className="border border-slate-300 p-2 text-center">{subject.exam_score}</td>
+                                    </>
+                                )}
                                 <td className="border border-slate-300 p-2 text-center font-bold">{subject.total_score}</td>
                                 <td className="border border-slate-300 p-2 text-center">
                                     <span className={`px-2 py-0.5 rounded font-bold ${
@@ -226,6 +294,7 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
                                         {subject.grade}
                                     </span>
                                 </td>
+                                <td className="border border-slate-300 p-2 text-center text-xs">{getOrdinal(subject.subject_position)}</td>
                                 <td className="border border-slate-300 p-2 text-sm">{subject.remark}</td>
                             </tr>
                         ))}
@@ -274,7 +343,7 @@ export const BandedRowsResultSheet: React.FC<ResultSheetProps> = ({
 
 // Design 3: Dark Mode Executive Style
 export const ExecutiveDarkResultSheet: React.FC<ResultSheetProps> = ({
-    report, student, subjects, gradingScheme, schoolConfig, term, classPosition, classSize
+    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize
 }) => {
     const getPerformanceLevel = (score: number) => {
         if (score >= 70) return { label: 'Excellent', color: 'text-emerald-400', bg: 'bg-emerald-500/20' };
@@ -435,7 +504,7 @@ export const ExecutiveDarkResultSheet: React.FC<ResultSheetProps> = ({
 
 // Design 4: Minimalist Clean Design
 export const MinimalistResultSheet: React.FC<ResultSheetProps> = ({
-    report, student, subjects, gradingScheme, schoolConfig, term, classPosition, classSize
+    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize
 }) => {
     return (
         <div className="bg-white max-w-3xl mx-auto p-12 font-sans">

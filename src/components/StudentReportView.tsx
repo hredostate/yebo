@@ -10,6 +10,7 @@ interface StudentReportViewProps {
   studentId: number;
   termId: number;
   onBack: () => void;
+  isStudentUser?: boolean; // True if logged in user is a student
 }
 
 interface CompositeSubject {
@@ -49,7 +50,7 @@ const PerformanceChart: React.FC<{ data: { name: string, score: number }[], them
     );
 }
 
-const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId, onBack }) => {
+const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId, onBack, isStudentUser = false }) => {
   const [reportDetails, setReportDetails] = useState<StudentTermReportDetails | null>(null);
   const [compositeData, setCompositeData] = useState<CompositeSubject[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +58,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   const [activeGradingScheme, setActiveGradingScheme] = useState<GradingScheme | null>(null);
   const [isOwing, setIsOwing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [assessmentComponents, setAssessmentComponents] = useState<Array<{ name: string; max_score: number }> | null>(null);
 
   useEffect(() => {
     const fetchReportAndStatus = async () => {
@@ -88,13 +90,17 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           .maybeSingle();
       
       if (reportMeta && !reportMeta.is_published) {
-           // If user is a student (we assume role check done in parent or context), block.
-           // For now we just set a flag.
+           // If user is a student, block access completely
+           if (isStudentUser) {
+               setError('This report has not been published yet. Please check back later.');
+               setIsLoading(false);
+               return;
+           }
+           // Staff can view with indicator
            setIsPublished(false);
       } else {
            setIsPublished(true);
       }
-
 
       // 1. Fetch basic report details for the CURRENT term via RPC
       const { data, error: rpcError } = await supabase.rpc('get_student_term_report_details', {
@@ -123,7 +129,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
            // Best effort lookup by name (RPC returns name string)
            // Or fetch from `academic_class_students` -> `academic_classes`
            const { data: classData } = await supabase.from('academic_classes')
-             .select('report_config')
+             .select('report_config, assessment_structure_id')
              .eq('session_label', data.term.sessionLabel)
              .textSearch('name', data.student.className) // Rough match, ideally we'd have classId in RPC
              .limit(1)
@@ -131,6 +137,19 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
              
            if (classData && classData.report_config) {
                data.classReportConfig = classData.report_config;
+           }
+           
+           // Fetch assessment structure to get component definitions
+           if (classData?.assessment_structure_id) {
+               const { data: assessmentStructure } = await supabase
+                   .from('assessment_structures')
+                   .select('components')
+                   .eq('id', classData.assessment_structure_id)
+                   .maybeSingle();
+               
+               if (assessmentStructure?.components) {
+                   setAssessmentComponents(assessmentStructure.components);
+               }
            }
       }
 

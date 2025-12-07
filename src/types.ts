@@ -735,6 +735,7 @@ export interface StudentTermReportDetails {
     };
     subjects: {
         subjectName: string;
+        componentScores?: Record<string, number>; // e.g. { "CA1": 10, "CA2": 15, "Exam": 50 }
         totalScore: number;
         gradeLabel: string;
         remark: string;
@@ -744,6 +745,7 @@ export interface StudentTermReportDetails {
         average: number;
         positionInArm: number;
         positionInGradeLevel: number | null;
+        gradeLevelSize?: number;
         gpaAverage?: number | null;
     };
     attendance: {

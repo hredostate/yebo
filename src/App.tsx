@@ -3040,7 +3040,7 @@ const App: React.FC = () => {
                         const parts = currentView.split('/');
                         // format: Student Report/studentId/termId
                         const termId = Number(parts[2]);
-                        return <StudentReportView studentId={studentProfile.student_record_id} termId={termId} onBack={() => setCurrentView('Reports')} />;
+                        return <StudentReportView studentId={studentProfile.student_record_id} termId={termId} onBack={() => setCurrentView('Reports')} isStudentUser={true} />;
                     }
                     if (currentView.startsWith('Take Quiz/')) {
                          const quizId = Number(currentView.split('/')[1]);

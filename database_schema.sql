@@ -1419,6 +1419,10 @@ DECLARE
     v_subjects JSONB;
     v_report_row public.student_term_reports%ROWTYPE;
     v_attendance JSONB;
+    v_student_level TEXT;
+    v_session_label TEXT;
+    v_grade_level_position INTEGER;
+    v_grade_level_size INTEGER;
 BEGIN
     -- 1. Student Info
     SELECT jsonb_build_object('id', s.id, 'fullName', s.name, 'className', c.name)
@@ -1441,23 +1445,54 @@ BEGIN
     FROM public.student_term_reports
     WHERE student_id = p_student_id AND term_id = p_term_id;
 
-    -- 5. Subjects (from score_entries)
+    -- 4.5. Get student's grade level and session for position calculations
+    SELECT ac.level, ac.session_label
+    INTO v_student_level, v_session_label
+    FROM public.score_entries se
+    JOIN public.academic_classes ac ON se.academic_class_id = ac.id
+    WHERE se.student_id = p_student_id AND se.term_id = p_term_id
+    LIMIT 1;
+
+    -- 5. Subjects (from score_entries) with grade level-based position
     SELECT jsonb_agg(jsonb_build_object(
         'subjectName', se.subject_name,
+        'componentScores', COALESCE(se.component_scores, '{}'::jsonb),
         'totalScore', se.total_score,
         'gradeLabel', se.grade,
         'remark', COALESCE(se.teacher_comment, '-'),
         'subjectPosition', (
             SELECT COUNT(*) + 1 
             FROM public.score_entries se2 
+            JOIN public.academic_classes ac2 ON se2.academic_class_id = ac2.id
             WHERE se2.term_id = p_term_id 
               AND se2.subject_name = se.subject_name 
               AND se2.total_score > se.total_score
+              AND ac2.level = v_student_level
+              AND ac2.session_label = v_session_label
         )
     ))
     INTO v_subjects
     FROM public.score_entries se
     WHERE se.student_id = p_student_id AND se.term_id = p_term_id;
+
+    -- 5.5. Calculate grade level position (across all arms)
+    SELECT COUNT(*) + 1 INTO v_grade_level_position
+    FROM public.student_term_reports str
+    JOIN public.score_entries se ON str.student_id = se.student_id AND str.term_id = se.term_id
+    JOIN public.academic_classes ac ON se.academic_class_id = ac.id
+    WHERE str.term_id = p_term_id
+      AND ac.level = v_student_level
+      AND ac.session_label = v_session_label
+      AND str.average_score > v_report_row.average_score;
+
+    -- 5.6. Calculate grade level size
+    SELECT COUNT(DISTINCT str.student_id) INTO v_grade_level_size
+    FROM public.student_term_reports str
+    JOIN public.score_entries se ON str.student_id = se.student_id AND str.term_id = se.term_id
+    JOIN public.academic_classes ac ON se.academic_class_id = ac.id
+    WHERE str.term_id = p_term_id
+      AND ac.level = v_student_level
+      AND ac.session_label = v_session_label;
 
     -- 6. Attendance (Mock for now or aggregate)
     v_attendance := jsonb_build_object('present', 0, 'possible', 0);
@@ -1470,7 +1505,8 @@ BEGIN
         'summary', jsonb_build_object(
             'average', v_report_row.average_score,
             'positionInArm', v_report_row.position_in_class,
-            'positionInGradeLevel', v_report_row.position_in_grade,
+            'positionInGradeLevel', COALESCE(v_grade_level_position, v_report_row.position_in_grade),
+            'gradeLevelSize', v_grade_level_size,
             'gpaAverage', 0
         ),
         'attendance', v_attendance,
