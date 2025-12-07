@@ -774,6 +774,9 @@ const App: React.FC = () => {
                         
                         const fetchOrders = async () => {
                             // Try full orders query with order_notes, fallback to simpler one if it fails
+                            // Note: This pattern is duplicated in handleCreateOrder due to scope limitations.
+                            // fetchOrders is defined inside this IIFE and not accessible from other handlers.
+                            // Extracting to a shared function would require significant refactoring.
                             try {
                                 const fullQuery = await supabase.from('orders')
                                     .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email), notes:order_notes(*, author:user_profiles!author_id(name))')
@@ -786,6 +789,11 @@ const App: React.FC = () => {
                                 const fallbackQuery = await supabase.from('orders')
                                     .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
                                     .order('created_at', { ascending: false });
+                                
+                                if (fallbackQuery.error) {
+                                    console.error('[Orders] Fallback query also failed:', fallbackQuery.error);
+                                    return [];
+                                }
                                 return fallbackQuery.data ?? [];
                             }
                         };
@@ -1016,8 +1024,11 @@ const App: React.FC = () => {
                             
                             console.log('[Auth] Background data loaded successfully');
 
-                            analyzeAtRiskStudents(getCriticalData(2), getCriticalData(1));
-                            generateTaskSuggestions(getCriticalData(1));
+                            // Analyze at-risk students and generate task suggestions using critical data
+                            const students = getCriticalData(2);
+                            const reports = getCriticalData(1);
+                            analyzeAtRiskStudents(students, reports);
+                            generateTaskSuggestions(reports);
                         });
                     } catch (error: any) {
                         console.error('[Auth] Critical data fetching error:', error);
@@ -3714,10 +3725,16 @@ const App: React.FC = () => {
             if (fullQuery.data) setOrders(fullQuery.data as any);
         } catch (e) {
             console.warn('[Orders] Full query failed, using fallback without notes:', e);
-            const { data: newOrders } = await supabase.from('orders')
+            const fallbackQuery = await supabase.from('orders')
                 .select('*, items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), user:user_profiles!user_id(name, email)')
                 .order('created_at', { ascending: false });
-            if (newOrders) setOrders(newOrders as any);
+            
+            if (fallbackQuery.error) {
+                console.error('[Orders] Fallback query also failed:', fallbackQuery.error);
+                addToast('Order created but failed to refresh order list. Please refresh the page.', 'warning');
+            } else if (fallbackQuery.data) {
+                setOrders(fallbackQuery.data as any);
+            }
         }
 
         return true;
