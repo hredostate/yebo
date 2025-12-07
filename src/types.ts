@@ -1372,3 +1372,31 @@ export interface BankProvider {
     bank_id: number;
     bank_name: string;
 }
+
+// Form data interfaces for handler parameters
+export interface StudentFormData {
+    name: string;
+    date_of_birth: string;
+    status: StudentStatus;
+    reward_points?: number;
+    parent_phone_number_1?: string;
+    parent_phone_number_2?: string;
+    class_id?: number | null;
+    arm_id?: number | null;
+    address?: string;
+    email?: string;
+}
+
+export interface PayrollUpdateData {
+    base_salary?: number;
+    bank_name?: string;
+    account_number?: string;
+    paystack_recipient_code?: string;
+}
+
+export interface CommunicationLogData {
+    student_id: number;
+    method: string;
+    notes: string;
+    communication_type?: string;
+}

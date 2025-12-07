@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { aiClient, aiClientError } from './services/aiClient';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -22,6 +22,7 @@ import Header from './components/Header';
 import EnvironmentSetupError from './components/EnvironmentSetupError';
 import DatabaseSetupError from './components/DatabaseSetupError';
 import PositiveBehaviorModal from './components/PositiveBehaviorModal';
+import CreateStudentAccountModal from './components/CreateStudentAccountModal';
 import Toast from './components/Toast';
 import Spinner from './components/common/Spinner';
 import TourModal from './components/TourModal';
@@ -271,6 +272,7 @@ const App: React.FC = () => {
     // --- Smart Navigation Context ---
     const [navContext, setNavContext] = useState<NavigationContext | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); // Manually control task modal from App level for Copilot access
+    const [isCreateStudentAccountModalOpen, setIsCreateStudentAccountModalOpen] = useState(false);
     
     const [booting, setBooting] = useState(true);
     const lastFetchedUserId = useRef<string | null>(null);
@@ -2320,7 +2322,7 @@ const App: React.FC = () => {
     }, [userProfile, session, fetchData]);
 
 
-    const handleAddStudent = useCallback(async (studentData: any): Promise<boolean> => {
+    const handleAddStudent = useCallback(async (studentData: StudentFormData): Promise<boolean> => {
         if (!userProfile) return false;
         const { error, data } = await Offline.insert('students', { ...studentData, school_id: userProfile.school_id });
         if (error) {
@@ -4016,7 +4018,7 @@ const App: React.FC = () => {
     }, [userProfile, rewards, addToast]);
 
     // --- Payroll Handler ---
-    const handleUpdateUserPayroll = useCallback(async (userId: string, payrollData: any): Promise<boolean> => {
+    const handleUpdateUserPayroll = useCallback(async (userId: string, payrollData: PayrollUpdateData): Promise<boolean> => {
         if (!userProfile) return false;
         try {
             const { error } = await Offline.update('user_profiles', payrollData, { id: userId });
@@ -4032,11 +4034,9 @@ const App: React.FC = () => {
 
     // --- Student Account Handlers ---
     const handleOpenCreateStudentAccountModal = useCallback(() => {
-        // TODO: Implement modal state management to open student account creation modal
-        // This is a UI handler that should set a state variable to open the modal
-        addToast('Student account creation feature coming soon.', 'info');
+        setIsCreateStudentAccountModalOpen(true);
         return true;
-    }, [addToast]);
+    }, []);
 
     const handleResetStudentPassword = useCallback(async (userId: string): Promise<string | null> => {
         return await handleStudentPasswordReset(userId);
@@ -4056,7 +4056,7 @@ const App: React.FC = () => {
         }
     }, [userProfile, addToast]);
 
-    const handleLogCommunication = useCallback(async (communicationData: any): Promise<boolean> => {
+    const handleLogCommunication = useCallback(async (communicationData: CommunicationLogData): Promise<boolean> => {
         if (!userProfile) return false;
         try {
             const { data, error } = await Offline.insert('communications', {
@@ -4164,43 +4164,253 @@ const App: React.FC = () => {
 
     const handleGenerateImprovementPlan = useCallback(async (): Promise<any> => {
         if (!userProfile) return null;
+        if (!aiClient || !session) {
+            addToast("AI client is not configured.", "error");
+            return null;
+        }
+        
         try {
-            // TODO: Implement AI-powered school improvement plan generation
-            // This should analyze school data and generate actionable improvement plans
             if (isAiInCooldown()) {
                 addToast('AI service is in cooldown. Please try again in a few minutes.', 'info');
                 return null;
             }
             
-            addToast('Improvement plan generation feature coming soon.', 'info');
-            const plan = {
-                areas_of_improvement: [],
-                recommendations: [],
-                timeline: [],
+            addToast('Generating School Improvement Plan...', 'info');
+            
+            // Collect school data for analysis
+            const reportCount = reports.length;
+            const taskCompletionRate = tasks.length > 0 
+                ? (tasks.filter(t => t.status === TaskStatus.Completed).length / tasks.length) * 100 
+                : 100;
+            const atRiskCount = atRiskStudents.length;
+            const positiveBehaviorCount = positiveRecords.length;
+            const totalStudents = students.length;
+            const lessonPlanSubmissionRate = lessonPlans.length > 0 
+                ? (lessonPlans.filter(lp => lp.status === 'submitted' || lp.status === 'approved').length / lessonPlans.length) * 100
+                : 100;
+            
+            // Build context for AI
+            const context = {
+                total_reports: reportCount,
+                task_completion_rate: taskCompletionRate.toFixed(1),
+                at_risk_students: atRiskCount,
+                total_students: totalStudents,
+                positive_behaviors: positiveBehaviorCount,
+                lesson_plan_submission_rate: lessonPlanSubmissionRate.toFixed(1)
             };
-            return plan;
+            
+            const prompt = `You are an AI school administrator analyzing school performance data. Generate a comprehensive School Improvement Plan in JSON format.
+
+Data Summary:
+- Total Reports: ${context.total_reports}
+- Task Completion Rate: ${context.task_completion_rate}%
+- At-Risk Students: ${context.at_risk_students} out of ${context.total_students}
+- Positive Behavior Records: ${context.positive_behaviors}
+- Lesson Plan Submission Rate: ${context.lesson_plan_submission_rate}%
+
+Generate a JSON object with:
+1. "executive_summary": A clear summary of the school's current state and improvement opportunities (2-3 sentences)
+2. "strategic_goals": An array of 3-5 goals, each with:
+   - "goal": The strategic goal statement
+   - "initiatives": Array of 2-4 specific action items
+   - "kpi": A measurable key performance indicator
+3. "data_summary": An object with:
+   - "total_reports": The total number of reports
+   - "key_themes": Array of 3-5 key themes or patterns observed in the data`;
+
+            const response = await aiClient.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            executive_summary: { type: Type.STRING },
+                            strategic_goals: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        goal: { type: Type.STRING },
+                                        initiatives: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                        kpi: { type: Type.STRING }
+                                    },
+                                    required: ['goal', 'initiatives', 'kpi']
+                                }
+                            },
+                            data_summary: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    total_reports: { type: Type.NUMBER },
+                                    key_themes: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                },
+                                required: ['total_reports', 'key_themes']
+                            }
+                        },
+                        required: ['executive_summary', 'strategic_goals', 'data_summary']
+                    }
+                }
+            });
+
+            const planData = extractAndParseJson<Omit<SchoolImprovementPlan, 'generated_at'>>(textFromGemini(response));
+            if (!planData) throw new Error("Invalid AI response");
+
+            const improvementPlan: SchoolImprovementPlan = {
+                ...planData,
+                generated_at: new Date().toISOString()
+            };
+
+            // Save to school settings
+            await handleUpdateSchoolSettings({
+                school_documents: {
+                    ...schoolSettings?.school_documents,
+                    improvement_plan: improvementPlan
+                }
+            });
+
+            addToast('School Improvement Plan generated successfully.', 'success');
+            if (session.user) fetchData(session.user, true);
+            
+            return improvementPlan;
         } catch (e: any) {
-            addToast(`Error: ${e.message}`, 'error');
+            console.error(e);
+            if (isRateLimitError(e)) {
+                setAiCooldown();
+                addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
+            } else {
+                addToast(`Failed to generate improvement plan: ${e.message}`, 'error');
+            }
             return null;
         }
-    }, [userProfile, isAiInCooldown, addToast]);
+    }, [userProfile, aiClient, session, isAiInCooldown, addToast, reports, tasks, atRiskStudents, students, positiveRecords, lessonPlans, schoolSettings, handleUpdateSchoolSettings, fetchData, isRateLimitError, setAiCooldown]);
 
     const handleGenerateCoverageDeviationReport = useCallback(async (): Promise<any> => {
         if (!userProfile) return null;
-        try {
-            // TODO: Implement curriculum coverage deviation analysis
-            // This should analyze curriculum coverage vs planned coverage and generate reports
-            addToast('Coverage deviation report generation feature coming soon.', 'info');
-            const report = {
-                deviations: [],
-                summary: {},
-            };
-            return report;
-        } catch (e: any) {
-            addToast(`Error: ${e.message}`, 'error');
+        if (!aiClient || !session) {
+            addToast("AI client is not configured.", "error");
             return null;
         }
-    }, [userProfile, addToast]);
+        
+        try {
+            if (isAiInCooldown()) {
+                addToast('AI service is in cooldown. Please try again in a few minutes.', 'info');
+                return null;
+            }
+            
+            addToast('Generating Coverage Deviation Report...', 'info');
+            
+            // Analyze lesson plans and curriculum coverage
+            const lessonPlansByTeacher = lessonPlans.reduce((acc, lp) => {
+                const teacherName = lp.author?.name || 'Unknown';
+                const assignment = lp.teaching_entity?.subject_name || 'Unknown Subject';
+                const key = `${teacherName}-${assignment}`;
+                
+                if (!acc[key]) {
+                    acc[key] = {
+                        teacherName,
+                        assignment,
+                        plans: []
+                    };
+                }
+                acc[key].plans.push(lp);
+                return acc;
+            }, {} as Record<string, { teacherName: string, assignment: string, plans: LessonPlan[] }>);
+
+            // Build context for AI analysis
+            const analysisData = Object.values(lessonPlansByTeacher).map(group => {
+                const totalPlans = group.plans.length;
+                const submittedPlans = group.plans.filter(lp => 
+                    lp.status === 'submitted' || lp.status === 'approved'
+                ).length;
+                const fullyCovered = group.plans.filter(lp => 
+                    lp.coverage_status === CoverageStatus.FullyCovered
+                ).length;
+                const partiallyCovered = group.plans.filter(lp => 
+                    lp.coverage_status === CoverageStatus.PartiallyCovered
+                ).length;
+                const notCovered = group.plans.filter(lp => 
+                    lp.coverage_status === CoverageStatus.NotCovered
+                ).length;
+                
+                return {
+                    teacherName: group.teacherName,
+                    assignment: group.assignment,
+                    totalPlans,
+                    submittedPlans,
+                    fullyCovered,
+                    partiallyCovered,
+                    notCovered
+                };
+            });
+
+            const prompt = `You are an AI curriculum analyst. Analyze the following lesson plan coverage data and identify deviations from expected curriculum coverage.
+
+Data:
+${JSON.stringify(analysisData, null, 2)}
+
+Generate a JSON array of coverage deviation reports. For each teacher-assignment combination with concerning patterns (low submission rate, many partially covered or not covered lessons), create an object with:
+- "teacherName": Teacher's name
+- "teachingAssignment": Subject/class assignment
+- "week": Current week number (use current date to estimate)
+- "status": One of "On Track", "Behind Schedule", "At Risk", "Critical"
+- "justification": Brief explanation of the deviation (1-2 sentences)
+
+Focus on assignments with low completion rates or coverage issues. Return an empty array if all assignments are on track.`;
+
+            const response = await aiClient.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                teacherName: { type: Type.STRING },
+                                teachingAssignment: { type: Type.STRING },
+                                week: { type: Type.NUMBER },
+                                status: { type: Type.STRING },
+                                justification: { type: Type.STRING }
+                            },
+                            required: ['teacherName', 'teachingAssignment', 'week', 'status', 'justification']
+                        }
+                    }
+                }
+            });
+
+            const deviations = extractAndParseJson<CoverageDeviation[]>(textFromGemini(response));
+            if (!deviations) throw new Error("Invalid AI response");
+
+            const report = {
+                generated_at: new Date().toISOString(),
+                report: deviations
+            };
+
+            // Save to school settings
+            await handleUpdateSchoolSettings({
+                school_documents: {
+                    ...schoolSettings?.school_documents,
+                    coverage_deviation_report: report
+                }
+            });
+
+            addToast('Coverage Deviation Report generated successfully.', 'success');
+            if (session.user) fetchData(session.user, true);
+            
+            return report;
+        } catch (e: any) {
+            console.error(e);
+            if (isRateLimitError(e)) {
+                setAiCooldown();
+                addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
+            } else {
+                addToast(`Failed to generate coverage report: ${e.message}`, 'error');
+            }
+            return null;
+        }
+    }, [userProfile, aiClient, session, isAiInCooldown, addToast, lessonPlans, schoolSettings, handleUpdateSchoolSettings, fetchData, isRateLimitError, setAiCooldown]);
 
     // --- Alias for existing handler ---
     const handleUpdateReportComments = useCallback(async (reportId: number, teacherComment: string, principalComment: string): Promise<void> => {
@@ -4795,6 +5005,13 @@ const App: React.FC = () => {
                  addItem(setPositiveRecords, newRec);
                  addToast("Positive behavior logged.", "success");
             }} students={students} defaultStudent={positiveModalDefaultStudent} />}
+            
+            {isCreateStudentAccountModalOpen && <CreateStudentAccountModal 
+                isOpen={isCreateStudentAccountModalOpen} 
+                onClose={() => setIsCreateStudentAccountModalOpen(false)} 
+                onCreateAccount={handleCreateStudentAccount}
+                students={students} 
+            />}
             
             {isTourOpen && <TourModal isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} tourContent={MOCK_TOUR_CONTENT} />}
             

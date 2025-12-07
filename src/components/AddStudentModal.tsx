@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import type { Student, BaseDataObject } from '../types';
+import type { Student, BaseDataObject, StudentFormData } from '../types';
 import { StudentStatus } from '../types';
 import { STUDENT_STATUSES } from '../constants';
 import Spinner from './common/Spinner';
@@ -8,7 +8,7 @@ import Spinner from './common/Spinner';
 interface AddStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddStudent: (studentData: any) => Promise<boolean>;
+  onAddStudent: (studentData: StudentFormData) => Promise<boolean>;
   allClasses: BaseDataObject[];
   allArms: BaseDataObject[];
 }
