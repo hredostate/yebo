@@ -3789,12 +3789,14 @@ const App: React.FC = () => {
             if (success) {
                 setSocialAccounts(links);
                 addToast('Social links saved successfully.', 'success');
+            } else {
+                addToast('Failed to save social links.', 'error');
             }
         } catch (e: any) {
             console.error('Error saving social links:', e);
             addToast(`Failed to save social links: ${e.message}`, 'error');
         }
-    }, [userProfile, schoolSettings, handleUpdateSchoolSettings, addToast]);
+    }, [userProfile, schoolSettings, handleUpdateSchoolSettings, addToast, setSocialAccounts]);
 
     // --- Leave Request Handlers ---
     const handleSubmitLeaveRequest = useCallback(async (request: Partial<LeaveRequest>): Promise<boolean> => {
