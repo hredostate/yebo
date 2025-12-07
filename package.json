@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.26.0",
     "@supabase/supabase-js": "^2.76.1",
+    "@tanstack/react-query": "^5.90.12",
     "localforage": "^1.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

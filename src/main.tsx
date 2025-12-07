@@ -6,6 +6,7 @@ import App from './App'
 import './index.css'
 import { Offline, supa } from './offline/client';
 import { queueStore } from './offline/db';
+import { QueryProvider } from './providers/QueryProvider';
 
 registerSW({ immediate: true });
 
@@ -34,7 +35,9 @@ const OfflineFallback = () => (
 
     root.render(
         <React.StrictMode>
-        <App />
+        <QueryProvider>
+          <App />
+        </QueryProvider>
         </React.StrictMode>
     );
   } catch (error) {
