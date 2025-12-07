@@ -50,6 +50,8 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
       if (authView === 'login') {
         const { error } = await (supabase.auth as any).signInWithPassword({ email, password });
         if (error) throw error;
+        // Force navigation hash update to ensure App router syncs immediately
+        window.location.hash = "Dashboard";
       } else if (authView === 'signup') {
         const { data, error } = await (supabase.auth as any).signUp({
             email,
