@@ -387,6 +387,11 @@ const App: React.FC = () => {
         setTimeout(() => removeToast(id), 5000);
     }, [removeToast]);
 
+    // Helper function to check if error is a rate limit error
+    const isRateLimitError = (error: any): boolean => {
+        return error?.message?.includes('429') || error?.status === 429;
+    };
+
     const handleLogout = useCallback(async () => {
         if (!supabase) return;
         try {
@@ -1219,7 +1224,7 @@ const App: React.FC = () => {
             }
         } catch (e: any) { 
             console.error("At-risk student analysis failed:", e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Analysis will be retried later.', 'warning');
             }
         }
@@ -1239,7 +1244,7 @@ const App: React.FC = () => {
             }
         } catch (e: any) { 
             console.error("Task suggestion generation failed:", e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Task suggestions will be retried later.', 'warning');
             }
         }
@@ -1328,7 +1333,7 @@ const App: React.FC = () => {
              if(session.user) fetchData(session.user, true);
          } catch(e: any) { 
              console.error(e); 
-             if (e?.message?.includes('429') || e?.status === 429) {
+             if (isRateLimitError(e)) {
                  addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
              } else {
                  addToast(`Failed: ${e.message}`, 'error');
@@ -1441,7 +1446,7 @@ const App: React.FC = () => {
             }
          } catch (e: any) {
              console.error(e);
-             if (e?.message?.includes('429') || e?.status === 429) {
+             if (isRateLimitError(e)) {
                  addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
              } else {
                  addToast('Failed to analyze risks.', 'error');
@@ -1489,7 +1494,7 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error(e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate inquiries.', 'error');
@@ -1530,7 +1535,7 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error(e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate report.', 'error');
@@ -1592,7 +1597,7 @@ const App: React.FC = () => {
             throw new Error("Failed to parse digest");
         } catch (e: any) {
             console.error(e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast("Failed to generate daily briefing.", "error");
@@ -1706,7 +1711,7 @@ const App: React.FC = () => {
                 analysis = extractAndParseJson(textFromGemini(response));
             } catch (e: any) {
                 console.error("Real-time analysis failed", e);
-                if (e?.message?.includes('429') || e?.status === 429) {
+                if (isRateLimitError(e)) {
                     // Silently skip analysis on rate limit for report submission
                     // Don't show toast here as it's not critical to report submission
                 }
@@ -2210,17 +2215,14 @@ const App: React.FC = () => {
     }, [addToast]);
 
     const handleRunWeeklyComplianceCheck = useCallback(async (): Promise<void> => {
-        // Placeholder implementation for weekly compliance check
-        // This function is referenced in the ComplianceTracker component
-        addToast('Running weekly compliance check...', 'info');
-        try {
-            // TODO: Implement compliance check logic
-            // This would typically check various compliance metrics for the week
-            addToast('Weekly compliance check completed.', 'success');
-        } catch (error: any) {
-            console.error('Compliance check error:', error);
-            addToast('Failed to run compliance check.', 'error');
-        }
+        // NOTE: This is a placeholder implementation
+        // The actual compliance check logic needs to be implemented
+        // TODO: Implement the following:
+        // - Check lesson plan submission rates
+        // - Verify teacher attendance compliance
+        // - Review policy adherence metrics
+        // - Generate compliance report
+        addToast('Feature not yet implemented. Compliance checks coming soon.', 'info');
     }, [addToast]);
 
     // Constants for AI award generation
@@ -2254,7 +2256,7 @@ const App: React.FC = () => {
             }
         } catch (e: any) {
             console.error('Generate awards error:', e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate awards. Please try again.', 'error');
@@ -2291,7 +2293,7 @@ const App: React.FC = () => {
             return null;
         } catch (e: any) {
             console.error('Generate insight error:', e);
-            if (e?.message?.includes('429') || e?.status === 429) {
+            if (isRateLimitError(e)) {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             } else {
                 addToast('Failed to generate student insight. Please try again.', 'error');
