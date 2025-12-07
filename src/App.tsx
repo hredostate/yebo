@@ -1351,7 +1351,7 @@ const App: React.FC = () => {
         if (urgentReports.length > 0) {
             urgentReports.slice(0, 3).forEach((report, index) => {
                 suggestions.push({
-                    id: `fallback-report-${report.id}-${Date.now()}-${index}`,
+                    id: `fallback-report-${report.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     reportId: report.id,
                     title: `Address: ${report.analysis?.summary?.substring(0, 40) || 'Urgent Report'}...`,
                     description: report.analysis?.summary || report.report_text.substring(0, 100),
@@ -1369,7 +1369,7 @@ const App: React.FC = () => {
             for (let i = 0; i < numToAdd; i++) {
                 const suggestion = roleSuggestions[i];
                 suggestions.push({
-                    id: `fallback-role-${userRole}-${Date.now()}-${i}`,
+                    id: `fallback-role-${userRole}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     title: suggestion.title,
                     description: suggestion.description,
                     priority: suggestion.priority,
@@ -1379,7 +1379,7 @@ const App: React.FC = () => {
         } else if (suggestions.length === 0) {
             // Generic fallback for roles without specific suggestions
             suggestions.push({
-                id: `fallback-generic-${Date.now()}`,
+                id: `fallback-generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 title: 'Review Pending Tasks',
                 description: 'Check all pending tasks and prioritize important items',
                 priority: TaskPriority.Medium,
