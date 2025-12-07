@@ -105,6 +105,79 @@ If your school has multiple campuses, you can configure different Paystack accou
   - Admin must create a DVA for the student first
   - Student must log out and log back in to see updates
 
+## Webhook Setup for Automatic Payment Processing
+
+To enable automatic payment reconciliation when students transfer money to their virtual accounts:
+
+### 1. Get Your Webhook URL
+
+Your webhook URL will be in the format:
+```
+https://<project-ref>.supabase.co/functions/v1/paystack-webhook
+```
+
+To find your project reference:
+1. Go to your Supabase project dashboard
+2. Look at the URL or check **Settings → API**
+3. Your project reference is the unique identifier in your project URL
+
+**Example**: If your project ref is `abcdefghijklmnop`, your webhook URL is:
+```
+https://abcdefghijklmnop.supabase.co/functions/v1/paystack-webhook
+```
+
+### 2. Configure Webhook in Paystack Dashboard
+
+1. Log in to your [Paystack Dashboard](https://dashboard.paystack.com/)
+2. Navigate to **Settings → Webhooks**
+3. Click **Add New Webhook URL**
+4. Enter your webhook URL (from step 1)
+5. Select the following events:
+   - ✅ **dedicatedaccount.credit** (Required for DVA payments)
+6. Click **Save**
+
+### 3. Test the Webhook
+
+1. Make a test transfer to a student's virtual account
+2. Check the Paystack dashboard under **Webhooks** → **Event Logs**
+3. Verify the webhook was delivered successfully (200 OK response)
+4. Check the student's invoice in School Guardian to confirm payment was recorded
+
+### 4. What Happens Automatically
+
+When a payment is made to a student's virtual account:
+
+1. **Paystack sends a webhook** to your server with payment details
+2. **Webhook handler verifies** the request signature for security
+3. **System finds the student** by matching the account number
+4. **System finds the invoice** for the current term
+5. **Payment is recorded** in the payments table
+6. **Invoice is updated** with the new amount paid and status
+7. **Status changes** from "Unpaid" → "Partial" or "Paid" automatically
+
+### 5. Monitoring Webhook Events
+
+- **Paystack Dashboard**: View webhook delivery status and retry history
+- **Webhook Events Table**: All webhook events are logged in the `webhook_events` table for audit purposes
+- **Logs**: Check Supabase Edge Function logs for detailed processing information
+
+### 6. Troubleshooting Webhooks
+
+**Webhook not receiving events:**
+- Verify the webhook URL is correct in Paystack dashboard
+- Check that the edge function is deployed
+- Ensure `PAYSTACK_SECRET_KEY` environment variable is set
+
+**Payment not recorded:**
+- Check edge function logs in Supabase dashboard
+- Verify the student has a DVA record
+- Verify the school has a current term configured
+- Check that the invoice exists for the student
+
+**Duplicate payments:**
+- The system automatically handles duplicate webhooks using payment reference
+- If the same payment reference exists, the payment is skipped
+
 ## Security Best Practices
 
 1. **Never commit API keys to version control**
@@ -124,6 +197,7 @@ For issues with:
 ### Database Tables
 - `paystack_api_settings`: Stores API credentials per campus
 - `dedicated_virtual_accounts`: Stores DVA details per student
+- `webhook_events`: Logs all incoming webhook events for audit trail (optional)
 
 ### Permissions
 - **Admin and Accountant**: Can view and manage API settings
