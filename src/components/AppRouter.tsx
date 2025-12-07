@@ -101,7 +101,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     takenSurveyIds={new Set()} 
                     onNavigate={actions.setCurrentView}
                  />;
-            case 'Take Quiz':
+            case VIEWS.TAKE_QUIZ:
                  const quiz = data.surveys.find((s: any) => s.id === Number(param1));
                  if(quiz) return <QuizTakerView 
                     quiz={quiz} 

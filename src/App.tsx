@@ -96,6 +96,7 @@ const QuizTakerView = lazyWithRetry(() => import('./components/QuizTakerView'));
 const TeachingAssignmentsContainer = lazyWithRetry(() => import('./components/TeachingAssignmentsContainer'));
 const HRPayrollModule = lazyWithRetry(() => import('./components/HRPayrollModule'));
 const StoreManager = lazyWithRetry(() => import('./components/StoreManager'));
+const AppRouter = lazyWithRetry(() => import('./components/AppRouter'));
 
 // Helper: Get Monday of the current week as a string
 const getWeekStartDateString = (date: Date): string => {
@@ -3018,504 +3019,6 @@ const App: React.FC = () => {
 
     // ... (Rendering Logic) ...
 
-    const renderContent = () => {
-        // IMPORTANT: Check userType first to ensure correct profile type usage
-        if (userType === 'student') {
-            const studentProfile = userProfile as StudentProfile;
-            switch (currentView) {
-                case 'My Subjects':
-                    return <StudentPortal studentProfile={studentProfile} addToast={addToast} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
-                case 'Rate My Teacher':
-                    return <StudentRateMyTeacherView studentProfile={studentProfile} addToast={addToast} />;
-                case 'Surveys':
-                    return <StudentSurveysView studentProfile={studentProfile} addToast={addToast} surveys={surveys} takenSurveyIds={takenSurveys} onNavigate={setCurrentView} />;
-                case 'Reports':
-                    return <StudentReportList reports={studentTermReports} onSelectReport={(report) => setCurrentView(`Student Report/${studentProfile.student_record_id}/${report.term_id}`)} />;
-                case 'Take Quiz':
-                    // handled in default if format is "Take Quiz/ID" but if it's just "Take Quiz" we need params.
-                    // Assume default fallthrough handles parameterized routes
-                    break;
-                default:
-                    if (currentView.startsWith('Student Report/')) {
-                        const parts = currentView.split('/');
-                        // format: Student Report/studentId/termId
-                        const termId = Number(parts[2]);
-                        return <StudentReportView studentId={studentProfile.student_record_id} termId={termId} onBack={() => setCurrentView('Reports')} isStudentUser={true} />;
-                    }
-                    if (currentView.startsWith('Take Quiz/')) {
-                         const quizId = Number(currentView.split('/')[1]);
-                         const quiz = surveys.find(s => s.id === quizId);
-                         if(quiz) return <QuizTakerView quiz={quiz} onBack={() => setCurrentView('Surveys')} addToast={addToast} />;
-                    }
-                    return <StudentPortal studentProfile={studentProfile} addToast={addToast} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
-            }
-        }
-
-        const staffProfile = userProfile as UserProfile;
-
-        switch (currentView) {
-            case VIEWS.DASHBOARD:
-                return <Dashboard 
-                    userProfile={staffProfile} 
-                    tasks={tasks} 
-                    announcements={announcements} 
-                    alerts={alerts}
-                    atRiskStudents={atRiskStudents}
-                    positiveRecords={positiveRecords}
-                    staffAwards={staffAwards}
-                    teamPulse={teamPulse}
-                    teams={teams}
-                    teamFeedback={teamFeedback}
-                    students={students}
-                    interventionPlans={interventionPlans}
-                    inventory={inventory}
-                    reports={reports}
-                    atRiskTeachers={atRiskTeachers}
-                    socialMediaAnalytics={socialMediaAnalytics}
-                    policyInquiries={policyInquiries}
-                    curriculumReport={curriculumReport}
-                    users={users}
-                    userPermissions={userPermissions}
-                    taskSuggestions={taskSuggestions}
-                    sipLogs={sipLogs}
-                    todaysCheckin={todaysCheckinForDashboard}
-                    onNavigate={setCurrentView}
-                    onViewStudent={(s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); }}
-                    onViewIntervention={(sid) => { setCurrentView(VIEWS.INTERVENTION_PLANS); }}
-                    onUpdateTaskStatus={handleUpdateTaskStatus}
-                    onAddAnnouncement={handleAddAnnouncement}
-                    onGenerateStaffAwards={handleGenerateStaffAwards}
-                    onAnalyzeTeacherRisk={handleAnalyzeTeacherRisk}
-                    onSaveTeamFeedback={handleSaveTeamFeedback}
-                    onGeneratePolicyInquiries={handleGeneratePolicyInquiries}
-                    onGenerateCurriculumReport={handleGenerateCurriculumReport}
-                    onUpdateProfile={handleUpdateProfile}
-                    onProcessDailyDigest={handleProcessDailyDigest}
-                    onAcceptTaskSuggestion={handleAcceptTaskSuggestion}
-                    onDismissTaskSuggestion={handleDismissTaskSuggestion}
-                    handleCheckinOut={handleCheckinOut}
-                    campuses={campuses}
-                    addToast={addToast}
-                />;
-            case VIEWS.SUBMIT_REPORT:
-                return <ReportForm students={students} users={users} onSubmit={handleAddReport} onCancel={() => setCurrentView(VIEWS.DASHBOARD)} addToast={addToast} initialData={navContext?.data} />;
-            case VIEWS.REPORT_FEED:
-                return <ReportFeed 
-                    reports={reports} 
-                    users={users} 
-                    tasks={tasks}
-                    currentUser={staffProfile}
-                    addToast={addToast}
-                    onAssignReport={handleAssignReport}
-                    onAddComment={handleAddReportComment}
-                    onDeleteReport={handleDeleteReport}
-                    onUpdateReportStatusAndResponse={handleUpdateReportStatusAndResponse}
-                    userPermissions={userPermissions}
-                    onBulkDeleteReports={handleBulkDeleteReports}
-                    onBulkAssignReports={handleBulkAssignReports}
-                    onBulkUpdateReportStatus={handleBulkUpdateReportStatus}
-                    onOpenAIBulkResponseModal={handleOpenAIBulkResponseModal}
-                    students={students}
-                />;
-            case VIEWS.TASK_BOARD:
-                return <TaskManager allTasks={tasks} users={users} currentUser={staffProfile} onUpdateStatus={handleUpdateTaskStatus} onAddTask={handleAddTask} />;
-            case VIEWS.MY_CHECKIN:
-                return <TeacherCheckinView currentUser={staffProfile} addToast={addToast} todaysCheckin={todaysCheckinForDashboard} handleCheckinOut={handleCheckinOut} campuses={campuses} />;
-            case VIEWS.TEACHER_ATTENDANCE:
-                return <TeacherAttendanceDashboard campuses={campuses} academicAssignments={academicAssignments} />;
-            case VIEWS.BULLETIN_BOARD:
-                return <BulletinBoard announcements={announcements} userProfile={staffProfile} onAddAnnouncement={handleAddAnnouncement} onUpdateAnnouncement={handleUpdateAnnouncement} onDeleteAnnouncement={handleDeleteAnnouncement} userPermissions={userPermissions} />;
-            case VIEWS.TIMETABLE:
-                return <TimetableView userProfile={staffProfile} users={users} terms={terms} academicClasses={academicClasses} subjects={allSubjects} addToast={addToast} />;
-            case VIEWS.SURVEYS:
-                return <SurveyListView surveys={surveys} onTakeSurvey={(s) => { setTakingSurvey(s); setCurrentView(VIEWS.TAKE_SURVEY); }} takenSurveyIds={takenSurveys} />;
-            case VIEWS.TAKE_SURVEY:
-                if (!takingSurvey) return <div className="flex justify-center p-10"><Spinner size="lg" /></div>;
-                return <SurveyTakerView survey={takingSurvey} onBack={() => { setTakingSurvey(null); setCurrentView(VIEWS.SURVEYS); }} addToast={addToast} />;
-            case VIEWS.MY_LEAVE:
-                return <MyLeaveView currentUser={staffProfile} addToast={addToast} leaveRequests={leaveRequests} leaveTypes={leaveTypes} onSave={async (data) => {
-                     const { error } = await supabase.from('leave_requests').insert({ ...data, requester_id: staffProfile.id, school_id: staffProfile.school_id });
-                     if (error) { addToast(error.message, 'error'); return false; }
-                     const { data: reqs } = await supabase.from('leave_requests').select('*, leave_type:leave_types(*), requester:user_profiles!requester_id(*)').eq('requester_id', staffProfile.id);
-                     if (reqs) setLeaveRequests(reqs as any);
-                     return true;
-                }} onDelete={async (id) => {
-                    const { error } = await supabase.from('leave_requests').delete().eq('id', id);
-                     if (error) { addToast(error.message, 'error'); return false; }
-                     setLeaveRequests(prev => prev.filter(r => r.id !== id));
-                     return true;
-                }} />;
-            case VIEWS.LEAVE_APPROVALS:
-                return <LeaveApprovalView currentUser={staffProfile} addToast={addToast} allRequests={leaveRequests} onUpdateStatus={async (id, status) => {
-                     const { error } = await supabase.from('leave_requests').update({ status, approved_by: staffProfile.id }).eq('id', id);
-                     if (error) { addToast(error.message, 'error'); return false; }
-                     setLeaveRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-                     return true;
-                }} teams={teams} />;
-            case VIEWS.STUDENT_ROSTER:
-                return <StudentListView 
-                    students={students} 
-                    onAddStudent={handleAddStudent} 
-                    onViewStudent={(s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); }} 
-                    onAddPositive={(s) => { setPositiveModalDefaultStudent(s); setIsPositiveModalOpen(true); }} 
-                    onGenerateStudentAwards={handleGenerateStaffAwards} // Reusing logic/mock
-                    userPermissions={userPermissions} 
-                    onOpenCreateStudentAccountModal={() => { /* Handled in component */ }}
-                    allClasses={allClasses} 
-                    allArms={allArms} 
-                    users={users} 
-                    teachingAssignments={teachingEntities} 
-                    onBulkCreateStudentAccounts={handleBulkCreateStudentAccounts}
-                    onBulkDeleteAccounts={handleBulkDeleteStudentAccounts}
-                    onDeleteStudent={handleDeleteStudent}
-                    onBulkDeleteStudents={handleBulkDeleteStudents}
-                />;
-            case VIEWS.CLASSES_ATTENDANCE:
-                return <ClassGroupManager 
-                    classGroups={classGroups} 
-                    students={students} 
-                    currentUser={staffProfile} 
-                    onUpdateMembers={handleUpdateClassGroupMembers}
-                    onSaveSchedule={async () => null} // Mock
-                    onDeleteSchedule={async () => false} // Mock
-                    onSaveRecord={async (record) => { 
-                        const { error } = await Offline.insert('attendance_records', record);
-                        return !error;
-                    }}
-                    onCreateClassAssignment={async (assign: any, group: any) => {
-                        if(!staffProfile || !('school_id' in staffProfile)) return false;
-                        const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', { ...assign, school_id: staffProfile.school_id });
-                        if(e1 || !ag) return false;
-                        const { error: e2 } = await Offline.insert('class_groups', { ...group, teaching_entity_id: ag.id, school_id: staffProfile.school_id, created_by: staffProfile.id });
-                        if(e2) return false;
-                        fetchData(session!.user, true); return true;
-                    }}
-                    onDeleteClassAssignment={async (id: number) => {
-                         const { error } = await Offline.del('class_groups', { id });
-                         if(!error) fetchData(session!.user, true); return !error;
-                    }}
-                    users={users} 
-                    subjects={allSubjects} 
-                    classes={allClasses} 
-                    arms={allArms} 
-                    userPermissions={userPermissions} 
-                />;
-            case VIEWS.INTERVENTION_PLANS:
-                return <SIPView interventionPlans={interventionPlans} sipLogs={sipLogs} students={students} onCreatePlan={handleCreateSIP} onAddLog={handleAddSIPLog} userPermissions={userPermissions} onUpdatePlan={handleUpdateSIP} />;
-            case VIEWS.LESSON_PLANNER:
-                return <CurriculumPlannerContainer 
-                    teams={teams} 
-                    lessonPlans={lessonPlans} 
-                    userProfile={staffProfile} 
-                    teachingAssignments={academicAssignments} 
-                    onSaveLessonPlan={handleSaveLessonPlan} 
-                    onAnalyzeLessonPlan={handleAnalyzeLessonPlan} 
-                    onCopyLessonPlan={handleCopyLessonPlan} 
-                    curricula={curricula} 
-                    curriculumWeeks={curriculumWeeks} 
-                    onApprove={handleApproveLessonPlan} 
-                />;
-            case VIEWS.GRADEBOOK:
-                return <TeacherGradebookView academicAssignments={academicAssignments} currentUser={staffProfile} onNavigate={setCurrentView} />;
-            case VIEWS.ASSESSMENT_MANAGER:
-                return <AssessmentManager 
-                    academicAssignments={academicAssignments} 
-                    assessments={assessments} 
-                    assessmentScores={assessmentScores} 
-                    students={students} 
-                    academicClassStudents={academicClassStudents} 
-                    userProfile={staffProfile} 
-                    userPermissions={userPermissions} 
-                    onSaveAssessment={async (d) => {
-                         if (d.id) await Offline.update('assessments', d, { id: d.id });
-                         else await Offline.insert('assessments', d);
-                         return true;
-                    }} 
-                    onDeleteAssessment={async (id) => { await Offline.del('assessments', { id }); return true; }} 
-                    onSaveScores={async (scores) => {
-                         // Bulk insert logic needed or loop
-                         for (const s of scores) await Offline.insert('score_entries', s);
-                         return true;
-                    }} 
-                    onCopyAssessment={async () => true} 
-                    addToast={addToast} 
-                />;
-            case VIEWS.COVERAGE_FEEDBACK:
-                return <CoverageFeedbackReport lessonPlans={lessonPlans} coverageVotes={coverageVotes} users={users} teams={teams} currentUser={staffProfile} />;
-            case VIEWS.COMPLIANCE_TRACKER:
-                return <ComplianceTracker reports={reports} users={users} roles={roles} onRunWeeklyComplianceCheck={async () => {}} userPermissions={userPermissions} />;
-            case VIEWS.SUPPORT_HUB:
-                return <SupportHubView allTasks={tasks} users={users} currentUser={staffProfile} onUpdateStatus={handleUpdateTaskStatus} onAddTask={handleAddTask} />;
-            case VIEWS.REWARDS_STORE:
-                return <RewardsStoreView rewards={rewards} students={students} userProfile={staffProfile} userPermissions={userPermissions} onSaveReward={async () => true} onDeleteReward={async () => true} onRedeemReward={async () => true} />;
-            case VIEWS.ANALYTICS:
-                return <AnalyticsView reports={reports} tasks={tasks} schoolSettings={schoolSettings} userProfile={staffProfile} />;
-            case VIEWS.SURVEY_MANAGER:
-                return <SurveyManager surveys={surveys} onSaveSurvey={handleSaveSurvey} onDeleteSurvey={handleDeleteSurvey} addToast={addToast} allClasses={allClasses} allArms={allArms} allRoles={Object.values(roles)} />;
-            case VIEWS.TEACHER_RATINGS:
-                return <StaffTeacherRatingsView users={users} weeklyRatings={weeklyRatings} currentUser={staffProfile} />;
-            case VIEWS.TEACHER_PULSE:
-                return <TeacherPulseView addToast={addToast} checkinAnomalies={checkinAnomalies} onAnalyzeCheckinAnomalies={async () => {}} onNavigate={setCurrentView} />;
-            case VIEWS.HR_PAYROLL:
-                return <HRPayrollModule 
-                    userProfile={staffProfile}
-                    users={users}
-                    payrollRuns={payrollRuns}
-                    payrollItems={payrollItems}
-                    payrollAdjustments={payrollAdjustments}
-                    schoolConfig={schoolConfig}
-                    onRunPayroll={handleRunPayroll}
-                    onUpdateUserPayroll={handleUpdateUserPayroll}
-                    onSaveSchoolConfig={handleSaveSchoolConfig}
-                    addToast={addToast}
-                    userPermissions={userPermissions}
-                    campuses={campuses}
-                    teacherShifts={teacherShifts}
-                    onSaveShift={handleSaveShift}
-                    onDeleteShift={handleDeleteShift}
-                    leaveTypes={leaveTypes}
-                    onSaveLeaveType={handleSaveLeaveType}
-                    onDeleteLeaveType={handleDeleteLeaveType}
-                    onSaveCampus={handleSaveCampus}
-                    onDeleteCampus={handleDeleteCampus}
-                    leaveRequests={leaveRequests}
-                    onSubmitLeaveRequest={handleSubmitLeaveRequest}
-                    onApproveLeaveRequest={handleApproveLeaveRequest}
-                    teams={teams}
-                />;
-            case VIEWS.MY_PAYROLL:
-                return <MyPayrollView payrollRuns={payrollRuns} payrollItems={payrollItems} currentUser={staffProfile} />;
-            case VIEWS.MY_ADJUSTMENTS:
-                return <MyAdjustmentsView currentUser={staffProfile} />;
-            case VIEWS.STUDENT_FINANCE:
-                return <StudentFinanceView addToast={addToast} students={students} userProfile={staffProfile} />;
-            case VIEWS.CALENDAR:
-                return <CalendarView events={calendarEvents} onSaveEvent={handleSaveCalendarEvent} onUpdateEvent={handleUpdateCalendarEvent} onDeleteEvent={handleDeleteCalendarEvent} userProfile={staffProfile} userPermissions={userPermissions} users={users} handleAddTask={handleAddTask} addToast={addToast} />;
-            case VIEWS.GUARDIAN_COMMAND:
-                return <AIAssistantView userProfile={staffProfile} users={users} students={students} reports={reports} addToast={addToast} handleAddTask={handleAddTask} handleAddAnnouncement={handleAddAnnouncement} />;
-            case VIEWS.DATA_ANALYSIS:
-                return <DataAnalysisView addToast={addToast} />;
-            case VIEWS.ID_CARDS:
-                return <IdCardGenerator students={students} allClasses={allClasses} allArms={allArms} schoolConfig={schoolConfig} schoolSettings={schoolSettings} />;
-            case VIEWS.STOREFRONT:
-                return <StorefrontView inventory={inventory} onCreateOrder={handleCreateOrder} userProfile={staffProfile} addToast={addToast} />;
-            case VIEWS.STORE_MANAGER:
-            case VIEWS.ORDER_MANAGER:
-                return <StoreManager inventory={inventory} orders={orders} onSaveItem={handleSaveInventoryItem} onDeleteItem={handleDeleteInventoryItem} addToast={addToast} onUpdateOrderStatus={handleUpdateOrderStatus} onAddOrderNote={handleAddOrderNote} onDeleteOrderNote={handleDeleteOrderNote} />;
-            case VIEWS.SOCIAL_MEDIA_HUB:
-                return <SocialMediaHubView 
-                    socialMediaAnalytics={socialMediaAnalytics} 
-                    socialAccounts={socialAccounts} 
-                    onAddTask={handleAddTask} 
-                    onSaveSocialLinks={async (links) => { setSocialAccounts(links); }} 
-                    addToast={addToast} 
-                    users={users} 
-                />;
-            case VIEWS.USER_MANAGEMENT:
-                return <UserManagement users={users} roles={roles} campuses={campuses} onInviteUser={handleInviteUser} onDeactivateUser={handleDeactivateUser} onUpdateUserCampus={handleUpdateUserCampus} />;
-            case VIEWS.ROLE_MANAGEMENT:
-                return <RoleManager roles={Object.values(roles)} onSaveRole={handleSaveRole} users={users} userRoleAssignments={userRoleAssignments} onUpdateRoleAssignments={handleUpdateRoleAssignments} />;
-            case VIEWS.ROLE_DIRECTORY:
-                return <RoleDirectoryView roles={Object.values(roles)} />;
-            case VIEWS.TEAM_MANAGEMENT:
-                return <TeamManager users={users} currentUser={staffProfile} userPermissions={userPermissions} teams={teams} tasks={tasks} reports={reports} teamPulse={teamPulse} teamFeedback={teamFeedback} onCreateTeam={handleCreateTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onUpdateTeamMembers={handleUpdateTeamMembers} onSaveTeamFeedback={handleSaveTeamFeedback} />;
-            case VIEWS.CURRICULUM_MANAGER:
-                 return <CurriculumManager 
-                    teachingAssignments={teachingEntities} 
-                    curricula={curricula} 
-                    curriculumWeeks={curriculumWeeks} 
-                    onSave={async () => true} 
-                    userProfile={staffProfile}
-                    teams={teams}
-                 />;
-            case VIEWS.TEACHING_ASSIGNMENTS:
-                 return <TeachingAssignmentsContainer 
-                    users={users} 
-                    assignments={academicAssignments} 
-                    subjects={allSubjects}
-                    classes={allClasses}
-                    arms={allArms}
-                    classGroups={classGroups}
-                    academicClasses={academicClasses}
-                    onCreateAssignment={async (assign, group) => {
-                        const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', { ...assign, school_id: staffProfile.school_id });
-                        if(e1 || !ag) return false;
-                        const { error: e2 } = await Offline.insert('class_groups', { ...group, teaching_entity_id: ag.id, school_id: staffProfile.school_id, created_by: staffProfile.id });
-                        if(e2) return false;
-                        return true;
-                    }}
-                    onDeleteAssignment={async (id) => {
-                         const { error } = await Offline.del('class_groups', { id });
-                         return !error;
-                    }}
-                 />;
-            case VIEWS.RESULT_MANAGER:
-                return <ResultManager terms={terms} academicAssignments={academicAssignments} academicClassStudents={academicClassStudents} scoreEntries={scoreEntries} users={users} onLockScores={handleLockScores} userPermissions={userPermissions} students={students} studentTermReports={studentTermReports} studentTermReportSubjects={studentTermReportSubjects} gradingSchemes={gradingSchemes} schoolConfig={schoolConfig} onUpdateComments={handleUpdateResultComments} addToast={addToast} />;
-            case VIEWS.DATA_UPLOAD:
-                return <DataUploader onBulkAddStudents={handleBulkAddStudents} addToast={addToast} />;
-            case VIEWS.LIVING_POLICY:
-                return <LivingPolicyManager policySnippets={livingPolicy} onAddSnippet={handleAddPolicySnippet} userProfile={staffProfile} onSaveDocument={handleGenerateLivingPolicyDocument} />;
-            case VIEWS.AI_STRATEGIC_CENTER:
-                return <AIStrategicCenterView healthReport={schoolHealthReport} onGenerateHealthReport={handleGenerateHealthReport} onGenerateForesight={handleGenerateForesight} improvementPlan={improvementPlan} onGenerateImprovementPlan={async () => {}} addToast={addToast} schoolSettings={schoolSettings} onGenerateCoverageDeviationReport={async () => {}} />;
-            case VIEWS.EMERGENCY_BROADCAST:
-                return <EmergencyBroadcast onSendBroadcast={handleSendEmergencyBroadcast} />;
-            case VIEWS.SUPER_ADMIN_CONSOLE:
-                return <SuperAdminConsole 
-                    userPermissions={userPermissions} 
-                    schoolConfig={schoolConfig} 
-                    terms={terms} 
-                    academicClasses={academicClasses} 
-                    academicAssignments={academicAssignments} 
-                    gradingSchemes={gradingSchemes} 
-                    users={users} 
-                    roles={Object.values(roles)} 
-                    userRoleAssignments={userRoleAssignments} 
-                    auditLogs={auditLogs} 
-                    subjects={allSubjects} 
-                    classes={allClasses} 
-                    arms={allArms} 
-                    inventory={inventory} 
-                    rewards={rewards} 
-                    assessmentStructures={assessmentStructures} 
-                    onSaveRole={handleSaveRole} 
-                    onUpdateRoleAssignments={handleUpdateRoleAssignments} 
-                    onSaveSchoolConfig={handleUpdateSchoolConfig}
-                    onSaveTerm={handleSaveTerm}
-                    onDeleteTerm={handleDeleteTerm}
-                    onSaveAcademicClass={handleSaveAcademicClass}
-                    onDeleteAcademicClass={handleDeleteAcademicClass}
-                    onSaveAcademicAssignment={handleSaveAcademicAssignment}
-                    onDeleteAcademicAssignment={handleDeleteAcademicAssignment}
-                    onSaveGradingScheme={handleSaveGradingScheme}
-                    onDeleteGradingScheme={handleDeleteGradingScheme}
-                    onSetActiveGradingScheme={handleSetActiveGradingScheme}
-                    onSaveSubject={async () => true}
-                    onDeleteSubject={async () => true}
-                    onSaveClass={async () => true}
-                    onDeleteClass={async () => true}
-                    onSaveArm={async () => true}
-                    onDeleteArm={async () => true}
-                    onSaveInventoryItem={handleSaveInventoryItem}
-                    onDeleteInventoryItem={handleDeleteInventoryItem}
-                    onSaveReward={async () => true}
-                    onDeleteReward={async () => true}
-                    onInviteUser={handleInviteUser}
-                    onDeactivateUser={handleDeactivateUser}
-                    campuses={campuses}
-                    onUpdateUserCampus={handleUpdateUserCampus}
-                    onSaveCampus={handleSaveCampus}
-                    onDeleteCampus={handleDeleteCampus}
-                    addToast={addToast}
-                    teacherShifts={teacherShifts}
-                    onSaveShift={async () => true}
-                    onDeleteShift={async () => true}
-                    leaveTypes={leaveTypes}
-                    onSaveLeaveType={async () => true}
-                    onDeleteLeaveType={async () => true}
-                    onSaveAssessmentStructure={handleSaveAssessmentStructure}
-                    onDeleteAssessmentStructure={handleDeleteAssessmentStructure}
-                    teachingEntities={teachingEntities}
-                    onImportLegacyAssignments={async () => true}
-                    students={students}
-                    academicClassStudents={academicClassStudents}
-                    onUpdateClassEnrollment={async () => true}
-                    onUpdateUserPayroll={async () => {}}
-                />;
-            case VIEWS.SETTINGS:
-                return <SettingsView settings={schoolSettings} schoolConfig={schoolConfig} onSaveSettings={handleUpdateSchoolSettings} onSaveSchoolConfig={handleUpdateSchoolConfig} />;
-            case VIEWS.PROFILE:
-                return <ProfilePage userProfile={staffProfile} onUpdateProfile={handleUpdateProfile} onUpdateAvatar={handleUpdateAvatar} onResetPassword={handleResetPassword} onUpdateEmail={handleUpdateEmail} onUpdatePassword={handleUpdatePassword} orders={orders} />;
-            default:
-                if (currentView.startsWith(`${VIEWS.STUDENT_PROFILE}/`)) {
-                    if (!selectedStudent) return <div className="flex justify-center p-10"><Spinner size="lg" /></div>;
-                    return <StudentProfileView 
-                        student={selectedStudent!} 
-                        reports={reports.filter(r => r.involved_students.includes(selectedStudent?.id))} 
-                        positiveRecords={positiveRecords.filter(r => r.student_id === selectedStudent?.id)} 
-                        awards={studentAwards.filter(r => r.student_id === selectedStudent?.id)} 
-                        studentTermReports={studentTermReports.filter(r => r.student_id === selectedStudent?.id)} 
-                        onBack={() => setCurrentView(VIEWS.STUDENT_ROSTER)} 
-                        onAddPositive={async () => {}} 
-                        onGenerateInsight={async () => null} 
-                        onUpdateStudent={handleUpdateStudent} 
-                        allClasses={allClasses} 
-                        allArms={allArms} 
-                        onNavigate={setCurrentView} 
-                        userPermissions={userPermissions} 
-                        onLogCommunication={(id, d) => {}} 
-                        currentUser={staffProfile} 
-                        addToast={addToast} 
-                        users={users} 
-                        onCreateAccount={handleCreateStudentAccount} 
-                        onResetPassword={handleStudentPasswordReset}
-                        onDeleteAccount={handleDeleteStudentAccount}
-                        onDeleteStudent={handleDeleteStudent}
-                    />;
-                }
-                 if (currentView.startsWith(`${VIEWS.TEACHER_SCORE_ENTRY}/`)) {
-                    const assignmentId = Number(currentView.split('/')[1]);
-                    return <TeacherScoreEntryView 
-                        assignmentId={assignmentId} 
-                        academicAssignments={academicAssignments} 
-                        academicClassStudents={academicClassStudents} 
-                        students={students} 
-                        scoreEntries={scoreEntries} 
-                        gradingSchemes={gradingSchemes} 
-                        schoolConfig={schoolConfig} 
-                        onSaveScores={async (scores) => {
-                             for (const s of scores) await Offline.insert('score_entries', s);
-                             return true;
-                        }} 
-                        onSubmitForReview={async () => true} 
-                        onBack={() => setCurrentView(VIEWS.GRADEBOOK)} 
-                        addToast={addToast} 
-                    />;
-                }
-                return <Dashboard 
-                    userProfile={staffProfile} 
-                    tasks={tasks} 
-                    announcements={announcements} 
-                    alerts={alerts}
-                    atRiskStudents={atRiskStudents}
-                    positiveRecords={positiveRecords}
-                    staffAwards={staffAwards}
-                    teamPulse={teamPulse}
-                    teams={teams}
-                    teamFeedback={teamFeedback}
-                    students={students}
-                    interventionPlans={interventionPlans}
-                    inventory={inventory}
-                    reports={reports}
-                    atRiskTeachers={atRiskTeachers}
-                    socialMediaAnalytics={socialMediaAnalytics}
-                    policyInquiries={policyInquiries}
-                    curriculumReport={curriculumReport}
-                    users={users}
-                    userPermissions={userPermissions}
-                    taskSuggestions={taskSuggestions}
-                    sipLogs={sipLogs}
-                    todaysCheckin={todaysCheckinForDashboard}
-                    onNavigate={setCurrentView}
-                    onViewStudent={(s) => { setSelectedStudent(s); setCurrentView(VIEWS.STUDENT_PROFILE); }}
-                    onViewIntervention={(sid) => { /* ... */ }}
-                    onUpdateTaskStatus={handleUpdateTaskStatus}
-                    onAddAnnouncement={handleAddAnnouncement}
-                    onGenerateStaffAwards={handleGenerateStaffAwards}
-                    onAnalyzeTeacherRisk={handleAnalyzeTeacherRisk}
-                    onSaveTeamFeedback={handleSaveTeamFeedback}
-                    onGeneratePolicyInquiries={handleGeneratePolicyInquiries}
-                    onGenerateCurriculumReport={handleGenerateCurriculumReport}
-                    onUpdateProfile={handleUpdateProfile}
-                    onProcessDailyDigest={handleProcessDailyDigest}
-                    onAcceptTaskSuggestion={handleAcceptTaskSuggestion}
-                    onDismissTaskSuggestion={handleDismissTaskSuggestion}
-                    handleCheckinOut={handleCheckinOut}
-                    campuses={campuses}
-                    addToast={addToast}
-                />;
-        }
-    };
-
     if (booting) {
         return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /></div>;
     }
@@ -3566,7 +3069,217 @@ const App: React.FC = () => {
                     <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
                          <ErrorBoundary>
                              <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                                {renderContent()}
+                                <AppRouter 
+                                    currentView={currentView} 
+                                    data={{
+                                        userProfile,
+                                        userType,
+                                        users,
+                                        reports,
+                                        students,
+                                        tasks,
+                                        announcements,
+                                        notifications,
+                                        positiveRecords,
+                                        studentAwards,
+                                        staffAwards,
+                                        interventionPlans,
+                                        sipLogs,
+                                        lessonPlans,
+                                        schoolSettings,
+                                        livingPolicy,
+                                        calendarEvents,
+                                        inventory,
+                                        allSubjects,
+                                        allClasses,
+                                        allArms,
+                                        surveys,
+                                        classGroups,
+                                        roles,
+                                        userRoleAssignments,
+                                        teams,
+                                        teamPulse,
+                                        teamFeedback,
+                                        curricula,
+                                        curriculumWeeks,
+                                        academicClasses,
+                                        academicAssignments,
+                                        academicClassStudents,
+                                        scoreEntries,
+                                        gradingSchemes,
+                                        schoolConfig,
+                                        terms,
+                                        assessments,
+                                        assessmentScores,
+                                        assessmentStructures,
+                                        atRiskStudents,
+                                        atRiskTeachers,
+                                        socialMediaAnalytics,
+                                        policyInquiries,
+                                        curriculumReport,
+                                        taskSuggestions,
+                                        alerts: [],
+                                        coverageVotes,
+                                        rewards,
+                                        payrollRuns,
+                                        payrollItems,
+                                        payrollAdjustments,
+                                        campuses,
+                                        teacherCheckins,
+                                        leaveTypes,
+                                        leaveRequests,
+                                        teacherShifts,
+                                        teachingEntities,
+                                        orders,
+                                        socialAccounts,
+                                        checkinAnomalies,
+                                        weeklyRatings,
+                                        studentTermReports,
+                                        studentTermReportSubjects,
+                                        auditLogs,
+                                        todaysCheckinForDashboard,
+                                        navContext,
+                                        userPermissions,
+                                        isDarkMode,
+                                        schoolHealthReport,
+                                        improvementPlan,
+                                    }}
+                                    actions={{
+                                        setCurrentView,
+                                        setSelectedStudent: (s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); },
+                                        setIsPositiveModalOpen,
+                                        handleLogout,
+                                        toggleTheme,
+                                        addToast,
+                                        handleAddReport,
+                                        handleAssignReport,
+                                        handleAddReportComment,
+                                        handleDeleteReport,
+                                        handleUpdateReportStatusAndResponse,
+                                        handleBulkDeleteReports,
+                                        handleBulkAssignReports,
+                                        handleBulkUpdateReportStatus,
+                                        handleOpenAIBulkResponseModal,
+                                        handleUpdateTaskStatus,
+                                        handleAddTask,
+                                        handleAddAnnouncement,
+                                        handleUpdateAnnouncement,
+                                        handleDeleteAnnouncement,
+                                        handleAddStudent,
+                                        handleUpdateStudent,
+                                        handleGenerateStudentAwards,
+                                        handleGenerateStudentInsight,
+                                        handleCreateSIP,
+                                        handleAddSIPLog,
+                                        handleUpdateSIP,
+                                        handleRunWeeklyComplianceCheck,
+                                        handleUpdateClassGroupMembers,
+                                        handleSaveAttendanceSchedule,
+                                        handleDeleteAttendanceSchedule,
+                                        handleSaveAttendanceRecord,
+                                        handleCreateClassAssignment,
+                                        handleDeleteClassAssignment,
+                                        handleSaveSurvey,
+                                        handleDeleteSurvey,
+                                        handleSaveCalendarEvent,
+                                        handleUpdateCalendarEvent,
+                                        handleDeleteCalendarEvent,
+                                        handleNavigation: handleAINavigation,
+                                        handleInviteUser,
+                                        handleDeactivateUser,
+                                        handleUpdateUserCampus,
+                                        handleSaveRole,
+                                        handleUpdateRoleAssignments,
+                                        handleCreateTeam,
+                                        handleUpdateTeam,
+                                        handleDeleteTeam,
+                                        handleUpdateTeamMembers,
+                                        handleSaveTeamFeedback,
+                                        handleSaveCurriculum,
+                                        handleSaveLessonPlan,
+                                        handleAnalyzeLessonPlan,
+                                        handleCopyLessonPlan,
+                                        handleApproveLessonPlan,
+                                        handleSaveScores,
+                                        handleSubmitScoresForReview,
+                                        handleSaveAssessment,
+                                        handleDeleteAssessment,
+                                        handleSaveAssessmentScores,
+                                        handleCopyAssessment,
+                                        handleLockScores,
+                                        handleUpdateReportComments,
+                                        handleBulkAddStudents,
+                                        handleAddPolicySnippet,
+                                        handleSavePolicyDocument,
+                                        handleSendEmergencyBroadcast,
+                                        handleUpdateProfile,
+                                        handleUpdateAvatar,
+                                        handleResetPassword,
+                                        handleUpdateEmail,
+                                        handleUpdatePassword,
+                                        handleUpdateSchoolSettings,
+                                        handleUpdateSchoolConfig,
+                                        handleGenerateStaffAwards,
+                                        handleAnalyzeTeacherRisk,
+                                        handleGeneratePolicyInquiries,
+                                        handleGenerateCurriculumReport,
+                                        handleProcessDailyDigest,
+                                        handleAcceptTaskSuggestion,
+                                        handleDismissTaskSuggestion,
+                                        handleCheckinOut,
+                                        handleAnalyzeCheckinAnomalies,
+                                        handleGenerateHealthReport,
+                                        handleGenerateForesight,
+                                        handleGenerateImprovementPlan,
+                                        handleGenerateCoverageDeviationReport,
+                                        handleSaveTerm,
+                                        handleDeleteTerm,
+                                        handleSaveAcademicClass,
+                                        handleDeleteAcademicClass,
+                                        handleSaveAcademicAssignment,
+                                        handleDeleteAcademicAssignment,
+                                        handleSaveGradingScheme,
+                                        handleDeleteGradingScheme,
+                                        handleSetActiveGradingScheme,
+                                        handleSaveSubject,
+                                        handleDeleteSubject,
+                                        handleSaveClass,
+                                        handleDeleteClass,
+                                        handleSaveArm,
+                                        handleDeleteArm,
+                                        handleSaveInventoryItem,
+                                        handleDeleteInventoryItem,
+                                        handleSaveReward,
+                                        handleDeleteReward,
+                                        handleRedeemReward,
+                                        handleRunPayroll,
+                                        handleUpdateUserPayroll,
+                                        handleCreateLeaveRequest,
+                                        handleDeleteLeaveRequest,
+                                        handleUpdateLeaveRequestStatus,
+                                        handleSaveCampus,
+                                        handleDeleteCampus,
+                                        handleSaveShift,
+                                        handleDeleteShift,
+                                        handleSaveLeaveType,
+                                        handleDeleteLeaveType,
+                                        handleSaveAssessmentStructure,
+                                        handleDeleteAssessmentStructure,
+                                        handleImportLegacyAssignments,
+                                        handleUpdateClassEnrollment,
+                                        handleCreateOrder,
+                                        handleUpdateOrderStatus,
+                                        handleAddOrderNote,
+                                        handleDeleteOrderNote,
+                                        handleSaveSocialLinks,
+                                        handleOpenCreateStudentAccountModal,
+                                        handleBulkCreateStudentAccounts,
+                                        handleCreateStudentAccount,
+                                        handleResetStudentPassword,
+                                        handleResetStudentStrikes,
+                                        handleLogCommunication,
+                                    }}
+                                />
                              </Suspense>
                          </ErrorBoundary>
                     </main>
@@ -3602,7 +3315,217 @@ const App: React.FC = () => {
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6 relative">
                      <ErrorBoundary>
                         <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                            {renderContent()}
+                            <AppRouter 
+                                currentView={currentView} 
+                                data={{
+                                    userProfile,
+                                    userType,
+                                    users,
+                                    reports,
+                                    students,
+                                    tasks,
+                                    announcements,
+                                    notifications,
+                                    positiveRecords,
+                                    studentAwards,
+                                    staffAwards,
+                                    interventionPlans,
+                                    sipLogs,
+                                    lessonPlans,
+                                    schoolSettings,
+                                    livingPolicy,
+                                    calendarEvents,
+                                    inventory,
+                                    allSubjects,
+                                    allClasses,
+                                    allArms,
+                                    surveys,
+                                    classGroups,
+                                    roles,
+                                    userRoleAssignments,
+                                    teams,
+                                    teamPulse,
+                                    teamFeedback,
+                                    curricula,
+                                    curriculumWeeks,
+                                    academicClasses,
+                                    academicAssignments,
+                                    academicClassStudents,
+                                    scoreEntries,
+                                    gradingSchemes,
+                                    schoolConfig,
+                                    terms,
+                                    assessments,
+                                    assessmentScores,
+                                    assessmentStructures,
+                                    atRiskStudents,
+                                    atRiskTeachers,
+                                    socialMediaAnalytics,
+                                    policyInquiries,
+                                    curriculumReport,
+                                    taskSuggestions,
+                                    alerts: [],
+                                    coverageVotes,
+                                    rewards,
+                                    payrollRuns,
+                                    payrollItems,
+                                    payrollAdjustments,
+                                    campuses,
+                                    teacherCheckins,
+                                    leaveTypes,
+                                    leaveRequests,
+                                    teacherShifts,
+                                    teachingEntities,
+                                    orders,
+                                    socialAccounts,
+                                    checkinAnomalies,
+                                    weeklyRatings,
+                                    studentTermReports,
+                                    studentTermReportSubjects,
+                                    auditLogs,
+                                    todaysCheckinForDashboard,
+                                    navContext,
+                                    userPermissions,
+                                    isDarkMode,
+                                    schoolHealthReport,
+                                    improvementPlan,
+                                }}
+                                actions={{
+                                    setCurrentView,
+                                    setSelectedStudent: (s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); },
+                                    setIsPositiveModalOpen,
+                                    handleLogout,
+                                    toggleTheme,
+                                    addToast,
+                                    handleAddReport,
+                                    handleAssignReport,
+                                    handleAddReportComment,
+                                    handleDeleteReport,
+                                    handleUpdateReportStatusAndResponse,
+                                    handleBulkDeleteReports,
+                                    handleBulkAssignReports,
+                                    handleBulkUpdateReportStatus,
+                                    handleOpenAIBulkResponseModal,
+                                    handleUpdateTaskStatus,
+                                    handleAddTask,
+                                    handleAddAnnouncement,
+                                    handleUpdateAnnouncement,
+                                    handleDeleteAnnouncement,
+                                    handleAddStudent,
+                                    handleUpdateStudent,
+                                    handleGenerateStudentAwards,
+                                    handleGenerateStudentInsight,
+                                    handleCreateSIP,
+                                    handleAddSIPLog,
+                                    handleUpdateSIP,
+                                    handleRunWeeklyComplianceCheck,
+                                    handleUpdateClassGroupMembers,
+                                    handleSaveAttendanceSchedule,
+                                    handleDeleteAttendanceSchedule,
+                                    handleSaveAttendanceRecord,
+                                    handleCreateClassAssignment,
+                                    handleDeleteClassAssignment,
+                                    handleSaveSurvey,
+                                    handleDeleteSurvey,
+                                    handleSaveCalendarEvent,
+                                    handleUpdateCalendarEvent,
+                                    handleDeleteCalendarEvent,
+                                    handleNavigation: handleAINavigation,
+                                    handleInviteUser,
+                                    handleDeactivateUser,
+                                    handleUpdateUserCampus,
+                                    handleSaveRole,
+                                    handleUpdateRoleAssignments,
+                                    handleCreateTeam,
+                                    handleUpdateTeam,
+                                    handleDeleteTeam,
+                                    handleUpdateTeamMembers,
+                                    handleSaveTeamFeedback,
+                                    handleSaveCurriculum,
+                                    handleSaveLessonPlan,
+                                    handleAnalyzeLessonPlan,
+                                    handleCopyLessonPlan,
+                                    handleApproveLessonPlan,
+                                    handleSaveScores,
+                                    handleSubmitScoresForReview,
+                                    handleSaveAssessment,
+                                    handleDeleteAssessment,
+                                    handleSaveAssessmentScores,
+                                    handleCopyAssessment,
+                                    handleLockScores,
+                                    handleUpdateReportComments,
+                                    handleBulkAddStudents,
+                                    handleAddPolicySnippet,
+                                    handleSavePolicyDocument,
+                                    handleSendEmergencyBroadcast,
+                                    handleUpdateProfile,
+                                    handleUpdateAvatar,
+                                    handleResetPassword,
+                                    handleUpdateEmail,
+                                    handleUpdatePassword,
+                                    handleUpdateSchoolSettings,
+                                    handleUpdateSchoolConfig,
+                                    handleGenerateStaffAwards,
+                                    handleAnalyzeTeacherRisk,
+                                    handleGeneratePolicyInquiries,
+                                    handleGenerateCurriculumReport,
+                                    handleProcessDailyDigest,
+                                    handleAcceptTaskSuggestion,
+                                    handleDismissTaskSuggestion,
+                                    handleCheckinOut,
+                                    handleAnalyzeCheckinAnomalies,
+                                    handleGenerateHealthReport,
+                                    handleGenerateForesight,
+                                    handleGenerateImprovementPlan,
+                                    handleGenerateCoverageDeviationReport,
+                                    handleSaveTerm,
+                                    handleDeleteTerm,
+                                    handleSaveAcademicClass,
+                                    handleDeleteAcademicClass,
+                                    handleSaveAcademicAssignment,
+                                    handleDeleteAcademicAssignment,
+                                    handleSaveGradingScheme,
+                                    handleDeleteGradingScheme,
+                                    handleSetActiveGradingScheme,
+                                    handleSaveSubject,
+                                    handleDeleteSubject,
+                                    handleSaveClass,
+                                    handleDeleteClass,
+                                    handleSaveArm,
+                                    handleDeleteArm,
+                                    handleSaveInventoryItem,
+                                    handleDeleteInventoryItem,
+                                    handleSaveReward,
+                                    handleDeleteReward,
+                                    handleRedeemReward,
+                                    handleRunPayroll,
+                                    handleUpdateUserPayroll,
+                                    handleCreateLeaveRequest,
+                                    handleDeleteLeaveRequest,
+                                    handleUpdateLeaveRequestStatus,
+                                    handleSaveCampus,
+                                    handleDeleteCampus,
+                                    handleSaveShift,
+                                    handleDeleteShift,
+                                    handleSaveLeaveType,
+                                    handleDeleteLeaveType,
+                                    handleSaveAssessmentStructure,
+                                    handleDeleteAssessmentStructure,
+                                    handleImportLegacyAssignments,
+                                    handleUpdateClassEnrollment,
+                                    handleCreateOrder,
+                                    handleUpdateOrderStatus,
+                                    handleAddOrderNote,
+                                    handleDeleteOrderNote,
+                                    handleSaveSocialLinks,
+                                    handleOpenCreateStudentAccountModal,
+                                    handleBulkCreateStudentAccounts,
+                                    handleCreateStudentAccount,
+                                    handleResetStudentPassword,
+                                    handleResetStudentStrikes,
+                                    handleLogCommunication,
+                                }}
+                            />
                         </Suspense>
                      </ErrorBoundary>
                      
