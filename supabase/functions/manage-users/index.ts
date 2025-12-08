@@ -100,10 +100,13 @@ serve(async (req) => {
                     try {
                         await supabaseAdmin.auth.admin.deleteUser(existingStudent.user_id);
                         // Also manually clear the user_id from the student record for safety
-                        await supabaseAdmin
+                        const { error: clearError } = await supabaseAdmin
                             .from('students')
                             .update({ user_id: null })
                             .eq('id', existingStudent.id);
+                        if (clearError) {
+                            console.warn(`Could not clear user_id for ${studentName}:`, clearError);
+                        }
                         console.log(`Deleted existing auth account and cleared user_id for ${studentName}`);
                     } catch (e) {
                         console.warn(`Could not delete existing account for ${studentName}:`, e);
