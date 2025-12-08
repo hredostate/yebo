@@ -591,6 +591,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onSaveReward={actions.handleSaveReward}
                 onDeleteReward={actions.handleDeleteReward}
                 onInviteUser={actions.handleInviteUser}
+                onUpdateUser={actions.handleUpdateUser}
+                onDeleteUser={actions.handleDeleteUser}
                 onDeactivateUser={actions.handleDeactivateUser}
                 campuses={data.campuses}
                 onUpdateUserCampus={actions.handleUpdateUserCampus}

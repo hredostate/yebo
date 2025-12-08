@@ -57,6 +57,8 @@ interface SuperAdminConsoleProps {
     onSaveReward: (reward: Partial<RewardStoreItem>) => Promise<boolean>;
     onDeleteReward: (rewardId: number) => Promise<boolean>;
     onInviteUser: (email: string, role: RoleTitle) => Promise<void>;
+    onUpdateUser: (userId: string, userData: Partial<UserProfile>) => Promise<boolean>;
+    onDeleteUser: (userId: string) => Promise<boolean>;
     onDeactivateUser: (userId: string, isActive: boolean) => Promise<void>;
     campuses: Campus[];
     onUpdateUserCampus: (userId: string, campusId: number | null) => Promise<void>;
@@ -133,7 +135,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         onSaveArm, onDeleteArm,
         onSaveInventoryItem, onDeleteInventoryItem,
         onSaveReward, onDeleteReward,
-        onInviteUser, onDeactivateUser, onUpdateUserCampus,
+        onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus,
         onSaveCampus, onDeleteCampus,
         onImportLegacyAssignments,
         onUpdateClassEnrollment,
@@ -172,7 +174,9 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                 return <UserManagement 
                     users={users} 
                     roles={rolesAsRecord} 
-                    onInviteUser={onInviteUser} 
+                    onInviteUser={onInviteUser}
+                    onUpdateUser={onUpdateUser}
+                    onDeleteUser={onDeleteUser}
                     onDeactivateUser={onDeactivateUser} 
                     campuses={campuses}
                     onUpdateUserCampus={onUpdateUserCampus}

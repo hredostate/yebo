@@ -2984,6 +2984,39 @@ const App: React.FC = () => {
         addToast(`Invitation sent to ${email} for role ${role}.`, 'success');
     }, [addToast]);
 
+    const handleUpdateUser = useCallback(async (userId: string, userData: Partial<UserProfile>): Promise<boolean> => {
+        try {
+            const { error } = await Offline.update('user_profiles', userData, { id: userId });
+            if (error) {
+                addToast(error.message, 'error');
+                return false;
+            }
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...userData } : u));
+            addToast('User updated successfully.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [addToast]);
+
+    const handleDeleteUser = useCallback(async (userId: string): Promise<boolean> => {
+        try {
+            // Note: This should also handle auth deletion via Edge Function
+            const { error } = await Offline.del('user_profiles', { id: userId });
+            if (error) {
+                addToast(error.message, 'error');
+                return false;
+            }
+            setUsers(prev => prev.filter(u => u.id !== userId));
+            addToast('User deleted successfully.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [addToast]);
+
     const handleDeactivateUser = useCallback(async (userId: string, isActive: boolean) => {
         // Logic to toggle active state in DB/Auth
         addToast(`User ${isActive ? 'activated' : 'deactivated'}.`, 'success');
@@ -4775,6 +4808,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleDeleteCalendarEvent,
                                         handleNavigation: handleAINavigation,
                                         handleInviteUser,
+                                        handleUpdateUser,
+                                        handleDeleteUser,
                                         handleDeactivateUser,
                                         handleUpdateUserCampus,
                                         handleSaveRole,
@@ -5021,6 +5056,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleDeleteCalendarEvent,
                                     handleNavigation: handleAINavigation,
                                     handleInviteUser,
+                                    handleUpdateUser,
+                                    handleDeleteUser,
                                     handleDeactivateUser,
                                     handleUpdateUserCampus,
                                     handleSaveRole,

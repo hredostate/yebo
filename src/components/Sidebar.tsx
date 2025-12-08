@@ -104,7 +104,6 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.COMPLIANCE_TRACKER, label: 'Compliance Tracker', permission: 'view-compliance-tracker' },
       { id: VIEWS.SUPPORT_HUB, label: 'Support Hub', permission: 'manage-tasks' },
       { id: VIEWS.SURVEY_MANAGER, label: 'Survey Manager', permission: 'manage-surveys' },
-      { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
     ]
   },
   {
@@ -115,6 +114,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.SETTINGS, label: 'Global Settings', permission: 'manage-settings' },
       { id: VIEWS.AI_STRATEGIC_CENTER, label: 'AI Strategic Center', permission: 'view-school-health-overview' },
       { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },
+      { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
       { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
       { id: VIEWS.ANALYTICS, label: 'Analytics Dashboard', permission: 'view-analytics' },
       { id: VIEWS.DATA_ANALYSIS, label: 'AI Data Analysis', permission: 'view-analytics' },
