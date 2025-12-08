@@ -57,6 +57,50 @@ serve(async (req) => {
                     continue;
                 }
 
+                // Server-side validation for data quality
+                // Validate email format if provided
+                const providedEmail = (student.email || student.Email || student.EMAIL || '').trim();
+                if (providedEmail) {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(providedEmail)) {
+                        results.push({ 
+                            name: studentName, 
+                            status: 'Failed', 
+                            error: `Invalid email format: "${providedEmail}"` 
+                        });
+                        continue;
+                    }
+                }
+
+                // Validate phone numbers if provided
+                const phoneFields = ['parent_phone_number_1', 'parent_phone_number_2'];
+                let phoneValidationError = null;
+                for (const field of phoneFields) {
+                    if (student[field]) {
+                        const phone = student[field].toString().trim();
+                        // Check for scientific notation
+                        if (/[eE][+-]?\d+/.test(phone)) {
+                            phoneValidationError = `${field} appears to be in scientific notation: "${phone}"`;
+                            break;
+                        }
+                        // Check for proper format
+                        const cleaned = phone.replace(/[\s\-()]/g, '');
+                        if (!/^\d+$/.test(cleaned)) {
+                            phoneValidationError = `${field} contains non-numeric characters: "${phone}"`;
+                            break;
+                        }
+                        if (cleaned.length < 10 || cleaned.length > 15) {
+                            phoneValidationError = `${field} has invalid length (${cleaned.length} digits): "${phone}"`;
+                            break;
+                        }
+                    }
+                }
+                
+                if (phoneValidationError) {
+                    results.push({ name: studentName, status: 'Failed', error: phoneValidationError });
+                    continue;
+                }
+
                 // Check if student already exists by admission_number, name, or email
                 let existingStudent = null;
                 
@@ -81,17 +125,14 @@ serve(async (req) => {
                 }
                 
                 // Also check by email if provided (helps prevent duplicates on retry)
-                if (!existingStudent && (student.email || student.Email || student.EMAIL)) {
-                    const providedEmail = (student.email || student.Email || student.EMAIL || '').trim().toLowerCase();
-                    if (providedEmail) {
-                        const { data } = await supabaseAdmin
-                            .from('students')
-                            .select('*')
-                            .eq('school_id', student.school_id)
-                            .ilike('email', providedEmail)
-                            .maybeSingle();
-                        existingStudent = data;
-                    }
+                if (!existingStudent && providedEmail) {
+                    const { data } = await supabaseAdmin
+                        .from('students')
+                        .select('*')
+                        .eq('school_id', student.school_id)
+                        .ilike('email', providedEmail)
+                        .maybeSingle();
+                    existingStudent = data;
                 }
 
                 // If existing student already has an account, delete and clear user_id
@@ -117,7 +158,6 @@ serve(async (req) => {
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
                 // Use provided email (case-insensitive) or generate one with @upsshub.com domain
-                const providedEmail = (student.email || student.Email || student.EMAIL || '').trim();
                 const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
                 const emailPrefix = cleanAdmission || cleanName || 'student';
@@ -147,7 +187,11 @@ serve(async (req) => {
 
                 if (userError) {
                     console.error(`Auth user creation failed for ${studentName}:`, userError);
-                    results.push({ name: studentName, status: 'Failed', error: userError.message });
+                    // Provide more context in error message
+                    const errorMsg = userError.message.includes('email') 
+                        ? `Email error: ${userError.message}`
+                        : userError.message;
+                    results.push({ name: studentName, status: 'Failed', error: errorMsg });
                     continue;
                 }
 
