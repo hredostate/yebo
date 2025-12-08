@@ -22,13 +22,28 @@ interface AcademicAssignmentManagerProps {
     terms: Term[];
     academicClasses: AcademicClass[];
     users: UserProfile[];
-    onSave: (as: Partial<AcademicTeachingAssignment>) => Promise<boolean>;
-    onDelete: (asId: number) => Promise<boolean>;
     classes: BaseDataObject[];
     arms: BaseDataObject[];
+    students: Student[];
+    academicClassStudents: AcademicClassStudent[];
+    onSave: (as: Partial<AcademicTeachingAssignment>) => Promise<boolean>;
+    onDelete: (asId: number) => Promise<boolean>;
+    onUpdateClassEnrollment: (classId: number, termId: number, studentIds: number[]) => Promise<boolean>;
 }
 
-const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ assignments, terms, academicClasses, users, onSave, onDelete }) => {
+const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ 
+    assignments, 
+    terms, 
+    academicClasses, 
+    users, 
+    classes, 
+    arms, 
+    students, 
+    academicClassStudents, 
+    onSave, 
+    onDelete,
+    onUpdateClassEnrollment
+}) => {
     const [editingAssignment, setEditingAssignment] = useState<Partial<AcademicTeachingAssignment> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
@@ -142,10 +157,14 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                 const result = await model.generateContent(prompt);
                 const text = textFromGemini(result.response);
                 
-                // Extract JSON from response
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    aiRecommendations = JSON.parse(jsonMatch[0]);
+                // Extract JSON from response with error handling
+                try {
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        aiRecommendations = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (parseError) {
+                    console.error('Failed to parse AI response:', parseError);
                 }
             } catch (error) {
                 console.error('AI analysis error:', error);
@@ -159,7 +178,8 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
             let recommendation = '';
             
             if (aiResult) {
-                status = aiResult.status as any;
+                const validStatuses: Array<'overbooked' | 'balanced' | 'underutilized' | 'none'> = ['overbooked', 'balanced', 'underutilized', 'none'];
+                status = validStatuses.includes(aiResult.status as any) ? aiResult.status as typeof status : 'balanced';
                 recommendation = aiResult.recommendation;
             } else {
                 // Fallback logic
@@ -342,11 +362,16 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                     <th className="px-6 py-3">Class</th>
                                     <th className="px-6 py-3">Subject</th>
                                     <th className="px-6 py-3">Teacher</th>
+                                    <th className="px-6 py-3">Students</th>
                                     <th className="px-6 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200/60 dark:divide-slate-700/60">
-                                {filteredAssignments.length > 0 ? filteredAssignments.map(as => (
+                                {filteredAssignments.length > 0 ? filteredAssignments.map(as => {
+                                    const enrolledCount = academicClassStudents.filter(
+                                        acs => acs.academic_class_id === as.academic_class_id && acs.enrolled_term_id === as.term_id
+                                    ).length;
+                                    return (
                                     <tr key={as.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">{as.academic_class?.name}</td>
                                         <td className="px-6 py-3">{as.subject_name}</td>
@@ -355,6 +380,15 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                                 {as.teacher?.name.charAt(0)}
                                             </div>
                                             {as.teacher?.name}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                            <span className={`px-2 py-1 text-xs rounded-full font-semibold ${
+                                                enrolledCount > 0 
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                            }`}>
+                                                {enrolledCount} enrolled
+                                            </span>
                                         </td>
                                         <td className="px-6 py-3 text-right">
                                             <div className="flex justify-end gap-3">
@@ -367,9 +401,10 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                             </div>
                                         </td>
                                     </tr>
-                                )) : (
+                                );
+                                }) : (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No assignments found matching your criteria.</td>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No assignments found matching your criteria.</td>
                                     </tr>
                                 )}
                             </tbody>
