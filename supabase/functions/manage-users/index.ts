@@ -57,7 +57,7 @@ serve(async (req) => {
                     continue;
                 }
 
-                // Check if student already exists by admission_number or name
+                // Check if student already exists by admission_number, name, or email
                 let existingStudent = null;
                 
                 if (student.admission_number) {
@@ -79,13 +79,32 @@ serve(async (req) => {
                         .maybeSingle();
                     existingStudent = data;
                 }
+                
+                // Also check by email if provided (helps prevent duplicates on retry)
+                if (!existingStudent && (student.email || student.Email || student.EMAIL)) {
+                    const providedEmail = (student.email || student.Email || student.EMAIL || '').trim().toLowerCase();
+                    if (providedEmail) {
+                        const { data } = await supabaseAdmin
+                            .from('students')
+                            .select('*')
+                            .eq('school_id', student.school_id)
+                            .ilike('email', providedEmail)
+                            .maybeSingle();
+                        existingStudent = data;
+                    }
+                }
 
-                // If existing student already has an account, skip or reset
+                // If existing student already has an account, delete and clear user_id
                 if (existingStudent?.user_id) {
                     // Delete existing auth user to "reset" the account
                     try {
                         await supabaseAdmin.auth.admin.deleteUser(existingStudent.user_id);
-                        console.log(`Deleted existing auth account for ${studentName}`);
+                        // Also manually clear the user_id from the student record for safety
+                        await supabaseAdmin
+                            .from('students')
+                            .update({ user_id: null })
+                            .eq('id', existingStudent.id);
+                        console.log(`Deleted existing auth account and cleared user_id for ${studentName}`);
                     } catch (e) {
                         console.warn(`Could not delete existing account for ${studentName}:`, e);
                     }
@@ -94,13 +113,16 @@ serve(async (req) => {
                 // Generate password and email
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
-                // Use provided email or generate one with @school.com domain
+                // Use provided email (case-insensitive) or generate one with @school.com domain
+                const providedEmail = (student.email || student.Email || student.EMAIL || '').trim();
                 const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
                 const emailPrefix = cleanAdmission || cleanName || 'student';
                 const timestamp = Date.now().toString().slice(-6);
                 const random = Math.floor(Math.random() * 1000);
-                const email = student.email || `${emailPrefix}.${timestamp}${random}@school.com`;
+                const email = providedEmail || `${emailPrefix}.${timestamp}${random}@school.com`;
+
+                console.log(`Student ${studentName}: provided email = "${providedEmail}", using email = "${email}"`);
 
                 console.log(`Creating auth user with email: ${email}`);
 
