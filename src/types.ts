@@ -1003,6 +1003,7 @@ export interface SocialAccount {
 
 export interface CreatedCredential {
     name: string;
+    username?: string; // Add username field
     email?: string;
     password?: string;
     status: 'Success' | 'Failed' | 'Error' | 'Skipped';

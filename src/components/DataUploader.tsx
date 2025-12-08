@@ -100,7 +100,7 @@ const ResultsModal: React.FC<{
                 
                 <div className="my-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">
                     <p className="font-bold">Important: Download Credentials Now</p>
-                    <p className="text-sm mt-1">For security, temporary passwords are shown only once. Please export the CSV and store it securely before closing this window. Passwords cannot be recovered after this step.</p>
+                    <p className="text-sm mt-1">For security, usernames and temporary passwords are shown only once. Please export the CSV and store it securely before closing this window. Students should use their username (not email) to login.</p>
                 </div>
 
                 <div className="flex-grow my-4 overflow-y-auto border-y border-slate-200/60 dark:border-slate-700/60">
@@ -108,7 +108,7 @@ const ResultsModal: React.FC<{
                         <thead className="text-xs uppercase bg-slate-500/10 sticky top-0">
                             <tr>
                                 <th className="px-4 py-2">Name</th>
-                                <th className="px-4 py-2">Email</th>
+                                <th className="px-4 py-2">Username</th>
                                 <th className="px-4 py-2">Password</th>
                                 <th className="px-4 py-2">Status</th>
                             </tr>
@@ -117,7 +117,7 @@ const ResultsModal: React.FC<{
                             {results.map((res, index) => (
                                 <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60">
                                     <td className="px-4 py-2 font-medium">{res.name}</td>
-                                    <td className="px-4 py-2">{res.email || '-'}</td>
+                                    <td className="px-4 py-2 font-mono text-blue-600 dark:text-blue-400">{res.username || res.email || '-'}</td>
                                     <td className="px-4 py-2 font-mono">{res.password || 'N/A'}</td>
                                     <td className="px-4 py-2">
                                         {res.status === 'Failed' || res.status === 'Error' ? (

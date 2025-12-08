@@ -166,18 +166,21 @@ serve(async (req) => {
                     }
                 }
 
-                // Generate password and email
+                // Generate username and password
+                // Username format: admission number or name-based with school prefix
+                const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+                const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
                 // Use provided email (case-insensitive) or generate one with @upsshub.com domain
-                const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+                // Email is still needed for Supabase Auth but username will be primary for students
                 const emailPrefix = cleanAdmission || cleanName || 'student';
                 const timestamp = Date.now().toString().slice(-6);
                 const random = Math.floor(Math.random() * 1000);
                 const email = providedEmail || `${emailPrefix}.${timestamp}${random}@upsshub.com`;
 
-                console.log(`Student ${studentName}: provided email = "${providedEmail}", using email = "${email}"`);
+                console.log(`Student ${studentName}: username = "${username}", email = "${email}"`);
 
                 console.log(`Creating auth user with email: ${email}`);
 
@@ -187,6 +190,7 @@ serve(async (req) => {
                     email_confirm: true,
                     user_metadata: {
                         name: studentName,
+                        username: username, // Store username in metadata
                         user_type: 'student',
                         class_id: student.class_id,
                         arm_id: student.arm_id,
@@ -268,7 +272,7 @@ serve(async (req) => {
                     }
                 }
 
-                results.push({ name: studentName, email: email, password: password, status: 'Success' });
+                results.push({ name: studentName, username: username, email: email, password: password, status: 'Success' });
                 
             } catch (innerError: any) {
                 console.error(`Crash processing student ${student.name}:`, innerError);
@@ -300,10 +304,11 @@ serve(async (req) => {
             throw new Error('This student already has a login account.');
         }
 
+        const cleanAdmission = studentRecord.admission_number ? studentRecord.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+        const cleanName = studentRecord.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
         const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-        const emailPrefix = studentRecord.admission_number 
-            ? studentRecord.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') 
-            : studentRecord.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const emailPrefix = cleanAdmission || cleanName;
         const email = studentRecord.email || `${emailPrefix}.${Math.floor(Math.random() * 1000)}@upsshub.com`;
 
         const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
@@ -312,6 +317,7 @@ serve(async (req) => {
             email_confirm: true,
             user_metadata: {
                 name: studentRecord.name,
+                username: username, // Store username
                 user_type: 'student',
                 class_id: studentRecord.class_id,
                 arm_id: studentRecord.arm_id,
@@ -336,7 +342,7 @@ serve(async (req) => {
             .update({ student_record_id: studentId })
             .eq('id', user.user.id);
 
-        return new Response(JSON.stringify({ success: true, credential: { email, password } }), {
+        return new Response(JSON.stringify({ success: true, credential: { username, email, password } }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
         });
@@ -365,10 +371,11 @@ serve(async (req) => {
                  continue;
              }
 
+             const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+             const cleanName = student.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+             const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
              const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-             const emailPrefix = student.admission_number 
-                ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') 
-                : student.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+             const emailPrefix = cleanAdmission || cleanName;
              const email = student.email || `${emailPrefix}.${Math.floor(Math.random() * 1000)}@upsshub.com`;
 
              const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
@@ -377,6 +384,7 @@ serve(async (req) => {
                 email_confirm: true,
                 user_metadata: {
                     name: student.name,
+                    username: username, // Store username
                     user_type: 'student',
                     class_id: student.class_id,
                     arm_id: student.arm_id,
@@ -397,7 +405,7 @@ serve(async (req) => {
                     .update({ student_record_id: id })
                     .eq('id', user.user.id);
 
-                results.push({ name: student.name, email, password, status: 'Success' });
+                results.push({ name: student.name, username, email, password, status: 'Success' });
             }
         }
 
