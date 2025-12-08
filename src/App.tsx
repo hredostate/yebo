@@ -4608,6 +4608,13 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return <LandingPage onNavigate={(view) => setCurrentView(view)} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
     }
 
+    // Redirect authenticated users away from auth-only views
+    const authOnlyViews = ['teacher-login', 'student-login', 'landing', 'public-ratings'];
+    if (authOnlyViews.includes(currentView)) {
+        setCurrentView(VIEWS.DASHBOARD);
+        return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /></div>;
+    }
+
     if (dbError) {
          if (dbError.includes('relation') || dbError.includes('does not exist')) {
              return <DatabaseSetupError error={dbError} onLogout={handleLogout} />;
