@@ -4,7 +4,7 @@
 import React from 'react';
 import TeachingAssignmentsManager from './TeachingAssignmentsManager';
 // FIX: Changed 'TeachingAssignment' to 'AcademicTeachingAssignment' to match the expected data structure.
-import type { UserProfile, AcademicTeachingAssignment, BaseDataObject, ClassGroup, AcademicClass, Term } from '../types';
+import type { UserProfile, AcademicTeachingAssignment, BaseDataObject, ClassGroup, AcademicClass, Term, Student, AcademicClassStudent } from '../types';
 
 type Props = {
   users: UserProfile[];
@@ -15,11 +15,14 @@ type Props = {
   classGroups: ClassGroup[];
   academicClasses: AcademicClass[];
   terms: Term[];
+  students: Student[];
+  academicClassStudents: AcademicClassStudent[];
   onCreateAssignment: (
     assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
     groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
   ) => Promise<boolean>;
   onDeleteAssignment: (groupId: number) => Promise<boolean>;
+  onUpdateClassEnrollment: (classId: number, termId: number, studentIds: number[]) => Promise<boolean>;
 };
 
 const TeachingAssignmentsContainer: React.FC<Props> = ({
@@ -31,8 +34,11 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
   classGroups,
   academicClasses,
   terms,
+  students,
+  academicClassStudents,
   onCreateAssignment,
   onDeleteAssignment,
+  onUpdateClassEnrollment,
 }) => {
   const handleSave = async (as: Partial<AcademicTeachingAssignment>): Promise<boolean> => {
     // This is a new/existing assignment being saved from the form
@@ -107,8 +113,11 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
       terms={terms}
       classes={classes}
       arms={arms}
+      students={students}
+      academicClassStudents={academicClassStudents}
       onSave={handleSave}
       onDelete={handleDelete}
+      onUpdateClassEnrollment={onUpdateClassEnrollment}
     />
   );
 };

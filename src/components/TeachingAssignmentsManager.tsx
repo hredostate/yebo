@@ -4,23 +4,54 @@ import { SUBJECT_OPTIONS } from '../constants';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, SearchIcon, TrashIcon, EditIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
+import { aiClient } from '../services/aiClient';
+import { textFromGemini } from '../utils/ai';
+
+interface WorkloadAnalysis {
+    teacherId: string;
+    teacherName: string;
+    assignmentCount: number;
+    classes: string[];
+    subjects: string[];
+    status: 'overbooked' | 'balanced' | 'underutilized' | 'none';
+    recommendation?: string;
+}
 
 interface AcademicAssignmentManagerProps {
     assignments: AcademicTeachingAssignment[];
     terms: Term[];
     academicClasses: AcademicClass[];
     users: UserProfile[];
-    onSave: (as: Partial<AcademicTeachingAssignment>) => Promise<boolean>;
-    onDelete: (asId: number) => Promise<boolean>;
     classes: BaseDataObject[];
     arms: BaseDataObject[];
+    students: Student[];
+    academicClassStudents: AcademicClassStudent[];
+    onSave: (as: Partial<AcademicTeachingAssignment>) => Promise<boolean>;
+    onDelete: (asId: number) => Promise<boolean>;
+    onUpdateClassEnrollment: (classId: number, termId: number, studentIds: number[]) => Promise<boolean>;
 }
 
-const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ assignments, terms, academicClasses, users, onSave, onDelete }) => {
+const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ 
+    assignments, 
+    terms, 
+    academicClasses, 
+    users, 
+    classes, 
+    arms, 
+    students, 
+    academicClassStudents, 
+    onSave, 
+    onDelete,
+    onUpdateClassEnrollment
+}) => {
     const [editingAssignment, setEditingAssignment] = useState<Partial<AcademicTeachingAssignment> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [showWorkloadAnalysis, setShowWorkloadAnalysis] = useState(false);
+    const [workloadAnalysis, setWorkloadAnalysis] = useState<WorkloadAnalysis[]>([]);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
 
     const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal').sort((a,b) => a.name.localeCompare(b.name)), [users]);
     
@@ -64,6 +95,131 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
         }
     }
 
+    // Calculate workload analysis
+    const analyzeWorkload = async () => {
+        setIsAnalyzing(true);
+        
+        // Calculate assignments per teacher for selected term
+        const teacherWorkloads: { [key: string]: { count: number; classes: string[]; subjects: string[]; name: string } } = {};
+        
+        const relevantAssignments = selectedTermId 
+            ? assignments.filter(a => a.term_id === selectedTermId)
+            : assignments;
+        
+        // Initialize all teachers
+        teachers.forEach(t => {
+            teacherWorkloads[t.id] = {
+                count: 0,
+                classes: [],
+                subjects: [],
+                name: t.name
+            };
+        });
+        
+        // Count assignments
+        relevantAssignments.forEach(a => {
+            if (a.teacher_user_id && teacherWorkloads[a.teacher_user_id]) {
+                teacherWorkloads[a.teacher_user_id].count++;
+                if (a.academic_class?.name && !teacherWorkloads[a.teacher_user_id].classes.includes(a.academic_class.name)) {
+                    teacherWorkloads[a.teacher_user_id].classes.push(a.academic_class.name);
+                }
+                if (a.subject_name && !teacherWorkloads[a.teacher_user_id].subjects.includes(a.subject_name)) {
+                    teacherWorkloads[a.teacher_user_id].subjects.push(a.subject_name);
+                }
+            }
+        });
+        
+        // Use AI to determine thresholds and generate recommendations
+        const workloadData = Object.entries(teacherWorkloads).map(([id, data]) => ({
+            teacherId: id,
+            teacherName: data.name,
+            assignmentCount: data.count,
+            classes: data.classes,
+            subjects: data.subjects
+        }));
+        
+        let aiRecommendations: { [key: string]: { status: string; recommendation: string } } = {};
+        
+        if (aiClient) {
+            try {
+                const prompt = `Analyze this teacher workload data and classify each teacher as "overbooked", "balanced", or "underutilized". 
+                Consider that a typical teacher should handle 3-5 subject assignments across 2-4 classes.
+                
+                Teacher Workload Data:
+                ${workloadData.map(t => `- ${t.teacherName}: ${t.assignmentCount} assignments across ${t.classes.length} classes (Subjects: ${t.subjects.join(', ') || 'none'})`).join('\n')}
+                
+                Respond in JSON format:
+                {
+                    "teacherId": { "status": "overbooked|balanced|underutilized", "recommendation": "brief recommendation" }
+                }`;
+                
+                const model = aiClient.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const result = await model.generateContent(prompt);
+                const text = textFromGemini(result.response);
+                
+                // Extract JSON from response with error handling
+                try {
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        aiRecommendations = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (parseError) {
+                    console.error('Failed to parse AI response:', parseError);
+                }
+            } catch (error) {
+                console.error('AI analysis error:', error);
+            }
+        }
+        
+        // Build final analysis with fallback logic if AI fails
+        const analysis: WorkloadAnalysis[] = workloadData.map(teacher => {
+            const aiResult = aiRecommendations[teacher.teacherId];
+            let status: 'overbooked' | 'balanced' | 'underutilized' | 'none' = 'none';
+            let recommendation = '';
+            
+            if (aiResult) {
+                const validStatuses: Array<'overbooked' | 'balanced' | 'underutilized' | 'none'> = ['overbooked', 'balanced', 'underutilized', 'none'];
+                status = validStatuses.includes(aiResult.status as any) ? aiResult.status as typeof status : 'balanced';
+                recommendation = aiResult.recommendation;
+            } else {
+                // Fallback logic
+                if (teacher.assignmentCount === 0) {
+                    status = 'none';
+                    recommendation = 'No assignments. Consider assigning subjects to this teacher.';
+                } else if (teacher.assignmentCount > 6) {
+                    status = 'overbooked';
+                    recommendation = 'High workload. Consider redistributing some assignments.';
+                } else if (teacher.assignmentCount < 2) {
+                    status = 'underutilized';
+                    recommendation = 'Low workload. Consider adding more assignments.';
+                } else {
+                    status = 'balanced';
+                    recommendation = 'Workload appears balanced.';
+                }
+            }
+            
+            return {
+                teacherId: teacher.teacherId,
+                teacherName: teacher.teacherName,
+                assignmentCount: teacher.assignmentCount,
+                classes: teacher.classes,
+                subjects: teacher.subjects,
+                status,
+                recommendation
+            };
+        });
+        
+        setWorkloadAnalysis(analysis);
+        setIsAnalyzing(false);
+        setShowWorkloadAnalysis(true);
+    };
+
+    // Filter teachers without assignments
+    const unassignedTeachers = useMemo(() => {
+        const assignedTeacherIds = new Set(filteredAssignments.map(a => a.teacher_user_id));
+        return teachers.filter(t => !assignedTeacherIds.has(t.id));
+    }, [teachers, filteredAssignments]);
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -72,11 +228,93 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                      <p className="text-sm text-slate-500 dark:text-slate-400">Assign subjects to teachers for specific classes.</p>
                 </div>
                 {!editingAssignment && (
-                    <button onClick={() => setEditingAssignment({ term_id: selectedTermId ? Number(selectedTermId) : undefined })} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                        <PlusCircleIcon className="w-5 h-5"/> New Assignment
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={analyzeWorkload}
+                            disabled={isAnalyzing}
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50"
+                        >
+                            {isAnalyzing ? <Spinner size="sm" /> : '🤖'} AI Workload Analysis
+                        </button>
+                        <button 
+                            onClick={() => setShowUnassignedOnly(!showUnassignedOnly)} 
+                            className={`flex items-center gap-2 px-4 py-2 font-semibold rounded-lg transition-colors shadow-sm ${
+                                showUnassignedOnly 
+                                    ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
+                            }`}
+                        >
+                            {showUnassignedOnly ? '👁️ Show All' : '⚠️'} Unassigned Teachers ({unassignedTeachers.length})
+                        </button>
+                        <button onClick={() => setEditingAssignment({ term_id: selectedTermId ? Number(selectedTermId) : undefined })} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                            <PlusCircleIcon className="w-5 h-5"/> New Assignment
+                        </button>
+                    </div>
                 )}
             </div>
+            
+            {/* Workload Analysis Panel */}
+            {showWorkloadAnalysis && workloadAnalysis.length > 0 && (
+                <div className="rounded-xl border border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-900/20 p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                        <h4 className="font-bold text-purple-900 dark:text-purple-100">🤖 AI Workload Analysis</h4>
+                        <button onClick={() => setShowWorkloadAnalysis(false)} className="text-purple-600 hover:text-purple-800 dark:text-purple-400 text-sm">✕ Close</button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {workloadAnalysis
+                            .filter(w => w.status !== 'balanced' || w.assignmentCount > 0)
+                            .sort((a, b) => {
+                                const order = { 'overbooked': 0, 'underutilized': 1, 'none': 2, 'balanced': 3 };
+                                return order[a.status] - order[b.status];
+                            })
+                            .map(teacher => (
+                                <div 
+                                    key={teacher.teacherId} 
+                                    className={`p-3 rounded-lg border ${
+                                        teacher.status === 'overbooked' 
+                                            ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' 
+                                            : teacher.status === 'underutilized' || teacher.status === 'none'
+                                            ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
+                                            : 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="font-semibold text-sm text-slate-900 dark:text-white">{teacher.teacherName}</div>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                                            teacher.status === 'overbooked' 
+                                                ? 'bg-red-200 text-red-800 dark:bg-red-800/50 dark:text-red-200' 
+                                                : teacher.status === 'underutilized' || teacher.status === 'none'
+                                                ? 'bg-orange-200 text-orange-800 dark:bg-orange-800/50 dark:text-orange-200'
+                                                : 'bg-green-200 text-green-800 dark:bg-green-800/50 dark:text-green-200'
+                                        }`}>
+                                            {teacher.assignmentCount} {teacher.status === 'overbooked' ? '⚠️' : teacher.status === 'none' ? '❌' : teacher.status === 'underutilized' ? '⬇️' : '✓'}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                                        <p><strong>Classes:</strong> {teacher.classes.join(', ') || 'None'}</p>
+                                        <p><strong>Subjects:</strong> {teacher.subjects.join(', ') || 'None'}</p>
+                                        <p className="italic mt-2">{teacher.recommendation}</p>
+                                    </div>
+                                </div>
+                            ))}
+                    </div>
+                </div>
+            )}
+            
+            {/* Unassigned Teachers Panel */}
+            {showUnassignedOnly && unassignedTeachers.length > 0 && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-900/20 p-4">
+                    <h4 className="font-bold text-orange-900 dark:text-orange-100 mb-3">⚠️ Teachers Without Assignments</h4>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {unassignedTeachers.map(teacher => (
+                            <div key={teacher.id} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-orange-200 dark:border-orange-700">
+                                <div className="font-semibold text-sm text-slate-900 dark:text-white">{teacher.name}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">{teacher.role}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             
             {editingAssignment ? (
                 <AssignmentForm
@@ -124,11 +362,16 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                     <th className="px-6 py-3">Class</th>
                                     <th className="px-6 py-3">Subject</th>
                                     <th className="px-6 py-3">Teacher</th>
+                                    <th className="px-6 py-3">Students</th>
                                     <th className="px-6 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200/60 dark:divide-slate-700/60">
-                                {filteredAssignments.length > 0 ? filteredAssignments.map(as => (
+                                {filteredAssignments.length > 0 ? filteredAssignments.map(as => {
+                                    const enrolledCount = academicClassStudents.filter(
+                                        acs => acs.academic_class_id === as.academic_class_id && acs.enrolled_term_id === as.term_id
+                                    ).length;
+                                    return (
                                     <tr key={as.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">{as.academic_class?.name}</td>
                                         <td className="px-6 py-3">{as.subject_name}</td>
@@ -137,6 +380,15 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                                 {as.teacher?.name.charAt(0)}
                                             </div>
                                             {as.teacher?.name}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                            <span className={`px-2 py-1 text-xs rounded-full font-semibold ${
+                                                enrolledCount > 0 
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                            }`}>
+                                                {enrolledCount} enrolled
+                                            </span>
                                         </td>
                                         <td className="px-6 py-3 text-right">
                                             <div className="flex justify-end gap-3">
@@ -149,9 +401,10 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
                                             </div>
                                         </td>
                                     </tr>
-                                )) : (
+                                );
+                                }) : (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No assignments found matching your criteria.</td>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No assignments found matching your criteria.</td>
                                     </tr>
                                 )}
                             </tbody>

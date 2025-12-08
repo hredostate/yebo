@@ -456,8 +456,11 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 classGroups={data.classGroups}
                 academicClasses={data.academicClasses}
                 terms={data.terms}
+                students={data.students}
+                academicClassStudents={data.academicClassStudents}
                 onCreateAssignment={actions.handleCreateClassAssignment}
                 onDeleteAssignment={actions.handleDeleteClassAssignment}
+                onUpdateClassEnrollment={actions.handleUpdateClassEnrollment}
              />;
         case VIEWS.RESULT_MANAGER:
              return <ResultManager 

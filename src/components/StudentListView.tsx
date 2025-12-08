@@ -325,6 +325,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       const dataToExport = filteredStudents.map(s => ({
           'Name': s.name,
           'Admission Number': s.admission_number || '',
+          'Email/Username': s.email || '',
           'Class': s.class?.name || '',
           'Arm': s.arm?.name || '',
           'Status': s.status || '',
@@ -344,6 +345,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Student Roster</h1>
           <p className="text-slate-600 dark:text-slate-300 mt-1">Manage all students in the school.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            ℹ️ Passwords are only shown once during account creation. Students use their email/username to login.
+          </p>
         </div>
         <div className="flex items-center gap-2">
             {canResetStrikes && onBulkResetStrikes && (
@@ -480,6 +484,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                 <th scope="col" className="px-6 py-3 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/50 select-none" onClick={() => handleSort('status')}>
                     Status <SortIcon field="status" />
                 </th>
+                <th scope="col" className="px-6 py-3">Email/Username</th>
                 <th scope="col" className="px-6 py-3">Account</th>
                 <th scope="col" className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -500,6 +505,13 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                         <td className="px-6 py-4">{student.class?.name}{student.arm?.name ? ` - ${student.arm.name}` : ''}</td>
                         <td className="px-6 py-4">
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                        </td>
+                        <td className="px-6 py-4 text-xs font-mono">
+                            {student.email ? (
+                                <span className="text-slate-600 dark:text-slate-300" title="Login Email">{student.email}</span>
+                            ) : (
+                                <span className="text-slate-400 dark:text-slate-500">Not set</span>
+                            )}
                         </td>
                          <td className="px-6 py-4">
                             {student.user_id ? (
