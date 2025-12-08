@@ -123,13 +123,11 @@ const ResultsModal: React.FC<{
                                         {res.status === 'Skipped' ? (
                                             <div className="flex flex-col">
                                                 <span className="text-yellow-600 font-bold">Skipped</span>
-                                                {/* @ts-ignore - Error prop might exist on skipped items */}
                                                 <span className="text-xs text-yellow-500">{res.error || 'Account already exists'}</span>
                                             </div>
                                         ) : res.status === 'Failed' || res.status === 'Error' ? (
                                             <div className="flex flex-col">
                                                 <span className="text-red-600 font-bold">Failed</span>
-                                                {/* @ts-ignore - Error prop might exist on failed items */}
                                                 <span className="text-xs text-red-500">{res.error || 'Unknown error'}</span>
                                             </div>
                                         ) : (
