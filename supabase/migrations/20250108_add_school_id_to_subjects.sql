@@ -14,7 +14,7 @@ BEGIN
         WHERE table_name = 'subjects' 
         AND column_name = 'school_id'
     ) THEN
-        -- Get the first available school_id (usually 1 for the default school)
+        -- Get the first available school_id from the schools table
         SELECT id INTO default_school_id 
         FROM public.schools 
         ORDER BY id 

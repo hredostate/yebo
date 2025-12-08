@@ -7,13 +7,15 @@ When attempting to create or manage subjects in the application, users encounter
 Could not find the 'school_id' column of 'subjects' in the schema cache
 ```
 
-This error occurred because the `subjects` table was missing the `school_id` column that is required for multi-tenancy support.
+This error occurred in existing database deployments that were missing the `school_id` column in the `subjects` table.
 
 ## Root Cause
-The `subjects` table is defined with a `school_id` column in the main `database_schema.sql` file, but:
-1. Some existing databases may have been created before this column was added to the schema
-2. There was no migration file to add this column to existing deployments
-3. The application code (in `src/App.tsx`) attempts to insert subjects with `school_id`, causing the error
+While the `subjects` table is correctly defined with a `school_id` column in the main `database_schema.sql` file (lines 161-165), some existing database deployments may have:
+1. Been created before the `school_id` column was added to the schema definition
+2. Not had a migration applied to add this column to existing tables
+3. This causes errors when the application code (in `src/App.tsx`) attempts to insert subjects with `school_id`
+
+The solution is a migration that adds the column to existing databases where it's missing.
 
 ## Solution
 Created migration file `20250108_add_school_id_to_subjects.sql` that:
@@ -34,7 +36,8 @@ Created migration file `20250108_add_school_id_to_subjects.sql` that:
 3. Copy the contents of `supabase/migrations/20250108_add_school_id_to_subjects.sql`
 4. Paste into the SQL Editor
 5. Click "Run" to execute the migration
-6. You should see a success message: "Added school_id column to subjects table and set default values"
+6. You should see a success message like: "Added school_id column to subjects table with default school_id = 1"
+   (The actual school_id value will depend on your database)
 
 ### Option 2: Using Supabase CLI
 ```bash
