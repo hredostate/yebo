@@ -33,6 +33,20 @@ Updates the `handle_new_user()` trigger function to properly populate the `stude
 - Then creates student_profiles with the correct student_record_id
 - Ensures proper linking for new student accounts
 
+### 4. 20250108_add_school_id_to_subjects.sql
+Adds the `school_id` column to the `subjects` table with proper foreign key constraint.
+
+**When to run**: If you're getting the error "Could not find the 'school_id' column of 'subjects' in the schema cache" when creating or managing subjects.
+
+**What it does**:
+- Dynamically finds the first available school_id (doesn't hard-code assumptions)
+- Validates that at least one school exists before proceeding
+- Adds the `school_id` column if it doesn't exist
+- Sets existing subjects to use the first available school_id
+- Makes column NOT NULL to enforce data integrity
+- Adds foreign key constraint to schools table with idempotency check
+- Notifies PostgREST to reload the schema cache
+
 ## How to Apply Migrations
 
 ### Using Supabase Dashboard
@@ -53,15 +67,21 @@ supabase db push
 # Or apply migrations one by one
 psql -h your-db-host -U postgres -d postgres -f supabase/migrations/add_student_record_id_to_student_profiles.sql
 psql -h your-db-host -U postgres -d postgres -f supabase/migrations/fix_handle_new_user_trigger.sql
+psql -h your-db-host -U postgres -d postgres -f supabase/migrations/20250108_add_school_id_to_subjects.sql
 ```
 
 ## Migration Order
 
-**Important**: Run migrations in this order:
+**Important**: Run migrations in this recommended order based on dependencies:
 
 1. `add_transfer_tracking_columns.sql` (optional, only if using payroll)
 2. `add_student_record_id_to_student_profiles.sql` (required for student account fix)
 3. `fix_handle_new_user_trigger.sql` (required for student account fix)
+4. `20250108_add_school_id_to_subjects.sql` (required if getting subjects schema cache error)
+5. `20250101_add_auth_user_deletion_trigger.sql` (optional, for auth user cleanup)
+6. `20250107_add_webhook_events_table.sql` (optional, for webhook event logging)
+
+Note: Migrations are ordered by dependency rather than date to ensure proper application sequence.
 
 ## Troubleshooting
 
