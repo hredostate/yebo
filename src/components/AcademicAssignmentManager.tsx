@@ -325,24 +325,28 @@ const AssignmentForm: React.FC<{
 }> = ({ assignment, onSave, onCancel, isSaving, terms, academicClasses, teachers, classes, arms }) => {
     const [localAs, setLocalAs] = useState(assignment);
     const [selectedLevel, setSelectedLevel] = useState<string>('');
-    const [selectedArm, setSelectedArm] = useState<string>('');
+    const [selectedArms, setSelectedArms] = useState<Set<string>>(new Set());
+    const [bulkMode, setBulkMode] = useState(false);
 
     useEffect(() => {
         if (assignment.academic_class_id) {
             const ac = academicClasses.find(c => c.id === assignment.academic_class_id);
             if (ac) {
                 setSelectedLevel(ac.level || '');
-                setSelectedArm(ac.arm || '');
+                setSelectedArms(new Set([ac.arm || '']));
+                setBulkMode(false);
             }
         } else {
             setSelectedLevel('');
-            setSelectedArm('');
+            setSelectedArms(new Set());
         }
     }, [assignment.academic_class_id, academicClasses]);
 
+    // For single arm mode (editing), update academic_class_id
     useEffect(() => {
-        if (localAs.term_id && selectedLevel) {
+        if (!bulkMode && localAs.term_id && selectedLevel) {
              const selectedTerm = terms.find(t => t.id === Number(localAs.term_id));
+             const selectedArm = Array.from(selectedArms)[0] || '';
              if (selectedTerm) {
                  const ac = academicClasses.find(c => 
                     c.session_label === selectedTerm.session_label &&
@@ -358,7 +362,7 @@ const AssignmentForm: React.FC<{
         } else {
              setLocalAs(prev => ({ ...prev, academic_class_id: undefined }));
         }
-    }, [localAs.term_id, selectedLevel, selectedArm, academicClasses, terms]);
+    }, [bulkMode, localAs.term_id, selectedLevel, selectedArms, academicClasses, terms]);
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -373,8 +377,41 @@ const AssignmentForm: React.FC<{
         setLocalAs(prev => ({ ...prev, subject_name: String(value) }));
     }
     
+    const handleSave = async () => {
+        if (bulkMode && selectedLevel && localAs.term_id) {
+            // Bulk save: create assignments for multiple arms
+            const selectedTerm = terms.find(t => t.id === Number(localAs.term_id));
+            if (!selectedTerm) return;
+            
+            const armsToCreate = selectedArms.size > 0 ? Array.from(selectedArms) : [''];
+            
+            for (const armName of armsToCreate) {
+                // Find or identify the academic class for this arm
+                const ac = academicClasses.find(c => 
+                    c.session_label === selectedTerm.session_label &&
+                    c.level === selectedLevel &&
+                    (c.arm === armName || (!c.arm && !armName))
+                );
+                
+                if (ac) {
+                    await onSave({
+                        ...localAs,
+                        academic_class_id: ac.id
+                    });
+                }
+            }
+        } else {
+            // Single save
+            onSave(localAs);
+        }
+    };
+    
     const subjectOptions = useMemo(() => SUBJECT_OPTIONS.map(s => ({ value: s, label: s })), []);
     const teacherOptions = useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
+    
+    const canSave = bulkMode 
+        ? (selectedLevel && selectedArms.size > 0 && localAs.subject_name && localAs.teacher_user_id && localAs.term_id)
+        : (localAs.academic_class_id && localAs.subject_name && localAs.teacher_user_id);
 
     return (
         <div className="p-6 border border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-800 rounded-xl space-y-4 animate-fade-in">
@@ -390,28 +427,96 @@ const AssignmentForm: React.FC<{
 
                  <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Academic Class</label>
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                         <select 
                             value={selectedLevel} 
                             onChange={e => setSelectedLevel(e.target.value)} 
-                            className="w-1/2 p-2.5 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" 
+                            className="w-full p-2.5 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" 
                             disabled={!localAs.term_id}
                         >
                             <option value="">Select Level</option>
                             {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
-                        <select 
-                            value={selectedArm} 
-                            onChange={e => setSelectedArm(e.target.value)} 
-                            className="w-1/2 p-2.5 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" 
-                            disabled={!localAs.term_id}
-                        >
-                            <option value="">Select Arm (Optional)</option>
-                            {arms.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-                        </select>
+                        
+                        {/* Bulk mode toggle - only show when creating new */}
+                        {!localAs.id && localAs.term_id && selectedLevel && (
+                            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={bulkMode} 
+                                    onChange={e => {
+                                        setBulkMode(e.target.checked);
+                                        if (!e.target.checked && selectedArms.size > 0) {
+                                            // Keep only first arm when switching back to single mode
+                                            setSelectedArms(new Set([Array.from(selectedArms)[0]]));
+                                        }
+                                    }}
+                                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                />
+                                Assign to multiple arms at once
+                            </label>
+                        )}
+                        
+                        {/* Multi-select arms when in bulk mode */}
+                        {bulkMode ? (
+                            <div className="border rounded-lg p-3 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 max-h-40 overflow-y-auto">
+                                <p className="text-xs text-slate-500 mb-2">Select arms (optional - leave empty for all):</p>
+                                <div className="space-y-1">
+                                    {arms.length > 0 ? arms.map(a => (
+                                        <label key={a.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedArms.has(a.name)} 
+                                                onChange={e => {
+                                                    const newSet = new Set(selectedArms);
+                                                    if (e.target.checked) {
+                                                        newSet.add(a.name);
+                                                    } else {
+                                                        newSet.delete(a.name);
+                                                    }
+                                                    setSelectedArms(newSet);
+                                                }}
+                                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                            />
+                                            {a.name}
+                                        </label>
+                                    )) : (
+                                        <p className="text-xs text-slate-400">No arms defined</p>
+                                    )}
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedArms.has('')} 
+                                            onChange={e => {
+                                                const newSet = new Set(selectedArms);
+                                                if (e.target.checked) {
+                                                    newSet.add('');
+                                                } else {
+                                                    newSet.delete('');
+                                                }
+                                                setSelectedArms(newSet);
+                                            }}
+                                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                        />
+                                        <span className="italic">No arm (default)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Single arm select when not in bulk mode */
+                            <select 
+                                value={Array.from(selectedArms)[0] || ''} 
+                                onChange={e => setSelectedArms(new Set([e.target.value]))} 
+                                className="w-full p-2.5 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" 
+                                disabled={!localAs.term_id || !selectedLevel}
+                            >
+                                <option value="">Select Arm (Optional)</option>
+                                {arms.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                            </select>
+                        )}
                     </div>
                     {!localAs.term_id && <p className="text-xs text-amber-600 mt-1">Select a term first.</p>}
-                    {localAs.term_id && selectedLevel && !localAs.academic_class_id && (
+                    {!bulkMode && localAs.term_id && selectedLevel && !localAs.academic_class_id && (
                         <p className="text-xs text-red-600 mt-1">
                             This class/arm combination does not exist for the selected session. Please create it in 'Academic Classes' first.
                         </p>
@@ -443,8 +548,8 @@ const AssignmentForm: React.FC<{
                 <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700">
                     Cancel
                 </button>
-                <button onClick={() => onSave(localAs)} disabled={isSaving || !localAs.academic_class_id || !localAs.subject_name || !localAs.teacher_user_id} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center gap-2">
-                    {isSaving ? <Spinner size="sm"/> : 'Save Assignment'}
+                <button onClick={handleSave} disabled={isSaving || !canSave} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center gap-2">
+                    {isSaving ? <Spinner size="sm"/> : bulkMode ? `Save ${selectedArms.size || 'All'} Assignment(s)` : 'Save Assignment'}
                 </button>
             </div>
          </div>

@@ -71,7 +71,9 @@ class OfflineClient {
       return result;
     }
     await enqueue({ kind: 'insert', table, payload });
-    return { offlineQueued: true, data: null, error: null };
+    // Return optimistic data with a temporary ID for offline mode
+    const optimisticData = { ...payload, id: payload.id || Date.now() };
+    return { offlineQueued: true, data: optimisticData, error: null };
   }
   
   async update(table: string, payload: any, match: any) {

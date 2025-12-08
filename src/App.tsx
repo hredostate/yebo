@@ -4216,21 +4216,37 @@ const App: React.FC = () => {
         }
     }, [userProfile, addToast]);
 
-    const handleUpdateClassEnrollment = useCallback(async (classId: number, studentIds: number[]): Promise<boolean> => {
+    const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
         if (!userProfile) return false;
         try {
             // Delete existing enrollments for this class
             const { error: deleteError } = await Offline.del('academic_class_students', { academic_class_id: classId });
             if (deleteError) { addToast(deleteError.message, 'error'); return false; }
             
+            // Optimistically update local state - remove old enrollments
+            setAcademicClassStudents(prev => prev.filter(e => e.academic_class_id !== classId));
+            
             // Insert new enrollments
+            const newEnrollments: AcademicClassStudent[] = [];
             for (const studentId of studentIds) {
-                const { error } = await Offline.insert('academic_class_students', {
+                const enrollment = {
                     academic_class_id: classId,
                     student_id: studentId,
-                });
+                    enrolled_term_id: termId,
+                };
+                const { error, data } = await Offline.insert('academic_class_students', enrollment);
                 if (error) { addToast(error.message, 'error'); return false; }
+                // Add to local state if data returned (online or optimistic)
+                if (data) {
+                    newEnrollments.push(data as AcademicClassStudent);
+                }
             }
+            
+            // Update local state with new enrollments
+            if (newEnrollments.length > 0) {
+                setAcademicClassStudents(prev => [...prev, ...newEnrollments]);
+            }
+            
             addToast('Class enrollment updated.', 'success');
             return true;
         } catch (e: any) {
