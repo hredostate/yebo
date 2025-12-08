@@ -42,12 +42,12 @@ cd /path/to/Updated-360
 psql -h your-db-host -U postgres -d postgres -f supabase/migrations/20250108_add_school_id_to_subjects.sql
 ```
 
-### Option 3: Manual SQL Command
-If you prefer to run the SQL directly in Supabase SQL Editor, you can use:
+### Option 3: Manual Schema Cache Reload
+If you prefer to manually reload the schema cache after any schema changes, you can use:
 ```sql
-NOTIFY pgrst, 'reload config';
+NOTIFY pgrst, 'reload schema';
 ```
-to force PostgREST to reload the schema cache after any schema changes.
+to force PostgREST to reload the schema cache.
 
 ## Verification
 After applying the migration, verify the fix by:
@@ -95,7 +95,7 @@ Make sure you've run the main `database_schema.sql` file first to create all tab
 ### Still getting schema cache errors?
 Try manually reloading the PostgREST schema cache:
 ```sql
-NOTIFY pgrst, 'reload config';
+NOTIFY pgrst, 'reload schema';
 ```
 
 Or restart your Supabase project from the dashboard (Settings → General → Restart project).

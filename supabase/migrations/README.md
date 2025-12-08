@@ -69,7 +69,7 @@ psql -h your-db-host -U postgres -d postgres -f supabase/migrations/20250108_add
 
 ## Migration Order
 
-**Important**: Run migrations in this order:
+**Important**: Run migrations in this recommended order based on dependencies:
 
 1. `add_transfer_tracking_columns.sql` (optional, only if using payroll)
 2. `add_student_record_id_to_student_profiles.sql` (required for student account fix)
@@ -77,6 +77,8 @@ psql -h your-db-host -U postgres -d postgres -f supabase/migrations/20250108_add
 4. `20250108_add_school_id_to_subjects.sql` (required if getting subjects schema cache error)
 5. `20250101_add_auth_user_deletion_trigger.sql` (optional, for auth user cleanup)
 6. `20250107_add_webhook_events_table.sql` (optional, for webhook event logging)
+
+Note: Migrations are ordered by dependency rather than date to ensure proper application sequence.
 
 ## Troubleshooting
 

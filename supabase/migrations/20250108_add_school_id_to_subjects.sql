@@ -22,6 +22,10 @@ BEGIN
         SET school_id = 1 
         WHERE school_id IS NULL;
         
+        -- Make the column NOT NULL to enforce data integrity
+        ALTER TABLE public.subjects 
+        ALTER COLUMN school_id SET NOT NULL;
+        
         -- Now add the foreign key constraint
         ALTER TABLE public.subjects 
         ADD CONSTRAINT subjects_school_id_fkey 
