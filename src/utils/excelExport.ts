@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export interface ExcelColumn {
   key: string;
@@ -30,17 +30,17 @@ const formatValue = (value: any, type?: ExcelColumn['type'], customFormat?: (val
   switch (type) {
     case 'date':
       if (value instanceof Date) {
-        return value.toLocaleDateString();
+        return value;
       }
       if (typeof value === 'string') {
         const date = new Date(value);
-        return isNaN(date.getTime()) ? value : date.toLocaleDateString();
+        return isNaN(date.getTime()) ? value : date;
       }
       return value;
     
     case 'currency':
       if (typeof value === 'number') {
-        return `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return value;
       }
       return value;
     
@@ -67,44 +67,66 @@ export const formatDataForExport = (data: any[], columns: ExcelColumn[]): any[] 
   return data.map(row => {
     const formattedRow: any = {};
     columns.forEach(col => {
-      formattedRow[col.header] = formatValue(row[col.key], col.type, col.format);
+      formattedRow[col.key] = formatValue(row[col.key], col.type, col.format);
     });
     return formattedRow;
   });
 };
 
 /**
- * Export data to Excel file
+ * Export data to Excel file using ExcelJS
  */
-export const exportToExcel = (
+export const exportToExcel = async (
   data: any[],
   columns: ExcelColumn[],
   options: ExportOptions
-): void => {
+): Promise<void> => {
   if (!data || data.length === 0) {
     console.warn('No data to export');
     return;
   }
 
   try {
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const sheetName = options.sheetName || 'Sheet1';
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    // Define columns
+    worksheet.columns = columns.map(col => ({
+      header: col.header,
+      key: col.key,
+      width: col.width || 15,
+    }));
+
     // Format the data
     const formattedData = formatDataForExport(data, columns);
 
-    // Create a new workbook
-    const workbook = XLSX.utils.book_new();
+    // Add rows
+    formattedData.forEach(row => {
+      const excelRow = worksheet.addRow(row);
+      
+      // Apply cell formatting based on column type
+      columns.forEach((col, index) => {
+        const cell = excelRow.getCell(index + 1);
+        
+        if (col.type === 'currency') {
+          cell.numFmt = '₦#,##0.00';
+        } else if (col.type === 'date') {
+          cell.numFmt = 'dd/mm/yyyy';
+        } else if (col.type === 'number') {
+          cell.numFmt = '#,##0';
+        }
+      });
+    });
 
-    // Convert data to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-
-    // Set column widths if specified
-    const columnWidths: XLSX.ColInfo[] = columns.map(col => ({
-      wch: col.width || 15
-    }));
-    worksheet['!cols'] = columnWidths;
-
-    // Add worksheet to workbook
-    const sheetName = options.sheetName || 'Sheet1';
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
 
     // Generate filename with optional timestamp
     let filename = options.filename;
@@ -121,7 +143,21 @@ export const exportToExcel = (
     }
 
     // Write the file
-    XLSX.writeFile(workbook, filename);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+
+    // Create download link
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     throw new Error('Failed to export data to Excel');
@@ -131,14 +167,14 @@ export const exportToExcel = (
 /**
  * Export data to Excel with multiple sheets
  */
-export const exportToExcelMultiSheet = (
+export const exportToExcelMultiSheet = async (
   sheets: Array<{
     data: any[];
     columns: ExcelColumn[];
     sheetName: string;
   }>,
   filename: string
-): void => {
+): Promise<void> => {
   if (!sheets || sheets.length === 0) {
     console.warn('No sheets to export');
     return;
@@ -146,21 +182,46 @@ export const exportToExcelMultiSheet = (
 
   try {
     // Create a new workbook
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     // Add each sheet
     sheets.forEach(({ data, columns, sheetName }) => {
       if (data && data.length > 0) {
-        const formattedData = formatDataForExport(data, columns);
-        const worksheet = XLSX.utils.json_to_sheet(formattedData);
-
-        // Set column widths
-        const columnWidths: XLSX.ColInfo[] = columns.map(col => ({
-          wch: col.width || 15
+        const worksheet = workbook.addWorksheet(sheetName);
+        
+        // Define columns
+        worksheet.columns = columns.map(col => ({
+          header: col.header,
+          key: col.key,
+          width: col.width || 15,
         }));
-        worksheet['!cols'] = columnWidths;
 
-        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        // Format and add data
+        const formattedData = formatDataForExport(data, columns);
+        formattedData.forEach(row => {
+          const excelRow = worksheet.addRow(row);
+          
+          // Apply cell formatting
+          columns.forEach((col, index) => {
+            const cell = excelRow.getCell(index + 1);
+            
+            if (col.type === 'currency') {
+              cell.numFmt = '₦#,##0.00';
+            } else if (col.type === 'date') {
+              cell.numFmt = 'dd/mm/yyyy';
+            } else if (col.type === 'number') {
+              cell.numFmt = '#,##0';
+            }
+          });
+        });
+
+        // Style header
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' },
+        };
       }
     });
 
@@ -176,7 +237,21 @@ export const exportToExcelMultiSheet = (
     }
 
     // Write the file
-    XLSX.writeFile(workbook, finalFilename);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+
+    // Create download link
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = finalFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     throw new Error('Failed to export data to Excel');
