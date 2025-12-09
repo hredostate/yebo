@@ -73,23 +73,38 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
     };
 
     const handleSave = async () => {
+        // Only validate API key for new entries, not edits
         if (!formData.api_key && editingCampus === null) {
             alert('API key is required');
             return;
         }
 
+        // Check for duplicate campus configuration (client-side)
+        if (editingCampus === null) {
+            const existingConfig = settings.find(s => 
+                (s.campus_id || 0) === formData.campus_id
+            );
+            if (existingConfig) {
+                alert('A configuration already exists for this campus. Please edit the existing one.');
+                return;
+            }
+        }
+
         setSaving(true);
         try {
-            const dataToSave = {
+            const dataToSave: any = {
                 school_id: schoolId,
                 campus_id: formData.campus_id || null,
-                api_key: formData.api_key,
                 device_id: formData.device_id || null,
                 base_url: formData.base_url,
                 environment: formData.environment,
-                is_active: formData.is_active,
-                updated_at: new Date().toISOString()
+                is_active: formData.is_active
             };
+
+            // Only include api_key if it's been entered (for edits, it's optional)
+            if (formData.api_key) {
+                dataToSave.api_key = formData.api_key;
+            }
 
             if (editingCampus !== null) {
                 // Update existing
@@ -101,7 +116,7 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
 
                 if (error) throw error;
             } else {
-                // Insert new
+                // Insert new (api_key is required)
                 const { error } = await supabase
                     .from('termii_settings')
                     .insert([dataToSave]);
@@ -272,7 +287,9 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
                             </button>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                            Your Termii API key from the Termii Dashboard.
+                            {editingCampus !== null 
+                                ? 'Leave blank to keep the existing API key. Enter a new key to update it.'
+                                : 'Your Termii API key from the Termii Dashboard.'}
                         </p>
                     </div>
 
