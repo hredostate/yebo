@@ -237,7 +237,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users}
                 teachingAssignments={data.academicAssignments}
                 onBulkCreateStudentAccounts={actions.handleBulkCreateStudentAccounts}
-                onBulkResetStrikes={actions.handleResetStudentStrikes}
                 onBulkDeleteAccounts={actions.handleBulkDeleteStudentAccounts}
                 onDeleteStudent={actions.handleDeleteStudent}
                 onBulkDeleteStudents={actions.handleBulkDeleteStudents}
@@ -617,6 +616,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 academicClassStudents={data.academicClassStudents}
                 onUpdateClassEnrollment={actions.handleUpdateClassEnrollment}
                 onUpdateUserPayroll={actions.handleUpdateUserPayroll}
+                onBulkResetStrikes={actions.handleBulkResetStrikes}
              />;
         case VIEWS.SUPPORT_HUB:
              return <SupportHubView 

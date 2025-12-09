@@ -70,6 +70,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const [isInsightLoading, setIsInsightLoading] = useState(false);
     const [isCommModalOpen, setIsCommModalOpen] = useState(false);
     const [initialPassword, setInitialPassword] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
     const [isRetrieving, setIsRetrieving] = useState(false);
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -123,6 +124,32 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         setFormData(student);
         setIsEditing(false);
         setInitialPassword(null);
+        setUserEmail(null);
+        
+        // Fetch user email if student has an account
+        const fetchUserEmail = async () => {
+            if (student.user_id) {
+                try {
+                    const { data, error } = await supabase
+                        .from('user_profiles')
+                        .select('email')
+                        .eq('id', student.user_id)
+                        .single();
+                    
+                    if (!error && data?.email) {
+                        setUserEmail(data.email);
+                    } else {
+                        // Fallback to student email if available
+                        setUserEmail(student.email || null);
+                    }
+                } catch (e) {
+                    console.error('Error fetching user email:', e);
+                    setUserEmail(student.email || null);
+                }
+            }
+        };
+        
+        fetchUserEmail();
     }, [student]);
 
     const handleTabClick = async (tabName: ProfileTab) => {
@@ -145,6 +172,13 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             setIsEditing(false);
         }
         setIsSaving(false);
+    };
+
+    const handleCopyUsername = () => {
+        if (userEmail) {
+            navigator.clipboard.writeText(userEmail);
+            addToast('Username copied to clipboard!', 'success');
+        }
     };
 
     const handleRetrievePassword = async () => {
@@ -203,6 +237,10 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             setIsCreatingAccount(false);
             if (creds && creds.password) {
                  setInitialPassword(creds.password);
+                 // Set the username/email from the credentials
+                 if (creds.email || creds.username) {
+                     setUserEmail(creds.email || creds.username || null);
+                 }
                  // Mark that account was just created so UI reflects account existence
                  // without using a fake UUID that would cause database errors
                  setAccountJustCreated(true);
@@ -457,20 +495,43 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             default:
                  return (
                     <>
+                        {/* Login Account Information - Show username if account exists */}
+                        {student.user_id && userEmail && (
+                            <div className="mb-4 p-4 bg-blue-100 border-l-4 border-blue-500 rounded-r-lg dark:bg-blue-900/30 dark:border-blue-400">
+                                <h4 className="font-semibold text-blue-800 dark:text-blue-300">Student Login Account</h4>
+                                <div className="mt-2 space-y-2">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">Username/Email:</p>
+                                            <p className="font-mono text-sm font-bold text-blue-900 dark:text-blue-100">{userEmail}</p>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleCopyUsername} 
+                                            className="px-3 py-1 text-sm bg-slate-200 rounded-md hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600"
+                                        >
+                                            Copy Username
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">Students log in using this username/email. Use "Retrieve Password" above to get their current password.</p>
+                            </div>
+                        )}
+                        
                         {initialPassword && (
-                            <div className="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg animate-fade-in">
-                                <h4 className="font-semibold text-yellow-800">Student Password (Temporary)</h4>
+                            <div className="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg animate-fade-in dark:bg-yellow-900/30 dark:border-yellow-400">
+                                <h4 className="font-semibold text-yellow-800 dark:text-yellow-300">Student Password (Temporary)</h4>
                                 <div className="flex items-center gap-4 mt-2">
-                                    <p className="font-mono text-lg font-bold">{initialPassword}</p>
+                                    <p className="font-mono text-lg font-bold text-yellow-900 dark:text-yellow-100">{initialPassword}</p>
                                     <button 
                                         type="button" 
                                         onClick={copyPassword} 
-                                        className="px-3 py-1 text-sm bg-slate-200 rounded-md hover:bg-slate-300"
+                                        className="px-3 py-1 text-sm bg-slate-200 rounded-md hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600"
                                     >
-                                        Copy
+                                        Copy Password
                                     </button>
                                 </div>
-                                <p className="text-xs text-yellow-700 mt-1">This password is shown temporarily. Please share it with the student immediately.</p>
+                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">This password is shown temporarily. Please share it with the student immediately.</p>
                             </div>
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

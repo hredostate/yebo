@@ -79,9 +79,10 @@ interface SuperAdminConsoleProps {
     academicClassStudents: AcademicClassStudent[];
     onUpdateClassEnrollment: (academicClassId: number, termId: number, studentIds: number[]) => Promise<boolean>;
     onUpdateUserPayroll: (userId: string, data: Partial<UserProfile>) => Promise<void>;
+    onBulkResetStrikes?: () => Promise<void>;
 }
 
-type AdminTab = 'Branding' | 'Roles' | 'Users' | 'Structure' | 'Grading' | 'Inventory' | 'Rewards' | 'Audit Log';
+type AdminTab = 'Branding' | 'Roles' | 'Users' | 'Structure' | 'Grading' | 'Inventory' | 'Rewards' | 'Audit Log' | 'Advanced';
 
 const tabs: { name: AdminTab; permission: string }[] = [
     { name: 'Branding', permission: 'school.console.branding_edit' },
@@ -92,6 +93,7 @@ const tabs: { name: AdminTab; permission: string }[] = [
     { name: 'Inventory', permission: 'school.console.structure_edit' },
     { name: 'Rewards', permission: 'school.console.structure_edit' },
     { name: 'Audit Log', permission: 'school.console.view_audit_log' },
+    { name: 'Advanced', permission: '*' }, // Super Admin only
 ];
 
 const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
@@ -139,7 +141,8 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         onSaveCampus, onDeleteCampus,
         onImportLegacyAssignments,
         onUpdateClassEnrollment,
-        onUpdateUserPayroll
+        onUpdateUserPayroll,
+        onBulkResetStrikes
     } = props;
 
     const visibleTabs = useMemo(() => {
@@ -273,6 +276,10 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
 
             case 'Audit Log':
                 return <AuditLogView logs={auditLogs} />;
+            
+            case 'Advanced':
+                return <AdvancedOperationsPanel onBulkResetStrikes={onBulkResetStrikes} addToast={addToast} />;
+            
             default:
                 return <p>Select a tab to get started.</p>;
         }
@@ -308,6 +315,88 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                 <main className="flex-1 rounded-2xl border border-slate-200/60 bg-white/60 p-6 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 min-h-[60vh]">
                     {renderContent()}
                 </main>
+            </div>
+        </div>
+    );
+};
+
+// Advanced Operations Panel - Super Admin Only
+const AdvancedOperationsPanel: React.FC<{
+    onBulkResetStrikes?: () => Promise<void>;
+    addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+}> = ({ onBulkResetStrikes, addToast }) => {
+    const [isResetting, setIsResetting] = React.useState(false);
+
+    const handleBulkResetStrikes = async () => {
+        if (!onBulkResetStrikes) {
+            addToast('This feature is not available.', 'error');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "⚠️ WARNING: This will reset ALL student strikes and archive ALL active infraction reports across the entire school.\n\n" +
+            "This action is typically performed at the start of a new term.\n\n" +
+            "Are you absolutely sure you want to continue?"
+        );
+
+        if (!confirmed) return;
+
+        // Double confirmation for safety
+        const doubleConfirmed = window.confirm(
+            "FINAL CONFIRMATION:\n\n" +
+            "This will affect ALL students. This action cannot be undone.\n\n" +
+            "Click OK to proceed with resetting all strikes."
+        );
+
+        if (!doubleConfirmed) return;
+
+        try {
+            setIsResetting(true);
+            await onBulkResetStrikes();
+        } catch (error) {
+            console.error('Error resetting strikes:', error);
+            addToast('An error occurred while resetting strikes.', 'error');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
+                <h3 className="text-lg font-bold text-red-800 dark:text-red-300 mb-2">⚠️ Dangerous Operations</h3>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                    These operations are powerful and can affect the entire school. Use with extreme caution.
+                </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+                <div>
+                    <h4 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Reset All Student Strikes</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                        This will reset the strike count for ALL students and archive all active infraction reports. 
+                        This is typically done at the start of a new academic term to give students a fresh start.
+                    </p>
+                    <button
+                        onClick={handleBulkResetStrikes}
+                        disabled={isResetting || !onBulkResetStrikes}
+                        className="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    >
+                        {isResetting ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Resetting...
+                            </>
+                        ) : (
+                            <>
+                                🔄 Reset All Strikes
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

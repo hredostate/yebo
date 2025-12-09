@@ -485,18 +485,42 @@ const App: React.FC = () => {
     const handleLogout = useCallback(async () => {
         if (!supabase) return;
         try {
-            await (supabase.auth as any).signOut();
+            // Clear session state first
+            setSession(null);
+            setUserProfile(null);
+            setUserType(null);
+            setUserPermissions([]);
+            setCurrentView('Dashboard');
+            window.location.hash = '';
+            
+            // Clear cached data
+            await cache.clear();
+            
+            // Clear local storage (except theme preference)
+            const theme = localStorage.getItem('theme');
+            localStorage.clear();
+            if (theme) {
+                localStorage.setItem('theme', theme);
+            }
+            
+            // Sign out from Supabase
+            await supabase.auth.signOut();
+            
+            console.log("Logout successful");
         } catch (error) {
             if (Offline.online()) {
                 console.error("Logout error:", error);
             } else {
                 console.log("Offline logout successful locally.");
             }
+            // Even if signOut fails, ensure local state is cleared
+            setSession(null);
+            setUserProfile(null);
+            setUserType(null);
+            setUserPermissions([]);
+            setCurrentView('Dashboard');
+            window.location.hash = '';
         }
-        setUserProfile(null);
-        setUserType(null);
-        setCurrentView('Dashboard');
-        window.location.hash = '';
     }, []);
 
 
@@ -4327,6 +4351,37 @@ const App: React.FC = () => {
             return false;
         }
     }, [userProfile, addToast]);
+
+    const handleBulkResetStrikes = useCallback(async (): Promise<void> => {
+        if (!userProfile || !supabase) return;
+        try {
+            // Archive all active infraction reports
+            const { error: archiveError } = await supabase
+                .from('reports')
+                .update({ archived: true })
+                .eq('report_type', 'Infraction')
+                .eq('archived', false)
+                .eq('school_id', userProfile.school_id);
+            
+            if (archiveError) throw archiveError;
+            
+            // Refresh reports to reflect the changes
+            if (session?.user) {
+                fetchData(session.user, true);
+            }
+            
+            addToast('All student strikes have been reset. All active infraction reports have been archived.', 'success');
+            
+            // Log the action
+            await logAuditAction('bulk_reset_strikes', {
+                description: 'Reset all student strikes and archived all active infraction reports',
+                affected_count: 'all students'
+            });
+        } catch (e: any) {
+            console.error('Error resetting strikes:', e);
+            addToast(`Error resetting strikes: ${e.message}`, 'error');
+        }
+    }, [userProfile, supabase, session, fetchData, addToast, logAuditAction]);
 
     const handleLogCommunication = useCallback(async (communicationData: CommunicationLogData): Promise<boolean> => {
         if (!userProfile) return false;

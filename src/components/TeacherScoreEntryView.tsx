@@ -142,7 +142,8 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             const total = (Object.values(sScores) as number[]).reduce((a: number, b: number) => a + (b || 0), 0);
             const grade = calculateGrade(total);
 
-            return {
+            // Build base entry object
+            const entry: Partial<ScoreEntry> = {
                 school_id: assignment.school_id,
                 term_id: assignment.term_id,
                 academic_class_id: assignment.academic_class_id,
@@ -152,16 +153,27 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
                 total_score: total,
                 grade: grade,
                 teacher_comment: localComments[student.id] || null,
-                // Map to legacy columns for backward compatibility if names match standard
-                ca_score: sScores['CA'] || sScores['CA1'] || undefined,
-                exam_score: sScores['Exam'] || undefined
             };
+
+            // Only include legacy columns if they have actual values
+            // This prevents schema cache issues when columns exist but aren't in cache
+            const caScore = sScores['CA'] || sScores['CA1'];
+            const examScore = sScores['Exam'];
+            
+            if (caScore !== undefined && caScore !== null) {
+                entry.ca_score = caScore;
+            }
+            if (examScore !== undefined && examScore !== null) {
+                entry.exam_score = examScore;
+            }
+
+            return entry;
         });
 
         const success = await onSaveScores(entriesToSave);
         setIsSaving(false);
         if (!success) {
-            addToast('Failed to save scores.', 'error');
+            addToast('Failed to save scores. If the issue persists, try refreshing the schema cache in database settings.', 'error');
         } else {
             addToast('Scores saved successfully.', 'success');
         }

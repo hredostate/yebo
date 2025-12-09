@@ -85,7 +85,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [loginFilter, setLoginFilter] = useState(''); // 'missing' or ''
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isGeneratingAwards, setIsGeneratingAwards] = useState(false);
-  const [isResettingBulkStrikes, setIsResettingBulkStrikes] = useState(false);
   const [isDeletingAccounts, setIsDeletingAccounts] = useState(false);
   const [isRetrievingPasswords, setIsRetrievingPasswords] = useState(false);
   const [isDeletingStudents, setIsDeletingStudents] = useState(false);
@@ -104,7 +103,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [credentials, setCredentials] = useState<CreatedCredential[] | null>(null);
 
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
-  const canResetStrikes = userPermissions.includes('*') || userPermissions.includes('manage-students'); // Assuming admin/principal
 
   const teachers = useMemo(() => 
     users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead').sort((a,b) => a.name.localeCompare(b.name))
@@ -201,15 +199,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     setIsGeneratingAwards(true);
     await onGenerateStudentAwards();
     setIsGeneratingAwards(false);
-  };
-
-  const handleBulkResetStrikesClick = async () => {
-      if (!onBulkResetStrikes) return;
-      if (!window.confirm("Are you sure you want to reset ALL student strikes? This action is usually done at the start of a new term and archives all active infraction reports.")) return;
-      
-      setIsResettingBulkStrikes(true);
-      await onBulkResetStrikes();
-      setIsResettingBulkStrikes(false);
   };
   
   // Bulk Selection Logic
@@ -350,15 +339,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-            {canResetStrikes && onBulkResetStrikes && (
-                <button 
-                    onClick={handleBulkResetStrikesClick}
-                    disabled={isResettingBulkStrikes}
-                    className="text-sm bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 disabled:opacity-50 flex items-center justify-center"
-                >
-                    {isResettingBulkStrikes ? <Spinner size="sm" /> : 'Reset All Strikes'}
-                </button>
-            )}
             <button 
                 onClick={handleGenerateAwards}
                 disabled={isGeneratingAwards}
