@@ -5,17 +5,20 @@ import ReportCanvas from './ReportCanvas';
 interface CustomReportBuilderProps {
   isDarkMode?: boolean;
   onSave?: (template: ReportTemplate) => void;
+  onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
   isDarkMode = false,
   onSave,
+  onShowToast,
 }) => {
   const [components, setComponents] = useState<ReportComponent[]>([]);
   const [selectedComponent, setSelectedComponent] = useState<ReportComponent | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const componentTypes = [
     { type: 'chart', label: 'Chart', icon: '📊' },
@@ -129,8 +132,10 @@ export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
   };
 
   const handleSaveTemplate = () => {
+    setValidationError('');
+    
     if (!templateName.trim()) {
-      alert('Please enter a template name');
+      setValidationError('Please enter a template name');
       return;
     }
 
@@ -145,7 +150,7 @@ export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
 
     const validation = validateReportTemplate(template);
     if (!validation.valid) {
-      alert('Template validation failed:\n' + validation.errors.join('\n'));
+      setValidationError(validation.errors.join(', '));
       return;
     }
 
@@ -155,10 +160,14 @@ export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
       onSave(template);
     }
 
-    alert('Template saved successfully!');
+    if (onShowToast) {
+      onShowToast('Template saved successfully!', 'success');
+    }
+    
     setShowSaveDialog(false);
     setTemplateName('');
     setTemplateDescription('');
+    setValidationError('');
   };
 
   return (
@@ -318,12 +327,20 @@ export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
           <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg w-96`}>
             <h2 className="text-xl font-bold mb-4">Save Report Template</h2>
             <div className="space-y-4">
+              {validationError && (
+                <div className="p-3 rounded bg-red-100 border border-red-400 text-red-700">
+                  {validationError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-2">Template Name</label>
                 <input
                   type="text"
                   value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
+                  onChange={(e) => {
+                    setTemplateName(e.target.value);
+                    setValidationError('');
+                  }}
                   className={`w-full p-2 rounded ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} border ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}
                   placeholder="My Report Template"
                 />
@@ -340,7 +357,10 @@ export const CustomReportBuilder: React.FC<CustomReportBuilderProps> = ({
               </div>
               <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => setShowSaveDialog(false)}
+                  onClick={() => {
+                    setShowSaveDialog(false);
+                    setValidationError('');
+                  }}
                   className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-300 hover:bg-gray-400'} transition-colors`}
                 >
                   Cancel

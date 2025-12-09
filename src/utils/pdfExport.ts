@@ -255,6 +255,7 @@ export const exportSimpleReport = async (
 
 /**
  * Create a downloadable PDF blob
+ * Returns a blob that can be uploaded or further processed
  */
 export const createPDFBlob = async (options: PDFExportOptions): Promise<Blob> => {
   const pdf = new jsPDF({
@@ -263,9 +264,51 @@ export const createPDFBlob = async (options: PDFExportOptions): Promise<Blob> =>
     format: options.pageSize,
   });
 
-  // Similar logic as exportToPDF but return blob instead of saving
-  // For now, just create a simple PDF
-  pdf.text(options.title, 15, 15);
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 15;
+  let yPosition = margin;
+
+  // Add title
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(options.title, margin, yPosition);
+  yPosition += 10;
+
+  if (options.subtitle) {
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(options.subtitle, margin, yPosition);
+    yPosition += 10;
+  }
+
+  // Process sections
+  for (const section of options.sections) {
+    if (yPosition > 250) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(section.title, margin, yPosition);
+    yPosition += 8;
+
+    if (section.type === 'text' && typeof section.content === 'string') {
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      const lines = pdf.splitTextToSize(section.content, pageWidth - 2 * margin);
+      lines.forEach((line: string) => {
+        if (yPosition > 270) {
+          pdf.addPage();
+          yPosition = margin;
+        }
+        pdf.text(line, margin, yPosition);
+        yPosition += 5;
+      });
+    }
+
+    yPosition += 5;
+  }
   
   return pdf.output('blob');
 };
