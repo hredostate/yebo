@@ -48,6 +48,17 @@ export const ALL_PERMISSIONS: string[] = [
   'manage-finance',
   'generate-id-cards',
   'manage-social-media',
+  // Teacher-specific permissions
+  'view-my-classes',
+  'view-my-lesson-plans',
+  'view-my-coverage-feedback',
+  'take-class-attendance',
+  'view-curriculum-readonly',
+  // Sensitive feature restrictions
+  'view-ai-task-suggestions',
+  'view-at-risk-students',
+  'view-all-student-data',
+  'view-sensitive-reports',
 ];
 
 export const VIEWS = {

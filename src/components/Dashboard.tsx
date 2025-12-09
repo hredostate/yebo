@@ -76,30 +76,54 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     const { userProfile, onNavigate, onViewStudent, taskSuggestions, areFallbackSuggestions, onAcceptTaskSuggestion, onDismissTaskSuggestion, users, onViewIntervention, sipLogs, todaysCheckin, handleCheckinOut, campuses, addToast } = props;
     const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
     
+    // Helper function to check if user has permission
+    const hasPermission = (permission: string) => {
+        return props.userPermissions.includes('*') || props.userPermissions.includes(permission);
+    };
+    
     const userWidgetConfig = useMemo(() => {
+        let config: string[] = [];
         if (userProfile.dashboard_config && userProfile.dashboard_config.length > 0) {
-            return userProfile.dashboard_config;
+            config = userProfile.dashboard_config;
+        } else {
+            // Role-specific defaults if config is empty
+            switch (userProfile.role) {
+                case 'Team Lead':
+                    config = ['daily-briefing', 'my-tasks', 'daily-report-status', 'team-pulse', 'at-risk-students', 'announcements', 'alerts'];
+                    break;
+                case 'Principal':
+                    config = ['daily-briefing', 'team-pulse', 'at-risk-students', 'at-risk-teachers', 'alerts', 'policy-inquiry', 'curriculum-report'];
+                    break;
+                case 'Admin':
+                    config = ['daily-briefing', 'sms-wallet', 'student-records', 'inventory', 'team-pulse', 'at-risk-teachers', 'alerts'];
+                    break;
+                case 'Accountant':
+                    config = ['sms-wallet', 'student-records', 'inventory', 'announcements'];
+                    break;
+                case 'Counselor':
+                    config = ['counselor-caseload', 'sip-status', 'my-tasks', 'at-risk-students', 'announcements'];
+                    break;
+                case 'Teacher':
+                    config = ['my-tasks', 'daily-report-status', 'announcements', 'alerts', 'inventory'];
+                    break;
+                case 'Maintenance':
+                    config = ['maintenance-schedule', 'inventory', 'my-tasks', 'announcements'];
+                    break;
+                default:
+                    config = ['my-tasks', 'daily-report-status', 'announcements', 'alerts'];
+            }
         }
-        // Role-specific defaults if config is empty
-        switch (userProfile.role) {
-            case 'Team Lead':
-                return ['daily-briefing', 'my-tasks', 'daily-report-status', 'team-pulse', 'at-risk-students', 'announcements', 'alerts'];
-            case 'Principal':
-                 return ['daily-briefing', 'team-pulse', 'at-risk-students', 'at-risk-teachers', 'alerts', 'policy-inquiry', 'curriculum-report'];
-            case 'Admin':
-                 return ['daily-briefing', 'sms-wallet', 'student-records', 'inventory', 'team-pulse', 'at-risk-teachers', 'alerts'];
-            case 'Accountant':
-                return ['sms-wallet', 'student-records', 'inventory', 'announcements'];
-            case 'Counselor':
-                return ['counselor-caseload', 'sip-status', 'my-tasks', 'at-risk-students', 'announcements'];
-            case 'Teacher':
-                 return ['my-tasks', 'daily-report-status', 'announcements', 'student-records', 'alerts', 'inventory'];
-            case 'Maintenance':
-                 return ['maintenance-schedule', 'inventory', 'my-tasks', 'announcements'];
-            default:
-                return ['my-tasks', 'daily-report-status', 'announcements', 'alerts'];
-        }
-    }, [userProfile.dashboard_config, userProfile.role]);
+        
+        // Filter out widgets the user doesn't have permission to see
+        // Use the widget definitions to get the required permission for each widget
+        config = config.filter(widgetId => {
+            const widgetDef = ALL_WIDGETS.find(w => w.id === widgetId);
+            if (!widgetDef) return true; // Keep widget if not found in definitions (shouldn't happen)
+            return hasPermission(widgetDef.requiredPermission);
+        });
+        
+        return config;
+    }, [userProfile.dashboard_config, userProfile.role, props.userPermissions]);
 
     const [widgetConfig, setWidgetConfig] = useState<string[]>(userWidgetConfig);
 
@@ -225,7 +249,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 />
             </div>
             
-            {taskSuggestions.length > 0 && (
+            {/* AI Task Suggestions Widget - only show if user has permission */}
+            {hasPermission('view-ai-task-suggestions') && taskSuggestions.length > 0 && (
                 <div className="mb-8 glass-panel rounded-2xl p-1">
                      <TaskSuggestionsWidget 
                         taskSuggestions={taskSuggestions}

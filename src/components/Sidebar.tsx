@@ -58,14 +58,14 @@ const NAV_STRUCTURE: NavGroup[] = [
     icon: BookOpenIcon,
     items: [
       { id: VIEWS.TIMETABLE, label: 'Timetable', permission: 'view-dashboard' },
-      { id: VIEWS.LESSON_PLANNER, label: 'Lesson Plans', permission: 'manage-curriculum' },
+      { id: VIEWS.LESSON_PLANNER, label: 'Lesson Plans', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.GRADEBOOK, label: 'My Gradebook', permission: 'score_entries.edit_self' },
       { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
-      { id: VIEWS.CLASSES_ATTENDANCE, label: 'Class Groups', permission: 'manage-class-groups' },
-      { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'manage-curriculum' },
+      { id: VIEWS.CLASSES_ATTENDANCE, label: 'Class Groups', permission: 'take-class-attendance|manage-class-groups' },
+      { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'view-curriculum-readonly|manage-curriculum' },
       { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload Analysis', permission: 'manage-curriculum' },
       { id: VIEWS.RESULT_MANAGER, label: 'Result Manager', permission: 'results.lock_and_publish' },
-      { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-coverage-feedback' },
+      { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
     ]
   },
   {
@@ -170,6 +170,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
 
   const hasPermission = (permission: string) => {
     if (permission === 'school.console.view') return canViewSuperAdmin;
+    // Support multiple permissions with OR logic (pipe-separated)
+    if (permission.includes('|')) {
+      const perms = permission.split('|');
+      return isAllPowerful || perms.some(p => userPermissions.includes(p.trim()));
+    }
     return isAllPowerful || userPermissions.includes(permission);
   };
 
