@@ -185,14 +185,24 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     };
 
     const handleComponentScoreChange = (componentName: string, value: string) => {
-        const numValue = value === '' ? 0 : Number(value);
-        setEditingValues(prev => ({
-            ...prev,
-            component_scores: {
-                ...prev.component_scores,
-                [componentName]: numValue
+        // Don't convert empty string to 0 - keep it empty/undefined
+        const numValue = value === '' ? undefined : Number(value);
+        
+        setEditingValues(prev => {
+            const updatedScores = { ...prev.component_scores };
+            
+            if (numValue === undefined) {
+                // Remove the component if value is empty
+                delete updatedScores[componentName];
+            } else {
+                updatedScores[componentName] = numValue;
             }
-        }));
+            
+            return {
+                ...prev,
+                component_scores: updatedScores
+            };
+        });
     };
 
     if (!canView) {

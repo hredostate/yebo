@@ -108,6 +108,10 @@ CREATE TRIGGER score_entries_audit_trigger
     EXECUTE FUNCTION log_score_entry_changes();
 
 -- Step 4: Update roles to add new permissions
+-- NOTE: These updates target school_id = 1 which is the default school created in the schema.
+-- For multi-tenant deployments, you may need to update permissions for other school_ids as well.
+-- You can do this by running similar UPDATE statements with different school_id values.
+
 -- Update Team Lead role
 UPDATE public.roles 
 SET permissions = ARRAY['view-dashboard', 'submit-report', 'view-all-reports', 'assign-reports', 'comment-on-reports', 
