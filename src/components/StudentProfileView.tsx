@@ -176,8 +176,14 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
 
     const handleCopyUsername = () => {
         if (userEmail) {
-            navigator.clipboard.writeText(userEmail);
-            addToast('Username copied to clipboard!', 'success');
+            try {
+                navigator.clipboard.writeText(userEmail);
+                addToast('Username copied to clipboard!', 'success');
+            } catch (error) {
+                // Fallback for browsers that don't support clipboard API
+                console.error('Failed to copy username:', error);
+                addToast('Failed to copy username. Please copy manually.', 'error');
+            }
         }
     };
 

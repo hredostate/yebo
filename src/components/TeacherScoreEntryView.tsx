@@ -157,7 +157,7 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
             // Only include legacy columns if they have actual values
             // This prevents schema cache issues when columns exist but aren't in cache
-            const caScore = sScores['CA'] || sScores['CA1'];
+            const caScore = sScores['CA'] !== undefined ? sScores['CA'] : sScores['CA1'];
             const examScore = sScores['Exam'];
             
             if (caScore !== undefined && caScore !== null) {

@@ -494,7 +494,12 @@ const App: React.FC = () => {
             window.location.hash = '';
             
             // Clear cached data
-            await cache.clear();
+            try {
+                await cache.clear();
+            } catch (cacheError) {
+                console.error('Failed to clear cache during logout:', cacheError);
+                // Continue with logout even if cache clearing fails
+            }
             
             // Clear local storage (except theme preference)
             const theme = localStorage.getItem('theme');
