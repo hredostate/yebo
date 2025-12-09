@@ -1401,3 +1401,149 @@ export interface CommunicationLogData {
     notes: string;
     communication_type?: string;
 }
+
+// ============================================
+// Predictive Analytics Types
+// ============================================
+
+export interface RiskFactor {
+    name: string;
+    weight: number; // 0-1
+    currentValue: number;
+    threshold: number;
+    trend: 'up' | 'down' | 'stable';
+    description: string;
+}
+
+export interface RiskPrediction {
+    studentId: number;
+    studentName: string;
+    riskScore: number; // 0-100
+    riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+    confidence: number; // 0-100%
+    predictedDate: string; // When issue may manifest
+    factors: RiskFactor[];
+    recommendedActions: string[];
+    trend: 'improving' | 'stable' | 'declining';
+}
+
+export interface Topic {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    estimatedHours: number;
+}
+
+export interface SubjectPath {
+    subjectId: number;
+    subjectName: string;
+    currentLevel: 'beginner' | 'intermediate' | 'advanced';
+    targetLevel: string;
+    strengths: string[];
+    areasForImprovement: string[];
+    suggestedTopics: Topic[];
+    estimatedTimeToTarget: string;
+}
+
+export interface Recommendation {
+    type: 'resource' | 'exercise' | 'activity' | 'assessment';
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+    estimatedDuration: string;
+    relatedSubject: string;
+}
+
+export interface WeeklyGoal {
+    id: string;
+    week: number;
+    description: string;
+    completed: boolean;
+    dueDate: string;
+}
+
+export interface LearningPath {
+    studentId: number;
+    generatedAt: string;
+    validUntil: string;
+    overallProgress: number; // 0-100
+    subjects: SubjectPath[];
+    weeklyGoals: WeeklyGoal[];
+    recommendations: Recommendation[];
+}
+
+export interface TimetableEntry {
+    id: string;
+    day: string;
+    period: number;
+    startTime: string;
+    endTime: string;
+    subjectId: number;
+    subjectName: string;
+    teacherId: string;
+    teacherName: string;
+    classId: number;
+    className: string;
+    roomId?: number;
+    roomName?: string;
+}
+
+export interface ScheduleConstraint {
+    type: 'hard' | 'soft'; // Hard = must satisfy, Soft = preference
+    name: string;
+    weight: number; // For soft constraints
+    validate: (schedule: TimetableEntry[]) => boolean;
+}
+
+export interface ScheduleOptimizationResult {
+    schedule: TimetableEntry[];
+    score: number; // 0-100
+    satisfiedConstraints: string[];
+    violatedConstraints: string[];
+    suggestions: string[];
+    alternativeSchedules: TimetableEntry[][];
+}
+
+export interface SubjectComment {
+    subjectId: number;
+    subjectName: string;
+    comment: string;
+    grade: string;
+    effort: 'excellent' | 'good' | 'satisfactory' | 'needs improvement';
+}
+
+export interface GeneratedReport {
+    studentId: number;
+    subjectComments: SubjectComment[];
+    overallComment: string;
+    strengthsHighlighted: string[];
+    areasForImprovement: string[];
+    goalsForNextTerm: string[];
+    parentRecommendations: string[];
+    generatedAt: string;
+    editedAt?: string;
+    approvedBy?: string;
+}
+
+export interface ReportGenerationRequest {
+    studentId: number;
+    termId: number;
+    subjects: number[];
+    includeAttendance: boolean;
+    includeBehavior: boolean;
+    tone: 'formal' | 'encouraging' | 'constructive' | 'balanced';
+    length: 'brief' | 'standard' | 'detailed';
+    focusAreas?: string[];
+}
+
+export interface PredictionAccuracy {
+    id: number;
+    school_id: number;
+    prediction_type: string;
+    total_predictions: number;
+    accurate_predictions: number;
+    accuracy_rate: number;
+    period_start: string;
+    period_end: string;
+}

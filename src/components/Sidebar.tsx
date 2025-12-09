@@ -114,6 +114,7 @@ const NAV_STRUCTURE: NavGroup[] = [
     items: [
       { id: VIEWS.SETTINGS, label: 'Global Settings', permission: 'manage-settings' },
       { id: VIEWS.AI_STRATEGIC_CENTER, label: 'AI Strategic Center', permission: 'view-school-health-overview' },
+      { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictive Analytics', permission: 'view-predictive-analytics' },
       { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },
       { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
       { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },

@@ -64,6 +64,7 @@ const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
 const PayrollPortal = lazy(() => import('./PayrollPortal'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
+const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
 
 interface AppRouterProps {
     currentView: string;
@@ -288,6 +289,13 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolSettings={data.schoolSettings} 
                 userProfile={data.userProfile} 
             />;
+        case VIEWS.PREDICTIVE_ANALYTICS:
+            return <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                <PredictiveAnalyticsDashboard 
+                    students={data.students}
+                    onViewStudent={actions.handleNavigateToStudent}
+                />
+            </Suspense>;
         case VIEWS.COMPLIANCE_TRACKER:
             return <ComplianceTracker 
                 reports={data.reports} 
