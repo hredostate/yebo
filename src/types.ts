@@ -1494,3 +1494,27 @@ export interface TermiiPhonebookContact {
     company: string;
     created_at: string;
 }
+
+export interface ZeroScoreEntry {
+    id: number;
+    school_id: number;
+    term_id: number;
+    academic_class_id: number;
+    subject_name: string;
+    student_id: number;
+    teacher_user_id: string | null;
+    component_name: string | null;
+    total_score: number;
+    teacher_comment: string | null;
+    entry_date: string;
+    reviewed: boolean;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+    review_notes: string | null;
+    created_at: string;
+    // Populated fields from joins
+    student?: Student;
+    teacher?: UserProfile;
+    academic_class?: AcademicClass;
+    term?: Term;
+}

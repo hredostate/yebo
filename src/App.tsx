@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { aiClient, aiClientError } from './services/aiClient';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -101,6 +101,7 @@ const QuizTakerView = lazyWithRetry(() => import('./components/QuizTakerView'));
 const TeachingAssignmentsContainer = lazyWithRetry(() => import('./components/TeachingAssignmentsContainer'));
 const HRPayrollModule = lazyWithRetry(() => import('./components/HRPayrollModule'));
 const StoreManager = lazyWithRetry(() => import('./components/StoreManager'));
+const ZeroScoreMonitorView = lazyWithRetry(() => import('./components/ZeroScoreMonitorView'));
 const AppRouter = lazyWithRetry(() => import('./components/AppRouter'));
 
 // Auth-only views that authenticated users should not access
@@ -3779,8 +3780,91 @@ const App: React.FC = () => {
                 return false;
             }
             
-            // Refresh score entries for the current school
+            // Detect zero scores and log them for admin/team leader review
+            // Helper function to check if a value is an explicit zero (not undefined/null)
+            const isExplicitZero = (value: any): boolean => {
+                return value === 0 && value !== undefined && value !== null;
+            };
+            
+            const zeroScoreEntries: Omit<ZeroScoreEntry, 'id' | 'created_at' | 'reviewed' | 'reviewed_by' | 'reviewed_at' | 'review_notes'>[] = [];
             const staffProfile = userProfile as UserProfile;
+            
+            for (const score of scores) {
+                // Check if any component scores are explicitly zero
+                const componentScores = score.component_scores || {};
+                const hasZeroComponent = Object.entries(componentScores).some(([name, value]) => isExplicitZero(value));
+                const hasZeroTotal = isExplicitZero(score.total_score);
+                
+                if (hasZeroComponent || hasZeroTotal) {
+                    // Find which component(s) have explicit zero
+                    const zeroComponents = Object.entries(componentScores)
+                        .filter(([_, value]) => isExplicitZero(value))
+                        .map(([name, _]) => name);
+                    
+                    // Create entry for each zero component, or one for zero total if no components
+                    if (zeroComponents.length > 0) {
+                        for (const componentName of zeroComponents) {
+                            zeroScoreEntries.push({
+                                school_id: score.school_id,
+                                term_id: score.term_id,
+                                academic_class_id: score.academic_class_id,
+                                subject_name: score.subject_name,
+                                student_id: score.student_id,
+                                teacher_user_id: staffProfile.id,
+                                component_name: componentName,
+                                total_score: score.total_score || 0,
+                                teacher_comment: score.teacher_comment,
+                                entry_date: new Date().toISOString()
+                            });
+                        }
+                    } else if (hasZeroTotal) {
+                        zeroScoreEntries.push({
+                            school_id: score.school_id,
+                            term_id: score.term_id,
+                            academic_class_id: score.academic_class_id,
+                            subject_name: score.subject_name,
+                            student_id: score.student_id,
+                            teacher_user_id: staffProfile.id,
+                            component_name: null,
+                            total_score: 0,
+                            teacher_comment: score.teacher_comment,
+                            entry_date: new Date().toISOString()
+                        });
+                    }
+                }
+            }
+            
+            // Insert zero score entries if any were detected
+            if (zeroScoreEntries.length > 0) {
+                const { error: zeroScoreError } = await supabase
+                    .from('zero_score_entries')
+                    .insert(zeroScoreEntries);
+                
+                if (zeroScoreError) {
+                    console.error('Error logging zero scores:', zeroScoreError);
+                    // Don't fail the entire save operation if zero score logging fails
+                }
+                
+                // Create notifications for admins and team leaders
+                const { data: adminUsers } = await supabase
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('school_id', staffProfile.school_id)
+                    .in('role', ['Admin', 'Team Lead', 'Principal']);
+                
+                if (adminUsers && adminUsers.length > 0) {
+                    const notifications = adminUsers.map(admin => ({
+                        user_id: admin.id,
+                        message: `Zero scores have been entered by ${staffProfile.name}. ${zeroScoreEntries.length} student(s) affected. Please review.`,
+                        is_read: false,
+                        created_at: new Date().toISOString()
+                    }));
+                    
+                    await supabase.from('notifications').insert(notifications);
+                }
+            }
+            
+            // Refresh score entries for the current school
             const { data: refreshedScores } = await supabase
                 .from('score_entries')
                 .select('*')

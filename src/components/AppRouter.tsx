@@ -65,6 +65,7 @@ const PayrollPortal = lazy(() => import('./PayrollPortal'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
 const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
+const ZeroScoreMonitorView = lazy(() => import('./ZeroScoreMonitorView'));
 
 interface AppRouterProps {
     currentView: string;
@@ -294,6 +295,14 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 <PredictiveAnalyticsDashboard 
                     students={data.students}
                     onViewStudent={actions.handleNavigateToStudent}
+                />
+            </Suspense>;
+        case VIEWS.ZERO_SCORE_MONITOR:
+            return <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                <ZeroScoreMonitorView 
+                    userProfile={data.userProfile}
+                    onBack={() => actions.handleNavigate(VIEWS.DASHBOARD)}
+                    addToast={actions.addToast}
                 />
             </Suspense>;
         case VIEWS.COMPLIANCE_TRACKER:

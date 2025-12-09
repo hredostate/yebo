@@ -65,6 +65,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'view-curriculum-readonly|manage-curriculum' },
       { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload Analysis', permission: 'manage-curriculum' },
       { id: VIEWS.RESULT_MANAGER, label: 'Result Manager', permission: 'results.lock_and_publish' },
+      { id: VIEWS.ZERO_SCORE_MONITOR, label: 'Zero Score Monitor', permission: 'view-school-health-overview' },
       { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
     ]
   },

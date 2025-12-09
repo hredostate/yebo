@@ -130,6 +130,7 @@ export const VIEWS = {
   ORDER_MANAGER: 'Order Manager',
   SOCIAL_MEDIA_HUB: 'Social Media Hub',
   PREDICTIVE_ANALYTICS: 'Predictive Analytics',
+  ZERO_SCORE_MONITOR: 'Zero Score Monitor',
 };
 
 export const STUDENT_STATUSES = [
