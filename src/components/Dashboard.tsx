@@ -76,6 +76,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     const { userProfile, onNavigate, onViewStudent, taskSuggestions, areFallbackSuggestions, onAcceptTaskSuggestion, onDismissTaskSuggestion, users, onViewIntervention, sipLogs, todaysCheckin, handleCheckinOut, campuses, addToast } = props;
     const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
     
+    // Helper function to check if user has permission
+    const hasPermission = (permission: string) => {
+        return props.userPermissions.includes('*') || props.userPermissions.includes(permission);
+    };
+    
     const userWidgetConfig = useMemo(() => {
         let config: string[] = [];
         if (userProfile.dashboard_config && userProfile.dashboard_config.length > 0) {
@@ -99,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     config = ['counselor-caseload', 'sip-status', 'my-tasks', 'at-risk-students', 'announcements'];
                     break;
                 case 'Teacher':
-                    config = ['my-tasks', 'daily-report-status', 'announcements', 'student-records', 'alerts', 'inventory'];
+                    config = ['my-tasks', 'daily-report-status', 'announcements', 'alerts', 'inventory'];
                     break;
                 case 'Maintenance':
                     config = ['maintenance-schedule', 'inventory', 'my-tasks', 'announcements'];
@@ -109,16 +114,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             }
         }
         
-        // Filter out sensitive widgets if user doesn't have permission
-        const isAllPowerful = props.userPermissions.includes('*');
-        if (!isAllPowerful) {
-            if (!props.userPermissions.includes('view-at-risk-students')) {
-                config = config.filter(w => w !== 'at-risk-students');
-            }
-            if (!props.userPermissions.includes('view-all-student-data')) {
-                config = config.filter(w => w !== 'student-records');
-            }
-        }
+        // Filter out widgets the user doesn't have permission to see
+        // Use the widget definitions to get the required permission for each widget
+        config = config.filter(widgetId => {
+            const widgetDef = ALL_WIDGETS.find(w => w.id === widgetId);
+            if (!widgetDef) return true; // Keep widget if not found in definitions (shouldn't happen)
+            return hasPermission(widgetDef.requiredPermission);
+        });
         
         return config;
     }, [userProfile.dashboard_config, userProfile.role, props.userPermissions]);
@@ -248,7 +250,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             </div>
             
             {/* AI Task Suggestions Widget - only show if user has permission */}
-            {(props.userPermissions.includes('view-ai-task-suggestions') || props.userPermissions.includes('*')) && taskSuggestions.length > 0 && (
+            {hasPermission('view-ai-task-suggestions') && taskSuggestions.length > 0 && (
                 <div className="mb-8 glass-panel rounded-2xl p-1">
                      <TaskSuggestionsWidget 
                         taskSuggestions={taskSuggestions}
