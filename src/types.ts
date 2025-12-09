@@ -1374,6 +1374,20 @@ export interface BankProvider {
     bank_name: string;
 }
 
+export interface TermiiSettings {
+    id: number;
+    school_id: number;
+    campus_id: number | null;
+    api_key: string;
+    device_id: string | null;
+    base_url: string;
+    environment: 'test' | 'live';
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    campus?: { name: string };
+}
+
 // Form data interfaces for handler parameters
 export interface StudentFormData {
     name: string;
