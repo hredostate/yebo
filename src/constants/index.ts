@@ -59,6 +59,12 @@ export const ALL_PERMISSIONS: string[] = [
   'view-at-risk-students',
   'view-all-student-data',
   'view-sensitive-reports',
+  // Predictive Analytics permissions
+  'view-predictive-analytics',
+  'manage-risk-predictions',
+  'manage-learning-paths',
+  'manage-schedule-optimization',
+  'generate-automated-reports',
 ];
 
 export const VIEWS = {
@@ -123,6 +129,7 @@ export const VIEWS = {
   STORE_MANAGER: 'Store Manager',
   ORDER_MANAGER: 'Order Manager',
   SOCIAL_MEDIA_HUB: 'Social Media Hub',
+  PREDICTIVE_ANALYTICS: 'Predictive Analytics',
 };
 
 export const STUDENT_STATUSES = [
