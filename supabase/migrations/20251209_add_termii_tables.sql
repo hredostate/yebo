@@ -5,7 +5,7 @@
 -- Table for storing Termii API settings per school
 CREATE TABLE IF NOT EXISTS public.termii_settings (
     id SERIAL PRIMARY KEY,
-    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE UNIQUE,
+    school_id INTEGER UNIQUE REFERENCES public.schools(id) ON DELETE CASCADE,
     api_key TEXT NOT NULL,
     device_id TEXT, -- WhatsApp device ID from Termii dashboard
     base_url TEXT DEFAULT 'https://api.ng.termii.com',

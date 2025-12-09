@@ -478,6 +478,7 @@ serve(async (req) => {
       // Validate required fields
       if (!data.reference || !data.amount) {
         console.error('Missing reference or amount in charge.success webhook data');
+        console.error('Received data:', JSON.stringify(data, null, 2));
         return new Response(JSON.stringify({ error: 'Invalid webhook data' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -577,24 +578,46 @@ serve(async (req) => {
         }
       }
 
-      // If we still don't have school info, we can't process this
+      // If we still don't have school info, we can't process this properly
       if (!schoolId) {
-        console.log('Could not determine school for card payment, recording without association');
-        // Still record the payment but without full context
-        await supabaseAdmin.from('payments').insert({
-          school_id: null,
-          invoice_id: null,
-          amount: amount,
-          payment_date: paidAt,
-          payment_method: 'Card Payment',
-          reference: reference,
-          verified: true,
-          created_at: new Date().toISOString(),
-        });
+        console.error('Could not determine school for card payment');
+        console.error('Payment details:', { reference, amount, customerEmail });
+        console.error('This payment requires manual review and association');
+        
+        // Record to a separate unmatched_payments table for manual review
+        // If table doesn't exist, just log the issue
+        try {
+          await supabaseAdmin.from('unmatched_payments').insert({
+            reference: reference,
+            amount: amount,
+            payment_date: paidAt,
+            payment_method: 'Card Payment',
+            customer_email: customerEmail,
+            raw_data: data,
+            verified: true,
+            created_at: new Date().toISOString(),
+          });
+          
+          console.log('Payment logged to unmatched_payments for manual review');
+        } catch (unmatchedError) {
+          // Table might not exist, log to default payments table with null school
+          console.log('unmatched_payments table not available, using payments table');
+          await supabaseAdmin.from('payments').insert({
+            school_id: null,
+            invoice_id: null,
+            amount: amount,
+            payment_date: paidAt,
+            payment_method: 'Card Payment',
+            reference: reference,
+            verified: true,
+            created_at: new Date().toISOString(),
+          });
+        }
 
         return new Response(JSON.stringify({ 
           success: true,
-          message: 'Payment recorded without full context'
+          message: 'Payment recorded but requires manual school association',
+          requires_manual_review: true,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
