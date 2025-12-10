@@ -1247,6 +1247,7 @@ const App: React.FC = () => {
         // Do not override hash if currentView is Dashboard but hash is something else (e.g. a public page)
         // Only sync if they are truly different and we want to enforce state -> URL sync
         if (targetView !== targetHash && targetHash !== 'student-login' && targetHash !== 'public-ratings' && targetHash !== 'teacher-login') {
+             console.log('[App] Syncing currentView to hash:', targetView, 'current hash:', targetHash);
              window.location.hash = targetView;
         }
     }, [currentView]);
@@ -1263,6 +1264,7 @@ const App: React.FC = () => {
                 }
                 
                 const targetView = hash || 'Dashboard';
+                console.log('[App] Hash changed - setting currentView to:', targetView, 'from hash:', hash);
                 setCurrentView(targetView);
             } catch (e) {
                 console.warn("Error decoding hash:", e);
