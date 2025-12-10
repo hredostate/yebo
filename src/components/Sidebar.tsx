@@ -144,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   const isAllPowerful = userPermissions.includes('*');
   const canViewSuperAdmin = isAllPowerful || userPermissions.includes('school.console.structure_edit') || userPermissions.includes('school.console.branding_edit') || userPermissions.includes('school.console.role_admin') || userPermissions.includes('school.console.view_audit_log');
   
-  const [baseView] = currentView.split('/');
+  const [baseView] = (currentView || 'Dashboard').split('/');
   
   const name = 'name' in userProfile ? userProfile.name : userProfile.full_name;
   const role = 'role' in userProfile ? userProfile.role : 'Student';
