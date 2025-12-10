@@ -121,6 +121,11 @@ export async function createOrGetPaystackCustomer(
     secretKey: string,
     student: Student
 ): Promise<number> {
+    // Validate required fields
+    if (!student.name || student.name.trim() === '') {
+        throw new Error('Student name is required');
+    }
+
     // First, try to find existing customer by email
     if (student.email) {
         try {
@@ -148,8 +153,43 @@ export async function createOrGetPaystackCustomer(
     }
 
     // Create new customer
-    const [firstName, ...lastNameParts] = student.name.split(' ');
+    const [firstName, ...lastNameParts] = student.name.trim().split(' ');
     const lastName = lastNameParts.join(' ') || firstName;
+    
+    // Generate a valid email if one doesn't exist
+    const email = student.email && student.email.trim() !== '' 
+        ? student.email.trim()
+        : `student${student.id}@school${student.school_id}.local`;
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        throw new Error(`Invalid email format: ${email}`);
+    }
+
+    // Prepare phone number (optional but should be valid if provided)
+    const phone = student.parent_phone_number_1 && student.parent_phone_number_1.trim() !== ''
+        ? student.parent_phone_number_1.trim()
+        : undefined;
+    
+    const requestBody = {
+        email,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        ...(phone && { phone }),
+        metadata: {
+            student_id: student.id,
+            school_id: student.school_id,
+            admission_number: student.admission_number || ''
+        }
+    };
+
+    console.log('Creating Paystack customer with data:', {
+        email: requestBody.email,
+        first_name: requestBody.first_name,
+        last_name: requestBody.last_name,
+        has_phone: !!phone
+    });
     
     const createResponse = await fetch('https://api.paystack.co/customer', {
         method: 'POST',
@@ -157,27 +197,32 @@ export async function createOrGetPaystackCustomer(
             'Authorization': `Bearer ${secretKey}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            email: student.email || `student${student.id}@${student.school_id}.temp`,
-            first_name: firstName,
-            last_name: lastName,
-            phone: student.parent_phone_number_1 || '',
-            metadata: {
-                student_id: student.id,
-                school_id: student.school_id,
-                admission_number: student.admission_number
-            }
-        })
+        body: JSON.stringify(requestBody)
     });
 
+    // Get the response text for better error reporting
+    const responseText = await createResponse.text();
+    
     if (!createResponse.ok) {
-        throw new Error(`Failed to create Paystack customer: ${createResponse.statusText}`);
+        let errorMessage = `Failed to create Paystack customer (${createResponse.status})`;
+        try {
+            const errorData = JSON.parse(responseText);
+            if (errorData.message) {
+                errorMessage += `: ${errorData.message}`;
+            }
+            console.error('Paystack API error response:', errorData);
+        } catch (e) {
+            console.error('Paystack API error (raw):', responseText);
+        }
+        throw new Error(errorMessage);
     }
 
-    const result: PaystackCustomerResponse = await createResponse.json();
+    const result: PaystackCustomerResponse = JSON.parse(responseText);
     
     if (!result.status) {
-        throw new Error(result.message || 'Failed to create customer');
+        const errorMsg = result.message || 'Failed to create customer';
+        console.error('Paystack returned error:', errorMsg);
+        throw new Error(errorMsg);
     }
 
     return result.data.id;

@@ -43,7 +43,11 @@ const OpenRouterSettings: React.FC<OpenRouterSettingsProps> = ({ schoolId }) => 
                 .eq('id', schoolId)
                 .single();
 
-            if (error) throw error;
+            // Handle case where table doesn't exist or row not found
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error fetching AI settings:', error);
+                // Continue with default settings instead of throwing
+            }
             
             if (data?.ai_settings) {
                 setFormData({
@@ -51,9 +55,22 @@ const OpenRouterSettings: React.FC<OpenRouterSettingsProps> = ({ schoolId }) => 
                     default_model: data.ai_settings.default_model || 'openai/gpt-4o',
                     is_configured: data.ai_settings.is_configured || false
                 });
+            } else {
+                // No AI settings found, use defaults
+                setFormData({
+                    openrouter_api_key: '',
+                    default_model: 'openai/gpt-4o',
+                    is_configured: false
+                });
             }
         } catch (error) {
             console.error('Error fetching AI settings:', error);
+            // Set defaults even on error
+            setFormData({
+                openrouter_api_key: '',
+                default_model: 'openai/gpt-4o',
+                is_configured: false
+            });
         } finally {
             setLoading(false);
         }

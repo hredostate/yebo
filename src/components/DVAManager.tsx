@@ -88,6 +88,12 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
             return;
         }
 
+        // Validate student data before creating DVA
+        if (!student.name || student.name.trim() === '') {
+            addToast('Student name is missing. Please update student information first.', 'error');
+            return;
+        }
+
         // Check if DVA already exists
         const existingDVA = dvaList.find(dva => dva.student_id === selectedStudent);
         if (existingDVA) {
@@ -139,7 +145,11 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
         } catch (error: any) {
             console.error('Error creating DVA:', error);
             const userFriendlyMessage = mapSupabaseError(error);
-            addToast('Failed to create DVA: ' + userFriendlyMessage, 'error');
+            // Provide more specific error message
+            const errorMsg = error.message && error.message.includes('Paystack')
+                ? error.message
+                : 'Failed to create DVA: ' + userFriendlyMessage;
+            addToast(errorMsg, 'error');
         } finally {
             setCreating(false);
         }
