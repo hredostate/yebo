@@ -133,6 +133,7 @@ export const VIEWS = {
   SOCIAL_MEDIA_HUB: 'Social Media Hub',
   PREDICTIVE_ANALYTICS: 'Predictive Analytics',
   SCORE_REVIEW: 'Score Review', // Team Lead/Admin view of all scores
+  ZERO_SCORE_MONITOR: 'Zero Score Monitor',
 };
 
 export const STUDENT_STATUSES = [
