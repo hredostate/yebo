@@ -1,18 +1,48 @@
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-let aiClient: GoogleGenAI | null = null;
+// The API key will be loaded dynamically from school settings
+let openRouterClient: OpenAI | null = null;
 let aiClientError: string | null = null;
+let currentModel: string = 'openai/gpt-4o'; // Default model
 
-if (!apiKey) {
-    aiClientError = "Gemini API Key not found. Please create a '.env' file and add VITE_GEMINI_API_KEY. Refer to README.md for details.";
-} else {
-    try {
-        aiClient = new GoogleGenAI({ apiKey });
-    } catch(e: any) {
-        aiClientError = `Failed to initialize Google AI client: ${e.message}`;
+export function initializeAIClient(apiKey: string, model?: string): void {
+  if (!apiKey) {
+    aiClientError = "OpenRouter API Key not configured. Please add your API key in Settings > AI Configuration.";
+    openRouterClient = null;
+    return;
+  }
+  
+  try {
+    openRouterClient = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: apiKey,
+      dangerouslyAllowBrowser: true, // Required for client-side usage
+      defaultHeaders: {
+        'HTTP-Referer': window.location.origin,
+        'X-Title': 'School 360',
+      },
+    });
+    aiClientError = null;
+    if (model) {
+      currentModel = model;
     }
+  } catch (e: any) {
+    aiClientError = `Failed to initialize OpenRouter client: ${e.message}`;
+    openRouterClient = null;
+  }
 }
 
-export { aiClient, aiClientError };
+export function getAIClient(): OpenAI | null {
+  return openRouterClient;
+}
+
+export function getAIClientError(): string | null {
+  return aiClientError;
+}
+
+export function getCurrentModel(): string {
+  return currentModel;
+}
+
+// For backward compatibility
+export { openRouterClient as aiClient, aiClientError };

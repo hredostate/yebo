@@ -284,6 +284,12 @@ export interface SchoolHealthReport {
     metrics: { metric: string; score: number; summary: string }[];
 }
 
+export interface AISettings {
+    openrouter_api_key?: string;
+    default_model?: string;
+    is_configured?: boolean;
+}
+
 export interface SchoolSettings {
     id: number;
     name: string;
@@ -298,6 +304,7 @@ export interface SchoolSettings {
         coverage_deviation_report?: { generated_at: string, report: CoverageDeviation[] };
     };
     social_accounts?: SocialAccount;
+    ai_settings?: AISettings;
     created_at: string;
 }
 

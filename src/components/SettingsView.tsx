@@ -5,6 +5,7 @@ import SchoolBranding from './SchoolBranding';
 import BrandingSettings from './BrandingSettings';
 import PaymentGatewaySettings from './PaymentGatewaySettings';
 import TermiiSettings from './TermiiSettings';
+import OpenRouterSettings from './OpenRouterSettings';
 import Spinner from './common/Spinner';
 import DATABASE_SCHEMA, { DICTIONARY_FIX_SQL, RESEED_DATA_SQL, ATTENDANCE_FIX_SQL } from '../databaseSchema';
 
@@ -15,7 +16,7 @@ interface SettingsViewProps {
     onSaveSchoolConfig?: (config: Partial<SchoolConfig>) => Promise<boolean>; // Added prop
 }
 
-type SettingsTab = 'School Identity' | 'System Appearance' | 'Payment Gateway' | 'Messaging Gateway' | 'Data' | 'Maintenance';
+type SettingsTab = 'School Identity' | 'System Appearance' | 'Payment Gateway' | 'Messaging Gateway' | 'AI Configuration' | 'Data' | 'Maintenance';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
     <button
@@ -81,6 +82,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
                 return settings ? <PaymentGatewaySettings schoolId={settings.id} /> : null;
             case 'Messaging Gateway':
                 return settings ? <TermiiSettings schoolId={settings.id} /> : null;
+            case 'AI Configuration':
+                return settings ? <OpenRouterSettings schoolId={settings.id} /> : null;
             case 'Data':
                 return (
                     <div className="space-y-6">
@@ -199,6 +202,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
                         <TabButton label="System Appearance" isActive={activeTab === 'System Appearance'} onClick={() => setActiveTab('System Appearance')} />
                         <TabButton label="Payment Gateway" isActive={activeTab === 'Payment Gateway'} onClick={() => setActiveTab('Payment Gateway')} />
                         <TabButton label="Messaging Gateway" isActive={activeTab === 'Messaging Gateway'} onClick={() => setActiveTab('Messaging Gateway')} />
+                        <TabButton label="AI Configuration" isActive={activeTab === 'AI Configuration'} onClick={() => setActiveTab('AI Configuration')} />
                         <TabButton label="Data" isActive={activeTab === 'Data'} onClick={() => setActiveTab('Data')} />
                         <TabButton label="Maintenance" isActive={activeTab === 'Maintenance'} onClick={() => setActiveTab('Maintenance')} />
                     </nav>
