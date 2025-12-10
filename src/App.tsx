@@ -1212,10 +1212,14 @@ const App: React.FC = () => {
         const currentHash = decodeURIComponent(window.location.hash.substring(1));
         let targetView = currentView || VIEWS.DASHBOARD;
         
-        // Handle leading slash if present
-        if (targetView.startsWith('/')) targetView = targetView.substring(1);
+        // Handle leading slash if present - with safety checks
+        if (targetView && typeof targetView === 'string' && targetView.startsWith('/')) {
+            targetView = targetView.substring(1);
+        }
         let targetHash = currentHash;
-        if (targetHash.startsWith('/')) targetHash = targetHash.substring(1);
+        if (targetHash && targetHash.startsWith('/')) {
+            targetHash = targetHash.substring(1);
+        }
         
         // Ignore auth tokens in hash logic to prevent view loop
         if (targetHash.includes('access_token=') || targetHash.includes('error=')) {
