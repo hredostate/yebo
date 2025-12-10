@@ -35,7 +35,6 @@ DECLARE
     v_term RECORD;
     v_academic_class RECORD;
     v_enrollments_changed INTEGER := 0;
-    v_rows_inserted INTEGER;
 BEGIN
     -- Get student details
     SELECT s.id, s.class_id, s.arm_id, s.school_id, 
@@ -106,13 +105,16 @@ BEGIN
     GET DIAGNOSTICS v_enrollments_changed = ROW_COUNT;
     
     -- Insert enrollment if it doesn't exist
-    INSERT INTO academic_class_students (academic_class_id, student_id, enrolled_term_id)
-    VALUES (v_academic_class.id, p_student_id, p_term_id)
-    ON CONFLICT (academic_class_id, student_id, enrolled_term_id) DO NOTHING;
-    
-    -- Check if a new row was inserted
-    GET DIAGNOSTICS v_rows_inserted = ROW_COUNT;
-    IF v_rows_inserted > 0 THEN
+    -- Check if enrollment already exists first
+    IF NOT EXISTS (
+        SELECT 1 FROM academic_class_students
+        WHERE academic_class_id = v_academic_class.id
+        AND student_id = p_student_id
+        AND enrolled_term_id = p_term_id
+    ) THEN
+        INSERT INTO academic_class_students (academic_class_id, student_id, enrolled_term_id)
+        VALUES (v_academic_class.id, p_student_id, p_term_id);
+        
         v_enrollments_changed := v_enrollments_changed + 1;
         RAISE NOTICE 'Enrolled student % in academic class % for term %',
             p_student_id, v_academic_class.name, p_term_id;
