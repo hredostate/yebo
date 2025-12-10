@@ -61,8 +61,17 @@ INSERT INTO public.arms (name) VALUES
 ('Gold'), ('Silver'), ('Diamond'), ('Blue'), ('Red')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO public.subjects (name) VALUES 
-('Mathematics'), ('English Language'), ('Basic Science'), ('Civic Education'), ('ICT')
+-- Insert subjects with school_id (requires at least one school to exist)
+INSERT INTO public.subjects (name, school_id) 
+SELECT t.name, s.id
+FROM (VALUES 
+    ('Mathematics'), 
+    ('English Language'), 
+    ('Basic Science'), 
+    ('Civic Education'), 
+    ('ICT')
+) AS t(name)
+CROSS JOIN (SELECT id FROM public.schools ORDER BY id LIMIT 1) AS s
 ON CONFLICT (name) DO NOTHING;
 `;
 
