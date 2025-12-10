@@ -75,7 +75,7 @@ interface AppRouterProps {
 }
 
 const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => {
-    const [baseView, param1, param2] = currentView.split('/');
+    const [baseView, param1, param2] = (currentView || VIEWS.DASHBOARD).split('/');
 
     // --- Student Views ---
     if (data.userType === 'student') {
