@@ -15,6 +15,7 @@ import InventoryManager from './InventoryManager';
 import RewardsManager from './RewardsManager';
 import UserManagement from './UserManagement';
 import AssessmentStructureManager from './AssessmentStructureManager';
+import EnrollmentSyncTool from './EnrollmentSyncTool';
 
 // Props interface for the component
 interface SuperAdminConsoleProps {
@@ -151,7 +152,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
     }, [userPermissions]);
 
     const [activeTab, setActiveTab] = useState<AdminTab>(visibleTabs[0]?.name || 'Branding');
-    const [structureSubTab, setStructureSubTab] = useState<'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'classrooms' | 'arms'>('assessment');
+    const [structureSubTab, setStructureSubTab] = useState<'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'classrooms' | 'arms' | 'enrollment_sync'>('assessment');
 
     const structureSubTabs = [
         { id: 'assessment' as const, label: 'Assessment Templates' },
@@ -161,6 +162,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         { id: 'subjects' as const, label: 'Subjects' },
         { id: 'classrooms' as const, label: 'Classes' },
         { id: 'arms' as const, label: 'Arms/Streams' },
+        { id: 'enrollment_sync' as const, label: 'Enrollment Sync' },
     ];
 
     const renderContent = () => {
@@ -256,6 +258,13 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                             )}
                             {structureSubTab === 'arms' && (
                                 <ArmsManager arms={arms} onSave={onSaveArm} onDelete={onDeleteArm} />
+                            )}
+                            {structureSubTab === 'enrollment_sync' && (
+                                <EnrollmentSyncTool 
+                                    terms={terms}
+                                    schoolId={schoolConfig?.school_id || 1}
+                                    addToast={addToast}
+                                />
                             )}
                         </div>
                     </div>
