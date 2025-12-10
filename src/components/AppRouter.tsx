@@ -295,7 +295,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
             return <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
                 <PredictiveAnalyticsDashboard 
                     students={data.students}
-                    onViewStudent={actions.handleNavigateToStudent}
+                    onViewStudent={actions.setSelectedStudent}
                 />
             </Suspense>;
         case VIEWS.ZERO_SCORE_MONITOR:

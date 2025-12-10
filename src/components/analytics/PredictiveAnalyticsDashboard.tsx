@@ -26,6 +26,9 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
   students,
   onViewStudent,
 }) => {
+  // Add null safety with default empty array
+  const safeStudents = students || [];
+
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   const tabs = [
@@ -254,11 +257,11 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
         )}
 
         {activeTab === 'early-warning' && (
-          <EarlyWarningSystem students={students} onViewStudent={onViewStudent} />
+          <EarlyWarningSystem students={safeStudents} onViewStudent={onViewStudent} />
         )}
 
         {activeTab === 'learning-paths' && (
-          <PersonalizedLearningPath students={students} />
+          <PersonalizedLearningPath students={safeStudents} />
         )}
 
         {activeTab === 'scheduler' && (
@@ -266,7 +269,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
         )}
 
         {activeTab === 'reports' && (
-          <AutomatedReportWriter students={students} />
+          <AutomatedReportWriter students={safeStudents} />
         )}
       </div>
     </div>

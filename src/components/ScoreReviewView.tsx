@@ -38,6 +38,16 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     onUpdateScore,
     addToast 
 }) => {
+    // Add null safety with default empty arrays
+    const safeScoreEntries = scoreEntries || [];
+    const safeStudents = students || [];
+    const safeAcademicAssignments = academicAssignments || [];
+    const safeAcademicClassStudents = academicClassStudents || [];
+    const safeUsers = users || [];
+    const safeTerms = terms || [];
+    const safeGradingSchemes = gradingSchemes || [];
+    const safeUserPermissions = userPermissions || [];
+
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
     const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -47,44 +57,44 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     const [editingValues, setEditingValues] = useState<Record<string, any>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    const canEdit = userPermissions.includes('score_entries.edit_all') || userPermissions.includes('*');
-    const canView = canEdit || userPermissions.includes('score_entries.view_all');
+    const canEdit = safeUserPermissions.includes('score_entries.edit_all') || safeUserPermissions.includes('*');
+    const canView = canEdit || safeUserPermissions.includes('score_entries.view_all');
 
     // Get unique classes from assignments
     const uniqueClasses = useMemo(() => {
         const classMap = new Map();
-        academicAssignments.forEach(a => {
+        safeAcademicAssignments.forEach(a => {
             if (a.academic_class) {
                 classMap.set(a.academic_class_id, a.academic_class);
             }
         });
         return Array.from(classMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [academicAssignments]);
+    }, [safeAcademicAssignments]);
 
     // Get unique subjects
     const uniqueSubjects = useMemo(() => {
         const subjects = new Set<string>();
-        academicAssignments.forEach(a => {
+        safeAcademicAssignments.forEach(a => {
             if (a.subject_name) subjects.add(a.subject_name);
         });
         return Array.from(subjects).sort();
-    }, [academicAssignments]);
+    }, [safeAcademicAssignments]);
 
     // Get teachers who have entered scores
     const teachersWithScores = useMemo(() => {
         const teacherIds = new Set<string>();
-        scoreEntries.forEach(se => {
+        safeScoreEntries.forEach(se => {
             if (se.entered_by_user_id) teacherIds.add(se.entered_by_user_id);
         });
-        return users.filter(u => teacherIds.has(u.id)).sort((a, b) => a.name.localeCompare(b.name));
-    }, [scoreEntries, users]);
+        return safeUsers.filter(u => teacherIds.has(u.id)).sort((a, b) => a.name.localeCompare(b.name));
+    }, [safeScoreEntries, safeUsers]);
 
     // Enrich score entries with teacher info and student info
     const enrichedScores = useMemo(() => {
-        return scoreEntries.map(se => {
-            const student = students.find(s => s.id === se.student_id);
-            const enteredBy = users.find(u => u.id === se.entered_by_user_id);
-            const lastModifiedBy = users.find(u => u.id === se.last_modified_by_user_id);
+        return safeScoreEntries.map(se => {
+            const student = safeStudents.find(s => s.id === se.student_id);
+            const enteredBy = safeUsers.find(u => u.id === se.entered_by_user_id);
+            const lastModifiedBy = safeUsers.find(u => u.id === se.last_modified_by_user_id);
             const academicClass = uniqueClasses.find(c => c.id === se.academic_class_id);
             
             return {
@@ -95,7 +105,7 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                 academic_class: academicClass
             };
         });
-    }, [scoreEntries, students, users, uniqueClasses]);
+    }, [safeScoreEntries, safeStudents, safeUsers, uniqueClasses]);
 
     // Filter scores based on selections
     const filteredScores = useMemo(() => {
@@ -245,7 +255,7 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                         >
                             <option value="">All Terms</option>
-                            {terms.map(t => (
+                            {safeTerms.map(t => (
                                 <option key={t.id} value={t.id}>
                                     {t.session_label} - {t.term_label}
                                 </option>

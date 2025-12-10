@@ -16,6 +16,9 @@ const EarlyWarningSystem: React.FC<EarlyWarningSystemProps> = ({
   students, 
   onViewStudent 
 }) => {
+  // Add null safety with default empty array
+  const safeStudents = students || [];
+
   const [predictions, setPredictions] = useState<RiskPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPrediction, setSelectedPrediction] = useState<RiskPrediction | null>(null);
@@ -27,7 +30,7 @@ const EarlyWarningSystem: React.FC<EarlyWarningSystemProps> = ({
     setLoading(true);
     try {
       // Mock data for demonstration - in production, fetch from API
-      const studentsData = students.slice(0, 20).map(student => ({
+      const studentsData = safeStudents.slice(0, 20).map(student => ({
         student,
         attendanceRate: 70 + Math.random() * 30,
         gradeAverage: 40 + Math.random() * 50,
@@ -105,12 +108,24 @@ const EarlyWarningSystem: React.FC<EarlyWarningSystemProps> = ({
         </div>
         <button
           onClick={generatePredictions}
-          disabled={loading}
+          disabled={loading || safeStudents.length === 0}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Analyzing...' : 'Generate Predictions'}
         </button>
       </div>
+
+      {safeStudents.length === 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-8 text-center">
+          <AlertCircleIcon className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <p className="text-amber-800 dark:text-amber-200 text-lg font-medium mb-2">
+            No Students Available
+          </p>
+          <p className="text-amber-700 dark:text-amber-300 text-sm">
+            Please add students to the system to use the Early Warning System.
+          </p>
+        </div>
+      )}
 
       {predictions.length > 0 && (
         <>
@@ -341,7 +356,7 @@ const EarlyWarningSystem: React.FC<EarlyWarningSystemProps> = ({
         </>
       )}
 
-      {predictions.length === 0 && !loading && (
+      {predictions.length === 0 && !loading && safeStudents.length > 0 && (
         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-12 text-center">
           <ActivityIcon className="w-16 h-16 text-slate-400 mx-auto mb-4" />
           <p className="text-slate-600 dark:text-slate-400 text-lg">
