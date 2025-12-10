@@ -77,6 +77,8 @@ interface AppRouterProps {
 
 const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => {
     const [baseView, param1, param2] = (currentView || VIEWS.DASHBOARD).split('/');
+    
+    console.log('[AppRouter] Rendering with currentView:', currentView, 'baseView:', baseView, 'userType:', data.userType);
 
     // --- Student Views ---
     if (data.userType === 'student') {
@@ -810,7 +812,24 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 </Suspense>
             );
         default:
-            return <div>View not found: {baseView}</div>;
+            console.error('[AppRouter] Unknown view requested:', baseView, 'Full currentView:', currentView);
+            return <div className="flex flex-col items-center justify-center h-full p-8">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md">
+                    <h2 className="text-xl font-bold text-red-800 dark:text-red-300 mb-2">View Not Found</h2>
+                    <p className="text-red-700 dark:text-red-400 mb-4">
+                        The requested view "<strong>{baseView}</strong>" could not be found.
+                    </p>
+                    <p className="text-sm text-red-600 dark:text-red-500 mb-4">
+                        Full path: {currentView}
+                    </p>
+                    <button 
+                        onClick={() => actions.setCurrentView(VIEWS.DASHBOARD)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors"
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>;
     }
 };
 

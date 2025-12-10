@@ -147,6 +147,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   
   const [baseView] = (currentView || VIEWS.DASHBOARD).split('/');
   
+  console.log('[Sidebar] Current state - currentView:', currentView, 'baseView:', baseView);
+  
   const name = 'name' in userProfile ? userProfile.name : userProfile.full_name;
   const role = 'role' in userProfile ? userProfile.role : 'Student';
   const avatarUrl = 'avatar_url' in userProfile ? userProfile.avatar_url : undefined;
@@ -283,7 +285,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                               <li key={item.id}>
                                 <a
                                   href="#"
-                                  onClick={(e) => { e.preventDefault(); onNavigate(item.id); setSearchQuery(''); }}
+                                  onClick={(e) => { 
+                                    e.preventDefault(); 
+                                    console.log('[Sidebar] Navigating to:', item.id, 'from:', currentView);
+                                    onNavigate(item.id); 
+                                    setSearchQuery(''); 
+                                  }}
                                   className={`flex items-center py-2 pl-9 pr-3 w-full text-sm font-medium rounded-lg transition-all duration-200 relative z-10 ${
                                     isActive
                                       ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 translate-x-1 font-bold shadow-sm'
