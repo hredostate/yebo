@@ -121,6 +121,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
       { id: VIEWS.ANALYTICS, label: 'Analytics Dashboard', permission: 'view-analytics' },
       { id: VIEWS.DATA_ANALYSIS, label: 'AI Data Analysis', permission: 'view-analytics' },
+      { id: VIEWS.CAMPUS_STATISTICS, label: 'Campus Statistics', permission: 'view-campus-stats' },
       { id: VIEWS.ROLE_DIRECTORY, label: 'Role Directory', permission: 'manage-roles' },
       { id: VIEWS.GUARDIAN_COMMAND, label: 'Guardian Command', permission: 'access-ai-assistant' },
     ]

@@ -67,6 +67,7 @@ const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
 const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
 const ZeroScoreMonitorView = lazy(() => import('./ZeroScoreMonitorView'));
+const CampusStatsReport = lazy(() => import('./CampusStatsReport'));
 
 interface AppRouterProps {
     currentView: string;
@@ -798,6 +799,16 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 }
             }
             return <div>Survey not found</div>;
+        case VIEWS.CAMPUS_STATISTICS:
+            return (
+                <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                    <CampusStatsReport
+                        userProfile={data.userProfile}
+                        terms={data.terms}
+                        addToast={actions.addToast}
+                    />
+                </Suspense>
+            );
         default:
             return <div>View not found: {baseView}</div>;
     }

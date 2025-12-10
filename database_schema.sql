@@ -67,7 +67,7 @@ END $$;
 
 INSERT INTO public.roles (school_id, title, description, permissions) VALUES
 (1, 'Admin', 'System Administrator', ARRAY['*']),
-(1, 'Principal', 'School Head', ARRAY['view-dashboard', 'view-all-reports', 'manage-users', 'manage-students', 'view-analytics', 'view-school-health-overview', 'manage-tasks', 'manage-announcements', 'view-teacher-ratings', 'view-ai-task-suggestions', 'view-at-risk-students', 'view-all-student-data', 'view-sensitive-reports', 'score_entries.view_all', 'score_entries.edit_all', 'results.lock_and_publish']),
+(1, 'Principal', 'School Head', ARRAY['view-dashboard', 'view-all-reports', 'manage-users', 'manage-students', 'view-analytics', 'view-school-health-overview', 'manage-tasks', 'manage-announcements', 'view-teacher-ratings', 'view-ai-task-suggestions', 'view-at-risk-students', 'view-all-student-data', 'view-sensitive-reports', 'score_entries.view_all', 'score_entries.edit_all', 'results.lock_and_publish', 'view-campus-stats']),
 (1, 'Team Lead', 'Department Head', ARRAY['view-dashboard', 'submit-report', 'view-all-reports', 'assign-reports', 'comment-on-reports', 'manage-tasks', 'manage-curriculum', 'view-coverage-feedback', 'score_entries.view_all', 'score_entries.edit_all', 'results.lock_and_publish']),
 (1, 'Teacher', 'Classroom teacher', ARRAY['view-dashboard', 'submit-report', 'score_entries.edit_self', 'view-my-reports', 'view-my-classes', 'view-my-lesson-plans', 'view-my-coverage-feedback', 'take-class-attendance', 'view-curriculum-readonly']),
 (1, 'Counselor', 'Student guidance', ARRAY['view-dashboard', 'submit-report', 'view-all-reports', 'manage-students', 'view-at-risk-students', 'view-sensitive-reports']),
