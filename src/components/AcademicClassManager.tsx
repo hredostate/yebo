@@ -272,9 +272,20 @@ const EnrollmentModal: React.FC<{
     }, [isOpen, academicClass, termId, currentEnrollments]);
 
     const filteredStudents = useMemo(() => {
-        if (!searchQuery.trim()) return students;
-        return students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [students, searchQuery]);
+        // First filter by class level and arm to match the academic class
+        let filtered = students.filter(s => {
+            const studentClassName = s.class?.name;
+            const studentArmName = s.arm?.name;
+            return studentClassName === academicClass.level && studentArmName === academicClass.arm;
+        });
+        
+        // Then apply search filter if provided
+        if (searchQuery.trim()) {
+            filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        
+        return filtered;
+    }, [students, searchQuery, academicClass.level, academicClass.arm]);
 
     const toggleStudent = (id: number) => {
         const newSet = new Set(enrolledIds);
@@ -607,11 +618,14 @@ const AcademicClassForm: React.FC<{
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Arm (Optional)</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Arm</label>
                             <select name="arm" value={localAc.arm || ''} onChange={handleChange} className={inputClass}>
                                 <option value="">Select Arm</option>
                                 {(arms || []).map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                             </select>
+                            {!localAc.arm && (
+                                <p className="text-xs text-red-600 mt-1">Arm is required</p>
+                            )}
                         </div>
                         
                         <div>
@@ -781,7 +795,7 @@ const AcademicClassForm: React.FC<{
 
                 <div className="flex justify-end gap-3 pt-4 mt-auto border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700">Cancel</button>
-                    <button onClick={() => onSave(localAc)} disabled={isSaving || !localAc.session_label || !localAc.level} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center gap-2">
+                    <button onClick={() => onSave(localAc)} disabled={isSaving || !localAc.session_label || !localAc.level || !localAc.arm} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center gap-2">
                         {isSaving ? <Spinner size="sm"/> : 'Save Class'}
                     </button>
                 </div>

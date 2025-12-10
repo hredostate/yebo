@@ -510,7 +510,7 @@ const AssignmentForm: React.FC<{
                                 className="w-full p-2.5 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" 
                                 disabled={!localAs.term_id || !selectedLevel}
                             >
-                                <option value="">Select Arm (Optional)</option>
+                                <option value="">Select Arm</option>
                                 {arms.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                             </select>
                         )}

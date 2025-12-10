@@ -655,7 +655,7 @@ export interface AcademicClass {
     school_id: number;
     name: string; // Generated e.g. "JSS 1 Gold (2023/2024)"
     level: string; // "JSS 1"
-    arm?: string; // "Gold"
+    arm: string; // "Gold"
     session_label: string; // "2023/2024"
     assessment_structure_id?: number | null;
     grading_scheme_id?: number | null;
