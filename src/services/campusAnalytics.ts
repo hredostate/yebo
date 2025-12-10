@@ -110,7 +110,7 @@ export const calculateStudentStats = async (
     throw error;
   }
 
-  const campusName = campusId ? await getCampusName(campusId) : 'No Campus';
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
   const totalStudents = students?.length || 0;
 
   // Count by status
@@ -187,27 +187,15 @@ export const calculateUserStats = async (
     throw error;
   }
 
-  const campusName = campusId ? await getCampusName(campusId) : 'No Campus';
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
   const totalUsers = users?.length || 0;
 
   // Get last login data from auth.users
   const userIds = users?.map(u => u.id) || [];
-  let activeUsers = 0;
-  let neverLoggedIn = 0;
 
-  if (userIds.length > 0) {
-    // Note: This would require accessing auth.users which may need admin privileges
-    // For now, we'll use a simplified approach based on created_at
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // This is a simplified check - in production, you'd want to track last_sign_in_at
-    users?.forEach(user => {
-      // We don't have direct access to last_sign_in_at, so this is a placeholder
-      // In production, you might add a last_login field to user_profiles
-      neverLoggedIn++; // Placeholder - would need proper tracking
-    });
-  }
+  // Note: Tracking active users and never logged in requires additional database fields
+  // In production, you would add last_login_at to user_profiles or query auth.users
+  // For now, we return 0 as placeholders
 
   // Role breakdown
   const roleBreakdown: { [role: string]: number } = {};
@@ -219,9 +207,9 @@ export const calculateUserStats = async (
     campusId: campusId || null,
     campusName,
     totalUsers,
-    activeUsers: 0, // Would need proper last_login tracking
-    neverLoggedIn: 0, // Would need proper last_login tracking
-    deactivatedUsers: 0, // Would need a deactivated flag
+    activeUsers: 0, // Placeholder - requires last_login tracking in database
+    neverLoggedIn: 0, // Placeholder - requires last_login tracking in database
+    deactivatedUsers: 0, // Placeholder - requires a deactivated flag in database
     roleBreakdown,
   };
 };
@@ -256,7 +244,7 @@ export const calculateFinancialStats = async (
   }
 
   const studentIds = students?.map(s => s.id) || [];
-  const campusName = campusId ? await getCampusName(campusId) : 'No Campus';
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
 
   if (studentIds.length === 0) {
     return {
@@ -344,7 +332,7 @@ export const calculateOtherStats = async (
   schoolId: number,
   campusId?: number | null
 ): Promise<CampusOtherStats> => {
-  const campusName = campusId ? await getCampusName(campusId) : 'No Campus';
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
 
   // Get student count for ratio calculation
   const studentStats = await calculateStudentStats(schoolId, campusId);

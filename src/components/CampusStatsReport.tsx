@@ -159,7 +159,16 @@ const CampusStatsReport: React.FC<CampusStatsReportProps> = ({
             </label>
             <select
               value={selectedCampusId}
-              onChange={(e) => setSelectedCampusId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'all') {
+                  setSelectedCampusId('all');
+                } else if (value === 'null') {
+                  setSelectedCampusId(null as any);
+                } else {
+                  setSelectedCampusId(Number(value));
+                }
+              }}
               className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Campuses</option>
