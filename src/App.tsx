@@ -2534,6 +2534,20 @@ const App: React.FC = () => {
             changes: studentData
         });
         
+        // If class_id or arm_id changed, trigger enrollment sync
+        // Note: The database trigger will handle this, but we can refresh enrollment data
+        if (studentData.class_id !== undefined || studentData.arm_id !== undefined) {
+            try {
+                // Refresh enrollment data to reflect changes
+                const { data: enrollments } = await supabase.from('academic_class_students').select('*');
+                if (enrollments) {
+                    setAcademicClassStudents(enrollments);
+                }
+            } catch (syncErr) {
+                console.warn('Failed to refresh enrollment data after student update:', syncErr);
+            }
+        }
+        
         return true;
     }, [addToast, logAuditAction]);
 
@@ -2955,6 +2969,20 @@ const App: React.FC = () => {
                 const { data, error } = await Offline.insert('terms', { ...term, school_id: userProfile.school_id });
                 if (error || !data) { addToast(error?.message || 'Failed to create term', 'error'); return false; }
                 setTerms(prev => [...prev, data as Term]);
+                
+                // Auto-sync student enrollments for new term
+                try {
+                    const { data: syncResult, error: syncError } = await supabase.rpc(
+                        'sync_all_students_for_term',
+                        { p_term_id: data.id, p_school_id: userProfile.school_id }
+                    );
+                    if (!syncError && syncResult) {
+                        console.log(`Auto-enrolled ${syncResult} students for new term ${data.id}`);
+                    }
+                } catch (syncErr) {
+                    console.warn('Auto-enrollment failed for new term:', syncErr);
+                    // Don't fail term creation if sync fails
+                }
                 
                 // Log audit action
                 await logAuditAction('term_created', {

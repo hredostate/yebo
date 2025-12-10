@@ -1793,5 +1793,222 @@ BEGIN
     END IF;
 END $$;
 
+-- ============================================
+-- SECTION 7: STUDENT ENROLLMENT SYNCHRONIZATION
+-- ============================================
+-- Functions and triggers to maintain sync between students table (source of truth)
+-- and academic_class_students table (term-based enrollments)
+
+-- Function: Sync single student enrollment for a term
+CREATE OR REPLACE FUNCTION public.sync_student_enrollment_for_term(
+    p_student_id INTEGER,
+    p_term_id INTEGER
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_student RECORD;
+    v_term RECORD;
+    v_academic_class RECORD;
+    v_enrollments_changed INTEGER := 0;
+BEGIN
+    SELECT s.id, s.class_id, s.arm_id, s.school_id, 
+           c.name as class_name, a.name as arm_name
+    INTO v_student
+    FROM students s
+    LEFT JOIN classes c ON s.class_id = c.id
+    LEFT JOIN arms a ON s.arm_id = a.id
+    WHERE s.id = p_student_id;
+    
+    IF NOT FOUND THEN
+        RETURN 0;
+    END IF;
+    
+    SELECT id, session_label INTO v_term FROM terms WHERE id = p_term_id;
+    IF NOT FOUND THEN
+        RETURN 0;
+    END IF;
+    
+    IF v_student.class_id IS NULL OR v_student.arm_id IS NULL THEN
+        DELETE FROM academic_class_students
+        WHERE student_id = p_student_id AND enrolled_term_id = p_term_id;
+        GET DIAGNOSTICS v_enrollments_changed = ROW_COUNT;
+        RETURN v_enrollments_changed;
+    END IF;
+    
+    SELECT ac.id INTO v_academic_class
+    FROM academic_classes ac
+    WHERE ac.session_label = v_term.session_label
+    AND ac.level = v_student.class_name
+    AND ac.arm = v_student.arm_name
+    AND ac.school_id = v_student.school_id
+    AND ac.is_active = true
+    LIMIT 1;
+    
+    IF NOT FOUND THEN
+        DELETE FROM academic_class_students
+        WHERE student_id = p_student_id AND enrolled_term_id = p_term_id;
+        RETURN 0;
+    END IF;
+    
+    DELETE FROM academic_class_students
+    WHERE student_id = p_student_id
+    AND enrolled_term_id = p_term_id
+    AND academic_class_id != v_academic_class.id;
+    
+    GET DIAGNOSTICS v_enrollments_changed = ROW_COUNT;
+    
+    INSERT INTO academic_class_students (academic_class_id, student_id, enrolled_term_id)
+    VALUES (v_academic_class.id, p_student_id, p_term_id)
+    ON CONFLICT (academic_class_id, student_id, enrolled_term_id) DO NOTHING;
+    
+    IF FOUND THEN
+        v_enrollments_changed := v_enrollments_changed + 1;
+    END IF;
+    
+    RETURN v_enrollments_changed;
+END;
+$$;
+
+-- Function: Bulk sync all students for a term
+CREATE OR REPLACE FUNCTION public.sync_all_students_for_term(
+    p_term_id INTEGER,
+    p_school_id INTEGER DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_student RECORD;
+    v_total_changed INTEGER := 0;
+    v_changed INTEGER;
+BEGIN
+    FOR v_student IN 
+        SELECT id 
+        FROM students
+        WHERE status = 'Active'
+        AND (p_school_id IS NULL OR school_id = p_school_id)
+        ORDER BY id
+    LOOP
+        v_changed := sync_student_enrollment_for_term(v_student.id, p_term_id);
+        v_total_changed := v_total_changed + v_changed;
+    END LOOP;
+    
+    RETURN v_total_changed;
+END;
+$$;
+
+-- Function: Sync student across all active terms
+CREATE OR REPLACE FUNCTION public.sync_student_enrollment_all_terms(
+    p_student_id INTEGER
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_term RECORD;
+    v_total_changed INTEGER := 0;
+    v_changed INTEGER;
+    v_student_school_id INTEGER;
+BEGIN
+    SELECT school_id INTO v_student_school_id
+    FROM students WHERE id = p_student_id;
+    
+    IF NOT FOUND THEN
+        RETURN 0;
+    END IF;
+    
+    FOR v_term IN 
+        SELECT id FROM terms
+        WHERE school_id = v_student_school_id
+        ORDER BY id DESC LIMIT 10
+    LOOP
+        v_changed := sync_student_enrollment_for_term(p_student_id, v_term.id);
+        v_total_changed := v_total_changed + v_changed;
+    END LOOP;
+    
+    RETURN v_total_changed;
+END;
+$$;
+
+-- Trigger function: Auto-sync when student class/arm changes
+CREATE OR REPLACE FUNCTION public.trigger_sync_student_enrollment()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_changed INTEGER;
+BEGIN
+    IF (TG_OP = 'UPDATE' AND (
+        OLD.class_id IS DISTINCT FROM NEW.class_id OR
+        OLD.arm_id IS DISTINCT FROM NEW.arm_id
+    )) OR TG_OP = 'INSERT' THEN
+        BEGIN
+            v_changed := sync_student_enrollment_all_terms(NEW.id);
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Auto-sync failed for student %: %', NEW.id, SQLERRM;
+        END;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_sync_student_enrollment_on_change ON public.students;
+CREATE TRIGGER trigger_sync_student_enrollment_on_change
+    AFTER INSERT OR UPDATE OF class_id, arm_id ON public.students
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_sync_student_enrollment();
+
+-- Function: Manual sync for admin tools
+CREATE OR REPLACE FUNCTION public.admin_sync_student_enrollments(
+    p_school_id INTEGER DEFAULT NULL,
+    p_term_id INTEGER DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_term RECORD;
+    v_total_changed INTEGER := 0;
+    v_changed INTEGER;
+    v_terms_processed INTEGER := 0;
+BEGIN
+    IF p_term_id IS NOT NULL THEN
+        v_changed := sync_all_students_for_term(p_term_id, p_school_id);
+        v_total_changed := v_changed;
+        v_terms_processed := 1;
+    ELSE
+        FOR v_term IN 
+            SELECT id FROM terms
+            WHERE (p_school_id IS NULL OR school_id = p_school_id)
+            ORDER BY id DESC LIMIT 10
+        LOOP
+            v_changed := sync_all_students_for_term(v_term.id, p_school_id);
+            v_total_changed := v_total_changed + v_changed;
+            v_terms_processed := v_terms_processed + 1;
+        END LOOP;
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'terms_processed', v_terms_processed,
+        'enrollments_changed', v_total_changed,
+        'timestamp', NOW()
+    );
+END;
+$$;
+
+-- Grant permissions
+GRANT EXECUTE ON FUNCTION public.sync_student_enrollment_for_term(INTEGER, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.sync_all_students_for_term(INTEGER, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.sync_student_enrollment_all_terms(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_sync_student_enrollments(INTEGER, INTEGER) TO authenticated;
+
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload config';
