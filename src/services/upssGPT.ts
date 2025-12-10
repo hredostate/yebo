@@ -1,8 +1,7 @@
-import { aiClient } from './aiClient';
+import { getAIClient } from './aiClient';
 import type { UPSSGPTResponse, ReportRecord, Task } from '../types';
 import { extractAndParseJson } from '../utils/json';
-import { Type } from '@google/genai';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 export const UPSS_GPT_SYSTEM_PROMPT_BASE = `You are UPSS-GPT — the private AI assistant for University Preparatory Secondary School (UPSS).
 
@@ -23,17 +22,6 @@ Special modes:
 4. COMMUNICATION DRAFT — craft short messages for staff, parents, or students.
 `;
 
-export const UPSS_GPT_RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    answer: { type: Type.STRING, description: 'The main textual answer to the question.' },
-    alerts: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'A list of critical warnings or alerts identified from the data.' },
-    recommended_actions: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'A list of suggested next steps or actions.' },
-    confidence: { type: Type.STRING, enum: ['high', 'medium', 'low'], description: "The model's confidence in its answer based on the provided context." },
-  },
-  required: ['answer', 'alerts', 'recommended_actions', 'confidence']
-};
-
 
 export async function askUPSSGPT(
     question: string, 
@@ -46,24 +34,42 @@ export async function askUPSSGPT(
         systemInstruction += '\n**Principal Mode:** You are UPSS-GPT-Principal. Focus on strategy, early warnings, and staff morale.';
     }
 
-    const userPrompt = `Context:\n---\n${context}\n---\n\nPrincipal Question:\n---\n${question}\n---\n\nAdditional rules:\n- Be concise and truthful.\n- Prefer recent information when conflicts exist.\n- Keep all responses role-appropriate for a school environment.`;
+    const userPrompt = `${systemInstruction}
+
+Context:
+---
+${context}
+---
+
+Principal Question:
+---
+${question}
+---
+
+Additional rules:
+- Be concise and truthful.
+- Prefer recent information when conflicts exist.
+- Keep all responses role-appropriate for a school environment.
+
+Return a JSON object with:
+- answer: The main textual answer to the question (string)
+- alerts: A list of critical warnings or alerts identified from the data (array of strings)
+- recommended_actions: A list of suggested next steps or actions (array of strings)
+- confidence: The model's confidence in its answer based on the provided context (string: 'high', 'medium', or 'low')`;
 
     try {
+        const aiClient = getAIClient();
         if (!aiClient) {
             throw new Error("AI client is not configured.");
         }
         
-        const response = await aiClient.models.generateContent({
-            model: 'gemini-2.5-pro',
-            contents: userPrompt,
-            config: {
-                systemInstruction,
-                responseMimeType: 'application/json',
-                responseSchema: UPSS_GPT_RESPONSE_SCHEMA as any,
-            }
+        const response = await aiClient.chat.completions.create({
+            model: 'openai/gpt-4o',
+            messages: [{ role: 'user', content: userPrompt }],
+            response_format: { type: 'json_object' }
         });
 
-        const parsed = extractAndParseJson<UPSSGPTResponse>(textFromGemini(response));
+        const parsed = extractAndParseJson<UPSSGPTResponse>(textFromAI(response));
         if (!parsed) {
              throw new Error("Model returned invalid JSON structure.");
         }

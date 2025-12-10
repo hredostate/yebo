@@ -1,5 +1,6 @@
-import { aiClient } from './aiClient';
+import { getAIClient } from './aiClient';
 import type { RiskPrediction, RiskFactor, Student } from '../types';
+import { textFromAI } from '../utils/ai';
 
 /**
  * Predictive Analytics Service
@@ -288,12 +289,18 @@ ${additionalContext ? `Additional Context: ${additionalContext}` : ''}
 
 Provide a brief (2-3 sentences), compassionate analysis of this student's situation and suggest the most important next step.`;
 
-    const response = await aiClient.models.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      model: 'gemini-2.5-flash',
+    const aiClient = getAIClient();
+    if (!aiClient) {
+      return `📊 ${fallbackMessage}`;
+    }
+
+    const response = await aiClient.chat.completions.create({
+      model: 'openai/gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 150
     });
 
-    return response.text || fallbackMessage;
+    return textFromAI(response) || fallbackMessage;
   } catch (error: any) {
     console.error('AI analysis error:', error);
     

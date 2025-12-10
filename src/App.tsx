@@ -1612,6 +1612,7 @@ const App: React.FC = () => {
     }, [tasks, addToast, generateFallbackTaskSuggestions, userProfile, schoolSettings]);
 
     const handleGenerateForesight = useCallback(async (question: string): Promise<UPSSGPTResponse | null> => {
+        const aiClient = getAIClient();
         if (!aiClient) { addToast("AI client is not available.", "error"); return null; }
         addToast("Consulting the Oracle...", "info");
         try {
