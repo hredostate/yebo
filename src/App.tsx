@@ -1282,6 +1282,7 @@ const App: React.FC = () => {
 
 
     useEffect(() => {
+        if (!currentView) return;
         const [view, param] = currentView.split('/');
         if (view === 'Student Profile' && param) {
             const studentId = Number(param);
