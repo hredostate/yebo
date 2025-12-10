@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { GoogleGenAI, GenerateContentResponse, Content, Type } from '@google/genai';
-import { aiClient } from '../services/aiClient';
-import { textFromGemini } from '../utils/ai';
+import { getAIClient } from '../services/aiClient';
+import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import type { SocialMediaAnalytics, SocialAccount, PlatformTask, VideoSuggestion, PerformanceAnalysis, UserProfile } from '../types';
 import { TaskPriority, TaskStatus } from '../types';

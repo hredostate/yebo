@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
-import { aiClient } from '../services/aiClient';
+// Note: Live Audio features temporarily disabled during OpenRouter migration
+// import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
+import { getAIClient } from '../services/aiClient';
 
 // --- Audio Encoding/Decoding Helpers (as per guidelines) ---
 function encode(bytes: Uint8Array): string {

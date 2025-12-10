@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FunctionDeclaration, GenerateContentResponse, Content, Type } from '@google/genai';
-import { aiClient } from '../services/aiClient';
+import { getAIClient } from '../services/aiClient';
 import { TaskPriority, type UserProfile, type Student, type ReportRecord, type AssistantMessage } from '../types';
 import { WandIcon, PaperAirplaneIcon } from './common/icons';
 import Spinner from './common/Spinner';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 interface AIAssistantViewProps {
   userProfile: UserProfile;
@@ -36,40 +35,6 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const tools: { functionDeclarations: FunctionDeclaration[] }[] = [
-    {
-      functionDeclarations: [
-        {
-          name: 'addTask',
-          description: 'Creates a new task and assigns it to a user. Use when asked to create a task, reminder, or to-do.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: 'The title of the task.' },
-              description: { type: Type.STRING, description: 'A detailed description of the task. Can be null.' },
-              dueDate: { type: Type.STRING, description: 'The due date in YYYY-MM-DD format. Default to 3 days from now if not specified.' },
-              priority: { type: Type.STRING, description: 'The priority: Low, Medium, High, or Critical. Default to Medium.' },
-              assigneeName: { type: Type.STRING, description: 'The name of the staff member to assign the task to. If not specified, assign to the current user.' },
-            },
-            required: ['title'],
-          },
-        },
-        {
-          name: 'addAnnouncement',
-          description: 'Creates and posts a new school-wide announcement. Use for broadcasts, notifications, or general messages to the school.',
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: 'The title of the announcement.' },
-              content: { type: Type.STRING, description: 'The full content of the announcement.' },
-            },
-            required: ['title', 'content'],
-          },
-        }
-      ]
-    }
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -81,76 +46,39 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({
     setIsLoading(true);
 
     try {
+        const aiClient = getAIClient();
         if (!aiClient) {
             throw new Error("AI Client not available");
         }
         
-        const systemInstruction = `You are UPSS-GPT — the private AI assistant for University Preparatory Secondary School (UPSS), operating in "Guardian Command" mode for direct action.
+        const systemPrompt = `You are UPSS-GPT — the private AI assistant for University Preparatory Secondary School (UPSS), operating in "Guardian Command" mode.
 You are assisting ${userProfile.name}, a ${userProfile.role}.
-Your mission is to perform actions using the provided tools based on the user's request. Be helpful, concise, and professional.
+Your mission is to provide helpful information and suggestions. Be helpful, concise, and professional.
 Current date is ${new Date().toLocaleDateString()}.
 Available staff: ${users.map(u => `${u.name} (${u.role})`).join(', ')}.
 Recent reports summary: ${reports.slice(0, 3).map(r => r.analysis?.summary).filter(Boolean).join('; ')}.
-When you use a tool, you must confirm the action you took.`;
+
+Note: This is a simplified version. Advanced features like task creation and announcements are temporarily disabled during the OpenRouter migration.`;
         
-        const history: Content[] = messages
+        const conversationHistory = messages
             .filter(m => m.sender !== 'tool_code')
             .map(m => ({
-                role: m.sender === 'ai' ? 'model' as const : 'user' as const,
-                parts: [{ text: m.text }]
+                role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
+                content: m.text
             }));
 
-        const response: GenerateContentResponse = await aiClient.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [...history, { role: 'user', parts: [{ text: currentInput }] }],
-            config: {
-                systemInstruction,
-                tools,
-            }
+        const response = await aiClient.chat.completions.create({
+            model: 'openai/gpt-4o',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...conversationHistory,
+                { role: 'user', content: currentInput }
+            ],
+            max_tokens: 500
         });
 
-        if (response.functionCalls && response.functionCalls.length > 0) {
-            const fc = response.functionCalls[0];
-            let toolResult: Record<string, any> = {};
-
-            setMessages(prev => [...prev, { id: `${Date.now()}-tool`, sender: 'ai', text: `Thinking... I should call the ${fc.name} tool.` }]);
-
-            if (fc.name === 'addTask') {
-                const { title, description, dueDate, priority, assigneeName } = fc.args;
-                const assignee = users.find(u => u.name.toLowerCase() === ((assigneeName as string) || userProfile.name).toLowerCase());
-                
-                if (!assignee) {
-                    toolResult = { error: `Could not find assignee named "${assigneeName}". Task not created.` };
-                } else {
-                    const success = await handleAddTask({
-                        title: title as string,
-                        description: description as string || null,
-                        due_date: (dueDate as string) || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                        priority: (priority as TaskPriority) || TaskPriority.Medium,
-                        user_id: assignee.id
-                    });
-                    toolResult = success ? { success: `Task "${title}" created and assigned to ${assignee.name}.` } : { error: `Failed to create task "${title}".` };
-                }
-            } else if (fc.name === 'addAnnouncement') {
-                const { title, content } = fc.args;
-                await handleAddAnnouncement(title as string, content as string);
-                toolResult = { success: `Announcement "${title}" has been posted.` };
-            }
-            
-            const secondResponse = await aiClient.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [
-                    ...history,
-                    { role: 'user', parts: [{ text: currentInput }] },
-                    { role: 'model', parts: [{ functionCall: fc }] },
-                    { role: 'user', parts: [{ functionResponse: { name: fc.name, response: { result: toolResult } } }] }
-                ],
-                config: { systemInstruction, tools }
-            });
-            setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: textFromGemini(secondResponse) }]);
-        } else {
-            setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: textFromGemini(response) }]);
-        }
+        const aiResponse = textFromAI(response);
+        setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: aiResponse }]);
     } catch (error) {
         console.error("AI Assistant error:", error);
         setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: "Sorry, I encountered an error. Please try again." }]);

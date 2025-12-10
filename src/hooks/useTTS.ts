@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
-import { GoogleGenAI, Modality } from '@google/genai';
-import { aiClient } from '../services/aiClient';
+// Note: TTS features temporarily disabled during OpenRouter migration
+// import { GoogleGenAI, Modality } from '@google/genai';
+import { getAIClient } from '../services/aiClient';
 
 // Helper functions for audio decoding (as per Gemini guidelines)
 function decode(base64: string): Uint8Array {

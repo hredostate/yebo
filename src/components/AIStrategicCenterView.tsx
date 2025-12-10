@@ -5,10 +5,9 @@ import React, { useState, useRef } from 'react';
 import type { SchoolSettings, CoverageDeviation, SchoolHealthReport, SchoolImprovementPlan, UPSSGPTResponse } from '../types';
 import Spinner from './common/Spinner';
 import { HeartIcon, EyeIcon, TrendingUpIcon, ChartBarIcon, WandIcon } from './common/icons';
-import { aiClient } from '../services/aiClient';
-import { Type } from '@google/genai';
+import { getAIClient } from '../services/aiClient';
 import { extractAndParseJson } from '../utils/json';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 type AIViewTab = 'Health Check' | 'Foresight' | 'Improvement Plan' | 'Coverage Deviation';
 

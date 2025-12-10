@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { FunctionDeclaration, GenerateContentResponse, Content, Type } from '@google/genai';
+// Temporarily disabled during OpenRouter migration
 import { aiClient } from '../services/aiClient';
 import type { UserProfile, Student, ReportRecord, Task, RoleDetails, Announcement, AssistantMessage, RoleTitle, BaseDataObject, LivingPolicySnippet, NavigationContext } from '../types';
 import { TaskPriority } from '../types';

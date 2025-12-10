@@ -4,10 +4,9 @@ import type { AttendanceRecord, ClassGroupMember } from '../types';
 import { AttendanceStatus } from '../types';
 import Spinner from './common/Spinner';
 import { MicIcon, DownloadIcon } from './common/icons';
-import { aiClient } from '../services/aiClient';
-import { textFromGemini } from '../utils/ai';
+import { getAIClient } from '../services/aiClient';
+import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
-import { Type } from '@google/genai';
 import { exportToCsv } from '../utils/export';
 
 interface Props {
