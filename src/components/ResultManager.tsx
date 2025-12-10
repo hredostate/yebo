@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
@@ -38,6 +38,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [publishingClassId, setPublishingClassId] = useState<number | null>(null);
     const [showDesignPicker, setShowDesignPicker] = useState(false);
     const [selectedResultSheet, setSelectedResultSheet] = useState<string>('default');
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -48,8 +49,20 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
     const assignmentsForTerm = useMemo(() => {
         if (!selectedTermId) return [];
-        return academicAssignments.filter(a => a.term_id === selectedTermId);
-    }, [selectedTermId, academicAssignments]);
+        let filtered = academicAssignments.filter(a => a.term_id === selectedTermId);
+        
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(a => 
+                a.academic_class?.name.toLowerCase().includes(q) ||
+                a.subject_name.toLowerCase().includes(q) ||
+                a.teacher?.name.toLowerCase().includes(q)
+            );
+        }
+        
+        return filtered;
+    }, [selectedTermId, academicAssignments, searchQuery]);
 
     // Group assignments by class for class-level view
     const classesByTerm = useMemo(() => {
@@ -101,8 +114,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             c.isFullyLocked = c.totalAssignments > 0 && c.lockedAssignments === c.totalAssignments;
         });
 
-        return Array.from(classMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [selectedTermId, assignmentsForTerm, academicClassStudents, studentTermReports]);
+        let classes = Array.from(classMap.values());
+        
+        // Apply search filter for class names
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            classes = classes.filter(c => c.name.toLowerCase().includes(q));
+        }
+        
+        return classes.sort((a, b) => a.name.localeCompare(b.name));
+    }, [selectedTermId, assignmentsForTerm, academicClassStudents, studentTermReports, searchQuery]);
     
     const getGradingSchemeForAssignment = (assignment: AcademicTeachingAssignment) => {
         // 1. Try Class Specific
@@ -299,16 +320,33 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             </div>
 
             <div className="p-4 rounded-xl border bg-white/60 dark:bg-slate-900/40 flex flex-wrap items-center gap-4 justify-between">
-                <div className="flex-1 min-w-[250px]">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Select Term to Manage</label>
-                    <select 
-                        value={selectedTermId} 
-                        onChange={e => setSelectedTermId(e.target.value ? Number(e.target.value) : '')} 
-                        className="w-full p-2 rounded-md bg-transparent border border-slate-300 dark:border-slate-700"
-                    >
-                        <option value="">-- Select Term --</option>
-                        {terms.map(t => <option key={t.id} value={t.id}>{t.session_label} - {t.term_label}</option>)}
-                    </select>
+                <div className="flex flex-wrap gap-4 flex-1">
+                    <div className="flex-1 min-w-[250px]">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Select Term to Manage</label>
+                        <select 
+                            value={selectedTermId} 
+                            onChange={e => setSelectedTermId(e.target.value ? Number(e.target.value) : '')} 
+                            className="w-full p-2 rounded-md bg-transparent border border-slate-300 dark:border-slate-700"
+                        >
+                            <option value="">-- Select Term --</option>
+                            {terms.map(t => <option key={t.id} value={t.id}>{t.session_label} - {t.term_label}</option>)}
+                        </select>
+                    </div>
+                    {selectedTermId && (
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Search</label>
+                            <div className="relative">
+                                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    value={searchQuery} 
+                                    onChange={e => setSearchQuery(e.target.value)} 
+                                    placeholder="Search class, subject, or teacher..." 
+                                    className="w-full pl-9 p-2 rounded-md bg-transparent border border-slate-300 dark:border-slate-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 {selectedTermId && (
                     <div className="flex gap-3 flex-wrap">
