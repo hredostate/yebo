@@ -1813,6 +1813,7 @@ DECLARE
     v_term RECORD;
     v_academic_class RECORD;
     v_enrollments_changed INTEGER := 0;
+    v_rows_inserted INTEGER;
 BEGIN
     SELECT s.id, s.class_id, s.arm_id, s.school_id, 
            c.name as class_name, a.name as arm_name
@@ -1864,7 +1865,8 @@ BEGIN
     VALUES (v_academic_class.id, p_student_id, p_term_id)
     ON CONFLICT (academic_class_id, student_id, enrolled_term_id) DO NOTHING;
     
-    IF FOUND THEN
+    GET DIAGNOSTICS v_rows_inserted = ROW_COUNT;
+    IF v_rows_inserted > 0 THEN
         v_enrollments_changed := v_enrollments_changed + 1;
     END IF;
     

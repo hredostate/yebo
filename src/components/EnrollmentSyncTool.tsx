@@ -76,7 +76,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                     <div className="text-sm text-blue-900 dark:text-blue-200">
                         <p className="font-semibold mb-1">Source of Truth: Students Table</p>
                         <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-300">
-                            <li>Student class/arm is defined by <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">students.class_id</code> and <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">students.arm_id</code></li>
+                            <li>Student class/arm is defined by <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">students.class_id</code> and <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">students.arm_id</code></li>
                             <li>Enrollments are automatically synced when students are added/updated</li>
                             <li>Use this tool to manually sync if data gets out of sync</li>
                             <li>Sync matches students to academic classes by level, arm, and session</li>
