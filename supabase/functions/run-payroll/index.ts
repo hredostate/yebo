@@ -69,7 +69,9 @@ serve(async (req) => {
 
         if (adjError) throw new Error(`Could not fetch adjustments for ${item.name}: ${adjError.message}`);
 
-        const totalAdjustments = adjustments.reduce((sum: number, adj: { amount: number }) => sum + adj.amount, 0);
+        const totalAdjustments = adjustments.reduce((sum: number, adj: { amount: number; adjustment_type: string }) => {
+            return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
+        }, 0);
         const net_amount = item.gross_amount + totalAdjustments;
 
         if (net_amount <= 0) {
@@ -79,9 +81,6 @@ serve(async (req) => {
 
         totalAmount += net_amount;
 
-        // Resolve Paystack recipient
-        let recipientCode = null;
-        const { data: existingRecipient } = await adminClient.from('paystack_recipients').select('recipient_code').eq('user_id', item.user_id).single();
         // Resolve Paystack recipient (create or retrieve existing)
         let recipientCode = null;
         const { data: existingRecipient } = await adminClient
@@ -93,30 +92,6 @@ serve(async (req) => {
         if (existingRecipient) {
             recipientCode = existingRecipient.recipient_code;
         } else {
-            const recipientPayload = {
-                type: "nuban", name: item.name, account_number: item.account_number,
-                bank_code: item.bank_code, currency: "NGN"
-            };
-            const recipientResponse = await fetch('https://api.paystack.co/transferrecipient', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${paystackSecretKey}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(recipientPayload)
-            });
-            const recipientData = await recipientResponse.json();
-            if (!recipientResponse.ok || !recipientData.status) throw new Error(`Failed to create Paystack recipient for ${item.name}: ${recipientData.message}`);
-            
-            recipientCode = recipientData.data.recipient_code;
-            await adminClient.from('paystack_recipients').insert({ user_id: item.user_id, recipient_code: recipientCode, bank_details: recipientData.data.details });
-        }
-        
-        // Add to transfers array for bulk payment
-        transfers.push({
-            amount: net_amount * 100, // Paystack uses kobo
-            recipient: recipientCode,
-            reason: item.narration || reason,
-        });
-        
-        const deductionsForDb = adjustments.map((adj: { reason: string, amount: number }) => ({ label: adj.reason, amount: adj.amount }));
             // Create new recipient via Paystack API
             const recipientPayload = {
                 type: "nuban",
@@ -150,20 +125,16 @@ serve(async (req) => {
             });
         }
         
-        // Generate unique reference for this transfer (as per Paystack API requirements)
-        const transferReference = generateTransferReference('payroll', item.user_id);
-        
         // Add to transfers array for bulk payment
         transfers.push({
             amount: Math.round(net_amount * 100), // Paystack uses kobo (must be integer)
             recipient: recipientCode,
             reason: item.narration || reason || 'Staff salary payment',
-            reference: transferReference, // Unique reference for tracking
         });
         
-        const deductionsForDb = adjustments.map((adj: { reason: string, amount: number }) => ({ 
+        const deductionsForDb = adjustments.map((adj: { reason: string; amount: number; adjustment_type: string }) => ({ 
             label: adj.reason, 
-            amount: adj.amount 
+            amount: adj.adjustment_type === 'addition' ? adj.amount : -adj.amount 
         }));
         
         // Prepare individual payroll items for later insertion
@@ -196,7 +167,6 @@ serve(async (req) => {
 
     // 3. Associate items with the run and insert them
     const finalItemsToInsert = itemsToInsert.map(item => ({...item, payroll_run_id: runData.id }));
-    const { error: itemsError } = await adminClient.from('payroll_items').insert(finalItemsToInsert);
     const { data: insertedItems, error: itemsError } = await adminClient
         .from('payroll_items')
         .insert(finalItemsToInsert)
@@ -212,30 +182,7 @@ serve(async (req) => {
     });
     
     const bulkData = await bulkTransferResponse.json();
-    if (!bulkTransferResponse.ok || !bulkData.status) {
-        await adminClient.from('payroll_runs').update({ status: 'failed', meta: bulkData }).eq('id', runData.id);
-        throw new Error(`Paystack bulk transfer initiation failed: ${bulkData.message}`);
-    }
-
-    // 5. Update the payroll run with the transfer code and mark adjustments as processed
-    await adminClient.from('payroll_runs').update({ transfer_code: bulkData.data.transfer_code, status: 'success' }).eq('id', runData.id);
-    if (allAdjustmentIds.length > 0) {
-        await adminClient.from('payroll_adjustments').update({ payroll_run_id: runData.id }).in('id', allAdjustmentIds);
-    }
-
-    return new Response(JSON.stringify({ success: true, message: 'Payroll run initiated successfully.' }), {
-        headers: { 
-            Authorization: `Bearer ${paystackSecretKey}`, 
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ 
-            source: "balance",
-            currency: "NGN",
-            transfers: transfers 
-        })
-    });
     
-    const bulkData = await bulkTransferResponse.json();
     
     // Check if bulk transfer was successful
     if (!bulkTransferResponse.ok || !bulkData.status) {
