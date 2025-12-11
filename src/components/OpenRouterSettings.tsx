@@ -38,7 +38,7 @@ const OpenRouterSettings: React.FC<OpenRouterSettingsProps> = ({ schoolId }) => 
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from('school_settings')
+                .from('schools')
                 .select('ai_settings')
                 .eq('id', schoolId)
                 .single();
@@ -98,7 +98,7 @@ const OpenRouterSettings: React.FC<OpenRouterSettingsProps> = ({ schoolId }) => 
             }
 
             const { error } = await supabase
-                .from('school_settings')
+                .from('schools')
                 .update({ ai_settings: aiSettings })
                 .eq('id', schoolId);
 
@@ -136,7 +136,7 @@ const OpenRouterSettings: React.FC<OpenRouterSettingsProps> = ({ schoolId }) => 
             // If no API key in form but is_configured, fetch from database
             if (!apiKey && formData.is_configured) {
                 const { data, error } = await supabase
-                    .from('school_settings')
+                    .from('schools')
                     .select('ai_settings')
                     .eq('id', schoolId)
                     .single();
