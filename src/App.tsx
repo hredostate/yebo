@@ -4647,34 +4647,75 @@ const App: React.FC = () => {
 
     const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
         if (!userProfile) return false;
+        
         try {
-            // Delete existing enrollments for this class AND this specific term only
-            const { error: deleteError } = await Offline.del('academic_class_students', { academic_class_id: classId, enrolled_term_id: termId });
-            if (deleteError) { addToast(deleteError.message, 'error'); return false; }
+            // Step 1: Fetch existing enrollments for this class+term (only student_id needed for delta calculation)
+            const { data: existingEnrollments, error: fetchError } = await supabase
+                .from('academic_class_students')
+                .select('student_id')
+                .eq('academic_class_id', classId)
+                .eq('enrolled_term_id', termId);
             
-            // Optimistically update local state - remove old enrollments for this class AND term only
-            setAcademicClassStudents(prev => prev.filter(e => !(e.academic_class_id === classId && e.enrolled_term_id === termId)));
+            if (fetchError) {
+                addToast(`Error fetching enrollments: ${fetchError.message}`, 'error');
+                return false;
+            }
             
-            // Insert new enrollments - marked as manually_enrolled
-            const newEnrollments: AcademicClassStudent[] = [];
-            for (const studentId of studentIds) {
-                const enrollment = {
-                    academic_class_id: classId,
-                    student_id: studentId,
-                    enrolled_term_id: termId,
-                    manually_enrolled: true,  // Mark as manual enrollment
-                };
-                const { error, data } = await Offline.insert('academic_class_students', enrollment);
-                if (error) { addToast(error.message, 'error'); return false; }
-                // Add to local state if data returned (online or optimistic)
-                if (data) {
-                    newEnrollments.push(data as AcademicClassStudent);
+            const existingStudentIds = new Set((existingEnrollments || []).map(e => e.student_id));
+            const newStudentIds = new Set(studentIds);
+            
+            // Step 2: Calculate which students need to be REMOVED
+            const studentsToRemove = Array.from(existingStudentIds).filter(id => !newStudentIds.has(id));
+            
+            // Step 3: Delete only the students being removed
+            if (studentsToRemove.length > 0) {
+                const { error: deleteError } = await supabase
+                    .from('academic_class_students')
+                    .delete()
+                    .eq('academic_class_id', classId)
+                    .eq('enrolled_term_id', termId)
+                    .in('student_id', studentsToRemove);
+                
+                if (deleteError) {
+                    addToast(`Error removing students: ${deleteError.message}`, 'error');
+                    return false;
                 }
             }
             
-            // Update local state with new enrollments
-            if (newEnrollments.length > 0) {
-                setAcademicClassStudents(prev => [...prev, ...newEnrollments]);
+            // Step 4: Upsert enrollments for all students in the new list
+            if (studentIds.length > 0) {
+                const enrollmentsToUpsert = studentIds.map(studentId => ({
+                    academic_class_id: classId,
+                    student_id: studentId,
+                    enrolled_term_id: termId,
+                    manually_enrolled: true,
+                }));
+                
+                const { error: upsertError } = await supabase
+                    .from('academic_class_students')
+                    .upsert(enrollmentsToUpsert, {
+                        onConflict: 'academic_class_id,student_id,enrolled_term_id'
+                    });
+                
+                if (upsertError) {
+                    addToast(`Error saving enrollments: ${upsertError.message}`, 'error');
+                    return false;
+                }
+            }
+            
+            // Step 5: Re-fetch enrollment data from database to ensure UI sync
+            // Note: Fetches all enrollments to maintain consistency with initial data load pattern.
+            // For future optimization: consider filtering by school_id via join if dataset grows large.
+            const { data: freshEnrollments, error: refreshError } = await supabase
+                .from('academic_class_students')
+                .select('*');
+            
+            if (refreshError) {
+                addToast('Enrollment saved but failed to refresh. Please reload the page.', 'warning');
+                console.error('Failed to refresh enrollment data:', refreshError);
+            } else if (freshEnrollments) {
+                // Step 6: Update local state with fresh database data
+                setAcademicClassStudents(freshEnrollments);
             }
             
             addToast('Class enrollment updated.', 'success');
