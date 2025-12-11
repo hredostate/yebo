@@ -2,10 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
+import BulkReportCardGenerator from './BulkReportCardGenerator';
 
 type ViewMode = 'by-class' | 'by-subject';
 
@@ -39,6 +40,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [showDesignPicker, setShowDesignPicker] = useState(false);
     const [selectedResultSheet, setSelectedResultSheet] = useState<string>('default');
     const [searchQuery, setSearchQuery] = useState('');
+    const [showBulkGenerator, setShowBulkGenerator] = useState(false);
+    const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -312,6 +315,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
+    const handleOpenBulkGenerator = (classId: number, className: string) => {
+        setSelectedClassForBulk({ id: classId, name: className });
+        setShowBulkGenerator(true);
+    };
+
+    const handleCloseBulkGenerator = () => {
+        setShowBulkGenerator(false);
+        setSelectedClassForBulk(null);
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
@@ -462,27 +475,39 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     />
                                 </div>
                                 
-                                <div className="flex gap-2">
-                                    {canLock && !c.isFullyLocked && (
-                                        <button
-                                            onClick={() => handleLockClass(c.id, c.name)}
-                                            disabled={publishingClassId === c.id}
-                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 disabled:opacity-50"
-                                        >
-                                            {publishingClassId === c.id ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
-                                            Lock All Scores
-                                        </button>
-                                    )}
-                                    {canLock && (
-                                        <button
-                                            onClick={() => handlePublishClass(c.id, c.name)}
-                                            disabled={publishingClassId === c.id || c.reportsCount === 0}
-                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                        >
-                                            {publishingClassId === c.id ? <Spinner size="sm" /> : <GlobeIcon className="w-4 h-4" />}
-                                            Publish Class
-                                        </button>
-                                    )}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        {canLock && !c.isFullyLocked && (
+                                            <button
+                                                onClick={() => handleLockClass(c.id, c.name)}
+                                                disabled={publishingClassId === c.id}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 disabled:opacity-50"
+                                            >
+                                                {publishingClassId === c.id ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
+                                                Lock All Scores
+                                            </button>
+                                        )}
+                                        {canLock && (
+                                            <button
+                                                onClick={() => handlePublishClass(c.id, c.name)}
+                                                disabled={publishingClassId === c.id || c.reportsCount === 0}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                            >
+                                                {publishingClassId === c.id ? <Spinner size="sm" /> : <GlobeIcon className="w-4 h-4" />}
+                                                Publish Class
+                                            </button>
+                                        )}
+                                    </div>
+                                    {/* Generate Report Cards Button */}
+                                    <button
+                                        onClick={() => handleOpenBulkGenerator(c.id, c.name)}
+                                        disabled={c.reportsCount === 0}
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Generate report cards for this class"}
+                                    >
+                                        <DownloadIcon className="w-4 h-4" />
+                                        Generate Report Cards
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -560,6 +585,21 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         </table>
                     </div>
                 </div>
+            )}
+
+            {/* Bulk Report Card Generator Modal */}
+            {showBulkGenerator && selectedClassForBulk && selectedTermId && (
+                <BulkReportCardGenerator
+                    classId={selectedClassForBulk.id}
+                    className={selectedClassForBulk.name}
+                    termId={selectedTermId}
+                    termName={terms.find(t => t.id === selectedTermId)?.term_label || 'Unknown Term'}
+                    students={students}
+                    onClose={handleCloseBulkGenerator}
+                    addToast={addToast}
+                    schoolConfig={schoolConfig}
+                    gradingSchemes={gradingSchemes}
+                />
             )}
         </div>
     );
