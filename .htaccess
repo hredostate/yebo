@@ -83,8 +83,8 @@ AddType image/x-icon .ico
     # Allow scripts from self, aistudiocdn.com (import maps), and inline scripts
     # Allow styles from self and inline styles
     # Allow images from self and Supabase storage
-    # Allow connections to self, aistudiocdn.com, Supabase, Gemini AI API, and Paystack API
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://aistudiocdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tyvufbldcucgmmlattct.supabase.co; connect-src 'self' https://aistudiocdn.com https://tyvufbldcucgmmlattct.supabase.co wss://tyvufbldcucgmmlattct.supabase.co https://generativelanguage.googleapis.com https://api.paystack.co; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';"
+    # Allow connections to self, aistudiocdn.com, Supabase, OpenRouter AI API, and Paystack API
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://aistudiocdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tyvufbldcucgmmlattct.supabase.co; connect-src 'self' https://aistudiocdn.com https://*.supabase.co wss://*.supabase.co https://openrouter.ai https://*.openrouter.ai https://api.paystack.co; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';"
 </IfModule>
 
 # Handle SPA routing - redirect all requests to index.html
