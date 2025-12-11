@@ -2,7 +2,7 @@
 // Supabase Edge Function for sending messages via Termii WhatsApp API.
 // Migrated from BulkSMSNigeria to Termii for better delivery and cost efficiency.
 // This function maintains backward compatibility with the original send-sms interface.
-// This function is invoked via `supabase.functions.invoke('send-sms', ...)` from the client.
+// It internally delegates to the termii-send-whatsapp function.
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -32,16 +32,7 @@ serve(async (req) => {
       throw new Error('"body" field is required.');
     }
 
-    // Retrieve Termii secrets from environment variables
-    const termiiApiKey = Deno.env.get('TERMII_API_KEY');
-    const termiiBaseUrl = Deno.env.get('TERMII_BASE_URL') || 'https://api.ng.termii.com';
-    const senderId = Deno.env.get('TERMII_SENDER_ID') || 'SchoolGuardian';
-
-    if (!termiiApiKey) {
-      throw new Error('Server configuration error: TERMII_API_KEY secret is not set.');
-    }
-    
-    // Create Supabase client to get school_id and log messages
+    // Create Supabase client for logging
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -51,55 +42,33 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get authorization header to determine school_id
-    const authHeader = req.headers.get('Authorization');
-    let schoolId: number | null = null;
-
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (!userError && userData?.user) {
-        const { data: profile } = await supabaseClient
-          .from('user_profiles')
-          .select('school_id')
-          .eq('id', userData.user.id)
-          .single();
-        
-        if (profile) {
-          schoolId = profile.school_id;
-        }
-      }
-    }
-
-    // Send WhatsApp messages via Termii to each recipient
+    // Send WhatsApp messages by calling termii-send-whatsapp for each recipient
     const results = [];
     let successCount = 0;
     let failureCount = 0;
 
+    // Get authorization header to pass through
+    const authHeader = req.headers.get('Authorization') || '';
+
     for (const phoneNumber of to) {
       try {
-        // Prepare payload for Termii WhatsApp API (conversational message)
-        const termiiPayload = {
-          api_key: termiiApiKey,
-          to: phoneNumber,
-          from: senderId,
-          sms: body,
-          type: 'plain',
-          channel: 'whatsapp',
-        };
-        
-        // Send the WhatsApp message via Termii
-        const response = await fetch(`${termiiBaseUrl}/api/sms/send`, {
+        // Call the termii-send-whatsapp function internally
+        const response = await fetch(`${supabaseUrl}/functions/v1/termii-send-whatsapp`, {
           method: 'POST',
           headers: {
+            'Authorization': authHeader,
             'Content-Type': 'application/json',
+            'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
           },
-          body: JSON.stringify(termiiPayload),
+          body: JSON.stringify({
+            phone_number: phoneNumber,
+            message_type: 'conversational',
+            message: body,
+          }),
         });
 
         const responseData = await response.json();
-        const isSuccess = response.ok && responseData.message_id;
+        const isSuccess = response.ok && responseData.success;
         
         if (isSuccess) {
           successCount++;
@@ -111,31 +80,8 @@ serve(async (req) => {
           phone_number: phoneNumber,
           success: isSuccess,
           message_id: responseData.message_id || null,
-          error: !isSuccess ? (responseData.message || 'Unknown error') : null,
+          error: !isSuccess ? (responseData.message || responseData.error || 'Unknown error') : null,
         });
-
-        // Log to whatsapp_message_logs table
-        const logEntry = {
-          school_id: schoolId,
-          recipient_phone: phoneNumber,
-          template_id: null,
-          message_type: 'conversational',
-          message_content: { message: body },
-          media_url: null,
-          termii_message_id: responseData.message_id || null,
-          status: isSuccess ? 'sent' : 'failed',
-          error_message: !isSuccess ? (responseData.message || 'Unknown error') : null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error: logError } = await supabaseClient
-          .from('whatsapp_message_logs')
-          .insert(logEntry);
-          
-        if (logError) {
-          console.error('Failed to log WhatsApp message:', logError);
-        }
 
         // Also log to communications_audit for backward compatibility
         const auditLog = {
@@ -143,11 +89,11 @@ serve(async (req) => {
           message_body: body,
           reference_id: reference || null,
           provider_message_id: responseData.message_id || null,
-          provider_code: responseData.code || `HTTP-${response.status}`,
-          cost: null, // Termii doesn't return cost in response
+          provider_code: 'TERMII',
+          cost: null, // Termii balance updates happen in real-time
           currency: 'NGN',
           ok: isSuccess,
-          friendly_message: isSuccess ? 'WhatsApp message sent via Termii' : (responseData.message || 'Failed to send'),
+          friendly_message: isSuccess ? 'WhatsApp message sent via Termii' : (responseData.message || responseData.error || 'Failed to send'),
         };
 
         const { error: auditError } = await supabaseClient
@@ -160,6 +106,7 @@ serve(async (req) => {
 
       } catch (individualError) {
         failureCount++;
+        console.error(`Error sending to ${phoneNumber}:`, individualError);
         results.push({
           phone_number: phoneNumber,
           success: false,
@@ -167,6 +114,9 @@ serve(async (req) => {
           error: individualError.message,
         });
       }
+
+      // Small delay to avoid overwhelming the system
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     // Return a success response to the client
