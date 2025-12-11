@@ -4648,14 +4648,11 @@ const App: React.FC = () => {
     const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
         if (!userProfile) return false;
         
-        // Store original state for rollback on error
-        const originalEnrollments = academicClassStudents;
-        
         try {
-            // Step 1: Fetch existing enrollments for this class+term
+            // Step 1: Fetch existing enrollments for this class+term (only student_id needed for delta calculation)
             const { data: existingEnrollments, error: fetchError } = await supabase
                 .from('academic_class_students')
-                .select('*')
+                .select('student_id')
                 .eq('academic_class_id', classId)
                 .eq('enrolled_term_id', termId);
             
@@ -4706,14 +4703,15 @@ const App: React.FC = () => {
                 }
             }
             
-            // Step 5: Re-fetch all enrollment data from database to ensure UI sync
+            // Step 5: Re-fetch enrollment data from database to ensure UI sync
+            // Fetch all enrollments to ensure complete state synchronization
             const { data: freshEnrollments, error: refreshError } = await supabase
                 .from('academic_class_students')
                 .select('*');
             
             if (refreshError) {
-                console.warn('Failed to refresh enrollment data:', refreshError);
-                // Don't fail the operation, just log the warning
+                addToast('Enrollment saved but failed to refresh. Please reload the page.', 'warning');
+                console.error('Failed to refresh enrollment data:', refreshError);
             } else if (freshEnrollments) {
                 // Step 6: Update local state with fresh database data
                 setAcademicClassStudents(freshEnrollments);
@@ -4722,12 +4720,10 @@ const App: React.FC = () => {
             addToast('Class enrollment updated.', 'success');
             return true;
         } catch (e: any) {
-            // Rollback optimistic updates on error
-            setAcademicClassStudents(originalEnrollments);
             addToast(`Error: ${e.message}`, 'error');
             return false;
         }
-    }, [userProfile, addToast, academicClassStudents]);
+    }, [userProfile, addToast]);
 
     // --- Policy & Analytics Handlers ---
     const handleSavePolicyDocument = useCallback(async (documentData: any): Promise<boolean> => {
