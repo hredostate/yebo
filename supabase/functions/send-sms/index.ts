@@ -1,5 +1,7 @@
 
-// Supabase Edge Function for sending SMS via BulkSMSNigeria API.
+// Supabase Edge Function for sending messages via Termii WhatsApp API.
+// Migrated from BulkSMSNigeria to Termii for better delivery and cost efficiency.
+// This function maintains backward compatibility with the original send-sms interface.
 // This function is invoked via `supabase.functions.invoke('send-sms', ...)` from the client.
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
@@ -30,16 +32,16 @@ serve(async (req) => {
       throw new Error('"body" field is required.');
     }
 
-    // Retrieve secrets from environment variables
-    const bulksmsApiToken = Deno.env.get('BULKSMS_API_TOKEN');
-    const bulksmsSenderId = Deno.env.get('BULKSMS_SENDER_ID') || 'UPSS';
-    const bulksmsBaseUrl = Deno.env.get('BULKSMS_BASE_URL') || 'https://www.bulksmsnigeria.com/api';
+    // Retrieve Termii secrets from environment variables
+    const termiiApiKey = Deno.env.get('TERMII_API_KEY');
+    const termiiBaseUrl = Deno.env.get('TERMII_BASE_URL') || 'https://api.ng.termii.com';
+    const senderId = Deno.env.get('TERMII_SENDER_ID') || 'SchoolGuardian';
 
-    if (!bulksmsApiToken) {
-      throw new Error('Server configuration error: BULKSMS_API_TOKEN secret is not set.');
+    if (!termiiApiKey) {
+      throw new Error('Server configuration error: TERMII_API_KEY secret is not set.');
     }
     
-    // Create Supabase client to log to the audit table
+    // Create Supabase client to get school_id and log messages
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -49,56 +51,132 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Prepare payload for BulkSMSNigeria API
-    const payload = {
-      to: to.join(','),
-      from: bulksmsSenderId,
-      body: body,
-      dnd: '2', // Attempt to deliver to numbers on Do-Not-Disturb list
-    };
-    
-    // Send the SMS via the external provider
-    const response = await fetch(`${bulksmsBaseUrl}/v2/sms/create`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bulksmsApiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    // Get authorization header to determine school_id
+    const authHeader = req.headers.get('Authorization');
+    let schoolId: number | null = null;
 
-    const responseData = await response.json();
-    const isSuccess = response.ok && responseData.status === 'success';
-
-    // Log the transaction to the audit table regardless of success
-    const auditLog = {
-      recipients: to,
-      message_body: body,
-      reference_id: reference || null,
-      provider_message_id: responseData.data?.message_id || null,
-      provider_code: responseData.code || `HTTP-${response.status}`,
-      cost: responseData.data?.total_cost || null,
-      currency: responseData.data?.currency || 'NGN',
-      ok: isSuccess,
-      friendly_message: responseData.message || 'No message from provider.',
-    };
-
-    const { error: logError } = await supabaseClient
-      .from('communications_audit')
-      .insert(auditLog);
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
       
-    if (logError) {
-      // Log the error but don't fail the request, as the SMS might have sent.
-      console.error('Failed to log SMS to communications_audit table:', logError);
+      if (!userError && userData?.user) {
+        const { data: profile } = await supabaseClient
+          .from('user_profiles')
+          .select('school_id')
+          .eq('id', userData.user.id)
+          .single();
+        
+        if (profile) {
+          schoolId = profile.school_id;
+        }
+      }
     }
 
-    if (!isSuccess) {
-      // If the API call itself failed, throw an error to return a non-200 status to the client.
-      throw new Error(responseData.message || 'Failed to send SMS due to a provider error.');
+    // Send WhatsApp messages via Termii to each recipient
+    const results = [];
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const phoneNumber of to) {
+      try {
+        // Prepare payload for Termii WhatsApp API (conversational message)
+        const termiiPayload = {
+          api_key: termiiApiKey,
+          to: phoneNumber,
+          from: senderId,
+          sms: body,
+          type: 'plain',
+          channel: 'whatsapp',
+        };
+        
+        // Send the WhatsApp message via Termii
+        const response = await fetch(`${termiiBaseUrl}/api/sms/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(termiiPayload),
+        });
+
+        const responseData = await response.json();
+        const isSuccess = response.ok && responseData.message_id;
+        
+        if (isSuccess) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+
+        results.push({
+          phone_number: phoneNumber,
+          success: isSuccess,
+          message_id: responseData.message_id || null,
+          error: !isSuccess ? (responseData.message || 'Unknown error') : null,
+        });
+
+        // Log to whatsapp_message_logs table
+        const logEntry = {
+          school_id: schoolId,
+          recipient_phone: phoneNumber,
+          template_id: null,
+          message_type: 'conversational',
+          message_content: { message: body },
+          media_url: null,
+          termii_message_id: responseData.message_id || null,
+          status: isSuccess ? 'sent' : 'failed',
+          error_message: !isSuccess ? (responseData.message || 'Unknown error') : null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: logError } = await supabaseClient
+          .from('whatsapp_message_logs')
+          .insert(logEntry);
+          
+        if (logError) {
+          console.error('Failed to log WhatsApp message:', logError);
+        }
+
+        // Also log to communications_audit for backward compatibility
+        const auditLog = {
+          recipients: [phoneNumber],
+          message_body: body,
+          reference_id: reference || null,
+          provider_message_id: responseData.message_id || null,
+          provider_code: responseData.code || `HTTP-${response.status}`,
+          cost: null, // Termii doesn't return cost in response
+          currency: 'NGN',
+          ok: isSuccess,
+          friendly_message: isSuccess ? 'WhatsApp message sent via Termii' : (responseData.message || 'Failed to send'),
+        };
+
+        const { error: auditError } = await supabaseClient
+          .from('communications_audit')
+          .insert(auditLog);
+          
+        if (auditError) {
+          console.error('Failed to log to communications_audit table:', auditError);
+        }
+
+      } catch (individualError) {
+        failureCount++;
+        results.push({
+          phone_number: phoneNumber,
+          success: false,
+          message_id: null,
+          error: individualError.message,
+        });
+      }
     }
 
     // Return a success response to the client
-    return new Response(JSON.stringify({ ok: true, message: 'SMS sent successfully.' }), {
+    return new Response(JSON.stringify({ 
+      ok: successCount > 0,
+      message: `WhatsApp messages sent: ${successCount} succeeded, ${failureCount} failed.`,
+      results: results,
+      success_count: successCount,
+      failure_count: failureCount,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
@@ -107,7 +185,7 @@ serve(async (req) => {
     console.error('Error in send-sms function:', error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400, // Use 400 for client errors (bad input), 500 might also be appropriate for server config issues
+      status: 400,
     });
   }
 });

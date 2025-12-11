@@ -1,4 +1,7 @@
 
+// Supabase Edge Function for checking balance via Termii API.
+// Migrated from BulkSMSNigeria to Termii for unified messaging platform.
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 
 declare const Deno: any;
@@ -15,23 +18,23 @@ serve(async (req) => {
   }
 
   try {
-    const bulksmsApiToken = Deno.env.get('BULKSMS_API_TOKEN');
-    const bulksmsBaseUrl = Deno.env.get('BULKSMS_BASE_URL') || 'https://www.bulksmsnigeria.com/api';
+    const termiiApiKey = Deno.env.get('TERMII_API_KEY');
+    const termiiBaseUrl = Deno.env.get('TERMII_BASE_URL') || 'https://api.ng.termii.com';
 
-    if (!bulksmsApiToken) {
-      throw new Error('BULKSMS_API_TOKEN is not set in Supabase function secrets.');
+    if (!termiiApiKey) {
+      throw new Error('TERMII_API_KEY is not set in Supabase function secrets.');
     }
 
-    const response = await fetch(`${bulksmsBaseUrl}/v2/balance`, {
+    const response = await fetch(`${termiiBaseUrl}/api/get-balance?api_key=${termiiApiKey}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${bulksmsApiToken}`,
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
         // Handle non-2xx responses from the provider
-        const errorBody = await response.json().catch(() => ({ message: 'Failed to parse error response from SMS provider.' }));
+        const errorBody = await response.json().catch(() => ({ message: 'Failed to parse error response from provider.' }));
         return new Response(JSON.stringify({
             ok: false,
             balanceRaw: null,
@@ -39,7 +42,7 @@ serve(async (req) => {
             currency: null,
             providerCode: errorBody.code || `HTTP-${response.status}`,
             providerMessage: errorBody.message || 'Provider returned an error.',
-            friendlyMessage: 'Could not connect to the SMS provider to fetch balance.',
+            friendlyMessage: 'Could not connect to Termii to fetch balance.',
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -47,15 +50,20 @@ serve(async (req) => {
     }
 
     const providerResponse = await response.json();
-    const isSuccess = providerResponse.status === 'success';
+    const isSuccess = providerResponse.balance !== undefined;
+
+    // Format the balance for display
+    const balanceRaw = providerResponse.balance || 0;
+    const currency = providerResponse.currency || 'NGN';
+    const balanceFormatted = `${currency} ${balanceRaw.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const normalizedResponse = {
       ok: isSuccess,
-      balanceRaw: providerResponse.data?.balance || null,
-      balanceFormatted: providerResponse.data?.formatted || null,
-      currency: providerResponse.data?.currency || null,
-      providerCode: providerResponse.code || 'UNKNOWN',
-      providerMessage: providerResponse.message || 'No message from provider.',
+      balanceRaw: balanceRaw,
+      balanceFormatted: balanceFormatted,
+      currency: currency,
+      providerCode: 'SUCCESS',
+      providerMessage: 'Balance retrieved from Termii',
       friendlyMessage: isSuccess ? 'Balance retrieved successfully.' : 'There was a problem retrieving the balance from the provider.',
     };
 
@@ -73,7 +81,7 @@ serve(async (req) => {
       currency: null,
       providerCode: 'INTERNAL_ERROR',
       providerMessage: error.message,
-      friendlyMessage: 'An internal error occurred while fetching the SMS balance.',
+      friendlyMessage: 'An internal error occurred while fetching the balance.',
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
