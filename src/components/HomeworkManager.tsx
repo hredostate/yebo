@@ -168,7 +168,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
                                 <select
                                     value={formData.teaching_assignment_id || ''}
                                     onChange={(e) => {
-                                        const assignment = teachingAssignments.find(a => a.id === parseInt(e.target.value));
+                                        const assignment = (teachingAssignments || []).find(a => a.id === parseInt(e.target.value));
                                         setFormData({
                                             ...formData,
                                             teaching_assignment_id: parseInt(e.target.value),
@@ -179,7 +179,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
                                     required
                                 >
                                     <option value="">Select a class</option>
-                                    {teachingAssignments.map(assignment => (
+                                    {(teachingAssignments || []).map(assignment => (
                                         <option key={assignment.id} value={assignment.id}>
                                             {assignment.subject_name} - {assignment.academic_class?.name}
                                         </option>

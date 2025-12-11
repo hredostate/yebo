@@ -92,7 +92,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
         }
 
         try {
-            const assignment = teachingAssignments.find(a => a.id === parseInt(newCheck.teaching_assignment_id));
+            const assignment = (teachingAssignments || []).find(a => a.id === parseInt(newCheck.teaching_assignment_id));
             
             const { data, error } = await supabase
                 .from('notes_checks')
@@ -223,7 +223,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
                                     className="w-full p-2 border rounded-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                                 >
                                     <option value="">Select a class</option>
-                                    {teachingAssignments.map(assignment => (
+                                    {(teachingAssignments || []).map(assignment => (
                                         <option key={assignment.id} value={assignment.id}>
                                             {assignment.subject_name} - {assignment.academic_class?.name}
                                         </option>
