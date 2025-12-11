@@ -43,14 +43,14 @@ const TeacherCheckinView: React.FC<TeacherCheckinViewProps> = ({ currentUser, ad
 
     const loadHistory = useCallback(async () => {
         setIsLoadingHistory(true);
-        const { data, error } = await fetchMyCheckins({ limit: 30 });
+        const { data, error } = await fetchMyCheckins(currentUser.id, { limit: 30 });
         if (error) {
             addToast(`Error loading history: ${error}`, 'error');
         } else {
             setHistory(data);
         }
         setIsLoadingHistory(false);
-    }, [addToast]);
+    }, [addToast, currentUser.id]);
 
     useEffect(() => {
         loadHistory();

@@ -68,10 +68,11 @@ export async function checkOutToday(
 
 
 export async function fetchMyCheckins(
+  teacherId: string,
   opts?: { from?: string; to?: string; limit?: number }
 ): Promise<{ data: TeacherCheckin[]; error: string | null }> {
   try {
-    let q = supa.from('teacher_checkins').select('*').order('checkin_date', { ascending: false });
+    let q = supa.from('teacher_checkins').select('*').eq('teacher_id', teacherId).order('checkin_date', { ascending: false });
     if (opts?.from) q = q.gte('checkin_date', opts.from);
     if (opts?.to) q = q.lte('checkin_date', opts.to);
     if (opts?.limit) q = q.limit(opts.limit);

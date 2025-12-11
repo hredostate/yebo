@@ -70,7 +70,7 @@ const MyLeaveView: React.FC<MyLeaveViewProps> = ({ currentUser, addToast, leaveR
         }
     };
     
-    const displayRequests = leaveRequests;
+    const displayRequests = leaveRequests.filter(r => r.requester_id === currentUser.id);
 
     return (
         <div className="space-y-6 animate-fade-in">
