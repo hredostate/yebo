@@ -16,7 +16,6 @@ interface NavGroup {
   label: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
   items: NavItemConfig[];
-  subMenus?: SubMenu[];
 }
 
 interface NavItemConfig {
@@ -25,20 +24,32 @@ interface NavItemConfig {
   permission: string;
 }
 
-interface SubMenu {
-  id: string;
-  label: string;
-  items: NavItemConfig[];
-}
-
-// Reorganized Navigation Configuration with Hierarchical Structure
+// Flat Navigation Configuration (reverted from hierarchical structure)
 const NAV_STRUCTURE: NavGroup[] = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: 'workspace',
+    label: 'My Workspace',
     icon: HomeIcon,
     items: [
       { id: VIEWS.DASHBOARD, label: 'Dashboard', permission: 'view-dashboard' },
+      { id: VIEWS.TASK_BOARD, label: 'My Tasks', permission: 'manage-tasks' },
+      { id: VIEWS.MY_CHECKIN, label: 'Daily Check-in', permission: 'view-dashboard' },
+      { id: VIEWS.CALENDAR, label: 'Calendar', permission: 'manage-calendar' },
+      { id: VIEWS.MY_LEAVE, label: 'My Leave', permission: 'view-dashboard' },
+      { id: VIEWS.PROFILE, label: 'My Profile', permission: 'view-dashboard' },
+    ]
+  },
+  {
+    id: 'communication',
+    label: 'Communication',
+    icon: MegaphoneIcon,
+    items: [
+      { id: VIEWS.SUBMIT_REPORT, label: 'Submit Report', permission: 'submit-report' },
+      { id: VIEWS.REPORT_FEED, label: 'Report Feed', permission: 'view-all-reports' },
+      { id: VIEWS.BULLETIN_BOARD, label: 'Bulletin Board', permission: 'view-dashboard' },
+      { id: VIEWS.SURVEYS, label: 'Surveys & Polls', permission: 'view-dashboard' },
+      { id: VIEWS.EMERGENCY_BROADCAST, label: 'Emergency Broadcast', permission: 'send-emergency-broadcast' },
+      { id: VIEWS.SOCIAL_MEDIA_HUB, label: 'Social Media Hub', permission: 'manage-social-media' },
     ]
   },
   {
@@ -48,30 +59,16 @@ const NAV_STRUCTURE: NavGroup[] = [
     items: [
       { id: VIEWS.TIMETABLE, label: 'Timetable', permission: 'view-dashboard' },
       { id: VIEWS.LESSON_PLANNER, label: 'Lesson Plans', permission: 'view-my-lesson-plans|manage-curriculum' },
+      { id: VIEWS.HOMEWORK_MANAGER, label: 'Homework Manager', permission: 'view-my-lesson-plans|manage-curriculum' },
+      { id: VIEWS.NOTES_COMPLIANCE, label: 'Notes Compliance', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.GRADEBOOK, label: 'My Gradebook', permission: 'score_entries.edit_self' },
-    ],
-    subMenus: [
-      {
-        id: 'teaching_tools',
-        label: 'Teaching Tools',
-        items: [
-          { id: VIEWS.HOMEWORK_MANAGER, label: 'Homework Manager', permission: 'view-my-lesson-plans|manage-curriculum' },
-          { id: VIEWS.NOTES_COMPLIANCE, label: 'Notes Compliance', permission: 'view-my-lesson-plans|manage-curriculum' },
-          { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
-          { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
-        ]
-      },
-      {
-        id: 'curriculum_results',
-        label: 'Curriculum & Results',
-        items: [
-          { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'view-curriculum-readonly|manage-curriculum' },
-          { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload Analysis', permission: 'manage-curriculum' },
-          { id: VIEWS.RESULT_MANAGER, label: 'Result Manager', permission: 'results.lock_and_publish' },
-          { id: VIEWS.SCORE_REVIEW, label: 'Score Review', permission: 'score_entries.view_all' },
-          { id: VIEWS.CLASSES_ATTENDANCE, label: 'Class Groups', permission: 'take-class-attendance|manage-class-groups' },
-        ]
-      }
+      { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
+      { id: VIEWS.CLASSES_ATTENDANCE, label: 'Class Groups', permission: 'take-class-attendance|manage-class-groups' },
+      { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'view-curriculum-readonly|manage-curriculum' },
+      { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload Analysis', permission: 'manage-curriculum' },
+      { id: VIEWS.RESULT_MANAGER, label: 'Result Manager', permission: 'results.lock_and_publish' },
+      { id: VIEWS.SCORE_REVIEW, label: 'Score Review', permission: 'score_entries.view_all' },
+      { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
     ]
   },
   {
@@ -81,103 +78,55 @@ const NAV_STRUCTURE: NavGroup[] = [
     items: [
       { id: VIEWS.STUDENT_ROSTER, label: 'Student Roster', permission: 'manage-students' },
       { id: VIEWS.INTERVENTION_PLANS, label: 'Intervention Plans', permission: 'manage-students' },
-    ],
-    subMenus: [
-      {
-        id: 'student_more',
-        label: 'More',
-        items: [
-          { id: VIEWS.ID_CARDS, label: 'ID Card Generator', permission: 'manage-students' },
-          { id: VIEWS.REWARDS_STORE, label: 'Rewards Store', permission: 'manage-students' },
-        ]
-      }
+      { id: VIEWS.ID_CARDS, label: 'ID Card Generator', permission: 'manage-students' },
+      { id: VIEWS.REWARDS_STORE, label: 'Rewards Store', permission: 'manage-students' },
     ]
   },
   {
-    id: 'staff_hr',
+    id: 'hr_staff',
     label: 'HR & Staff',
     icon: UserCircleIcon,
     items: [
       { id: VIEWS.USER_MANAGEMENT, label: 'User Directory', permission: 'manage-users' },
+      { id: VIEWS.ROLE_MANAGEMENT, label: 'Roles & Access', permission: 'manage-roles' },
       { id: VIEWS.TEAM_MANAGEMENT, label: 'Teams', permission: 'manage-teams' },
-    ],
-    subMenus: [
-      {
-        id: 'hr_more',
-        label: 'More',
-        items: [
-          { id: VIEWS.ROLE_MANAGEMENT, label: 'Roles & Access', permission: 'manage-roles' },
-          { id: VIEWS.HR_PAYROLL, label: 'Staff Payroll', permission: 'view-dashboard' },
-          { id: VIEWS.LEAVE_APPROVALS, label: 'Leave Management', permission: 'manage-users' },
-          { id: VIEWS.MY_ADJUSTMENTS, label: 'Adjustments', permission: 'view-dashboard' },
-        ]
-      }
+      { id: VIEWS.TEACHER_ATTENDANCE, label: 'Attendance Monitor', permission: 'view-teacher-attendance' },
+      { id: VIEWS.TEACHER_RATINGS, label: 'Teacher Ratings', permission: 'view-teacher-ratings' },
+      { id: VIEWS.TEACHER_PULSE, label: 'Teacher Pulse', permission: 'view-dashboard' },
+      { id: VIEWS.LEAVE_APPROVALS, label: 'Leave Approvals', permission: 'manage-users' },
     ]
   },
   {
-    id: 'communications',
-    label: 'Communications',
-    icon: MegaphoneIcon,
+    id: 'finance_ops',
+    label: 'Finance & Ops',
+    icon: BanknotesIcon,
     items: [
-      { id: VIEWS.REPORT_FEED, label: 'Report Feed', permission: 'view-all-reports' },
-      { id: VIEWS.BULLETIN_BOARD, label: 'Bulletin Board', permission: 'view-dashboard' },
-    ],
-    subMenus: [
-      {
-        id: 'comms_more',
-        label: 'More',
-        items: [
-          { id: VIEWS.TASK_BOARD, label: 'Task Board', permission: 'manage-tasks' },
-          { id: VIEWS.CALENDAR, label: 'Calendar', permission: 'manage-calendar' },
-          { id: VIEWS.SURVEYS, label: 'Surveys & Polls', permission: 'view-dashboard' },
-          { id: VIEWS.EMERGENCY_BROADCAST, label: 'Emergency Broadcast', permission: 'send-emergency-broadcast' },
-          { id: VIEWS.SOCIAL_MEDIA_HUB, label: 'Social Media Hub', permission: 'manage-social-media' },
-        ]
-      }
-    ]
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    icon: WrenchScrewdriverIcon,
-    items: [
-      { id: VIEWS.ANALYTICS, label: 'Analytics', permission: 'view-analytics' },
+      { id: VIEWS.HR_PAYROLL, label: 'HR & Payroll', permission: 'view-dashboard' },
+      { id: VIEWS.STUDENT_FINANCE, label: 'Bursary (Fees)', permission: 'manage-finance' },
+      { id: VIEWS.STOREFRONT, label: 'School Store', permission: 'view-dashboard' },
+      { id: VIEWS.STORE_MANAGER, label: 'Store Manager', permission: 'manage-orders' },
       { id: VIEWS.COMPLIANCE_TRACKER, label: 'Compliance Tracker', permission: 'view-compliance-tracker' },
-    ],
-    subMenus: [
-      {
-        id: 'ops_more',
-        label: 'More',
-        items: [
-          { id: VIEWS.STOREFRONT, label: 'Inventory', permission: 'view-dashboard' },
-          { id: VIEWS.STUDENT_FINANCE, label: 'Finance Hub', permission: 'manage-finance' },
-          { id: VIEWS.STORE_MANAGER, label: 'Store Manager', permission: 'manage-orders' },
-          { id: VIEWS.SUPPORT_HUB, label: 'Support Hub', permission: 'manage-tasks' },
-          { id: VIEWS.SURVEY_MANAGER, label: 'Survey Manager', permission: 'manage-surveys' },
-          { id: VIEWS.NOTIFICATION_HISTORY, label: 'Notification History', permission: 'view-dashboard' },
-        ]
-      }
+      { id: VIEWS.SUPPORT_HUB, label: 'Support Hub', permission: 'manage-tasks' },
+      { id: VIEWS.SURVEY_MANAGER, label: 'Survey Manager', permission: 'manage-surveys' },
+      { id: VIEWS.NOTIFICATION_HISTORY, label: 'Notification History', permission: 'view-dashboard' },
     ]
   },
   {
-    id: 'admin',
+    id: 'administration',
     label: 'Administration',
     icon: ShieldIcon,
     items: [
       { id: VIEWS.SETTINGS, label: 'Global Settings', permission: 'manage-settings' },
       { id: VIEWS.AI_STRATEGIC_CENTER, label: 'AI Strategic Center', permission: 'view-school-health-overview' },
-    ],
-    subMenus: [
-      {
-        id: 'admin_more',
-        label: 'More',
-        items: [
-          { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictive Analytics', permission: 'view-predictive-analytics' },
-          { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
-          { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
-          { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Audit Logs', permission: 'school.console.view' },
-        ]
-      }
+      { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictive Analytics', permission: 'view-predictive-analytics' },
+      { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },
+      { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
+      { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
+      { id: VIEWS.ANALYTICS, label: 'Analytics Dashboard', permission: 'view-analytics' },
+      { id: VIEWS.DATA_ANALYSIS, label: 'AI Data Analysis', permission: 'view-analytics' },
+      { id: VIEWS.CAMPUS_STATISTICS, label: 'Campus Statistics', permission: 'view-campus-stats' },
+      { id: VIEWS.ROLE_DIRECTORY, label: 'Role Directory', permission: 'manage-roles' },
+      { id: VIEWS.GUARDIAN_COMMAND, label: 'Guardian Command', permission: 'view-dashboard' },
     ]
   }
 ];
@@ -197,23 +146,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   const loadExpandedState = () => {
     try {
       const saved = localStorage.getItem('sidebar-expanded-groups');
-      return saved ? new Set(JSON.parse(saved)) : new Set(['dashboard']);
+      return saved ? new Set(JSON.parse(saved)) : new Set(['workspace']);
     } catch {
-      return new Set(['dashboard']);
-    }
-  };
-
-  const loadExpandedSubMenus = () => {
-    try {
-      const saved = localStorage.getItem('sidebar-expanded-submenus');
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
+      return new Set(['workspace']);
     }
   };
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(loadExpandedState);
-  const [expandedSubMenus, setExpandedSubMenus] = useState<Set<string>>(loadExpandedSubMenus);
   const [searchQuery, setSearchQuery] = useState('');
 
   const isAllPowerful = userPermissions.includes('*');
@@ -232,29 +171,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
     localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...expandedGroups]));
   }, [expandedGroups]);
 
-  // Persist expanded submenus to localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar-expanded-submenus', JSON.stringify([...expandedSubMenus]));
-  }, [expandedSubMenus]);
-
-  // Automatically expand the group and submenu containing the current view
+  // Automatically expand the group containing the current view
   useEffect(() => {
     const activeGroup = NAV_STRUCTURE.find(group => {
-      const inMainItems = group.items.some(item => item.id === baseView);
-      const inSubMenus = group.subMenus?.some(sub => sub.items.some(item => item.id === baseView));
-      return inMainItems || inSubMenus;
+      return group.items.some(item => item.id === baseView);
     });
     
     if (activeGroup) {
       setExpandedGroups(prev => new Set(prev).add(activeGroup.id));
-      
-      // Also expand the submenu if the view is in a submenu
-      const activeSubMenu = activeGroup.subMenus?.find(sub => 
-        sub.items.some(item => item.id === baseView)
-      );
-      if (activeSubMenu) {
-        setExpandedSubMenus(prev => new Set(prev).add(`${activeGroup.id}_${activeSubMenu.id}`));
-      }
     }
   }, [baseView]);
 
@@ -265,18 +189,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         newSet.delete(groupId);
       } else {
         newSet.add(groupId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleSubMenu = (subMenuKey: string) => {
-    setExpandedSubMenus(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(subMenuKey)) {
-        newSet.delete(subMenuKey);
-      } else {
-        newSet.add(subMenuKey);
       }
       return newSet;
     });
@@ -296,29 +208,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
     if (role === 'Student') return []; // Student nav is separate
 
     return NAV_STRUCTURE.map(group => {
-      // Filter main items by permission AND search query
-      const visibleMainItems = group.items.filter(item => {
+      // Filter items by permission AND search query
+      const visibleItems = group.items.filter(item => {
         const matchesSearch = searchQuery === '' || item.label.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesPermission = hasPermission(item.permission) || item.id === VIEWS.DASHBOARD || item.id === VIEWS.PROFILE;
         return matchesSearch && matchesPermission;
       });
 
-      // Filter submenu items by permission AND search query
-      const visibleSubMenus = group.subMenus?.map(subMenu => {
-        const visibleSubItems = subMenu.items.filter(item => {
-          const matchesSearch = searchQuery === '' || item.label.toLowerCase().includes(searchQuery.toLowerCase());
-          const matchesPermission = hasPermission(item.permission);
-          return matchesSearch && matchesPermission;
-        });
-        return { ...subMenu, items: visibleSubItems };
-      }).filter(subMenu => subMenu.items.length > 0);
-
       return { 
         ...group, 
-        items: visibleMainItems,
-        subMenus: visibleSubMenus
+        items: visibleItems
       };
-    }).filter(group => group.items.length > 0 || (group.subMenus && group.subMenus.length > 0));
+    }).filter(group => group.items.length > 0);
   }, [userPermissions, searchQuery, isAllPowerful, canViewSuperAdmin, role]);
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -383,8 +284,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
             <ul className="space-y-2">
               {filteredNavStructure.map(group => {
                  const isExpanded = expandedGroups.has(group.id) || searchQuery !== '';
-                 const isActiveGroup = group.items.some(i => i.id === baseView) || 
-                                       group.subMenus?.some(sub => sub.items.some(i => i.id === baseView));
+                 const isActiveGroup = group.items.some(i => i.id === baseView);
 
                  return (
                    <li key={group.id} className="mb-1">
@@ -406,7 +306,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                           {/* Vertical line for hierarchy */}
                           <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-slate-200 to-transparent dark:from-slate-800"></div>
                           
-                          {/* Main items */}
+                          {/* Items */}
                           {group.items.map(item => {
                             const isActive = baseView === item.id;
                             return (
@@ -437,66 +337,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                               </li>
                             )
                           })}
-                          
-                          {/* SubMenus */}
-                          {group.subMenus?.map(subMenu => {
-                            const subMenuKey = `${group.id}_${subMenu.id}`;
-                            const isSubMenuExpanded = expandedSubMenus.has(subMenuKey) || searchQuery !== '';
-                            const isSubMenuActive = subMenu.items.some(i => i.id === baseView);
-                            
-                            return (
-                              <li key={subMenuKey} className="mt-1">
-                                <button
-                                  onClick={() => toggleSubMenu(subMenuKey)}
-                                  aria-expanded={isSubMenuExpanded}
-                                  aria-label={`${subMenu.label} submenu`}
-                                  className={`flex items-center py-2 pl-9 pr-3 w-full text-xs font-bold rounded-lg transition-all duration-200 relative z-10 group/submenu ${
-                                    isSubMenuActive 
-                                      ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50/30 dark:bg-indigo-900/10'
-                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/20'
-                                  }`}
-                                >
-                                  <span className="flex-1 text-left uppercase tracking-wide">
-                                    <span aria-hidden="true">▼ </span>{subMenu.label}
-                                  </span>
-                                  <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isSubMenuExpanded ? 'rotate-180' : ''} opacity-50`} />
-                                </button>
-                                
-                                <div className={`overflow-hidden transition-all duration-200 ease-in-out ${isSubMenuExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                  <ul className="space-y-0.5 pl-4 mt-0.5">
-                                    {subMenu.items.map(item => {
-                                      const isActive = baseView === item.id;
-                                      return (
-                                        <li key={item.id}>
-                                          <a
-                                            href="#"
-                                            onClick={(e) => { 
-                                              e.preventDefault(); 
-                                              if (!item.id) {
-                                                console.error('[Sidebar] Navigation failed: item.id is undefined for item:', item.label);
-                                                onNavigate(item.label);
-                                              } else {
-                                                console.log('[Sidebar] Navigating to:', item.id, 'from:', currentView);
-                                                onNavigate(item.id); 
-                                              }
-                                              setSearchQuery(''); 
-                                            }}
-                                            className={`flex items-center py-1.5 pl-9 pr-3 w-full text-xs font-medium rounded-lg transition-all duration-200 relative z-10 ${
-                                              isActive
-                                                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 translate-x-1 font-bold shadow-sm'
-                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
-                                            }`}
-                                          >
-                                            {item.label}
-                                          </a>
-                                        </li>
-                                      )
-                                    })}
-                                  </ul>
-                                </div>
-                              </li>
-                            )
-                          })}
                         </ul>
                       </div>
                    </li>
@@ -513,15 +353,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                      </a>
                 </li>
                  <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <FileTextIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>My Lessons</span>
-                     </a>
-                </li>
-                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_HOMEWORK)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>My Homework</span>
+                        <span>Report Cards</span>
                      </a>
                 </li>
                  <li>
