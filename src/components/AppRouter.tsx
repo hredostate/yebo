@@ -507,6 +507,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 terms={data.terms}
                 academicAssignments={data.academicAssignments}
                 academicClassStudents={data.academicClassStudents}
+                academicClasses={data.academicClasses}
                 scoreEntries={data.scoreEntries}
                 users={data.users}
                 onLockScores={actions.handleLockScores}

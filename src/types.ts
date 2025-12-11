@@ -1715,3 +1715,52 @@ export interface WhatsAppNotification {
     created_at: string;
     student?: Student;
 }
+
+// Statistics Dashboard Types
+export interface StudentRanking {
+    rank: number;
+    student_id: number;
+    student_name: string;
+    admission_number?: string;
+    class_name: string;
+    arm_name: string;
+    average_score: number;
+    total_score: number;
+    grade_label: string;
+    position_in_class: number;
+    position_change?: number; // Positive = moved up, negative = moved down, 0 = no change
+}
+
+export interface GradeDistribution {
+    grade_label: string;
+    count: number;
+    percentage: number;
+}
+
+export interface ArmStatistics {
+    arm_name: string;
+    academic_class_id: number;
+    student_count: number;
+    average_score: number;
+    highest_score: number;
+    highest_scorer?: string;
+    lowest_score: number;
+    lowest_scorer?: string;
+    pass_count: number;
+    pass_rate: number;
+    grade_distribution: GradeDistribution[];
+}
+
+export interface LevelStatistics {
+    level: string; // e.g., "SS1", "JSS2"
+    total_students: number;
+    overall_average: number;
+    highest_score: number;
+    highest_scorer?: string;
+    lowest_score: number;
+    lowest_scorer?: string;
+    pass_count: number;
+    pass_rate: number;
+    grade_distribution: GradeDistribution[];
+    arms: ArmStatistics[];
+}
