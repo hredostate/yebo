@@ -38,6 +38,9 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
     
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 15;
+    
+    // Photo modal state
+    const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
 
     // Fetch shifts to calculate early checkout
     useEffect(() => {
@@ -260,9 +263,12 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
                                         <td className="px-6 py-4">
                                             {row.notes && <p className="text-xs italic mb-1 max-w-[150px] truncate" title={row.notes}>"{row.notes}"</p>}
                                             {row.photo_url && (
-                                                <a href={row.photo_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-                                                    <span>View Photo</span>
-                                                </a>
+                                                <button
+                                                    onClick={() => setPhotoModalUrl(row.photo_url)}
+                                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                                >
+                                                    <span>📷 View Photo</span>
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
@@ -288,6 +294,29 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
                     />
                 </div>
             </div>
+            
+            {/* Photo Modal */}
+            {photoModalUrl && (
+                <div 
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                    onClick={() => setPhotoModalUrl(null)}
+                >
+                    <div className="relative max-w-4xl max-h-[90vh]">
+                        <button
+                            onClick={() => setPhotoModalUrl(null)}
+                            className="absolute -top-10 right-0 text-white hover:text-slate-300 text-2xl font-bold"
+                        >
+                            ✕
+                        </button>
+                        <img 
+                            src={photoModalUrl} 
+                            alt="Check-in photo" 
+                            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

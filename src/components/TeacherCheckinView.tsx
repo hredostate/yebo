@@ -21,7 +21,16 @@ const TeacherCheckinHistory: React.FC<{
                             </p>
                             {c.notes && <p className="text-xs italic mt-1 text-slate-500">"{c.notes}"</p>}
                         </div>
-                        {c.photo_url && <a href={c.photo_url} target="_blank" rel="noopener noreferrer"><img src={c.photo_url} alt="Check-in" className="w-16 h-16 rounded-md object-cover" /></a>}
+                        {c.photo_url && (
+                            <a href={c.photo_url} target="_blank" rel="noopener noreferrer" title="Click to view full size">
+                                <img 
+                                    src={c.photo_url} 
+                                    alt="Check-in" 
+                                    className="w-20 h-15 rounded-md object-contain bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" 
+                                    style={{ aspectRatio: '4/3' }}
+                                />
+                            </a>
+                        )}
                     </div>
                 ))}
             </div>
