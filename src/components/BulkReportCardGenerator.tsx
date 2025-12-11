@@ -80,8 +80,18 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   // Utility function to sanitize strings for safe HTML rendering and filenames
   const sanitizeString = (str: string): string => {
     return str
-      .replace(/[<>]/g, '') // Remove potential HTML tags
-      .replace(/[^\w\s-]/g, '_') // Replace special chars for filenames
+      .replace(/[<>'"&]/g, (char) => {
+        // HTML entity encoding for basic XSS prevention
+        const entities: Record<string, string> = {
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+          '&': '&amp;'
+        };
+        return entities[char] || char;
+      })
+      .replace(/[^\w\s.\-]/g, '_') // Allow periods and hyphens for filenames
       .trim();
   };
 
