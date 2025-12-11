@@ -4648,12 +4648,12 @@ const App: React.FC = () => {
     const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
         if (!userProfile) return false;
         try {
-            // Delete existing enrollments for this class
-            const { error: deleteError } = await Offline.del('academic_class_students', { academic_class_id: classId });
+            // Delete existing enrollments for this class AND this specific term only
+            const { error: deleteError } = await Offline.del('academic_class_students', { academic_class_id: classId, enrolled_term_id: termId });
             if (deleteError) { addToast(deleteError.message, 'error'); return false; }
             
-            // Optimistically update local state - remove old enrollments
-            setAcademicClassStudents(prev => prev.filter(e => e.academic_class_id !== classId));
+            // Optimistically update local state - remove old enrollments for this class AND term only
+            setAcademicClassStudents(prev => prev.filter(e => !(e.academic_class_id === classId && e.enrolled_term_id === termId)));
             
             // Insert new enrollments
             const newEnrollments: AcademicClassStudent[] = [];

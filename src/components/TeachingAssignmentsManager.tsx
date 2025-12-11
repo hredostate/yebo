@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { AcademicTeachingAssignment, Term, AcademicClass, UserProfile, BaseDataObject, TimetableEntry, TimetablePeriod } from '../types';
+import type { AcademicTeachingAssignment, Term, AcademicClass, UserProfile, BaseDataObject, TimetableEntry, TimetablePeriod, Student, AcademicClassStudent } from '../types';
 import { SUBJECT_OPTIONS } from '../constants';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, SearchIcon, TrashIcon, EditIcon } from './common/icons';
