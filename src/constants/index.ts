@@ -135,7 +135,7 @@ export const VIEWS = {
   PREDICTIVE_ANALYTICS: 'Predictive Analytics',
   SCORE_REVIEW: 'Score Review', // Team Lead/Admin view of all scores
   CAMPUS_STATISTICS: 'Campus Statistics',
-};
+} as const;
 
 export const STUDENT_STATUSES = [
     { value: 'Active', label: 'Active', color: 'bg-green-500/20 text-green-800 dark:text-green-300' },
