@@ -58,7 +58,7 @@ Current date is ${new Date().toLocaleDateString()}.
 Available staff: ${users.map(u => `${u.name} (${u.role})`).join(', ')}.
 Recent reports summary: ${reports.slice(0, 3).map(r => r.analysis?.summary).filter(Boolean).join('; ')}.
 
-Note: This is a simplified version. Advanced features like task creation and announcements are temporarily disabled during the OpenRouter migration.`;
+Note: This is a simplified version. Advanced features like task creation and announcements are temporarily disabled.`;
         
         const conversationHistory = messages
             .filter(m => m.sender !== 'tool_code')

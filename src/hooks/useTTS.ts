@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-// Note: TTS features temporarily disabled during OpenRouter migration
+// Note: TTS features temporarily disabled - not supported by Groq API
 // import { GoogleGenAI, Modality } from '@google/genai';
 import { getAIClient } from '../services/aiClient';
 

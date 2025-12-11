@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-// Note: Live Audio features temporarily disabled during OpenRouter migration
+// Note: Live Audio features temporarily disabled - not supported by Groq API
 // import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import { getAIClient } from '../services/aiClient';
 
