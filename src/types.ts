@@ -723,6 +723,7 @@ export interface AcademicClassStudent {
     academic_class_id: number;
     student_id: number;
     enrolled_term_id: number;
+    manually_enrolled?: boolean;
 }
 
 export interface ScoreEntry {

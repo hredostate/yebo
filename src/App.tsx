@@ -4655,13 +4655,14 @@ const App: React.FC = () => {
             // Optimistically update local state - remove old enrollments for this class AND term only
             setAcademicClassStudents(prev => prev.filter(e => !(e.academic_class_id === classId && e.enrolled_term_id === termId)));
             
-            // Insert new enrollments
+            // Insert new enrollments - marked as manually_enrolled
             const newEnrollments: AcademicClassStudent[] = [];
             for (const studentId of studentIds) {
                 const enrollment = {
                     academic_class_id: classId,
                     student_id: studentId,
                     enrolled_term_id: termId,
+                    manually_enrolled: true,  // Mark as manual enrollment
                 };
                 const { error, data } = await Offline.insert('academic_class_students', enrollment);
                 if (error) { addToast(error.message, 'error'); return false; }

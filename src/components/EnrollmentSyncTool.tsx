@@ -13,6 +13,7 @@ interface SyncStats {
     updated: number;
     removed: number;
     errors: number;
+    preserved_manual?: number;
     total_processed: number;
 }
 
@@ -22,6 +23,7 @@ interface SyncResult {
     school_id: number;
     before_count: number;
     after_count: number;
+    preserve_manual?: boolean;
     sync_stats: SyncStats;
 }
 
@@ -47,6 +49,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
     const [diagnostics, setDiagnostics] = useState<DiagnosticRecord[]>([]);
     const [showDiagnostics, setShowDiagnostics] = useState(false);
+    const [preserveManual, setPreserveManual] = useState(true);
 
     // Auto-select first active term
     useEffect(() => {
@@ -68,7 +71,8 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
         try {
             const { data, error } = await supabase.rpc('admin_sync_student_enrollments', {
                 p_term_id: selectedTermId,
-                p_school_id: schoolId
+                p_school_id: schoolId,
+                p_preserve_manual: preserveManual
             });
 
             if (error) throw error;
@@ -76,10 +80,14 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
             setSyncResult(data as SyncResult);
             
             const stats = data.sync_stats;
-            addToast(
-                `Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.removed} removed`,
-                'success'
-            );
+            const preservedCount = stats.preserved_manual || 0;
+            
+            let message = `Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.removed} removed`;
+            if (preservedCount > 0) {
+                message += `, ${preservedCount} manual enrollments preserved`;
+            }
+            
+            addToast(message, 'success');
 
             // Notify user about errors if any, suggest running diagnostics
             if (stats.errors > 0) {
@@ -94,7 +102,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
         } finally {
             setSyncing(false);
         }
-    }, [selectedTermId, schoolId, addToast]);
+    }, [selectedTermId, schoolId, addToast, preserveManual]);
 
     const loadDiagnostics = useCallback(async () => {
         if (!selectedTermId) {
@@ -186,6 +194,43 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                     </select>
                 </div>
 
+                {/* Preserve Manual Enrollments Option */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={preserveManual}
+                            onChange={(e) => setPreserveManual(e.target.checked)}
+                            className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            disabled={syncing || loadingDiagnostics}
+                        />
+                        <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                Preserve manual enrollments
+                            </span>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                When enabled, students manually enrolled through the UI will not be removed during sync, even if their class/arm doesn't match an active academic class.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                {!preserveManual && (
+                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                        <div className="flex gap-2">
+                            <svg className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <div className="text-sm">
+                                <p className="font-semibold text-orange-800 dark:text-orange-200">Warning: Manual enrollments will be removed</p>
+                                <p className="text-orange-700 dark:text-orange-300 mt-1">
+                                    With this option unchecked, ALL enrollments will be synced based solely on student class/arm assignments. Manually added students may be removed.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex gap-3">
                     <button
                         onClick={handleSync}
@@ -241,7 +286,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                         Last Sync Results
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                             <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Before</div>
                             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
@@ -266,6 +311,14 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                                 {syncResult.sync_stats.removed}
                             </div>
                         </div>
+                        {(syncResult.sync_stats.preserved_manual || 0) > 0 && (
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+                                <div className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">Preserved</div>
+                                <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                    {syncResult.sync_stats.preserved_manual}
+                                </div>
+                            </div>
+                        )}
                         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
                             <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">After</div>
                             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">

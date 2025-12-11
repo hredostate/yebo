@@ -273,6 +273,7 @@ CREATE TABLE IF NOT EXISTS public.academic_class_students (
     academic_class_id INTEGER REFERENCES public.academic_classes(id) ON DELETE CASCADE,
     student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
     enrolled_term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
+    manually_enrolled BOOLEAN DEFAULT FALSE,
     UNIQUE(academic_class_id, student_id, enrolled_term_id)
 );
 CREATE TABLE IF NOT EXISTS public.student_subject_choices (
@@ -1804,7 +1805,8 @@ END $$;
 CREATE OR REPLACE FUNCTION sync_student_enrollment(
     p_student_id INTEGER,
     p_term_id INTEGER,
-    p_school_id INTEGER
+    p_school_id INTEGER,
+    p_preserve_manual BOOLEAN DEFAULT TRUE
 ) RETURNS JSONB AS $$
 DECLARE
     v_student RECORD;
@@ -1813,6 +1815,7 @@ DECLARE
     v_action TEXT;
     v_class_name TEXT;
     v_arm_name TEXT;
+    v_existing_enrollment RECORD;
 BEGIN
     -- Get student's current class and arm
     SELECT class_id, arm_id, name
@@ -1820,11 +1823,35 @@ BEGIN
     FROM students
     WHERE id = p_student_id AND school_id = p_school_id;
     
-    -- If student not found or has no class/arm assignment, remove their enrollment
+    -- If student not found or has no class/arm assignment
     IF v_student IS NULL OR v_student.class_id IS NULL OR v_student.arm_id IS NULL THEN
+        -- Check if there's a manual enrollment to preserve
+        IF p_preserve_manual THEN
+            SELECT * INTO v_existing_enrollment
+            FROM academic_class_students
+            WHERE student_id = p_student_id
+              AND enrolled_term_id = p_term_id
+              AND manually_enrolled = TRUE;
+            
+            IF FOUND THEN
+                -- Preserve manual enrollment, just log a warning
+                RETURN jsonb_build_object(
+                    'action', 'preserved_manual',
+                    'student_id', p_student_id,
+                    'reason', CASE 
+                        WHEN v_student IS NULL THEN 'student_not_found_but_manual_enrollment_preserved'
+                        ELSE 'no_class_or_arm_assigned_but_manual_enrollment_preserved'
+                    END,
+                    'academic_class_id', v_existing_enrollment.academic_class_id
+                );
+            END IF;
+        END IF;
+        
+        -- Remove only auto-synced enrollments
         DELETE FROM academic_class_students
         WHERE student_id = p_student_id
-          AND enrolled_term_id = p_term_id;
+          AND enrolled_term_id = p_term_id
+          AND (NOT p_preserve_manual OR manually_enrolled = FALSE);
         
         RETURN jsonb_build_object(
             'action', 'removed',
@@ -1860,11 +1887,34 @@ BEGIN
       AND is_active = TRUE
     LIMIT 1;
     
-    -- If no matching academic class, can't enroll
+    -- If no matching academic class found
     IF v_academic_class_id IS NULL THEN
+        -- Check if there's a manual enrollment to preserve
+        IF p_preserve_manual THEN
+            SELECT * INTO v_existing_enrollment
+            FROM academic_class_students
+            WHERE student_id = p_student_id
+              AND enrolled_term_id = p_term_id
+              AND manually_enrolled = TRUE;
+            
+            IF FOUND THEN
+                -- Preserve manual enrollment, just log a warning
+                RETURN jsonb_build_object(
+                    'action', 'preserved_manual',
+                    'student_id', p_student_id,
+                    'reason', 'no_matching_academic_class_but_manual_enrollment_preserved',
+                    'class_name', v_class_name,
+                    'arm_name', v_arm_name,
+                    'academic_class_id', v_existing_enrollment.academic_class_id
+                );
+            END IF;
+        END IF;
+        
+        -- Remove only auto-synced enrollments
         DELETE FROM academic_class_students
         WHERE student_id = p_student_id
-          AND enrolled_term_id = p_term_id;
+          AND enrolled_term_id = p_term_id
+          AND (NOT p_preserve_manual OR manually_enrolled = FALSE);
         
         RETURN jsonb_build_object(
             'action', 'removed',
@@ -1875,31 +1925,77 @@ BEGIN
         );
     END IF;
     
-    -- Upsert the enrollment
-    INSERT INTO academic_class_students (academic_class_id, student_id, enrolled_term_id)
-    VALUES (v_academic_class_id, p_student_id, p_term_id)
-    ON CONFLICT (academic_class_id, student_id, enrolled_term_id) 
-    DO UPDATE SET academic_class_id = EXCLUDED.academic_class_id
-    RETURNING 
-        CASE 
-            WHEN xmax = 0 THEN 'created'
-            ELSE 'updated'
-        END INTO v_action;
+    -- Check if enrollment already exists
+    SELECT * INTO v_existing_enrollment
+    FROM academic_class_students
+    WHERE student_id = p_student_id
+      AND enrolled_term_id = p_term_id;
     
-    RETURN jsonb_build_object(
-        'action', COALESCE(v_action, 'updated'),
-        'student_id', p_student_id,
-        'academic_class_id', v_academic_class_id,
-        'class_name', v_class_name,
-        'arm_name', v_arm_name
-    );
+    IF FOUND THEN
+        -- If it's a manual enrollment and matches the target class, preserve it
+        IF v_existing_enrollment.manually_enrolled AND 
+           v_existing_enrollment.academic_class_id = v_academic_class_id THEN
+            RETURN jsonb_build_object(
+                'action', 'preserved_manual',
+                'student_id', p_student_id,
+                'academic_class_id', v_academic_class_id,
+                'class_name', v_class_name,
+                'arm_name', v_arm_name,
+                'reason', 'manual_enrollment_already_correct'
+            );
+        END IF;
+        
+        -- If it's a manual enrollment but for different class
+        IF v_existing_enrollment.manually_enrolled AND 
+           v_existing_enrollment.academic_class_id != v_academic_class_id AND
+           p_preserve_manual THEN
+            -- Keep the manual enrollment, don't override
+            RETURN jsonb_build_object(
+                'action', 'preserved_manual',
+                'student_id', p_student_id,
+                'academic_class_id', v_existing_enrollment.academic_class_id,
+                'expected_class_id', v_academic_class_id,
+                'class_name', v_class_name,
+                'arm_name', v_arm_name,
+                'reason', 'manual_enrollment_for_different_class_preserved'
+            );
+        END IF;
+        
+        -- Update the enrollment (it's either auto-synced or we're not preserving manual)
+        UPDATE academic_class_students
+        SET academic_class_id = v_academic_class_id,
+            manually_enrolled = FALSE  -- Reset to auto-synced
+        WHERE student_id = p_student_id
+          AND enrolled_term_id = p_term_id;
+        
+        RETURN jsonb_build_object(
+            'action', 'updated',
+            'student_id', p_student_id,
+            'academic_class_id', v_academic_class_id,
+            'class_name', v_class_name,
+            'arm_name', v_arm_name
+        );
+    ELSE
+        -- Create new enrollment (auto-synced)
+        INSERT INTO academic_class_students (academic_class_id, student_id, enrolled_term_id, manually_enrolled)
+        VALUES (v_academic_class_id, p_student_id, p_term_id, FALSE);
+        
+        RETURN jsonb_build_object(
+            'action', 'created',
+            'student_id', p_student_id,
+            'academic_class_id', v_academic_class_id,
+            'class_name', v_class_name,
+            'arm_name', v_arm_name
+        );
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Function: Sync all students for a specific term
 CREATE OR REPLACE FUNCTION sync_all_students_for_term(
     p_term_id INTEGER,
-    p_school_id INTEGER
+    p_school_id INTEGER,
+    p_preserve_manual BOOLEAN DEFAULT TRUE
 ) RETURNS JSONB AS $$
 DECLARE
     v_student RECORD;
@@ -1909,18 +2005,20 @@ DECLARE
     v_updated INTEGER := 0;
     v_removed INTEGER := 0;
     v_errors INTEGER := 0;
+    v_preserved INTEGER := 0;
 BEGIN
     -- Process each student
     FOR v_student IN 
         SELECT id FROM students WHERE school_id = p_school_id
     LOOP
-        v_result := sync_student_enrollment(v_student.id, p_term_id, p_school_id);
+        v_result := sync_student_enrollment(v_student.id, p_term_id, p_school_id, p_preserve_manual);
         
         CASE v_result->>'action'
             WHEN 'created' THEN v_created := v_created + 1;
             WHEN 'updated' THEN v_updated := v_updated + 1;
             WHEN 'removed' THEN v_removed := v_removed + 1;
             WHEN 'error' THEN v_errors := v_errors + 1;
+            WHEN 'preserved_manual' THEN v_preserved := v_preserved + 1;
         END CASE;
     END LOOP;
     
@@ -1933,7 +2031,8 @@ BEGIN
             'updated', v_updated,
             'removed', v_removed,
             'errors', v_errors,
-            'total_processed', v_created + v_updated + v_removed + v_errors
+            'preserved_manual', v_preserved,
+            'total_processed', v_created + v_updated + v_removed + v_errors + v_preserved
         )
     );
 END;
@@ -2002,7 +2101,8 @@ CREATE TRIGGER term_enrollment_sync_trigger
 -- Function: Admin sync with detailed statistics
 CREATE OR REPLACE FUNCTION admin_sync_student_enrollments(
     p_term_id INTEGER,
-    p_school_id INTEGER
+    p_school_id INTEGER,
+    p_preserve_manual BOOLEAN DEFAULT TRUE
 ) RETURNS JSONB AS $$
 DECLARE
     v_result JSONB;
@@ -2015,7 +2115,7 @@ BEGIN
     WHERE enrolled_term_id = p_term_id;
     
     -- Perform sync
-    v_result := sync_all_students_for_term(p_term_id, p_school_id);
+    v_result := sync_all_students_for_term(p_term_id, p_school_id, p_preserve_manual);
     
     -- Count enrollments after sync
     SELECT COUNT(*) INTO v_after_count
@@ -2029,6 +2129,7 @@ BEGIN
         'school_id', p_school_id,
         'before_count', v_before_count,
         'after_count', v_after_count,
+        'preserve_manual', p_preserve_manual,
         'sync_stats', v_result->'stats'
     );
 END;
