@@ -741,8 +741,11 @@ export interface ScoreEntry {
     remark?: string | null; // Changed from 'teacher_comment' to match DB
     
     // CA scores stored as JSONB in database
-    ca_scores_breakdown?: Record<string, number> | null; // Changed from 'ca_score' to match DB
-    component_scores?: Record<string, number>; // e.g. { "CA1": 10, "Exam": 50 }
+    // ca_scores_breakdown: Stores CA components (CA1, CA2, etc.) in production DB
+    // component_scores: Stores all assessment components including CA and Exam
+    // Both fields are used for backward compatibility and different use cases
+    ca_scores_breakdown?: Record<string, number> | null; // Changed from 'ca_score' to match DB - for CA components only
+    component_scores?: Record<string, number>; // e.g. { "CA1": 10, "CA2": 15, "Exam": 50 } - all components
     
     // Audit fields for tracking who entered/modified scores
     last_updated_by?: string | null; // Added to match DB (UUID)
