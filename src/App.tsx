@@ -3242,11 +3242,11 @@ const App: React.FC = () => {
                 });
                 
                 if (authError) {
-                    console.error("Auth user deletion error:", authError);
+                    console.error(`Auth user deletion error for user ${userId}:`, authError);
                     // Continue anyway - the auth user might already be deleted or not exist
                 }
             } catch (authErr) {
-                console.error("Auth deletion failed:", authErr);
+                console.error(`Auth deletion failed for user ${userId}:`, authErr);
                 // Continue with profile deletion
             }
             
