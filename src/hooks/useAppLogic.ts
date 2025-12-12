@@ -194,8 +194,9 @@ export const useAppLogic = () => {
                 supabase.from('calendar_events').select('*'),
                 // NOTE: Supabase defaults to 1000 row limit. Tables with potentially large datasets
                 // must specify explicit .limit() to ensure all data is fetched.
-                // Tables with limits > 1000: academic_class_students, students, score_entries, 
-                // attendance_records, student_term_reports, student_term_report_subjects, etc.
+                // Large tables with limits: academic_class_students, score_entries, attendance_records,
+                // student_term_reports, teaching_assignments, lesson_plans, student_awards.
+                // Note: students table uses fetchAllStudents() with pagination.
                 supabase.from('classes').select('*').order('name'),
                 supabase.from('arms').select('*').order('name'),
                 supabase.from('subjects').select('*').order('name'),
@@ -322,9 +323,9 @@ export const useAppLogic = () => {
             // Student Data Fetching
              try {
                  const results = await Promise.allSettled([
-                     supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', (userProfile as any).student_record_id).limit(10000),
+                     supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', (userProfile as any).student_record_id),
                      supabase.from('quizzes').select('*, questions:quiz_questions(*)').eq('school_id', userProfile.school_id),
-                     supabase.from('quiz_responses').select('quiz_id').eq('user_id', userProfile.id).limit(10000),
+                     supabase.from('quiz_responses').select('quiz_id').eq('user_id', userProfile.id),
                      supabase.from('announcements').select('*, author:user_profiles(name)').eq('school_id', userProfile.school_id).order('created_at', { ascending: false }),
                  ]);
                  // Helper to safely extract data from result - always returns array
