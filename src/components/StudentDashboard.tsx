@@ -72,7 +72,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
         .select(`
           *,
           issuer:user_profiles!student_strikes_issued_by_fkey(name),
-          appeal:strike_appeals(id, status)
+          appeal:strike_appeals(*)
         `)
         .eq('student_id', studentProfile.student_record_id)
         .eq('archived', false)
@@ -314,9 +314,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     </p>
                   )}
                 </div>
-                {strike.appeal && (
+                {strike.appeal && strike.appeal.length > 0 && (
                   <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">
-                    Appeal {strike.appeal.status}
+                    Appeal {strike.appeal[0].status}
                   </span>
                 )}
               </div>
