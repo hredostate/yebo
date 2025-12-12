@@ -118,17 +118,27 @@ const enrolledStudents = useMemo(() => {
   - Rows: Students in the class
   - Columns: Subjects available for that class
   - Cells: Checkboxes to toggle enrollment
+- **CSV Import/Export:** Download enrollment template, edit in Excel, upload to bulk update
 - Bulk enroll/unenroll students for a subject
 - Filter by academic class, term
 - Search students by name or admission number
 
 **Key Features:**
 1. **Academic Class & Term Selection:** Dropdown filters to select the context
-2. **Student Search:** Real-time search by name or admission number
-3. **Individual Toggle:** Click checkbox to enroll/unenroll individual students
-4. **Bulk Actions:** "All ✓" and "None ✗" buttons to quickly enroll/unenroll all students for a subject
-5. **Visual Feedback:** Green checkmark for enrolled, gray X for not enrolled
-6. **Atomic Operations:** Uses upsert to ensure data consistency
+2. **CSV Download:** Export current enrollments to CSV (1 = enrolled, 0 = not enrolled)
+3. **CSV Upload:** Import bulk enrollment changes from edited CSV file
+4. **Student Search:** Real-time search by name or admission number
+5. **Individual Toggle:** Click checkbox to enroll/unenroll individual students
+6. **Bulk Actions:** "All ✓" and "None ✗" buttons to quickly enroll/unenroll all students for a subject
+7. **Visual Feedback:** Green checkmark for enrolled, gray X for not enrolled
+8. **Atomic Operations:** Uses upsert to ensure data consistency
+
+**CSV Format:**
+```csv
+Student ID,Student Name,Admission Number,Mathematics,English,Science,History
+1,"John Doe",STU001,1,1,1,0
+2,"Jane Smith",STU002,1,1,0,1
+```
 
 ### 5. App.tsx Updates
 
@@ -143,23 +153,34 @@ const enrolledStudents = useMemo(() => {
 **File:** `src/components/AppRouter.tsx`
 
 **Changes:**
-- Added import for `StudentSubjectEnrollmentManager`
-- Added route for `VIEWS.STUDENT_SUBJECT_ENROLLMENT_MANAGER`
+- Passes `studentSubjectEnrollments` to `SuperAdminConsole`
 - Passes `allSubjects` and `studentSubjectEnrollments` to `TeacherScoreEntryView`
+- Passes `reloadData` action to `SuperAdminConsole`
 
-### 7. Navigation
+### 7. SuperAdminConsole Integration
 
-**Added to Sidebar:** `src/components/Sidebar.tsx`
-- Located in the **"Student Affairs"** section
-- Menu item: **"Subject Enrollment"**
-- Appears after "Subject Choices"
-- Requires `manage-students` permission
+**File:** `src/components/SuperAdminConsole.tsx`
+
+**Changes:**
+- Added `StudentSubjectEnrollment` to type imports
+- Added `StudentSubjectEnrollmentManager` import
+- Added `studentSubjectEnrollments` and `onRefreshData` to props interface
+- Added 'student_subject_enrollment' to StructureSubTab type
+- Added "Subject Enrollment" to structure sub-tabs (appears after "Class Subjects")
+- Renders `StudentSubjectEnrollmentManager` when sub-tab is selected
+
+### 8. Navigation
+
+**Location:** Super Admin Console
+- Navigate to: **Super Admin → Structure → Subject Enrollment**
+- Located between "Class Subjects" and "Classes" tabs
+- Requires `school.console.structure_edit` permission
 
 **Added constant:** `VIEWS.STUDENT_SUBJECT_ENROLLMENT_MANAGER` in `src/constants.ts`
 
 **Navigation Path:**
 ```
-Sidebar → Student Affairs → Subject Enrollment
+Super Admin → Structure Tab → Subject Enrollment Sub-tab
 ```
 
 ## Backward Compatibility
@@ -175,18 +196,30 @@ The system is **fully backward compatible**:
 ### For Administrators
 
 1. **Navigate to Student Subject Enrollment**
-   - Access via the admin menu or navigation
+   - Go to: **Super Admin** (from sidebar)
+   - Click on **Structure** tab
+   - Select **Subject Enrollment** sub-tab
 
 2. **Select Academic Class and Term**
    - Choose the academic class (e.g., "JSS 1 Gold (2023/2024)")
    - Select the term (e.g., "2023/2024 - First Term")
 
-3. **Manage Enrollments**
+3. **Option A: CSV Bulk Import/Export (Recommended for Large Classes)**
+   - Click **Download CSV** to get a template with all students and subjects
+   - Open in Excel/Google Sheets
+   - Edit enrollment values:
+     - `1` = Student is enrolled in the subject
+     - `0` = Student is NOT enrolled in the subject
+   - Save the file
+   - Click **Upload CSV** to import the changes
+   - System will automatically update all enrollments
+
+4. **Option B: Manual Enrollment Management**
    - View the matrix of students and subjects
    - Click checkboxes to toggle individual enrollments
-   - Use "All ✓" or "None ✗" for bulk actions
+   - Use "All ✓" or "None ✗" for bulk actions on a single subject
 
-4. **Search Students**
+5. **Search Students**
    - Use the search box to filter students by name or admission number
 
 ### For Teachers
@@ -211,10 +244,13 @@ The system is **fully backward compatible**:
 - Enrollment data is loaded once on app initialization
 - Uses memoization to avoid unnecessary recalculations
 - Bulk operations use upsert for atomicity
+- CSV import/export handles large datasets efficiently
 
 ### Security
 - All operations respect school_id boundaries
 - CodeQL security scan passed with no alerts
+- CSV uploads validate student IDs before processing
+- File input properly sanitized
 
 ## Files Modified
 
@@ -223,9 +259,10 @@ The system is **fully backward compatible**:
 3. `src/types.ts` - New interface
 4. `src/constants.ts` - New view constant
 5. `src/App.tsx` - State management and data loading
-6. `src/components/AppRouter.tsx` - Routing
+6. `src/components/AppRouter.tsx` - Routing and prop passing
 7. `src/components/TeacherScoreEntryView.tsx` - Filtering logic
-8. `src/components/admin/StudentSubjectEnrollmentManager.tsx` - New component
+8. `src/components/SuperAdminConsole.tsx` - Integration and routing
+9. `src/components/admin/StudentSubjectEnrollmentManager.tsx` - New component with CSV import/export
 
 ## Testing Checklist
 
@@ -233,7 +270,10 @@ The system is **fully backward compatible**:
 - [x] TypeScript compilation passes
 - [x] Code review completed and issues addressed
 - [x] Security scan passes (CodeQL)
+- [x] CSV import/export functionality added
 - [ ] Manual testing of enrollment manager UI
+- [ ] Manual testing of CSV download
+- [ ] Manual testing of CSV upload
 - [ ] Manual testing of score entry filtering
 - [ ] Test backward compatibility with no enrollment records
 - [ ] Test bulk enrollment/unenrollment
@@ -241,11 +281,11 @@ The system is **fully backward compatible**:
 
 ## Future Enhancements
 
-1. **Import/Export:** Allow bulk import of enrollment data from CSV
-2. **Templates:** Create enrollment templates that can be reused across terms
-3. **Auto-enrollment:** Automatically enroll students based on compulsory subject rules
-4. **Audit Trail:** Track who made enrollment changes and when
-5. **Class-based Filtering:** In the enrollment manager, filter students to only show those actually in the academic class (currently shows all students)
+1. **Templates:** Create enrollment templates that can be reused across terms
+2. **Auto-enrollment:** Automatically enroll students based on compulsory subject rules
+3. **Audit Trail:** Track who made enrollment changes and when
+4. **Class-based Filtering:** In the enrollment manager, filter students to only show those actually in the academic class (currently shows all students)
+5. **Validation Rules:** Add warnings for students taking fewer/more subjects than class limits
 
 ## Migration Notes
 
