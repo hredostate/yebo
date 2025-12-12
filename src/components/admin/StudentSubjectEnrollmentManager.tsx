@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import type { Student, AcademicClass, Term, StudentSubjectEnrollment } from '../../types';
 import Spinner from '../common/Spinner';
-import { SearchIcon, CheckCircleIcon, XCircleIcon } from '../common/icons';
+import { SearchIcon, CheckCircleIcon, XCircleIcon, DownloadIcon, UploadCloudIcon } from '../common/icons';
 
 interface StudentSubjectEnrollmentManagerProps {
   schoolId: number;
@@ -32,6 +32,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [classSubjects, setClassSubjects] = useState<{ id: number; name: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get the current term (most recent active term)
   useEffect(() => {
@@ -227,6 +228,159 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
     }
   };
 
+  // Download CSV template with current enrollments
+  const downloadCSV = () => {
+    if (!selectedAcademicClassId || !selectedTermId) {
+      addToast('Please select an academic class and term first', 'error');
+      return;
+    }
+
+    const selectedClass = academicClasses.find(ac => ac.id === selectedAcademicClassId);
+    const selectedTerm = terms.find(t => t.id === selectedTermId);
+
+    // Create CSV header
+    const headers = ['Student ID', 'Student Name', 'Admission Number', ...classSubjects.map(s => s.name)];
+    const csvRows = [headers.join(',')];
+
+    // Add data rows
+    filteredStudents.forEach(student => {
+      const row = [
+        student.id,
+        `"${student.name}"`, // Quote names in case they contain commas
+        student.admission_number || '',
+        ...classSubjects.map(subject => {
+          const enrolled = isEnrolled(student.id, subject.id);
+          return enrolled ? '1' : '0';
+        })
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    // Create and download file
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `subject_enrollment_${selectedClass?.name}_${selectedTerm?.term_label}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    addToast('CSV downloaded successfully', 'success');
+  };
+
+  // Upload and process CSV file
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!selectedAcademicClassId || !selectedTermId) {
+      addToast('Please select an academic class and term first', 'error');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const text = await file.text();
+      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
+      
+      if (rows.length < 2) {
+        addToast('CSV file is empty or invalid', 'error');
+        return;
+      }
+
+      // Parse header to get subject names and positions
+      const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const subjectStartIndex = 3; // After Student ID, Student Name, Admission Number
+      const subjectHeaders = headers.slice(subjectStartIndex);
+
+      // Map subject names to IDs
+      const subjectMap = new Map<string, number>();
+      subjectHeaders.forEach(subjectName => {
+        const subject = classSubjects.find(s => s.name === subjectName);
+        if (subject) {
+          subjectMap.set(subjectName, subject.id);
+        }
+      });
+
+      if (subjectMap.size === 0) {
+        addToast('No matching subjects found in CSV', 'error');
+        return;
+      }
+
+      // Parse data rows and build enrollment records
+      const enrollments: Array<{
+        school_id: number;
+        student_id: number;
+        subject_id: number;
+        academic_class_id: number;
+        term_id: number;
+        is_enrolled: boolean;
+      }> = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const studentId = parseInt(cells[0]);
+        
+        if (isNaN(studentId)) continue;
+
+        // Check if student exists
+        const student = filteredStudents.find(s => s.id === studentId);
+        if (!student) {
+          console.warn(`Student ID ${studentId} not found, skipping row ${i + 1}`);
+          continue;
+        }
+
+        // Process each subject column
+        subjectHeaders.forEach((subjectName, index) => {
+          const subjectId = subjectMap.get(subjectName);
+          if (!subjectId) return;
+
+          const cellValue = cells[subjectStartIndex + index];
+          const isEnrolled = cellValue === '1' || cellValue.toLowerCase() === 'true' || cellValue.toLowerCase() === 'yes';
+
+          enrollments.push({
+            school_id: schoolId,
+            student_id: studentId,
+            subject_id: subjectId,
+            academic_class_id: selectedAcademicClassId,
+            term_id: selectedTermId,
+            is_enrolled: isEnrolled
+          });
+        });
+      }
+
+      if (enrollments.length === 0) {
+        addToast('No valid enrollment data found in CSV', 'error');
+        return;
+      }
+
+      // Use upsert to update all enrollments
+      const { error } = await supabase
+        .from('student_subject_enrollments')
+        .upsert(enrollments, {
+          onConflict: 'student_id,subject_id,academic_class_id,term_id'
+        });
+
+      if (error) throw error;
+
+      await onRefreshData();
+      addToast(`Successfully imported ${enrollments.length} enrollment records`, 'success');
+      
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading CSV:', error);
+      addToast('Failed to upload CSV file', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (activeAcademicClasses.length === 0) {
     return (
       <div className="text-center py-12">
@@ -298,6 +452,39 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
           </div>
         </div>
       </div>
+
+      {/* Import/Export Section */}
+      {selectedAcademicClassId && selectedTermId && (
+        <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Bulk Import/Export</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Download template, edit in Excel, then upload to update enrollments in bulk</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={downloadCSV}
+                disabled={filteredStudents.length === 0 || classSubjects.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <DownloadIcon className="w-4 h-4" />
+                Download CSV
+              </button>
+              <label className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 cursor-pointer transition-colors">
+                <UploadCloudIcon className="w-4 h-4" />
+                Upload CSV
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enrollment Matrix */}
       {selectedAcademicClassId && selectedTermId ? (
@@ -404,6 +591,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
         <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">ℹ️ How it works</h3>
         <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1 list-disc list-inside">
           <li>Select an academic class and term to view and manage student enrollments</li>
+          <li><strong>Bulk Import:</strong> Download CSV template, edit in Excel (use 1 for enrolled, 0 for not enrolled), then upload</li>
           <li>Click on checkboxes to toggle individual student enrollments for subjects</li>
           <li>Use "All ✓" or "None ✗" buttons to quickly enroll/unenroll all students for a subject</li>
           <li>If no enrollment records exist for a subject, teachers will see all class students (backward compatible)</li>

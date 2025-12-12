@@ -721,9 +721,11 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onImportLegacyAssignments={actions.handleImportLegacyAssignments}
                 students={data.students}
                 academicClassStudents={data.academicClassStudents}
+                studentSubjectEnrollments={data.studentSubjectEnrollments}
                 onUpdateClassEnrollment={actions.handleUpdateClassEnrollment}
                 onUpdateUserPayroll={actions.handleUpdateUserPayroll}
                 onBulkResetStrikes={actions.handleBulkResetStrikes}
+                onRefreshData={actions.reloadData}
              />;
         case VIEWS.SUPPORT_HUB:
              return <SupportHubView 

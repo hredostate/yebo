@@ -149,7 +149,18 @@ const enrolledStudents = useMemo(() => {
 
 ### 7. Navigation
 
+**Added to Sidebar:** `src/components/Sidebar.tsx`
+- Located in the **"Student Affairs"** section
+- Menu item: **"Subject Enrollment"**
+- Appears after "Subject Choices"
+- Requires `manage-students` permission
+
 **Added constant:** `VIEWS.STUDENT_SUBJECT_ENROLLMENT_MANAGER` in `src/constants.ts`
+
+**Navigation Path:**
+```
+Sidebar → Student Affairs → Subject Enrollment
+```
 
 ## Backward Compatibility
 
