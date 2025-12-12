@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType } from '../types';
+import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
 import BrandingSettings from './BrandingSettings';
@@ -17,6 +17,7 @@ import RewardsManager from './RewardsManager';
 import UserManagement from './UserManagement';
 import AssessmentStructureManager from './AssessmentStructureManager';
 import EnrollmentSyncTool from './EnrollmentSyncTool';
+import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 
 // Props interface for the component
 interface SuperAdminConsoleProps {
@@ -82,9 +83,11 @@ interface SuperAdminConsoleProps {
     onImportLegacyAssignments: (termId: number, entityIds: number[]) => Promise<boolean>;
     students: Student[];
     academicClassStudents: AcademicClassStudent[];
+    studentSubjectEnrollments: StudentSubjectEnrollment[];
     onUpdateClassEnrollment: (academicClassId: number, termId: number, studentIds: number[]) => Promise<boolean>;
     onUpdateUserPayroll: (userId: string, data: Partial<UserProfile>) => Promise<void>;
     onBulkResetStrikes?: () => Promise<void>;
+    onRefreshData: () => Promise<void>;
 }
 
 type AdminTab = 'Branding' | 'Roles' | 'Users' | 'Structure' | 'Grading' | 'Inventory' | 'Rewards' | 'Audit Log' | 'Advanced';
@@ -131,6 +134,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         teachingEntities = [],
         students = [],
         academicClassStudents = [],
+        studentSubjectEnrollments = [],
         schoolConfig,
         onSaveSchoolConfig,
         onSaveTerm, onDeleteTerm,
@@ -147,7 +151,8 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         onImportLegacyAssignments,
         onUpdateClassEnrollment,
         onUpdateUserPayroll,
-        onBulkResetStrikes
+        onBulkResetStrikes,
+        onRefreshData
     } = props;
 
     const visibleTabs = useMemo(() => {
@@ -156,7 +161,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
     }, [userPermissions]);
 
     // Define structure sub-tab type for better maintainability
-    type StructureSubTab = 'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'class_subjects' | 'classrooms' | 'arms' | 'enrollment_sync';
+    type StructureSubTab = 'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'class_subjects' | 'classrooms' | 'arms' | 'student_subject_enrollment' | 'enrollment_sync';
 
     const [activeTab, setActiveTab] = useState<AdminTab>(visibleTabs[0]?.name || 'Branding');
     const [structureSubTab, setStructureSubTab] = useState<StructureSubTab>('assessment');
@@ -168,6 +173,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         { id: 'assignments' as const, label: 'Teaching Assignments' },
         { id: 'subjects' as const, label: 'Subjects' },
         { id: 'class_subjects' as const, label: 'Class Subjects' },
+        { id: 'student_subject_enrollment' as const, label: 'Subject Enrollment' },
         { id: 'classrooms' as const, label: 'Classes' },
         { id: 'arms' as const, label: 'Arms/Streams' },
         { id: 'enrollment_sync' as const, label: 'Enrollment Sync' },
@@ -268,6 +274,18 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                                     classSubjects={props.classSubjects}
                                     onSave={props.onSaveClassSubject} 
                                     onDelete={props.onDeleteClassSubject} 
+                                />
+                            )}
+                            {structureSubTab === 'student_subject_enrollment' && (
+                                <StudentSubjectEnrollmentManager
+                                    schoolId={schoolConfig?.school_id || 1}
+                                    students={students}
+                                    allSubjects={subjects}
+                                    academicClasses={academicClasses}
+                                    terms={terms}
+                                    studentSubjectEnrollments={studentSubjectEnrollments}
+                                    onRefreshData={onRefreshData}
+                                    addToast={addToast}
                                 />
                             )}
                             {structureSubTab === 'classrooms' && (

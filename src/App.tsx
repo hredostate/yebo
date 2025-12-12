@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -412,6 +412,7 @@ const App: React.FC = () => {
     const [academicAssignments, setAcademicAssignments] = useState<AcademicTeachingAssignment[]>([]);
     const [gradingSchemes, setGradingSchemes] = useState<GradingScheme[]>([]);
     const [academicClassStudents, setAcademicClassStudents] = useState<AcademicClassStudent[]>([]);
+    const [studentSubjectEnrollments, setStudentSubjectEnrollments] = useState<StudentSubjectEnrollment[]>([]);
     const [scoreEntries, setScoreEntries] = useState<ScoreEntry[]>([]);
     const [studentTermReports, setStudentTermReports] = useState<StudentTermReport[]>([]);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -983,6 +984,7 @@ const App: React.FC = () => {
                             supabase.from('grading_schemes').select('*'),
                             supabase.from('grading_scheme_rules').select('*'),
                             supabase.from('academic_class_students').select('*').limit(10000),
+                            supabase.from('student_subject_enrollments').select('*').limit(10000),
                             supabase.from('score_entries').select('*').limit(50000),
                             supabase.from('student_term_reports').select('*, term:terms(*)').limit(10000),
                             supabase.from('audit_log').select('*, actor:user_profiles!actor_user_id(name)').order('created_at', { ascending: false }).limit(100),
@@ -1127,26 +1129,27 @@ const App: React.FC = () => {
                             const schemesData = getData(28);
                             const rulesData = getData(29);
                             setAcademicClassStudents(getData(30));
-                            setScoreEntries(getData(31));
-                            setStudentTermReports(getData(32));
-                            setAuditLogs(getData(33));
-                            setAssessments(getData(34));
-                            setAssessmentScores(getData(35));
-                            setStudentTermReportSubjects(getData(36));
-                            setCoverageVotes(getData(37));
-                            setRewards(getData(38));
-                            setPayrollRuns(getData(39));
-                            setPayrollItems(getData(40));
-                            setPayrollAdjustments(getData(41));
-                            setCampuses(getData(42));
-                            setTeacherCheckins(getData(43));
-                            setLeaveTypes(getData(44));
-                            setLeaveRequests(getData(45));
-                            setAbsenceRequests(getData(46));
-                            setTeacherShifts(getData(47));
-                            setAssessmentStructures(getData(48));
-                            setTeachingEntities(getData(49));
-                            setOrders(getData(50));
+                            setStudentSubjectEnrollments(getData(31));
+                            setScoreEntries(getData(32));
+                            setStudentTermReports(getData(33));
+                            setAuditLogs(getData(34));
+                            setAssessments(getData(35));
+                            setAssessmentScores(getData(36));
+                            setStudentTermReportSubjects(getData(37));
+                            setCoverageVotes(getData(38));
+                            setRewards(getData(39));
+                            setPayrollRuns(getData(40));
+                            setPayrollItems(getData(41));
+                            setPayrollAdjustments(getData(42));
+                            setCampuses(getData(43));
+                            setTeacherCheckins(getData(44));
+                            setLeaveTypes(getData(45));
+                            setLeaveRequests(getData(46));
+                            setAbsenceRequests(getData(47));
+                            setTeacherShifts(getData(48));
+                            setAssessmentStructures(getData(49));
+                            setTeachingEntities(getData(50));
+                            setOrders(getData(51));
 
                             const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
                                 ...scheme,
@@ -5736,6 +5739,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     academicClasses,
                                     academicAssignments,
                                     academicClassStudents,
+                                    studentSubjectEnrollments,
                                     scoreEntries,
                                     gradingSchemes,
                                     schoolConfig,
@@ -5917,6 +5921,11 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleBulkDeleteStudentAccounts,
                                     handleDeleteStudent,
                                     handleBulkDeleteStudents,
+                                    reloadData: async () => {
+                                        if (session?.user) {
+                                            await fetchData(session.user, true);
+                                        }
+                                    },
                                 }}
                             />
                         </Suspense>

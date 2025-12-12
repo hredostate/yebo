@@ -59,6 +59,7 @@ import StudentDashboard from './StudentDashboard';
 import StudentProfileEdit from './StudentProfileEdit';
 import StudentStrikeAppeals from './StudentStrikeAppeals';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
+import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 
 // Lazy load heavy components and those used dynamically elsewhere to fix build warnings and reduce chunk size
 const TimetableView = lazy(() => import('./TimetableView'));
@@ -335,6 +336,17 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolId={data.userProfile.school_id}
                 addToast={actions.addToast}
             />;
+        case VIEWS.STUDENT_SUBJECT_ENROLLMENT_MANAGER:
+            return <StudentSubjectEnrollmentManager
+                schoolId={data.userProfile.school_id}
+                students={data.students}
+                allSubjects={data.allSubjects}
+                academicClasses={data.academicClasses}
+                terms={data.terms}
+                studentSubjectEnrollments={data.studentSubjectEnrollments}
+                onRefreshData={actions.reloadData}
+                addToast={actions.addToast}
+            />;
         case VIEWS.ANALYTICS:
             return <AnalyticsView 
                 reports={data.reports} 
@@ -494,6 +506,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     academicAssignments={data.academicAssignments}
                     academicClassStudents={data.academicClassStudents}
                     students={data.students}
+                    allSubjects={data.allSubjects}
+                    studentSubjectEnrollments={data.studentSubjectEnrollments}
                     scoreEntries={data.scoreEntries}
                     gradingSchemes={data.gradingSchemes}
                     schoolConfig={data.schoolConfig}
@@ -707,9 +721,11 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onImportLegacyAssignments={actions.handleImportLegacyAssignments}
                 students={data.students}
                 academicClassStudents={data.academicClassStudents}
+                studentSubjectEnrollments={data.studentSubjectEnrollments}
                 onUpdateClassEnrollment={actions.handleUpdateClassEnrollment}
                 onUpdateUserPayroll={actions.handleUpdateUserPayroll}
                 onBulkResetStrikes={actions.handleBulkResetStrikes}
+                onRefreshData={actions.reloadData}
              />;
         case VIEWS.SUPPORT_HUB:
              return <SupportHubView 

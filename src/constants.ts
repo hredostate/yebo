@@ -148,6 +148,7 @@ export const VIEWS = {
   NOTIFICATION_HISTORY: 'Notification History',
   ABSENCE_REQUESTS: 'Absence Requests',
   STUDENT_SUBJECT_CHOICES_ADMIN: 'Student Subject Choices',
+  STUDENT_SUBJECT_ENROLLMENT_MANAGER: 'Student Subject Enrollment',
 } as const;
 
 export const STUDENT_STATUSES = [
