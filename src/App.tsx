@@ -16,6 +16,8 @@ import { VIEWS } from './constants';
 import { checkInToday, checkOutToday, todayISO } from './services/checkins';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { fetchAllStudents } from './utils/studentPagination';
+import { updateSessionHeartbeat, terminateCurrentSession } from './services/sessionManager';
+import { clearUserPersistedState } from './hooks/usePersistedState';
 
 import LoginPage from './components/LoginPage';
 import Sidebar from './components/Sidebar';
@@ -342,6 +344,23 @@ const App: React.FC = () => {
         };
     }, []);
 
+    // Session heartbeat - update last_active every 30 seconds
+    useEffect(() => {
+        if (!session || !userProfile) return;
+        
+        // Initial heartbeat
+        updateSessionHeartbeat();
+        
+        // Set up interval for heartbeat
+        const heartbeatInterval = setInterval(() => {
+            updateSessionHeartbeat();
+        }, 30000); // 30 seconds
+        
+        return () => {
+            clearInterval(heartbeatInterval);
+        };
+    }, [session, userProfile]);
+
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [reports, setReports] = useState<ReportRecord[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -524,6 +543,14 @@ const App: React.FC = () => {
     const handleLogout = useCallback(async () => {
         if (!supabase) return;
         try {
+            // Terminate current session
+            await terminateCurrentSession();
+            
+            // Clear persisted state for this user
+            if (userProfile?.id) {
+                clearUserPersistedState(userProfile.id);
+            }
+            
             // Clear session state first
             setSession(null);
             setUserProfile(null);
@@ -565,7 +592,7 @@ const App: React.FC = () => {
             setCurrentView('Dashboard');
             window.location.hash = '';
         }
-    }, []);
+    }, [userProfile]);
 
 
     const fetchData = useCallback(async (user: User, forceRefresh: boolean = false) => {

@@ -5,6 +5,8 @@ import { Aurora, GridBackdrop } from './common/Background';
 import { ShieldIcon, SunIcon, MoonIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { SCHOOL_LOGO_URL } from '../constants';
+import { createSession, isDeviceLimitReached, terminateOldestSession } from '../services/sessionManager';
+import DeviceLimitModal from './DeviceLimitModal';
 
 type AuthViewMode = 'login' | 'signup' | 'forgot_password';
 type AuthView = 'landing' | 'teacher-login' | 'student-login' | 'public-ratings';
@@ -39,6 +41,8 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showDeviceLimitModal, setShowDeviceLimitModal] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +54,30 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
       if (!supabase) throw new Error("Supabase client not initialized");
       if (authView === 'login') {
         // Cast supabase.auth to any to bypass potential type definition mismatches
-        const { error } = await (supabase.auth as any).signInWithPassword({ email, password });
+        const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
         if (error) throw error;
+        
+        // Check device limit before allowing login
+        if (data?.user) {
+          const { limitReached, currentCount } = await isDeviceLimitReached(data.user.id);
+          
+          if (limitReached) {
+            // Show device limit modal
+            setPendingUserId(data.user.id);
+            setShowDeviceLimitModal(true);
+            // Log the user out temporarily
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
+          
+          // Create session for this device
+          const sessionResult = await createSession(data.user.id);
+          if (!sessionResult.success) {
+            console.warn('Failed to create session:', sessionResult.error);
+            // Continue anyway - session tracking is not critical for login
+          }
+        }
         // Navigation will be handled by App.tsx after profile loads
       } else if (authView === 'signup') {
         const { data, error } = await (supabase.auth as any).signUp({
@@ -82,6 +108,33 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleLogoutOldest = async () => {
+    if (!pendingUserId) return;
+    
+    try {
+      // Terminate oldest session
+      const success = await terminateOldestSession(pendingUserId);
+      if (!success) {
+        throw new Error('Failed to terminate oldest session');
+      }
+      
+      // Now try to log in again
+      const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
+      if (error) throw error;
+      
+      if (data?.user) {
+        // Create session for this device
+        await createSession(data.user.id);
+      }
+      
+      setShowDeviceLimitModal(false);
+      setPendingUserId(null);
+    } catch (err: any) {
+      console.error('Error logging out oldest device:', err);
+      setError(err.message || 'Failed to log out oldest device');
     }
   };
   
@@ -269,6 +322,19 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
       <footer className="relative z-10 mx-auto w-full max-w-7xl px-6 pb-10 text-center text-xs text-slate-500 dark:text-slate-400">
         © {new Date().getFullYear()} School Guardian 360. All rights reserved.
       </footer>
+      
+      {/* Device Limit Modal */}
+      {showDeviceLimitModal && pendingUserId && (
+        <DeviceLimitModal
+          isOpen={showDeviceLimitModal}
+          onClose={() => {
+            setShowDeviceLimitModal(false);
+            setPendingUserId(null);
+          }}
+          userId={pendingUserId}
+          onLogoutOldest={handleLogoutOldest}
+        />
+      )}
     </div>
   );
 }
