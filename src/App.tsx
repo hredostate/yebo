@@ -2863,7 +2863,7 @@ const App: React.FC = () => {
     // Lock academic assignment scores (for Result Manager)
     const handleLockScores = useCallback(async (assignmentId: number): Promise<boolean> => {
         try {
-            const { error } = await Offline.update('academic_teaching_assignments', 
+            const { error } = await Offline.update('teaching_assignments', 
                 { is_locked: true }, 
                 { id: assignmentId }
             );
@@ -2910,7 +2910,7 @@ const App: React.FC = () => {
                 }
             }
 
-            const { error } = await Offline.update('academic_teaching_assignments', 
+            const { error } = await Offline.update('teaching_assignments', 
                 updatePayload, 
                 { id: assignmentId }
             );
