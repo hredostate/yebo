@@ -13,6 +13,7 @@ import LeaveTypesManager from './LeaveTypesManager';
 import CampusesManager from './CampusesManager';
 import MyLeaveView from './MyLeaveView';
 import LeaveApprovalView from './LeaveApprovalView';
+import PensionManager from './PensionManager';
 import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { supa as supabase } from '../offline/client';
@@ -253,6 +254,7 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
         { id: 'payroll_history' as const, label: 'Payroll History', icon: ClockIcon, show: canManagePayroll },
         { id: 'staff_data' as const, label: 'Staff Data', icon: UsersIcon, show: canManagePayroll },
         { id: 'adjustments' as const, label: 'Manage Adjustments', icon: EditIcon, show: canManagePayroll },
+        { id: 'pension' as const, label: 'Pension', icon: BanknotesIcon, show: canManagePayroll },
         { id: 'leave_approvals' as const, label: 'Leave Approvals', icon: CalendarIcon, show: canManagePayroll || canManageHR, divider: true },
         { id: 'shifts' as const, label: 'Shifts', icon: ClockIcon, show: canManageHR },
         { id: 'leave_types' as const, label: 'Leave Types', icon: CalendarIcon, show: canManageHR },
@@ -381,6 +383,8 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                 return <StaffPayrollManager users={safeUsers} onUpdateUserPayroll={onUpdateUserPayroll} campuses={safeCampuses} />;
             case 'adjustments':
                 return <PayrollAdjustmentsManager users={safeUsers} addToast={addToast} campuses={safeCampuses} />;
+            case 'pension':
+                return <PensionManager users={safeUsers} schoolId={safeUserProfile.school_id} addToast={addToast} />;
             case 'leave_approvals':
                 return <LeaveApprovalView 
                     currentUser={safeUserProfile}
