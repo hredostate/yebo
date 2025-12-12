@@ -183,6 +183,21 @@ Identifies students with enrollment sync issues.
 
 **Solution**: This is expected behavior. The sync removed incorrect enrollments. Run diagnostics to verify students are now correctly assigned.
 
+### Students Missing from Result Manager (Teachers Can't Enter Scores)
+**Cause**: Students have score entries but are missing from `academic_class_students` table
+
+**Solution**: 
+1. Navigate to Super Admin Console → Structure → Enrollment Sync
+2. Select the affected term
+3. Click **"Repair Missing Enrollments"** button
+4. The system will automatically restore enrollment records for students with existing scores
+5. Verify the repair statistics and re-run diagnostics to confirm
+
+### Score Protection Warning During Sync
+**Cause**: System detected students with existing score entries who would normally be removed
+
+**Solution**: This is expected behavior. The sync system automatically protects students with score entries from removal. These students appear in the sync results as `preserved_with_scores`. Review the diagnostic report to understand why they don't match the expected class assignment.
+
 ## Technical Details
 
 ### Database Schema
@@ -219,6 +234,70 @@ Identifies students with enrollment sync issues.
 - Triggers execute asynchronously after the main transaction
 - No user-facing delays for individual student updates
 
+## Score Entry Protection
+
+The enrollment sync system includes built-in protection for students who have existing score entries. This prevents data loss and ensures teachers can always see students they've graded.
+
+### How Score Protection Works
+
+1. **Automatic Detection**: Before removing any enrollment, the system checks if the student has score entries for that term
+2. **Preservation**: If scores exist, the enrollment is preserved regardless of class/arm assignment status
+3. **Tracking**: Protected students are counted separately as `preserved_with_scores` in sync results
+4. **Visibility**: Teachers can continue to see and update scores for protected students
+
+### When Students Are Protected
+
+Students are protected from enrollment removal when:
+- They have one or more score entries for the term
+- Their class/arm assignment is NULL or missing
+- No matching academic class exists for their assignment
+- Even if they would normally be removed during sync
+
+### Repair Function
+
+If students with scores are accidentally missing from enrollments (e.g., due to database issues or migration), use the repair function:
+
+```javascript
+const { data, error } = await supabase.rpc('repair_missing_enrollments', {
+    p_term_id: termId,
+    p_school_id: schoolId
+});
+
+// Returns:
+// {
+//   success: true,
+//   term_id: 1,
+//   school_id: 1,
+//   repaired: 15,      // Number of enrollments restored
+//   failed: 2,         // Number that couldn't be restored
+//   message: "15 enrollments repaired, 2 failed"
+// }
+```
+
+### Diagnostic Functions
+
+**Check Removal Candidates**:
+See which students would be removed by sync (without actually removing them):
+
+```javascript
+const { data, error } = await supabase.rpc('get_enrollment_removal_candidates', {
+    p_term_id: termId,
+    p_school_id: schoolId
+});
+
+// Returns a table with:
+// - student_id, student_name
+// - has_scores: boolean
+// - score_count: number of score entries
+// - would_be_removed: boolean
+// - removal_reason: why they would be removed
+```
+
+This is particularly useful for:
+- Previewing sync impact before running it
+- Identifying students with scores who need attention
+- Understanding why certain students are being protected
+
 ## API Integration
 
 For programmatic access, you can call the RPC functions directly:
@@ -235,6 +314,18 @@ const { data, error } = await supabase.rpc('get_enrollment_sync_diagnostics', {
     p_term_id: termId,
     p_school_id: schoolId
 });
+
+// Repair missing enrollments
+const { data, error } = await supabase.rpc('repair_missing_enrollments', {
+    p_term_id: termId,
+    p_school_id: schoolId
+});
+
+// Preview removal candidates
+const { data, error } = await supabase.rpc('get_enrollment_removal_candidates', {
+    p_term_id: termId,
+    p_school_id: schoolId
+});
 ```
 
 ## Support
@@ -248,4 +339,4 @@ For issues or questions about the enrollment sync system:
 ---
 
 **Last Updated**: December 2024
-**Version**: 1.0.0
+**Version**: 2.0.0 - Added score entry protection and repair functions

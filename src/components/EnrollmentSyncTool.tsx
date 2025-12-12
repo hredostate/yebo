@@ -14,6 +14,7 @@ interface SyncStats {
     removed: number;
     errors: number;
     preserved_manual?: number;
+    preserved_with_scores?: number;
     total_processed: number;
 }
 
@@ -46,7 +47,9 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
     const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+    const [repairing, setRepairing] = useState(false);
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+    const [repairResult, setRepairResult] = useState<any | null>(null);
     const [diagnostics, setDiagnostics] = useState<DiagnosticRecord[]>([]);
     const [showDiagnostics, setShowDiagnostics] = useState(false);
     const [preserveManual, setPreserveManual] = useState(true);
@@ -81,10 +84,14 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
             
             const stats = data.sync_stats;
             const preservedCount = stats.preserved_manual || 0;
+            const preservedWithScores = stats.preserved_with_scores || 0;
             
             let message = `Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.removed} removed`;
             if (preservedCount > 0) {
                 message += `, ${preservedCount} manual enrollments preserved`;
+            }
+            if (preservedWithScores > 0) {
+                message += `, ${preservedWithScores} protected (have scores)`;
             }
             
             addToast(message, 'success');
@@ -134,6 +141,42 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
             addToast(`Failed to load diagnostics: ${error.message}`, 'error');
         } finally {
             setLoadingDiagnostics(false);
+        }
+    }, [selectedTermId, schoolId, addToast]);
+
+    const handleRepair = useCallback(async () => {
+        if (!selectedTermId) {
+            addToast('Please select a term to repair', 'error');
+            return;
+        }
+
+        setRepairing(true);
+        setRepairResult(null);
+
+        try {
+            const { data, error } = await supabase.rpc('repair_missing_enrollments', {
+                p_term_id: selectedTermId,
+                p_school_id: schoolId
+            });
+
+            if (error) throw error;
+
+            setRepairResult(data);
+            
+            if (data.repaired > 0) {
+                addToast(`Successfully repaired ${data.repaired} missing enrollments`, 'success');
+            } else {
+                addToast('No missing enrollments found to repair', 'info');
+            }
+
+            if (data.failed > 0) {
+                addToast(`⚠️ ${data.failed} enrollments could not be repaired. Run diagnostics for details.`, 'info');
+            }
+        } catch (error: any) {
+            console.error('Repair error:', error);
+            addToast(`Repair failed: ${error.message}`, 'error');
+        } finally {
+            setRepairing(false);
         }
     }, [selectedTermId, schoolId, addToast]);
 
@@ -234,7 +277,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                 <div className="flex gap-3">
                     <button
                         onClick={handleSync}
-                        disabled={!selectedTermId || syncing || loadingDiagnostics}
+                        disabled={!selectedTermId || syncing || loadingDiagnostics || repairing}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {syncing ? (
@@ -257,7 +300,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
 
                     <button
                         onClick={loadDiagnostics}
-                        disabled={!selectedTermId || syncing || loadingDiagnostics}
+                        disabled={!selectedTermId || syncing || loadingDiagnostics || repairing}
                         className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {loadingDiagnostics ? (
@@ -274,6 +317,30 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                                 </svg>
                                 Run Diagnostics
+                            </>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={handleRepair}
+                        disabled={!selectedTermId || syncing || loadingDiagnostics || repairing}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {repairing ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Repairing...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Repair Missing
                             </>
                         )}
                     </button>
@@ -319,6 +386,15 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                                 </div>
                             </div>
                         )}
+                        {(syncResult.sync_stats.preserved_with_scores || 0) > 0 && (
+                            <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-4">
+                                <div className="text-sm text-teal-600 dark:text-teal-400 font-medium">Protected</div>
+                                <div className="text-2xl font-bold text-teal-700 dark:text-teal-300">
+                                    {syncResult.sync_stats.preserved_with_scores}
+                                </div>
+                                <div className="text-xs text-teal-600 dark:text-teal-400 mt-1">has scores</div>
+                            </div>
+                        )}
                         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
                             <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">After</div>
                             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
@@ -334,6 +410,46 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                             </p>
                         </div>
                     )}
+                    {(syncResult.sync_stats.preserved_with_scores || 0) > 0 && (
+                        <div className="mt-4 p-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg">
+                            <p className="text-teal-800 dark:text-teal-200 text-sm">
+                                ℹ️ {syncResult.sync_stats.preserved_with_scores} students were protected from removal because they have existing score entries. 
+                                These students can still be viewed in Result Manager.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Repair Results */}
+            {repairResult && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                        Repair Results
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
+                            <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Repaired</div>
+                            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                                {repairResult.repaired}
+                            </div>
+                            <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">enrollments restored</div>
+                        </div>
+                        {repairResult.failed > 0 && (
+                            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                                <div className="text-sm text-red-600 dark:text-red-400 font-medium">Failed</div>
+                                <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+                                    {repairResult.failed}
+                                </div>
+                                <div className="text-xs text-red-600 dark:text-red-400 mt-1">could not repair</div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                        <p className="text-emerald-800 dark:text-emerald-200 text-sm">
+                            {repairResult.message}
+                        </p>
+                    </div>
                 </div>
             )}
 
@@ -478,6 +594,14 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
                     <li className="flex gap-2">
                         <span className="text-blue-600 dark:text-blue-400">•</span>
                         <span><strong>Preserve Option:</strong> By default, manual enrollments are preserved during sync. Uncheck "Preserve manual enrollments" only if you want to completely reset all enrollments based on student class/arm assignments.</span>
+                    </li>
+                    <li className="flex gap-2">
+                        <span className="text-teal-600 dark:text-teal-400">🛡️</span>
+                        <span><strong>Score Protection:</strong> Students with existing score entries are automatically protected from removal, even if their class/arm assignment is missing or doesn't match an active academic class. This prevents data loss and ensures teachers can always see students they've graded.</span>
+                    </li>
+                    <li className="flex gap-2">
+                        <span className="text-emerald-600 dark:text-emerald-400">🔧</span>
+                        <span><strong>Repair Missing:</strong> If students with scores are missing from enrollments (e.g., after migration), use "Repair Missing" to automatically restore their enrollment records based on their score entries.</span>
                     </li>
                 </ul>
             </div>
