@@ -24,37 +24,52 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [academicClass, setAcademicClass] = useState<AcademicClass | null>(null);
+    const [hasSaved, setHasSaved] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
-
-        // 1. Get Active Term & Enrollment to find the exact AcademicClass
-        const { data: activeTerms } = await supabase.from('terms').select('id').eq('is_active', true).limit(1);
-        const activeTermId = activeTerms?.[0]?.id;
         
-        let currentAcademicClass: AcademicClass | null = null;
+        try {
+            // Early validation for required fields
+            if (!studentProfile.student_record_id) {
+                addToast('Student record not found. Please contact administrator.', 'error');
+                return;
+            }
 
-        if (activeTermId && studentProfile.student_record_id) {
-             const { data: enrollment } = await supabase
-                .from('academic_class_students')
-                .select('academic_class_id, academic_class:academic_classes(*)')
-                .eq('student_id', studentProfile.student_record_id)
-                .eq('enrolled_term_id', activeTermId)
-                .maybeSingle();
-             
-             if (enrollment && enrollment.academic_class) {
-                 // We have the specific academic class with limits
-                 // Need to cast because Join returns object or array depending on setup, assuming standard
-                 currentAcademicClass = enrollment.academic_class as unknown as AcademicClass;
-                 setAcademicClass(currentAcademicClass);
-             }
-        }
+            // Check if class_id exists
+            if (!studentProfile.class_id) {
+                console.warn('Student has no class_id assigned');
+                // Still allow the component to render, just show empty subjects
+                setAvailableSubjects([]);
+                return;
+            }
 
-        // 2. Fetch subjects
-        // Ideally, fetch all subjects available in the school or linked to the generic class level
-        // 'class_subjects' links generic class (e.g. JSS 1) to subjects.
-        let fetchedSubjects: {subject_id: number, subject_name: string, is_compulsory: boolean}[] = [];
-        if (studentProfile.class_id) {
+            // 1. Get Active Term & Enrollment to find the exact AcademicClass
+            const { data: activeTerms } = await supabase.from('terms').select('id').eq('is_active', true).limit(1);
+            const activeTermId = activeTerms?.[0]?.id;
+            
+            let currentAcademicClass: AcademicClass | null = null;
+
+            if (activeTermId && studentProfile.student_record_id) {
+                 const { data: enrollment } = await supabase
+                    .from('academic_class_students')
+                    .select('academic_class_id, academic_class:academic_classes(*)')
+                    .eq('student_id', studentProfile.student_record_id)
+                    .eq('enrolled_term_id', activeTermId)
+                    .maybeSingle();
+                 
+                 if (enrollment && enrollment.academic_class) {
+                     // We have the specific academic class with limits
+                     // Need to cast because Join returns object or array depending on setup, assuming standard
+                     currentAcademicClass = enrollment.academic_class as unknown as AcademicClass;
+                     setAcademicClass(currentAcademicClass);
+                 }
+            }
+
+            // 2. Fetch subjects
+            // Ideally, fetch all subjects available in the school or linked to the generic class level
+            // 'class_subjects' links generic class (e.g. JSS 1) to subjects.
+            let fetchedSubjects: {subject_id: number, subject_name: string, is_compulsory: boolean}[] = [];
             const { data: classSubjects, error: classSubjectsError } = await supabase
                 .from('class_subjects')
                 .select('subject_id, is_compulsory, subjects(name)')
@@ -71,27 +86,30 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 })).sort((a,b) => a.subject_name.localeCompare(b.subject_name)) : [];
                 setAvailableSubjects(fetchedSubjects);
             }
-        }
 
-        // 3. Fetch existing choices & Merge Compulsory
-        const { data: choices, error: choicesError } = await supabase
-            .from('student_subject_choices')
-            .select('subject_id')
-            .eq('student_id', studentProfile.student_record_id);
-        
-        if (choicesError) {
-            console.error(choicesError);
-            addToast('Error fetching your choices.', 'error');
-        } else {
-            const existingIds = (choices || []).map((c: any) => Number(c.subject_id));
-            // Automatically include compulsory subjects in the selection state
-            const compulsoryIds = fetchedSubjects.filter(s => s.is_compulsory).map(s => s.subject_id);
-            const combinedIds = new Set<number>([...existingIds, ...compulsoryIds]);
+            // 3. Fetch existing choices & Merge Compulsory
+            const { data: choices, error: choicesError } = await supabase
+                .from('student_subject_choices')
+                .select('subject_id')
+                .eq('student_id', studentProfile.student_record_id);
             
-            setSelectedSubjectIds(combinedIds);
+            if (choicesError) {
+                console.error(choicesError);
+                addToast('Error fetching your choices.', 'error');
+            } else {
+                const existingIds = (choices || []).map((c: any) => Number(c.subject_id));
+                // Automatically include compulsory subjects in the selection state
+                const compulsoryIds = fetchedSubjects.filter(s => s.is_compulsory).map(s => s.subject_id);
+                const combinedIds = new Set<number>([...existingIds, ...compulsoryIds]);
+                
+                setSelectedSubjectIds(combinedIds);
+            }
+        } catch (error: any) {
+            console.error('Error loading student portal data:', error);
+            addToast('Failed to load data. Please try again.', 'error');
+        } finally {
+            setIsLoading(false); // Always stop loading, even on error
         }
-
-        setIsLoading(false);
     }, [studentProfile, addToast]);
 
     useEffect(() => {
@@ -154,9 +172,11 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 addToast(`Error saving choices: ${insertError.message}`, 'error');
             } else {
                 addToast('Subjects saved successfully!', 'success');
+                setHasSaved(true); // Mark as saved
             }
         } else {
              addToast('Subjects cleared.', 'success');
+             setHasSaved(true); // Mark as saved
         }
 
         setIsSaving(false);
@@ -216,69 +236,87 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
 
             {activeTab === 'subjects' && (
                 <div className="space-y-4 animate-fade-in">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div>
-                            <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
-                            <p className="text-sm text-blue-700 dark:text-blue-300">
-                                Select the subjects you are taking this term.
-                                {minLimit > 0 && ` Minimum: ${minLimit}.`} 
-                                {maxLimit < 99 && ` Maximum: ${maxLimit}.`}
-                            </p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                * {compulsoryCount} subjects are compulsory and cannot be removed.
-                            </p>
-                            <p className={`text-sm font-bold mt-1 ${isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                Total Selected: {selectionCount}
-                            </p>
+                    {!studentProfile.class_id ? (
+                        <div className="p-8 text-center text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                            <p className="font-semibold">Class Not Assigned</p>
+                            <p className="text-sm mt-2">You are not assigned to a class yet. Please contact your school administrator.</p>
                         </div>
-                        <button 
-                            onClick={handleSaveChoices} 
-                            disabled={isSaving} 
-                            className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors flex items-center gap-2 shadow-md ${isValid ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 cursor-not-allowed'}`}
-                        >
-                            {isSaving ? <Spinner size="sm" /> : <><CheckCircleIcon className="w-5 h-5" /> Save Choices</>}
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {availableSubjects.length > 0 ? availableSubjects.map(sub => {
-                            const isSelected = selectedSubjectIds.has(sub.subject_id);
-                            const isCompulsory = sub.is_compulsory;
-                            
-                            return (
-                                <div 
-                                    key={sub.subject_id} 
-                                    onClick={() => handleToggleSubject(sub.subject_id, isCompulsory)}
-                                    className={`p-4 border rounded-lg transition-all shadow-sm flex items-center justify-between 
-                                        ${isCompulsory 
-                                            ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600 cursor-not-allowed opacity-90' 
-                                            : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'
-                                        }
-                                        ${isSelected && !isCompulsory ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}
-                                    `}
-                                >
-                                    <div className="flex flex-col">
-                                        <p className={`font-semibold ${isSelected ? 'text-blue-800 dark:text-blue-100' : 'text-slate-700 dark:text-slate-200'}`}>
-                                            {sub.subject_name}
-                                        </p>
-                                        {isCompulsory && <span className="text-[10px] font-bold uppercase text-slate-500">Compulsory</span>}
-                                    </div>
-                                    
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-500'} ${isCompulsory ? 'bg-slate-500 border-slate-500' : ''}`}>
-                                        {isCompulsory ? (
-                                            <LockClosedIcon className="w-3 h-3 text-white" />
-                                        ) : isSelected && (
-                                            <CheckCircleIcon className="w-4 h-4 text-white" />
-                                        )}
+                    ) : (
+                        <>
+                            {hasSaved && (
+                                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-3">
+                                    <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                    <div>
+                                        <p className="font-semibold text-green-800 dark:text-green-100">Selections Saved</p>
+                                        <p className="text-sm text-green-700 dark:text-green-300">Your subject choices have been saved successfully.</p>
                                     </div>
                                 </div>
-                            )
-                        }) : (
-                            <div className="col-span-full p-8 text-center text-slate-500 border-2 border-dashed rounded-xl">
-                                No subjects available for selection. Please contact your administrator.
+                            )}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                                        Select the subjects you are taking this term.
+                                        {minLimit > 0 && ` Minimum: ${minLimit}.`} 
+                                        {maxLimit < 99 && ` Maximum: ${maxLimit}.`}
+                                    </p>
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                        * {compulsoryCount} subjects are compulsory and cannot be removed.
+                                    </p>
+                                    <p className={`text-sm font-bold mt-1 ${isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        Total Selected: {selectionCount}
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={handleSaveChoices} 
+                                    disabled={isSaving} 
+                                    className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors flex items-center gap-2 shadow-md ${isValid ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 cursor-not-allowed'}`}
+                                >
+                                    {isSaving ? <Spinner size="sm" /> : <><CheckCircleIcon className="w-5 h-5" /> Save Choices</>}
+                                </button>
                             </div>
-                        )}
-                    </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {availableSubjects.length > 0 ? availableSubjects.map(sub => {
+                                    const isSelected = selectedSubjectIds.has(sub.subject_id);
+                                    const isCompulsory = sub.is_compulsory;
+                                    
+                                    return (
+                                        <div 
+                                            key={sub.subject_id} 
+                                            onClick={() => handleToggleSubject(sub.subject_id, isCompulsory)}
+                                            className={`p-4 border rounded-lg transition-all shadow-sm flex items-center justify-between 
+                                                ${isCompulsory 
+                                                    ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600 cursor-not-allowed opacity-90' 
+                                                    : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'
+                                                }
+                                                ${isSelected && !isCompulsory ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}
+                                            `}
+                                        >
+                                            <div className="flex flex-col">
+                                                <p className={`font-semibold ${isSelected ? 'text-blue-800 dark:text-blue-100' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                    {sub.subject_name}
+                                                </p>
+                                                {isCompulsory && <span className="text-[10px] font-bold uppercase text-slate-500">Compulsory</span>}
+                                            </div>
+                                            
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-500'} ${isCompulsory ? 'bg-slate-500 border-slate-500' : ''}`}>
+                                                {isCompulsory ? (
+                                                    <LockClosedIcon className="w-3 h-3 text-white" />
+                                                ) : isSelected && (
+                                                    <CheckCircleIcon className="w-4 h-4 text-white" />
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                }) : (
+                                    <div className="col-span-full p-8 text-center text-slate-500 border-2 border-dashed rounded-xl">
+                                        No subjects available for selection. Please contact your administrator.
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
