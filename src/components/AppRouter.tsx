@@ -494,6 +494,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     academicAssignments={data.academicAssignments}
                     academicClassStudents={data.academicClassStudents}
                     students={data.students}
+                    allSubjects={data.allSubjects}
+                    studentSubjectEnrollments={data.studentSubjectEnrollments}
                     scoreEntries={data.scoreEntries}
                     gradingSchemes={data.gradingSchemes}
                     schoolConfig={data.schoolConfig}

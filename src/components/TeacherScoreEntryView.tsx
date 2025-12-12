@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { AcademicTeachingAssignment, Student, AcademicClassStudent, ScoreEntry, GradingScheme, SchoolConfig, AssessmentComponent } from '../types';
+import type { AcademicTeachingAssignment, Student, AcademicClassStudent, ScoreEntry, GradingScheme, SchoolConfig, AssessmentComponent, StudentSubjectEnrollment } from '../types';
 import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
@@ -10,6 +10,8 @@ interface TeacherScoreEntryViewProps {
     academicAssignments: AcademicTeachingAssignment[];
     academicClassStudents: AcademicClassStudent[];
     students: Student[];
+    allSubjects: { id: number; name: string }[];
+    studentSubjectEnrollments: StudentSubjectEnrollment[];
     scoreEntries: ScoreEntry[];
     gradingSchemes: GradingScheme[];
     schoolConfig: SchoolConfig | null;
@@ -24,6 +26,8 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
     academicAssignments,
     academicClassStudents,
     students,
+    allSubjects,
+    studentSubjectEnrollments,
     scoreEntries,
     gradingSchemes,
     schoolConfig,
@@ -45,13 +49,37 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
     const enrolledStudents = useMemo(() => {
         if (!assignment) return [];
-        const enrollmentIds = new Set(
-            academicClassStudents
-                .filter(acs => acs.academic_class_id === assignment.academic_class_id && acs.enrolled_term_id === assignment.term_id)
-                .map(acs => acs.student_id)
-        );
-        return students.filter(s => enrollmentIds.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));
-    }, [assignment, academicClassStudents, students]);
+        
+        return students.filter(s => {
+            // First check if student is in the academic class
+            const isInClass = academicClassStudents.some(acs => 
+                acs.student_id === s.id && 
+                acs.academic_class_id === assignment.academic_class_id &&
+                acs.enrolled_term_id === assignment.term_id
+            );
+            
+            if (!isInClass) return false;
+            
+            // Get subject ID from subject name
+            const subject = allSubjects.find(sub => sub.name === assignment.subject_name);
+            if (!subject) return true; // Fallback: show all if subject not found
+            
+            // Check for enrollment records for this subject in this class
+            const enrollmentRecords = studentSubjectEnrollments.filter(sse =>
+                sse.academic_class_id === assignment.academic_class_id &&
+                sse.subject_id === subject.id &&
+                sse.term_id === assignment.term_id
+            );
+            
+            // If no enrollment records exist for this subject, show all students (backward compatibility)
+            if (enrollmentRecords.length === 0) return true;
+            
+            // Otherwise, only show students with is_enrolled = true
+            return enrollmentRecords.some(sse => 
+                sse.student_id === s.id && sse.is_enrolled === true
+            );
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [assignment, academicClassStudents, students, allSubjects, studentSubjectEnrollments]);
 
     const components = useMemo<AssessmentComponent[]>(() => {
         if (assignment?.academic_class?.assessment_structure?.components) {

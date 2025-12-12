@@ -39,6 +39,22 @@ BEGIN
         ALTER TABLE public.schools ADD COLUMN social_accounts JSONB DEFAULT '{}';
     END IF;
     
+    -- Create student_subject_enrollments table for managing which students take which subjects
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='student_subject_enrollments') THEN
+        CREATE TABLE public.student_subject_enrollments (
+            id SERIAL PRIMARY KEY,
+            school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+            student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+            subject_id INTEGER REFERENCES public.subjects(id) ON DELETE CASCADE,
+            academic_class_id INTEGER REFERENCES public.academic_classes(id) ON DELETE CASCADE,
+            term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
+            is_enrolled BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(student_id, subject_id, academic_class_id, term_id)
+        );
+    END IF;
+    
     -- Update Math and English to be compulsory by default (for demonstration)
     UPDATE public.class_subjects 
     SET is_compulsory = true 

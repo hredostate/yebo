@@ -744,6 +744,18 @@ export interface AcademicClassStudent {
     manually_enrolled?: boolean;
 }
 
+export interface StudentSubjectEnrollment {
+    id: number;
+    school_id: number;
+    student_id: number;
+    subject_id: number;
+    academic_class_id: number;
+    term_id: number;
+    is_enrolled: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface ScoreEntry {
     id: number;
     school_id: number;

@@ -284,6 +284,19 @@ CREATE TABLE IF NOT EXISTS public.student_subject_choices (
     UNIQUE(student_id, subject_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.student_subject_enrollments (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES public.subjects(id) ON DELETE CASCADE,
+    academic_class_id INTEGER REFERENCES public.academic_classes(id) ON DELETE CASCADE,
+    term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
+    is_enrolled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(student_id, subject_id, academic_class_id, term_id)
+);
+
 -- 8) Assessments & Scores
 CREATE TABLE IF NOT EXISTS public.score_entries (
     id SERIAL PRIMARY KEY,
