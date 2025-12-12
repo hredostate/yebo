@@ -15,6 +15,21 @@ interface PayrollStaffInput {
   name: string; 
 }
 
+/**
+ * Internal type for payroll items with pension data attached during processing
+ * This is used temporarily to associate pension data with payroll items before
+ * they are split into separate database inserts.
+ */
+interface PayrollItemWithPension {
+  user_id: string;
+  gross_amount: number;
+  deductions: Array<{ label: string; amount: number }>;
+  net_amount: number;
+  narration?: string;
+  paystack_recipient_code: string | null;
+  pensionData?: any; // Pension contribution data to be inserted separately
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -57,7 +72,7 @@ serve(async (req) => {
     const allAdjustmentIds = items.flatMap((item: PayrollStaffInput) => item.adjustment_ids);
     let totalAmount = 0;
     const transfers = [];
-    const itemsToInsert = [];
+    const itemsToInsert: PayrollItemWithPension[] = [];
     
     // 1. Pre-calculation and recipient resolution loop
     for (const item of items as PayrollStaffInput[]) {
