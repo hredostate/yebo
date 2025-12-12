@@ -116,6 +116,22 @@ const isStudentAllowedView = (view: string): boolean => {
     return STUDENT_ALLOWED_VIEWS.includes(view) || view.startsWith('Student Report/');
 };
 
+// Helper: Parse initial target view from URL hash
+const getInitialTargetViewFromHash = (): string | null => {
+    try {
+        let hash = decodeURIComponent(window.location.hash.substring(1));
+        if (hash.startsWith('/')) hash = hash.substring(1);
+        // Ignore auth tokens and empty hashes
+        if (!hash || hash.includes('access_token=') || hash.includes('error=')) {
+            return null;
+        }
+        return hash;
+    } catch (e) {
+        console.warn("Failed to parse initial URL hash:", e);
+        return null;
+    }
+};
+
 // Helper: Get Monday of the current week as a string
 const getWeekStartDateString = (date: Date): string => {
     const d = new Date(date);
@@ -304,20 +320,8 @@ const App: React.FC = () => {
     const [hash, setHash] = useState(window.location.hash);
     
     // Store the initial target view from URL hash to preserve it across auth redirects
-    const initialTargetView = useRef<string | null>((() => {
-        try {
-            let hash = decodeURIComponent(window.location.hash.substring(1));
-            if (hash.startsWith('/')) hash = hash.substring(1);
-            // Ignore auth tokens and empty hashes
-            if (!hash || hash.includes('access_token=') || hash.includes('error=')) {
-                return null;
-            }
-            return hash;
-        } catch (e) {
-            console.warn("Failed to parse initial URL hash:", e);
-            return null;
-        }
-    })());
+    const initialTargetView = useRef<string | null>(getInitialTargetViewFromHash());
+    const hasHandledInitialNavigation = useRef(false);
 
     // Rate limit tracking
     const [aiRateLimitCooldown, setAiRateLimitCooldown] = useState<number | null>(null);
@@ -815,7 +819,7 @@ const App: React.FC = () => {
                 const targetView = initialTargetView.current;
                 
                 // Check if we have a stored target view that students can access
-                if (targetView && isStudentAllowedView(targetView)) {
+                if (targetView && !hasHandledInitialNavigation.current && isStudentAllowedView(targetView)) {
                     console.log('[Auth] Restoring student to initial target view:', targetView);
                     setCurrentView(targetView);
                 } else {
@@ -1018,7 +1022,7 @@ const App: React.FC = () => {
                         const currentHash = decodeURIComponent(window.location.hash.substring(1) || '');
                         const targetView = initialTargetView.current;
                         
-                        if (targetView && !AUTH_ONLY_VIEWS.includes(targetView)) {
+                        if (targetView && !hasHandledInitialNavigation.current && !AUTH_ONLY_VIEWS.includes(targetView)) {
                             // We have a stored target view from initial load - navigate there
                             console.log('[Auth] Restoring staff to initial target view:', targetView);
                             setCurrentView(targetView);
@@ -1352,12 +1356,12 @@ const App: React.FC = () => {
         }
     }, [session, currentView]);
 
-    // Clear initialTargetView after auth is complete and we've set the view
-    // This prevents stale values from interfering with future navigation
+    // Mark initial navigation as handled after auth is complete
+    // This prevents the initial target view from being reused on subsequent navigations
     useEffect(() => {
-        if (!booting && userProfile && initialTargetView.current) {
-            console.log('[App] Auth complete, clearing initial target view');
-            initialTargetView.current = null;
+        if (!booting && userProfile && !hasHandledInitialNavigation.current) {
+            console.log('[App] Auth complete, marking initial navigation as handled');
+            hasHandledInitialNavigation.current = true;
         }
     }, [booting, userProfile]);
 
@@ -1417,7 +1421,7 @@ const App: React.FC = () => {
         if (userType === 'student' && !booting && userProfile) {
             if (!isStudentAllowedView(currentView)) {
                 console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
-                setCurrentView('My Subjects');
+                setCurrentView(VIEWS.MY_SUBJECTS);
             }
         }
     }, [userType, currentView, booting, userProfile]);
