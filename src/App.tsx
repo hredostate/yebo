@@ -127,7 +127,7 @@ const getInitialTargetViewFromHash = (): string | null => {
         }
         return hash;
     } catch (e) {
-        console.warn("Failed to parse initial URL hash:", e);
+        console.warn("Failed to parse initial URL hash:", window.location.hash, e);
         return null;
     }
 };
@@ -294,13 +294,13 @@ const App: React.FC = () => {
             if (hash.includes('access_token=') || hash.includes('error=')) {
                 // Try to restore from localStorage if auth redirect cleared hash
                 const lastView = localStorage.getItem('sg360_last_view');
-                return lastView || 'Dashboard';
+                return lastView || VIEWS.DASHBOARD;
             }
             
-            return hash || 'Dashboard';
+            return hash || VIEWS.DASHBOARD;
         } catch (e) {
             console.warn("Failed to parse initial URL hash:", e);
-            return 'Dashboard';
+            return VIEWS.DASHBOARD;
         }
     });
 
@@ -1331,7 +1331,7 @@ const App: React.FC = () => {
                 }
                 
                 // If hash is empty, try to restore from localStorage or use Dashboard
-                const targetView = hash || localStorage.getItem('sg360_last_view') || 'Dashboard';
+                const targetView = hash || localStorage.getItem('sg360_last_view') || VIEWS.DASHBOARD;
                 console.log('[App] Hash changed - setting currentView to:', targetView, 'from hash:', hash);
                 setCurrentView(targetView);
             } catch (e) {
@@ -1414,15 +1414,10 @@ const App: React.FC = () => {
     // Redirect students only when they try to access unauthorized views
     // This should only trigger after authentication is complete (not during boot)
     useEffect(() => {
-        // Only enforce redirect if:
-        // 1. User is a student
-        // 2. Not currently booting (auth is complete)
-        // 3. Current view is not in allowed list
-        if (userType === 'student' && !booting && userProfile) {
-            if (!isStudentAllowedView(currentView)) {
-                console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
-                setCurrentView(VIEWS.MY_SUBJECTS);
-            }
+        // Redirect student if they're trying to access an unauthorized view
+        if (userType === 'student' && !booting && userProfile && !isStudentAllowedView(currentView)) {
+            console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
+            setCurrentView(VIEWS.MY_SUBJECTS);
         }
     }, [userType, currentView, booting, userProfile]);
 
