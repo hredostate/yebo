@@ -10,6 +10,8 @@ import type {
 } from '../types';
 import Spinner from './common/Spinner';
 import { SearchIcon, FilterIcon, EditIcon, CheckCircleIcon, XCircleIcon, UserCircleIcon } from './common/icons';
+import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
+import { getCurrentUserId } from '../utils/userHelpers';
 
 interface ScoreReviewViewProps {
     scoreEntries: ScoreEntry[];
@@ -48,10 +50,25 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     const safeGradingSchemes = gradingSchemes || [];
     const safeUserPermissions = userPermissions || [];
 
-    const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
-    const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
-    const [selectedSubject, setSelectedSubject] = useState<string>('');
-    const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+    // Persistent filters with user-specific keys
+    const userId = getCurrentUserId();
+    const [selectedTermId, setSelectedTermId] = usePersistedState<number | ''>(
+        getUserPersistedKey(userId, 'score_review_term'),
+        ''
+    );
+    const [selectedClassId, setSelectedClassId] = usePersistedState<number | ''>(
+        getUserPersistedKey(userId, 'score_review_class'),
+        ''
+    );
+    const [selectedSubject, setSelectedSubject] = usePersistedState<string>(
+        getUserPersistedKey(userId, 'score_review_subject'),
+        ''
+    );
+    const [selectedTeacherId, setSelectedTeacherId] = usePersistedState<string>(
+        getUserPersistedKey(userId, 'score_review_teacher'),
+        ''
+    );
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
     const [editingValues, setEditingValues] = useState<Record<string, any>>({});

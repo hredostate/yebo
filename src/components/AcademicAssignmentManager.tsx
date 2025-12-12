@@ -4,6 +4,8 @@ import type { AcademicTeachingAssignment, Term, AcademicClass, UserProfile, Base
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, SearchIcon, TrashIcon, EditIcon, RepeatIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
+import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
+import { getCurrentUserId } from '../utils/userHelpers';
 
 interface AcademicAssignmentManagerProps {
     assignments: AcademicTeachingAssignment[];
@@ -136,17 +138,12 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
     const [searchQuery, setSearchQuery] = useState('');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-    // Persistent Term Selection
-    const [selectedTermId, setSelectedTermId] = useState<number | ''>(() => {
-        const saved = localStorage.getItem('sac_selectedTermId');
-        return saved ? Number(saved) : '';
-    });
-
-    useEffect(() => {
-        if (selectedTermId) {
-            localStorage.setItem('sac_selectedTermId', String(selectedTermId));
-        }
-    }, [selectedTermId]);
+    // Persistent Term Selection with user-specific key
+    const userId = getCurrentUserId();
+    const [selectedTermId, setSelectedTermId] = usePersistedState<number | ''>(
+        getUserPersistedKey(userId, 'academic_term_selection'),
+        ''
+    );
 
     const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal').sort((a,b) => a.name.localeCompare(b.name)), [users]);
     

@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { AcademicClass, Term, AssessmentStructure, BaseDataObject, Student, AcademicClassStudent, GradingScheme, ReportCardConfig, SchoolConfig, AssessmentComponent } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, UsersIcon, CloseIcon, SearchIcon, CheckCircleIcon, EditIcon, ShieldIcon } from './common/icons';
+import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
+import { getCurrentUserId } from '../utils/userHelpers';
 
 const ResultSheetPreview: React.FC<{ structure: AssessmentStructure | null; config: ReportCardConfig | undefined; schoolConfig: SchoolConfig | null }> = ({ structure, config, schoolConfig }) => {
     const themeColor = config?.colorTheme || '#1E3A8A';
@@ -410,17 +412,12 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
     const [enrollmentClass, setEnrollmentClass] = useState<AcademicClass | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Persistent Term Selection
-    const [selectedTermId, setSelectedTermId] = useState<number | ''>(() => {
-        const saved = localStorage.getItem('sac_selectedTermId');
-        return saved ? Number(saved) : '';
-    });
-
-    useEffect(() => {
-        if (selectedTermId) {
-            localStorage.setItem('sac_selectedTermId', String(selectedTermId));
-        }
-    }, [selectedTermId]);
+    // Persistent Term Selection with user-specific key
+    const userId = getCurrentUserId();
+    const [selectedTermId, setSelectedTermId] = usePersistedState<number | ''>(
+        getUserPersistedKey(userId, 'academic_class_term_selection'),
+        ''
+    );
 
     // Default to active term if nothing selected/saved
     useEffect(() => {
