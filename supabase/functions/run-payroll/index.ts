@@ -69,10 +69,99 @@ serve(async (req) => {
 
         if (adjError) throw new Error(`Could not fetch adjustments for ${item.name}: ${adjError.message}`);
 
+        // Fetch pension config for this staff member
+        const { data: pensionConfig } = await adminClient
+            .from('staff_pension')
+            .select('*')
+            .eq('user_id', item.user_id)
+            .eq('is_enrolled', true)
+            .single();
+
+        // Calculate pension deduction if enrolled
+        let pensionDeduction = 0;
+        let pensionContributionData = null;
+
+        if (pensionConfig) {
+            // Calculate employee contribution
+            const employeeContribution = pensionConfig.employee_contribution_type === 'percentage'
+                ? (item.gross_amount * pensionConfig.employee_contribution_value) / 100
+                : Math.min(pensionConfig.employee_contribution_value, item.gross_amount);
+
+            // Calculate employer contribution
+            const employerContribution = pensionConfig.employer_contribution_enabled
+                ? (pensionConfig.employer_contribution_type === 'percentage'
+                    ? (item.gross_amount * pensionConfig.employer_contribution_value) / 100
+                    : Math.min(pensionConfig.employer_contribution_value, item.gross_amount))
+                : 0;
+
+            // Calculate voluntary contribution
+            const voluntaryContribution = pensionConfig.voluntary_contribution_enabled
+                ? (pensionConfig.voluntary_contribution_type === 'percentage'
+                    ? (item.gross_amount * pensionConfig.voluntary_contribution_value) / 100
+                    : Math.min(pensionConfig.voluntary_contribution_value, item.gross_amount))
+                : 0;
+
+            // Total deduction from salary (employee + voluntary)
+            pensionDeduction = employeeContribution + voluntaryContribution;
+
+            // Get previous contributions for cumulative calculation
+            const { data: previousContributions } = await adminClient
+                .from('pension_contributions')
+                .select('cumulative_employee, cumulative_employer, cumulative_voluntary, month_number')
+                .eq('user_id', item.user_id)
+                .order('contribution_month', { ascending: false })
+                .limit(1);
+
+            const lastContribution = previousContributions && previousContributions.length > 0 
+                ? previousContributions[0] 
+                : null;
+
+            const cumulativeEmployee = (lastContribution?.cumulative_employee || 0) + employeeContribution;
+            const cumulativeEmployer = (lastContribution?.cumulative_employer || 0) + employerContribution;
+            const cumulativeVoluntary = (lastContribution?.cumulative_voluntary || 0) + voluntaryContribution;
+            const cumulativeTotal = cumulativeEmployee + cumulativeEmployer + cumulativeVoluntary;
+
+            const monthNumber = (lastContribution?.month_number || 0) + 1;
+            const totalServiceMonths = monthNumber + (pensionConfig.preexisting_pension_months || 0);
+
+            // Prepare pension contribution record
+            const now = new Date();
+            const contributionMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            pensionContributionData = {
+                staff_pension_id: pensionConfig.id,
+                user_id: item.user_id,
+                school_id: userProfile.school_id,
+                contribution_month: contributionMonth.toISOString().split('T')[0],
+                period_label: periodLabel,
+                gross_salary: item.gross_amount,
+                employee_type: pensionConfig.employee_contribution_type,
+                employee_value: pensionConfig.employee_contribution_value,
+                employer_enabled: pensionConfig.employer_contribution_enabled,
+                employer_type: pensionConfig.employer_contribution_type,
+                employer_value: pensionConfig.employer_contribution_value,
+                voluntary_enabled: pensionConfig.voluntary_contribution_enabled,
+                voluntary_type: pensionConfig.voluntary_contribution_type,
+                voluntary_value: pensionConfig.voluntary_contribution_value,
+                employee_contribution: employeeContribution,
+                employer_contribution: employerContribution,
+                voluntary_contribution: voluntaryContribution,
+                total_contribution: employeeContribution + employerContribution + voluntaryContribution,
+                deduction_from_salary: pensionDeduction,
+                cumulative_employee: cumulativeEmployee,
+                cumulative_employer: cumulativeEmployer,
+                cumulative_voluntary: cumulativeVoluntary,
+                cumulative_total: cumulativeTotal,
+                month_number: monthNumber,
+                total_service_months: totalServiceMonths,
+                status: 'recorded'
+            };
+        }
+
         const totalAdjustments = adjustments.reduce((sum: number, adj: { amount: number; adjustment_type: string }) => {
             return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
         }, 0);
-        const net_amount = item.gross_amount + totalAdjustments;
+        const net_amount = item.gross_amount + totalAdjustments - pensionDeduction;
 
         if (net_amount <= 0) {
             console.log(`Skipping payment for ${item.name} due to non-positive net amount.`);
@@ -137,6 +226,14 @@ serve(async (req) => {
             amount: adj.adjustment_type === 'addition' ? adj.amount : -adj.amount 
         }));
         
+        // Add pension deduction if applicable
+        if (pensionDeduction > 0) {
+            deductionsForDb.push({
+                label: 'Pension Contribution',
+                amount: -pensionDeduction
+            });
+        }
+        
         // Prepare individual payroll items for later insertion
         itemsToInsert.push({
             // payroll_run_id will be added later
@@ -146,6 +243,7 @@ serve(async (req) => {
             net_amount: net_amount,
             narration: item.narration || reason,
             paystack_recipient_code: recipientCode,
+            pensionContributionData: pensionContributionData // Store for later
         });
     }
 
@@ -166,13 +264,35 @@ serve(async (req) => {
     if (runError) throw runError;
 
     // 3. Associate items with the run and insert them
-    const finalItemsToInsert = itemsToInsert.map(item => ({...item, payroll_run_id: runData.id }));
+    const finalItemsToInsert = itemsToInsert.map(item => {
+        const { pensionContributionData, ...payrollItem } = item;
+        return { ...payrollItem, payroll_run_id: runData.id };
+    });
     const { data: insertedItems, error: itemsError } = await adminClient
         .from('payroll_items')
         .insert(finalItemsToInsert)
         .select('id, user_id, transfer_reference');
         
     if (itemsError) throw itemsError;
+
+    // 3b. Create pension contribution records
+    const pensionContributionsToInsert = itemsToInsert
+        .filter(item => item.pensionContributionData)
+        .map(item => ({
+            ...item.pensionContributionData,
+            payroll_run_id: runData.id
+        }));
+
+    if (pensionContributionsToInsert.length > 0) {
+        const { error: pensionError } = await adminClient
+            .from('pension_contributions')
+            .insert(pensionContributionsToInsert);
+        
+        if (pensionError) {
+            console.error('Error creating pension contributions:', pensionError);
+            // Don't fail the entire payroll, just log the error
+        }
+    }
 
     // 4. Initiate bulk transfer with Paystack
     const bulkTransferResponse = await fetch('https://api.paystack.co/transfer/bulk', {

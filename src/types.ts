@@ -1861,3 +1861,129 @@ export interface StudentDashboardStats {
     rewardPoints: number;
     pendingAbsenceRequests: number;
 }
+
+// Pension System Types
+export type ContributionInputType = 'percentage' | 'fixed';
+
+export interface StaffPension {
+    id: number;
+    user_id: string;
+    school_id: number;
+    is_enrolled: boolean;
+    enrollment_date?: string;
+    pension_provider?: string;
+    pension_pin?: string;
+    
+    // Employee Contribution (always active when enrolled)
+    employee_contribution_type: ContributionInputType;
+    employee_contribution_value: number;
+    
+    // Employer Contribution (TOGGLE ON/OFF)
+    employer_contribution_enabled: boolean;
+    employer_contribution_type: ContributionInputType;
+    employer_contribution_value: number;
+    
+    // Voluntary Contribution (TOGGLE ON/OFF)
+    voluntary_contribution_enabled: boolean;
+    voluntary_contribution_type: ContributionInputType;
+    voluntary_contribution_value: number;
+    
+    // Preexisting Pension
+    has_preexisting_pension: boolean;
+    preexisting_pension_amount: number;
+    preexisting_pension_months: number;
+    preexisting_pension_provider?: string;
+    preexisting_pension_pin?: string;
+    preexisting_pension_transfer_date?: string;
+    preexisting_pension_verified: boolean;
+    
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PensionContribution {
+    id: number;
+    staff_pension_id: number;
+    payroll_run_id?: number;
+    user_id: string;
+    school_id: number;
+    contribution_month: string; // Date string (first day of month)
+    period_label: string; // e.g., 'December 2025'
+    gross_salary: number;
+    
+    // Config snapshot at time of calculation
+    employee_type: ContributionInputType;
+    employee_value: number;
+    employer_enabled: boolean;
+    employer_type: ContributionInputType;
+    employer_value: number;
+    voluntary_enabled: boolean;
+    voluntary_type: ContributionInputType;
+    voluntary_value: number;
+    
+    // This month's amounts
+    employee_contribution: number;
+    employer_contribution: number;
+    voluntary_contribution: number;
+    total_contribution: number;
+    deduction_from_salary: number; // employee + voluntary
+    
+    // Cumulative totals
+    cumulative_employee: number;
+    cumulative_employer: number;
+    cumulative_voluntary: number;
+    cumulative_total: number;
+    
+    // Month tracking
+    month_number: number; // 1, 2, 3... excluding preexisting
+    total_service_months: number; // including preexisting
+    
+    status: 'recorded' | 'remitted' | 'confirmed';
+    remittance_reference?: string;
+    remitted_at?: string;
+    notes?: string;
+    created_at: string;
+}
+
+export interface PensionCalculationResult {
+    employeeContribution: number;
+    employerContribution: number;
+    voluntaryContribution: number;
+    totalContribution: number;
+    deductionFromSalary: number; // employee + voluntary
+}
+
+export interface PensionSummary {
+    staffName: string;
+    pensionProvider?: string;
+    pensionPin?: string;
+    isEnrolled: boolean;
+    enrollmentDate?: string;
+    
+    // Preexisting pension
+    hasPreexisting: boolean;
+    preexistingAmount: number;
+    preexistingMonths: number;
+    
+    // Current configuration
+    employeeContributionType: ContributionInputType;
+    employeeContributionValue: number;
+    employerEnabled: boolean;
+    employerContributionType: ContributionInputType;
+    employerContributionValue: number;
+    voluntaryEnabled: boolean;
+    voluntaryContributionType: ContributionInputType;
+    voluntaryContributionValue: number;
+    
+    // Totals
+    totalMonthsContributed: number; // excluding preexisting
+    totalServiceMonths: number; // including preexisting
+    cumulativeEmployee: number;
+    cumulativeEmployer: number;
+    cumulativeVoluntary: number;
+    cumulativeTotal: number;
+    grandTotal: number; // cumulative + preexisting
+    
+    // Recent contributions
+    recentContributions: PensionContribution[];
+}
