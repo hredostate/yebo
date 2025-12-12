@@ -879,16 +879,22 @@ const App: React.FC = () => {
                         ];
 
                         // PHASE 2: Background data that can load after UI is shown
+                        // NOTE: Supabase defaults to 1000 row limit. Queries for large tables
+                        // must specify explicit .limit() to ensure all data is fetched.
+                        // Limits added below: academic_class_students (10000), score_entries (50000),
+                        // student_term_reports (10000), student_term_report_subjects (50000),
+                        // teaching_assignments (5000), lesson_plans (10000), positive_behavior (10000),
+                        // student_awards (10000), quiz_responses (10000), notifications (5000).
                         const backgroundQueries = [
                             supabase.from('announcements').select('*, author:user_profiles(name)').order('created_at', { ascending: false }),
-                            supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-                            supabase.from('positive_behavior').select('*, student:students(name), author:user_profiles(name)').order('created_at', { ascending: false }),
-                            supabase.from('student_awards').select('*, student:students(name)').order('created_at', { ascending: false }),
+                            supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5000),
+                            supabase.from('positive_behavior').select('*, student:students(name), author:user_profiles(name)').order('created_at', { ascending: false }).limit(10000),
+                            supabase.from('student_awards').select('*, student:students(name)').order('created_at', { ascending: false }).limit(10000),
                             supabase.from('staff_awards').select('*').order('created_at', { ascending: false }),
                             supabase.from('student_intervention_plans').select('*, student:students(*)'),
                             supabase.from('sip_logs').select('*, author:user_profiles(name)'),
                             // Fetch teaching assignments with expanded relation
-                            supabase.from('lesson_plans').select('*, author:user_profiles!author_id(name), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))'),
+                            supabase.from('lesson_plans').select('*, author:user_profiles!author_id(name), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').limit(10000),
                             supabase.from('schools').select('*').eq('id', sp.school_id).limit(1).maybeSingle(),
                             supabase.from('living_policy_snippets').select('*, author:user_profiles(name)').order('created_at', { ascending: false }),
                             supabase.from('calendar_events').select('*').order('start_time', { ascending: true }),
@@ -898,7 +904,7 @@ const App: React.FC = () => {
                             supabase.from('classes').select('*'),
                             supabase.from('arms').select('*'),
                             supabase.from('quizzes').select('*, questions:quiz_questions(*)').order('created_at', { ascending: false }),
-                            supabase.from('quiz_responses').select('quiz_id').eq('user_id', user.id),
+                            supabase.from('quiz_responses').select('quiz_id').eq('user_id', user.id).limit(10000),
                             supabase.from('teacher_rating_weekly').select('*').order('week_start', { ascending: false }),
                             supabase.from('teams').select('*, lead:user_profiles!lead_id(*), members:team_assignments(user_id, profile:user_profiles(name))'),
                             supabase.from('team_feedback').select('*'),
@@ -908,16 +914,16 @@ const App: React.FC = () => {
                             supabase.from('school_config').select('*').eq('school_id', sp.school_id).limit(1).maybeSingle(),
                             supabase.from('terms').select('*'),
                             supabase.from('academic_classes').select('*, assessment_structure:assessment_structures(*)'),
-                            supabase.from('teaching_assignments').select('*, term:terms(*), academic_class:academic_classes(*, assessment_structure:assessment_structures(*)), teacher:user_profiles!teacher_user_id(*)'),
+                            supabase.from('teaching_assignments').select('*, term:terms(*), academic_class:academic_classes(*, assessment_structure:assessment_structures(*)), teacher:user_profiles!teacher_user_id(*)').limit(5000),
                             supabase.from('grading_schemes').select('*'),
                             supabase.from('grading_scheme_rules').select('*'),
-                            supabase.from('academic_class_students').select('*'),
-                            supabase.from('score_entries').select('*'),
-                            supabase.from('student_term_reports').select('*, term:terms(*)'),
+                            supabase.from('academic_class_students').select('*').limit(10000),
+                            supabase.from('score_entries').select('*').limit(50000),
+                            supabase.from('student_term_reports').select('*, term:terms(*)').limit(10000),
                             supabase.from('audit_log').select('*, actor:user_profiles!actor_user_id(name)').order('created_at', { ascending: false }).limit(100),
                             supabase.from('assessments').select('*, assignment:teaching_assignments!inner(*)'),
                             supabase.from('assessment_scores').select('*'),
-                            supabase.from('student_term_report_subjects').select('*'),
+                            supabase.from('student_term_report_subjects').select('*').limit(50000),
                             supabase.from('lesson_plan_coverage_votes').select('*'),
                             supabase.from('rewards_store_items').select('*'),
                             supabase.from('payroll_runs').select('*'),
@@ -2593,7 +2599,7 @@ const App: React.FC = () => {
         if (studentData.class_id !== undefined || studentData.arm_id !== undefined) {
             try {
                 // Refresh enrollment data to reflect changes
-                const { data: enrollments } = await supabase.from('academic_class_students').select('*');
+                const { data: enrollments } = await supabase.from('academic_class_students').select('*').limit(10000);
                 if (enrollments) {
                     setAcademicClassStudents(enrollments);
                 }
@@ -3840,7 +3846,7 @@ const App: React.FC = () => {
              addToast(`Successfully copied plan to ${successCount} assignments.`, 'success');
              // Refresh lesson plans
              // Updated query to fetch teaching_assignments
-             const { data } = await supabase.from('lesson_plans').select('*, author:user_profiles!author_id(name), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))');
+             const { data } = await supabase.from('lesson_plans').select('*, author:user_profiles!author_id(name), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').limit(10000);
              if (data) setLessonPlans(data as any);
              return true;
         } else {
