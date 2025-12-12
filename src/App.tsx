@@ -2856,6 +2856,34 @@ const App: React.FC = () => {
         }
     }, [addToast]);
 
+    // Reset submission for academic assignment (for Result Manager)
+    const handleResetSubmission = useCallback(async (assignmentId: number, alsoUnlock: boolean = false): Promise<boolean> => {
+        try {
+            const updates: any = { submitted_at: null };
+            if (alsoUnlock) {
+                updates.is_locked = false;
+            }
+            
+            const { error } = await Offline.update('academic_teaching_assignments', updates, { id: assignmentId });
+            
+            if (error) {
+                addToast(`Failed to reset submission: ${error.message}`, 'error');
+                return false;
+            }
+            
+            // Update local state
+            setAcademicAssignments(prev => 
+                prev.map(a => a.id === assignmentId ? { ...a, submitted_at: null, ...(alsoUnlock ? { is_locked: false } : {}) } : a)
+            );
+            
+            addToast('Submission reset successfully. Teacher can now re-enter scores.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error resetting submission: ${e.message}`, 'error');
+            return false;
+        }
+    }, [addToast]);
+
     // Update result comments (for Result Manager)
     const handleUpdateResultComments = useCallback(async (reportId: number, teacherComment: string, principalComment: string): Promise<void> => {
         try {
@@ -5511,6 +5539,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleSaveAssessmentScores,
                                         handleCopyAssessment,
                                         handleLockScores,
+                                        handleResetSubmission,
                                         handleUpdateReportComments,
                                         handleBulkAddStudents,
                                         handleAddPolicySnippet,
@@ -5765,6 +5794,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleSaveAssessmentScores,
                                     handleCopyAssessment,
                                     handleLockScores,
+                                    handleResetSubmission,
                                     handleUpdateReportComments,
                                     handleBulkAddStudents,
                                     handleAddPolicySnippet,

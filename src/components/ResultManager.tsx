@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
@@ -18,6 +18,7 @@ interface ResultManagerProps {
     scoreEntries: ScoreEntry[];
     users: UserProfile[];
     onLockScores: (assignmentId: number) => Promise<boolean>;
+    onResetSubmission: (assignmentId: number, alsoUnlock?: boolean) => Promise<boolean>;
     userPermissions: string[];
     students: Student[];
     studentTermReports: StudentTermReport[];
@@ -29,7 +30,7 @@ interface ResultManagerProps {
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
-    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, userPermissions, 
+    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
     students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, addToast 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
@@ -43,6 +44,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
+    const [isResetting, setIsResetting] = useState<number | null>(null); // assignment ID
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -212,6 +214,28 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             await onLockScores(assignmentId);
             setIsProcessing(null);
         }
+    };
+    
+    const handleResetSubmission = async (assignment: AcademicTeachingAssignment) => {
+        const isLocked = assignment.is_locked;
+        let alsoUnlock = false;
+        
+        if (isLocked) {
+            alsoUnlock = window.confirm(
+                `This assignment is also locked. Do you want to unlock it as well?\n\nClick OK to reset AND unlock, or Cancel to only reset the submission.`
+            );
+            if (!window.confirm(`Reset submission for ${assignment.academic_class?.name} - ${assignment.subject_name}? The teacher will be able to edit and re-submit scores.`)) {
+                return;
+            }
+        } else {
+            if (!window.confirm(`Reset submission for ${assignment.academic_class?.name} - ${assignment.subject_name}? The teacher will be able to edit and re-submit scores.`)) {
+                return;
+            }
+        }
+        
+        setIsResetting(assignment.id);
+        await onResetSubmission(assignment.id, alsoUnlock);
+        setIsResetting(null);
     };
     
     // Generate Subject Teacher Comments
@@ -580,6 +604,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                     className="text-xs bg-slate-800 text-white px-3 py-1 rounded hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
                                                 >
                                                     {isProcessing === as.id ? <Spinner size="sm"/> : 'Lock'}
+                                                </button>
+                                            )}
+                                            {as.submitted_at && canLock && (
+                                                <button 
+                                                    onClick={() => handleResetSubmission(as)}
+                                                    disabled={isResetting === as.id}
+                                                    className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50 flex items-center gap-1"
+                                                    title="Reset submission to allow teacher to re-enter scores"
+                                                >
+                                                    {isResetting === as.id ? <Spinner size="sm"/> : <RefreshIcon className="w-3 h-3"/>}
+                                                    Reset
                                                 </button>
                                             )}
                                         </td>
