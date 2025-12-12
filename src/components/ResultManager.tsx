@@ -44,7 +44,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
-    const [isResetting, setIsResetting] = useState<number | null>(null); // assignment ID
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -610,17 +609,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                     className="text-xs bg-slate-800 text-white px-3 py-1 rounded hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
                                                 >
                                                     {isProcessing === as.id ? <Spinner size="sm"/> : 'Lock'}
-                                                </button>
-                                            )}
-                                            {as.submitted_at && canLock && (
-                                                <button 
-                                                    onClick={() => handleResetSubmission(as)}
-                                                    disabled={isResetting === as.id}
-                                                    className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50 flex items-center gap-1"
-                                                    title="Reset submission to allow teacher to re-enter scores"
-                                                >
-                                                    {isResetting === as.id ? <Spinner size="sm"/> : <RefreshIcon className="w-3 h-3"/>}
-                                                    Reset
                                                 </button>
                                             )}
                                         </td>
