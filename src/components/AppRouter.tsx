@@ -517,6 +517,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 scoreEntries={data.scoreEntries}
                 users={data.users}
                 onLockScores={actions.handleLockScores}
+                onResetSubmission={actions.handleResetSubmission}
                 userPermissions={data.userPermissions}
                 students={data.students}
                 studentTermReports={data.studentTermReports}

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
@@ -18,6 +18,7 @@ interface ResultManagerProps {
     scoreEntries: ScoreEntry[];
     users: UserProfile[];
     onLockScores: (assignmentId: number) => Promise<boolean>;
+    onResetSubmission: (assignmentId: number) => Promise<boolean>;
     userPermissions: string[];
     students: Student[];
     studentTermReports: StudentTermReport[];
@@ -29,7 +30,7 @@ interface ResultManagerProps {
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
-    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, userPermissions, 
+    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
     students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, addToast 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
@@ -212,6 +213,24 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             await onLockScores(assignmentId);
             setIsProcessing(null);
         }
+    };
+    
+    const handleReset = async (assignmentId: number) => {
+        if (!canLock) return;
+        
+        const assignment = assignmentsForTerm.find(a => a.id === assignmentId);
+        if (!assignment) return;
+        
+        // First confirmation
+        const resetConfirmed = window.confirm(
+            "Are you sure you want to reset this submission? The teacher will be able to edit and re-submit scores."
+        );
+        
+        if (!resetConfirmed) return;
+        
+        setIsProcessing(assignmentId);
+        await onResetSubmission(assignmentId);
+        setIsProcessing(null);
     };
     
     // Generate Subject Teacher Comments
@@ -571,6 +590,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                     title="Generate AI Comments for Students"
                                                 >
                                                     {isGeneratingComments === as.id ? <Spinner size="sm"/> : <WandIcon className="w-3 h-3"/>} AI Comments
+                                                </button>
+                                            )}
+                                            {canLock && as.submitted_at && (
+                                                <button 
+                                                    onClick={() => handleReset(as.id)} 
+                                                    disabled={isProcessing === as.id}
+                                                    className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50 flex items-center gap-1"
+                                                    title="Reset submission to allow teacher to re-enter scores"
+                                                >
+                                                    {isProcessing === as.id ? <Spinner size="sm"/> : <RefreshIcon className="w-3 h-3"/>} Reset
                                                 </button>
                                             )}
                                             {canLock && !as.is_locked && (

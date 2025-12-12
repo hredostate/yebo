@@ -2856,6 +2856,53 @@ const App: React.FC = () => {
         }
     }, [addToast]);
 
+    const handleResetSubmission = useCallback(async (assignmentId: number): Promise<boolean> => {
+        try {
+            // Find the assignment to check if it's locked
+            const assignment = academicAssignments.find(a => a.id === assignmentId);
+            if (!assignment) {
+                addToast('Assignment not found.', 'error');
+                return false;
+            }
+
+            // Build the update payload
+            const updatePayload: { submitted_at: null; is_locked?: boolean } = {
+                submitted_at: null
+            };
+
+            // If the assignment is also locked, ask if they want to unlock it
+            if (assignment.is_locked) {
+                const unlockConfirmed = window.confirm(
+                    "This assignment is also locked. Do you want to unlock it as well?"
+                );
+                if (unlockConfirmed) {
+                    updatePayload.is_locked = false;
+                }
+            }
+
+            const { error } = await Offline.update('academic_teaching_assignments', 
+                updatePayload, 
+                { id: assignmentId }
+            );
+            
+            if (error) {
+                addToast(`Failed to reset submission: ${error.message}`, 'error');
+                return false;
+            }
+            
+            // Update local state
+            setAcademicAssignments(prev => 
+                prev.map(a => a.id === assignmentId ? { ...a, ...updatePayload } : a)
+            );
+            
+            addToast('Submission reset successfully. Teacher can now re-enter scores.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error resetting submission: ${e.message}`, 'error');
+            return false;
+        }
+    }, [academicAssignments, addToast]);
+
     // Update result comments (for Result Manager)
     const handleUpdateResultComments = useCallback(async (reportId: number, teacherComment: string, principalComment: string): Promise<void> => {
         try {
@@ -5511,6 +5558,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleSaveAssessmentScores,
                                         handleCopyAssessment,
                                         handleLockScores,
+                                        handleResetSubmission,
                                         handleUpdateReportComments,
                                         handleBulkAddStudents,
                                         handleAddPolicySnippet,
@@ -5765,6 +5813,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleSaveAssessmentScores,
                                     handleCopyAssessment,
                                     handleLockScores,
+                                    handleResetSubmission,
                                     handleUpdateReportComments,
                                     handleBulkAddStudents,
                                     handleAddPolicySnippet,
