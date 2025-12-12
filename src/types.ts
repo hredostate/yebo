@@ -458,6 +458,13 @@ export interface BaseDataObject {
     campus_id?: number | null;
 }
 
+export interface ClassSubject {
+    id: number;
+    class_id: number;
+    subject_id: number;
+    is_compulsory: boolean;
+}
+
 // Using Quiz structures for Surveys as well, as noted in SurveyManager
 export type QuizQuestionType = 'multiple_choice' | 'short_answer' | 'true_false' | 'ranking';
 export type SurveyQuestionType = QuizQuestionType;

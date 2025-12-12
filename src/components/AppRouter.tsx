@@ -624,6 +624,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 subjects={data.allSubjects}
                 classes={data.allClasses}
                 arms={data.allArms}
+                classSubjects={data.classSubjects}
                 inventory={data.inventory}
                 rewards={data.rewards}
                 assessmentStructures={data.assessmentStructures}
@@ -645,6 +646,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeleteClass={actions.handleDeleteClass}
                 onSaveArm={actions.handleSaveArm}
                 onDeleteArm={actions.handleDeleteArm}
+                onSaveClassSubject={actions.handleSaveClassSubject}
+                onDeleteClassSubject={actions.handleDeleteClassSubject}
                 onSaveInventoryItem={actions.handleSaveInventoryItem}
                 onDeleteInventoryItem={actions.handleDeleteInventoryItem}
                 onSaveReward={actions.handleSaveReward}

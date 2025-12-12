@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -331,6 +331,7 @@ const App: React.FC = () => {
     const [allSubjects, setAllSubjects] = useState<BaseDataObject[]>([]);
     const [allClasses, setAllClasses] = useState<BaseDataObject[]>([]);
     const [allArms, setAllArms] = useState<BaseDataObject[]>([]);
+    const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
     const [surveys, setSurveys] = useState<SurveyWithQuestions[]>([]);
     const [takenSurveys, setTakenSurveys] = useState<Set<number>>(new Set());
     const [weeklyRatings, setWeeklyRatings] = useState<TeacherRatingWeekly[]>([]);
@@ -893,6 +894,7 @@ const App: React.FC = () => {
                             supabase.from('calendar_events').select('*').order('start_time', { ascending: true }),
                             supabase.from('inventory_items').select('*'),
                             supabase.from('subjects').select('*'),
+                            supabase.from('class_subjects').select('*'),
                             supabase.from('classes').select('*'),
                             supabase.from('arms').select('*'),
                             supabase.from('quizzes').select('*, questions:quiz_questions(*)').order('created_at', { ascending: false }),
@@ -1027,45 +1029,46 @@ const App: React.FC = () => {
                             setCalendarEvents(getData(10));
                             setInventory(getData(11));
                             setAllSubjects(getData(12));
-                            setAllClasses(getData(13));
-                            setAllArms(getData(14));
-                            setSurveys(getData(15));
-                            setTakenSurveys(new Set(getData(16).map((r: any) => r.quiz_id)));
-                            setWeeklyRatings(getData(17));
-                            setTeams(getData(18));
-                            setTeamFeedback(getData(19));
-                            setCurricula(getData(20));
-                            setCurriculumWeeks(getData(21));
-                            const classGroupsData = getData(22);
+                            setClassSubjects(getData(13));
+                            setAllClasses(getData(14));
+                            setAllArms(getData(15));
+                            setSurveys(getData(16));
+                            setTakenSurveys(new Set(getData(17).map((r: any) => r.quiz_id)));
+                            setWeeklyRatings(getData(18));
+                            setTeams(getData(19));
+                            setTeamFeedback(getData(20));
+                            setCurricula(getData(21));
+                            setCurriculumWeeks(getData(22));
+                            const classGroupsData = getData(23);
                             console.log('Class groups fetched:', classGroupsData);
                             setClassGroups(classGroupsData);
-                            setSchoolConfig(getSingleData(23));
-                            setTerms(getData(24));
-                            setAcademicClasses(getData(25));
-                            setAcademicAssignments(getData(26));
-                            const schemesData = getData(27);
-                            const rulesData = getData(28);
-                            setAcademicClassStudents(getData(29));
-                            setScoreEntries(getData(30));
-                            setStudentTermReports(getData(31));
-                            setAuditLogs(getData(32));
-                            setAssessments(getData(33));
-                            setAssessmentScores(getData(34));
-                            setStudentTermReportSubjects(getData(35));
-                            setCoverageVotes(getData(36));
-                            setRewards(getData(37));
-                            setPayrollRuns(getData(38));
-                            setPayrollItems(getData(39));
-                            setPayrollAdjustments(getData(40));
-                            setCampuses(getData(41));
-                            setTeacherCheckins(getData(42));
-                            setLeaveTypes(getData(43));
-                            setLeaveRequests(getData(44));
-                            setAbsenceRequests(getData(45));
-                            setTeacherShifts(getData(46));
-                            setAssessmentStructures(getData(47));
-                            setTeachingEntities(getData(48));
-                            setOrders(getData(49));
+                            setSchoolConfig(getSingleData(24));
+                            setTerms(getData(25));
+                            setAcademicClasses(getData(26));
+                            setAcademicAssignments(getData(27));
+                            const schemesData = getData(28);
+                            const rulesData = getData(29);
+                            setAcademicClassStudents(getData(30));
+                            setScoreEntries(getData(31));
+                            setStudentTermReports(getData(32));
+                            setAuditLogs(getData(33));
+                            setAssessments(getData(34));
+                            setAssessmentScores(getData(35));
+                            setStudentTermReportSubjects(getData(36));
+                            setCoverageVotes(getData(37));
+                            setRewards(getData(38));
+                            setPayrollRuns(getData(39));
+                            setPayrollItems(getData(40));
+                            setPayrollAdjustments(getData(41));
+                            setCampuses(getData(42));
+                            setTeacherCheckins(getData(43));
+                            setLeaveTypes(getData(44));
+                            setLeaveRequests(getData(45));
+                            setAbsenceRequests(getData(46));
+                            setTeacherShifts(getData(47));
+                            setAssessmentStructures(getData(48));
+                            setTeachingEntities(getData(49));
+                            setOrders(getData(50));
 
                             const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
                                 ...scheme,
@@ -4554,6 +4557,54 @@ const App: React.FC = () => {
         }
     }, [addToast]);
 
+    // --- Class Subject Handlers ---
+    const handleSaveClassSubject = useCallback(async (classId: number, subjectId: number, isCompulsory: boolean): Promise<boolean> => {
+        try {
+            // Check if this class-subject combo already exists
+            const existing = classSubjects.find(cs => cs.class_id === classId && cs.subject_id === subjectId);
+            
+            if (existing) {
+                // Update existing record
+                const { error } = await Offline.update('class_subjects', { is_compulsory: isCompulsory }, { id: existing.id });
+                if (error) { addToast(error.message, 'error'); return false; }
+                setClassSubjects(prev => prev.map(cs => 
+                    cs.id === existing.id ? { ...cs, is_compulsory: isCompulsory } : cs
+                ));
+            } else {
+                // Insert new record
+                const { data, error } = await Offline.insert('class_subjects', { 
+                    class_id: classId, 
+                    subject_id: subjectId, 
+                    is_compulsory: isCompulsory 
+                });
+                if (error || !data) { addToast(error?.message || 'Failed to save class subject', 'error'); return false; }
+                setClassSubjects(prev => [...prev, data as ClassSubject]);
+            }
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [classSubjects, addToast]);
+
+    const handleDeleteClassSubject = useCallback(async (classId: number, subjectId: number): Promise<boolean> => {
+        try {
+            const existing = classSubjects.find(cs => cs.class_id === classId && cs.subject_id === subjectId);
+            if (!existing) {
+                addToast('Class subject not found', 'error');
+                return false;
+            }
+            
+            const { error } = await Offline.del('class_subjects', { id: existing.id });
+            if (error) { addToast(error.message, 'error'); return false; }
+            setClassSubjects(prev => prev.filter(cs => cs.id !== existing.id));
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [classSubjects, addToast]);
+
     // --- Reward Handlers ---
     const handleSaveReward = useCallback(async (reward: Partial<RewardStoreItem>): Promise<boolean> => {
         if (!userProfile) return false;
@@ -5250,6 +5301,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         allSubjects,
                                         allClasses,
                                         allArms,
+                                        classSubjects,
                                         surveys,
                                         classGroups,
                                         roles,
@@ -5409,6 +5461,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleDeleteClass,
                                         handleSaveArm,
                                         handleDeleteArm,
+                                        handleSaveClassSubject,
+                                        handleDeleteClassSubject,
                                         handleSaveInventoryItem,
                                         handleDeleteInventoryItem,
                                         handleSaveReward,
@@ -5504,6 +5558,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     allSubjects,
                                     allClasses,
                                     allArms,
+                                    classSubjects,
                                     surveys,
                                     classGroups,
                                     roles,
@@ -5660,6 +5715,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleDeleteClass,
                                     handleSaveArm,
                                     handleDeleteArm,
+                                    handleSaveClassSubject,
+                                    handleDeleteClassSubject,
                                     handleSaveInventoryItem,
                                     handleDeleteInventoryItem,
                                     handleSaveReward,

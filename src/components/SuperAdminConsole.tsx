@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent } from '../types';
+import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
 import BrandingSettings from './BrandingSettings';
@@ -9,6 +9,7 @@ import TermsManager from './TermsManager';
 import AcademicClassManager from './AcademicClassManager';
 import AcademicAssignmentManager from './AcademicAssignmentManager';
 import SubjectsManager from './SubjectsManager';
+import ClassSubjectsManager from './ClassSubjectsManager';
 import ClassesManager from './ClassesManager';
 import ArmsManager from './ArmsManager';
 import InventoryManager from './InventoryManager';
@@ -32,6 +33,7 @@ interface SuperAdminConsoleProps {
     subjects: BaseDataObject[];
     classes: BaseDataObject[];
     arms: BaseDataObject[];
+    classSubjects: ClassSubject[];
     inventory: InventoryItem[];
     rewards: RewardStoreItem[];
     assessmentStructures: AssessmentStructure[];
@@ -53,6 +55,8 @@ interface SuperAdminConsoleProps {
     onDeleteClass: (id: number) => Promise<boolean>;
     onSaveArm: (arm: Partial<BaseDataObject>) => Promise<boolean>;
     onDeleteArm: (id: number) => Promise<boolean>;
+    onSaveClassSubject: (classId: number, subjectId: number, isCompulsory: boolean) => Promise<boolean>;
+    onDeleteClassSubject: (classId: number, subjectId: number) => Promise<boolean>;
     onSaveInventoryItem: (item: Partial<InventoryItem>) => Promise<boolean>;
     onDeleteInventoryItem: (id: number) => Promise<boolean>;
     onSaveReward: (reward: Partial<RewardStoreItem>) => Promise<boolean>;
@@ -152,7 +156,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
     }, [userPermissions]);
 
     // Define structure sub-tab type for better maintainability
-    type StructureSubTab = 'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'classrooms' | 'arms' | 'enrollment_sync';
+    type StructureSubTab = 'assessment' | 'terms' | 'classes' | 'assignments' | 'subjects' | 'class_subjects' | 'classrooms' | 'arms' | 'enrollment_sync';
 
     const [activeTab, setActiveTab] = useState<AdminTab>(visibleTabs[0]?.name || 'Branding');
     const [structureSubTab, setStructureSubTab] = useState<StructureSubTab>('assessment');
@@ -163,6 +167,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         { id: 'classes' as const, label: 'Academic Classes' },
         { id: 'assignments' as const, label: 'Teaching Assignments' },
         { id: 'subjects' as const, label: 'Subjects' },
+        { id: 'class_subjects' as const, label: 'Class Subjects' },
         { id: 'classrooms' as const, label: 'Classes' },
         { id: 'arms' as const, label: 'Arms/Streams' },
         { id: 'enrollment_sync' as const, label: 'Enrollment Sync' },
@@ -255,6 +260,15 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                             )}
                             {structureSubTab === 'subjects' && (
                                 <SubjectsManager subjects={subjects} onSave={onSaveSubject} onDelete={onDeleteSubject} />
+                            )}
+                            {structureSubTab === 'class_subjects' && (
+                                <ClassSubjectsManager 
+                                    classes={classes} 
+                                    subjects={subjects} 
+                                    classSubjects={props.classSubjects}
+                                    onSave={props.onSaveClassSubject} 
+                                    onDelete={props.onDeleteClassSubject} 
+                                />
                             )}
                             {structureSubTab === 'classrooms' && (
                                 <ClassesManager classes={classes} onSave={onSaveClass} onDelete={onDeleteClass} />
