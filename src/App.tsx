@@ -108,6 +108,14 @@ const AbsenceRequestsView = lazyWithRetry(() => import('./components/AbsenceRequ
 // Auth-only views that authenticated users should not access
 const AUTH_ONLY_VIEWS = ['teacher-login', 'student-login', 'landing', 'public-ratings'];
 
+// Views that students are allowed to access
+const STUDENT_ALLOWED_VIEWS = ['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'];
+
+// Helper: Check if a view is allowed for students
+const isStudentAllowedView = (view: string): boolean => {
+    return STUDENT_ALLOWED_VIEWS.includes(view) || view.startsWith('Student Report/');
+};
+
 // Helper: Get Monday of the current week as a string
 const getWeekStartDateString = (date: Date): string => {
     const d = new Date(date);
@@ -804,11 +812,10 @@ const App: React.FC = () => {
                 setBooting(false);
                 
                 // Navigate to student default view or restore intended view
-                const allowedStudentViews = ['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'];
                 const targetView = initialTargetView.current;
                 
                 // Check if we have a stored target view that students can access
-                if (targetView && (allowedStudentViews.includes(targetView) || targetView.startsWith('Student Report/'))) {
+                if (targetView && isStudentAllowedView(targetView)) {
                     console.log('[Auth] Restoring student to initial target view:', targetView);
                     setCurrentView(targetView);
                 } else {
@@ -1339,7 +1346,9 @@ const App: React.FC = () => {
         if (session && AUTH_ONLY_VIEWS.includes(currentView)) {
             // Try to restore from localStorage if available, otherwise go to Dashboard
             const lastView = localStorage.getItem('sg360_last_view');
-            setCurrentView(lastView && !AUTH_ONLY_VIEWS.includes(lastView) ? lastView : VIEWS.DASHBOARD);
+            const canRestoreLastView = lastView && !AUTH_ONLY_VIEWS.includes(lastView);
+            const targetView = canRestoreLastView ? lastView : VIEWS.DASHBOARD;
+            setCurrentView(targetView);
         }
     }, [session, currentView]);
 
@@ -1406,10 +1415,7 @@ const App: React.FC = () => {
         // 2. Not currently booting (auth is complete)
         // 3. Current view is not in allowed list
         if (userType === 'student' && !booting && userProfile) {
-            const allowedViews = ['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'];
-            const isAllowedView = allowedViews.includes(currentView) || currentView.startsWith('Student Report/');
-            
-            if (!isAllowedView) {
+            if (!isStudentAllowedView(currentView)) {
                 console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
                 setCurrentView('My Subjects');
             }
