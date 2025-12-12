@@ -25,3 +25,4 @@ dist-ssr
 # Exclude old individual feature zip files
 school-guardian-*.zip
 updated-code-files.zip
+/tmp
