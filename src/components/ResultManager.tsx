@@ -218,19 +218,18 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     
     const handleResetSubmission = async (assignment: AcademicTeachingAssignment) => {
         const isLocked = assignment.is_locked;
-        let alsoUnlock = false;
         
+        // First confirm the reset action
+        if (!window.confirm(`Reset submission for ${assignment.academic_class?.name} - ${assignment.subject_name}? The teacher will be able to edit and re-submit scores.`)) {
+            return;
+        }
+        
+        // If locked, ask if they also want to unlock
+        let alsoUnlock = false;
         if (isLocked) {
             alsoUnlock = window.confirm(
                 `This assignment is also locked. Do you want to unlock it as well?\n\nClick OK to reset AND unlock, or Cancel to only reset the submission.`
             );
-            if (!window.confirm(`Reset submission for ${assignment.academic_class?.name} - ${assignment.subject_name}? The teacher will be able to edit and re-submit scores.`)) {
-                return;
-            }
-        } else {
-            if (!window.confirm(`Reset submission for ${assignment.academic_class?.name} - ${assignment.subject_name}? The teacher will be able to edit and re-submit scores.`)) {
-                return;
-            }
         }
         
         setIsResetting(assignment.id);
