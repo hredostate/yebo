@@ -3235,12 +3235,28 @@ const App: React.FC = () => {
         try {
             const userToDelete = users.find(u => u.id === userId);
             
-            // Note: This should also handle auth deletion via Edge Function
+            // DELETE THE AUTH USER FIRST via Edge Function
+            try {
+                const { error: authError } = await supabase.functions.invoke('manage-users', {
+                    body: { action: 'delete_account', studentId: userId }
+                });
+                
+                if (authError) {
+                    console.error("Auth user deletion error:", authError);
+                    // Continue anyway - the auth user might already be deleted or not exist
+                }
+            } catch (authErr) {
+                console.error("Auth deletion failed:", authErr);
+                // Continue with profile deletion
+            }
+            
+            // Then delete the user_profiles record
             const { error } = await Offline.del('user_profiles', { id: userId });
             if (error) {
                 addToast(error.message, 'error');
                 return false;
             }
+            
             setUsers(prev => prev.filter(u => u.id !== userId));
             addToast('User deleted successfully.', 'success');
             
