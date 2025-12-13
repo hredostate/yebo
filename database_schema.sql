@@ -1347,7 +1347,8 @@ CREATE TABLE IF NOT EXISTS public.policy_acknowledgments (
     acknowledged_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     ip_address TEXT,
     UNIQUE(policy_id, user_id),
-    UNIQUE(policy_id, student_id)
+    UNIQUE(policy_id, student_id),
+    CHECK ((user_id IS NOT NULL AND student_id IS NULL) OR (user_id IS NULL AND student_id IS NOT NULL))
 );
 
 -- Add RLS policies for policy_acknowledgments
@@ -1359,7 +1360,11 @@ CREATE POLICY "Users can view acknowledgments for their school" ON public.policy
 
 DROP POLICY IF EXISTS "Users can insert their own acknowledgments" ON public.policy_acknowledgments;
 CREATE POLICY "Users can insert their own acknowledgments" ON public.policy_acknowledgments
-    FOR INSERT WITH CHECK (user_id = auth.uid() OR student_id IS NOT NULL);
+    FOR INSERT WITH CHECK (
+        (user_id = auth.uid() AND school_id = (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()))
+        OR 
+        (student_id IS NOT NULL AND school_id = (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()))
+    );
 
 -- SECTION 2: ADDITIONAL FUNCTIONS
 DROP FUNCTION IF EXISTS public.get_daily_teacher_attendance(date,integer) CASCADE;

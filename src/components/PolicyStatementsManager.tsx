@@ -302,12 +302,27 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
                 Email: u.email || ''
               }));
 
+        // Check if there's data to export
+        if (rows.length === 0) {
+            onShowToast('No data to export', 'info');
+            return;
+        }
+
+        // Helper function to escape CSV values
+        const escapeCSV = (val: any): string => {
+            if (val === null || val === undefined) return '';
+            const str = String(val);
+            // Escape quotes by doubling them, wrap in quotes if contains comma, quote, or newline
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
         // Convert to CSV
-        const headers = Object.keys(rows[0] || {}).join(',');
+        const headers = Object.keys(rows[0]).join(',');
         const csvRows = rows.map(row => 
-            Object.values(row).map(val => 
-                typeof val === 'string' && val.includes(',') ? `"${val}"` : val
-            ).join(',')
+            Object.values(row).map(val => escapeCSV(val)).join(',')
         );
         const csv = [headers, ...csvRows].join('\n');
 
