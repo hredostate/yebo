@@ -362,33 +362,33 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       });
   };
 
-  const commonInputClasses = "w-full p-2 text-sm border rounded-md bg-white/50 dark:bg-slate-800/50 border-slate-300/60 dark:border-slate-700/60 focus:ring-blue-500 focus:border-blue-500";
+  const commonInputClasses = "w-full p-3 min-h-touch text-base border rounded-md bg-white/50 dark:bg-slate-800/50 border-slate-300/60 dark:border-slate-700/60 focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Student Roster</h1>
-          <p className="text-slate-600 dark:text-slate-300 mt-1">Manage all students in the school.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Student Roster</h1>
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-1">Manage all students in the school.</p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             ℹ️ Passwords are only shown once during account creation. Students use their email/username to login.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button 
                 onClick={handleGenerateAwards}
                 disabled={isGeneratingAwards}
-                className="text-sm bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 disabled:bg-amber-400 flex items-center justify-center min-w-[150px]"
+                className="touch-target text-sm bg-amber-500 text-white px-4 rounded-lg hover:bg-amber-600 disabled:bg-amber-400 flex items-center justify-center min-w-[150px]"
             >
                 {isGeneratingAwards ? <Spinner size="sm" /> : '✨ Generate Awards'}
             </button>
-            {canManageStudents && <button onClick={onOpenCreateStudentAccountModal} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">Create Account (Single)</button>}
-            {canManageStudents && <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">Add Student (No Login)</button>}
+            {canManageStudents && <button onClick={onOpenCreateStudentAccountModal} className="touch-target px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">Create Account</button>}
+            {canManageStudents && <button onClick={() => setIsAddModalOpen(true)} className="touch-target px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">Add Student</button>}
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
           <input type="text" placeholder="Search by name or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={commonInputClasses} />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={commonInputClasses}>
               <option value="">All Statuses</option>
@@ -484,9 +484,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
             <span className="text-sm text-slate-500">{filteredStudents.length} students found</span>
         </div>
 
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="table-scroll-wrapper min-h-[400px]">
           <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-            <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-500/10">
+            <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-500/10 sticky top-0 z-10">
               <tr>
                 {canManageStudents && (
                     <th scope="col" className="px-6 py-3 w-4">

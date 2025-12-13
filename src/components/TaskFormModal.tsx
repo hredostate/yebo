@@ -79,13 +79,25 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     setIsSubmitting(false);
   };
   
-  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-2 text-base rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
+  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
-      <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-lg m-4">
+    <div className="modal-responsive bg-black/30 backdrop-blur-sm animate-fade-in">
+      <div className="modal-content-responsive rounded-none md:rounded-2xl border-0 md:border md:border-slate-200/60 bg-white/80 p-4 sm:p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full md:max-w-lg m-0 md:m-4 overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Create New Task</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">Create New Task</h2>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="md:hidden touch-target text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              aria-label="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           
           {initialData && (
               <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
@@ -106,7 +118,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className={commonInputClasses}></textarea>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="assignee" className="block text-sm font-medium">Assign To</label>
               <SearchableSelect
@@ -124,7 +136,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             </div>
           </div>
           
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label htmlFor="due-date" className="block text-sm font-medium">Due Date</label>
                 <input type="date" id="due-date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className={commonInputClasses} />
@@ -141,9 +153,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="touch-target px-4 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="touch-target px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
                 {isSubmitting ? <Spinner size="sm" /> : 'Create Task'}
             </button>
           </div>
