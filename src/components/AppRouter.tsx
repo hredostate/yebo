@@ -935,7 +935,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
                     <HomeworkManager
                         userProfile={data.userProfile}
-                        teachingAssignments={data.teachingAssignments}
+                        teachingAssignments={data.academicAssignments}
                         onNavigate={actions.setCurrentView}
                     />
                 </Suspense>
@@ -945,7 +945,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
                     <NotesComplianceTracker
                         userProfile={data.userProfile}
-                        teachingAssignments={data.teachingAssignments}
+                        teachingAssignments={data.academicAssignments}
                     />
                 </Suspense>
             );
