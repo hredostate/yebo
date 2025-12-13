@@ -832,13 +832,22 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             .bg-white,
             .bg-slate-50,
             .bg-slate-100,
+            .bg-slate-200,
             .bg-gray-50,
             .bg-gray-100,
             .bg-blue-50,
+            .bg-blue-100,
             .bg-green-50,
+            .bg-green-100,
             .bg-yellow-50,
+            .bg-yellow-100,
             .bg-red-50,
-            .bg-orange-50 {
+            .bg-red-100,
+            .bg-orange-50,
+            .bg-orange-100,
+            .bg-amber-50,
+            .bg-amber-100,
+            .bg-purple-50 {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
@@ -849,12 +858,15 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
               page-break-inside: avoid !important;
             }
             
-            /* Preserve borders */
-            .border,
-            .border-slate-200,
-            .border-slate-300,
+            /* Preserve borders with actual colors */
+            .border-slate-200 {
+              border-color: #e2e8f0 !important;
+            }
+            .border-slate-300 {
+              border-color: #cbd5e1 !important;
+            }
             .border-black {
-              border-color: currentColor !important;
+              border-color: #000 !important;
             }
             
             /* Maintain rounded corners */
