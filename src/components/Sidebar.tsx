@@ -124,6 +124,8 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },
       { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
       { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
+      { id: VIEWS.POLICY_QUERY, label: 'Policy Query', permission: 'query-living-policy' },
+      { id: VIEWS.POLICY_STATEMENTS, label: 'Policy Statements', permission: 'manage-living-policy' },
       { id: VIEWS.ANALYTICS, label: 'Analytics Dashboard', permission: 'view-analytics' },
       { id: VIEWS.DATA_ANALYSIS, label: 'AI Data Analysis', permission: 'view-analytics' },
       { id: VIEWS.CAMPUS_STATISTICS, label: 'Campus Statistics', permission: 'view-campus-stats' },

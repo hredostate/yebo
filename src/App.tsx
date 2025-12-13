@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -42,6 +42,7 @@ import { useKeyboardShortcuts, defaultShortcuts } from './hooks/useKeyboardShort
 import StudentSurveysView from './components/StudentSurveysView';
 import StudentRateMyTeacherView from './components/StudentRateMyTeacherView';
 import StudentReportList from './components/StudentReportList';
+import PolicyAcknowledgmentGate from './components/PolicyAcknowledgmentGate';
 import { BookOpenIcon, ClipboardListIcon, FileTextIcon, StarIcon, UserCircleIcon } from './components/common/icons';
 
 // Use lazyWithRetry for all lazy-loaded components to handle chunk load failures
@@ -106,6 +107,8 @@ const StoreManager = lazyWithRetry(() => import('./components/StoreManager'));
 const ZeroScoreMonitorView = lazyWithRetry(() => import('./components/ZeroScoreMonitorView'));
 const AppRouter = lazyWithRetry(() => import('./components/AppRouter'));
 const AbsenceRequestsView = lazyWithRetry(() => import('./components/AbsenceRequestsView'));
+const PolicyQueryView = lazyWithRetry(() => import('./components/PolicyQueryView'));
+const PolicyStatementsManager = lazyWithRetry(() => import('./components/PolicyStatementsManager'));
 
 // Auth-only views that authenticated users should not access
 const AUTH_ONLY_VIEWS = ['teacher-login', 'student-login', 'landing', 'public-ratings'];
@@ -446,6 +449,8 @@ const App: React.FC = () => {
     const toastCounter = useRef(0);
     
     const [livingPolicy, setLivingPolicy] = useState<LivingPolicySnippet[]>([]);
+    const [pendingPolicies, setPendingPolicies] = useState<PolicyStatement[]>([]);
+    const [showPolicyGate, setShowPolicyGate] = useState(false);
 
     const todaysCheckinForDashboard = useMemo(() => {
         if (!userProfile || !teacherCheckins) return null;
@@ -594,6 +599,103 @@ const App: React.FC = () => {
             window.location.hash = '';
         }
     }, [userProfile]);
+
+    // Check for pending policy acknowledgments
+    const checkPendingPolicies = useCallback(async (profile: UserProfile | StudentProfile, userType: 'staff' | 'student') => {
+        try {
+            const targetAudience = userType === 'staff' ? 'staff' : 'student';
+            
+            // Fetch active policies for this user type
+            const { data: activePolicies, error } = await supabase
+                .from('policy_statements')
+                .select('*')
+                .eq('school_id', profile.school_id)
+                .eq('is_active', true)
+                .eq('requires_acknowledgment', true)
+                .contains('target_audience', [targetAudience]);
+
+            if (error) {
+                console.error('Failed to fetch policies:', error);
+                return;
+            }
+
+            if (!activePolicies || activePolicies.length === 0) {
+                setPendingPolicies([]);
+                setShowPolicyGate(false);
+                return;
+            }
+
+            // Get user's existing acknowledgments
+            const acknowledged = (profile as any).policy_acknowledgments || [];
+
+            // Find policies not yet acknowledged (by id AND version)
+            const pending = activePolicies.filter((policy: PolicyStatement) =>
+                !acknowledged.some((ack: PolicyAcknowledgment) =>
+                    ack.policy_id === policy.id && ack.policy_version === policy.version
+                )
+            );
+
+            if (pending.length > 0) {
+                setPendingPolicies(pending);
+                setShowPolicyGate(true);
+            } else {
+                setPendingPolicies([]);
+                setShowPolicyGate(false);
+            }
+        } catch (error) {
+            console.error('Error checking pending policies:', error);
+        }
+    }, []);
+
+    // Handle policy acknowledgment
+    const handlePolicyAcknowledgment = useCallback(async (policyId: number, acknowledgment: PolicyAcknowledgment) => {
+        if (!userProfile) return;
+
+        try {
+            const tableName = userType === 'staff' ? 'user_profiles' : 'students';
+            const idField = userType === 'staff' ? 'id' : 'id';
+            
+            // Get current acknowledgments
+            const { data: current } = await supabase
+                .from(tableName)
+                .select('policy_acknowledgments')
+                .eq(idField, userType === 'staff' ? (userProfile as UserProfile).id : (userProfile as StudentProfile).student_record_id)
+                .single();
+
+            const currentAcks = current?.policy_acknowledgments || [];
+            const updatedAcks = [...currentAcks, acknowledgment];
+
+            // Update the profile with new acknowledgment
+            const { error } = await supabase
+                .from(tableName)
+                .update({ policy_acknowledgments: updatedAcks })
+                .eq(idField, userType === 'staff' ? (userProfile as UserProfile).id : (userProfile as StudentProfile).student_record_id);
+
+            if (error) throw error;
+
+            // Update local profile state
+            setUserProfile(prev => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    policy_acknowledgments: updatedAcks
+                } as any;
+            });
+
+            // Remove this policy from pending
+            setPendingPolicies(prev => prev.filter(p => p.id !== policyId));
+
+            // If no more pending policies, hide the gate
+            if (pendingPolicies.length <= 1) {
+                setShowPolicyGate(false);
+            }
+
+            addToast('Policy acknowledged successfully', 'success');
+        } catch (error) {
+            console.error('Failed to save acknowledgment:', error);
+            throw error;
+        }
+    }, [userProfile, userType, pendingPolicies, addToast]);
 
 
     const fetchData = useCallback(async (user: User, forceRefresh: boolean = false) => {
@@ -843,6 +945,9 @@ const App: React.FC = () => {
                 console.log('[Auth] Student profile loaded successfully');
                 setBooting(false);
                 
+                // Check for pending policy acknowledgments
+                await checkPendingPolicies(profile, 'student');
+                
                 // Navigate to student default view or restore intended view
                 const targetView = initialTargetView.current;
                 
@@ -1046,6 +1151,9 @@ const App: React.FC = () => {
                         setIsProfileLoading(false);
                         setBooting(false);
                         console.log('[Auth] Critical data loaded, checking for target view...');
+                        
+                        // Check for pending policy acknowledgments
+                        await checkPendingPolicies(staffProfile as UserProfile, 'staff');
                         
                         // Navigate to staff default view only if no target view exists
                         const currentHash = decodeURIComponent(window.location.hash.substring(1) || '');
@@ -5988,6 +6096,15 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 </main>
             </div>
             <Toast toasts={toasts} removeToast={removeToast} />
+            
+            {/* Policy Acknowledgment Gate */}
+            {showPolicyGate && pendingPolicies.length > 0 && userProfile && (
+                <PolicyAcknowledgmentGate
+                    policies={pendingPolicies}
+                    onAcknowledge={handlePolicyAcknowledgment}
+                    userFullName={userType === 'staff' ? (userProfile as UserProfile).name : (userProfile as StudentProfile).full_name}
+                />
+            )}
             
             {/* Global Modals */}
             {isPositiveModalOpen && <PositiveBehaviorModal isOpen={isPositiveModalOpen} onClose={() => setIsPositiveModalOpen(false)} onSubmit={async (id, desc) => {
