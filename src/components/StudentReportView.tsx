@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import type { StudentTermReportDetails, GradingScheme, StudentInvoice } from '../types';
+import type { StudentTermReportDetails, GradingScheme, StudentInvoice, Student, StudentTermReport, Term, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
+import ResultSheetDesigns from './ResultSheetDesigns';
 
 interface StudentReportViewProps {
   studentId: number;
@@ -592,6 +593,138 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
     </div>
   );
 
+  // Transform data from StudentReportView format to ResultSheetDesigns format
+  const transformDataForPrintableDesign = () => {
+    // Create Student object in the format expected by ResultSheetDesigns
+    const studentData: Student = {
+      id: student.id,
+      school_id: reportDetails.schoolConfig.school_id,
+      name: student.fullName,
+      admission_number: '', // Not available in StudentTermReportDetails
+      grade: student.className,
+      reward_points: 0,
+    };
+
+    // Create Term object
+    const termData: Term = {
+      id: termId,
+      school_id: reportDetails.schoolConfig.school_id,
+      session_label: term.sessionLabel,
+      term_label: term.termLabel,
+      start_date: '',
+      end_date: '',
+      is_active: false,
+    };
+
+    // Create StudentTermReport object
+    const reportData: StudentTermReport = {
+      id: 0,
+      student_id: student.id,
+      term_id: termId,
+      academic_class_id: 0,
+      average_score: summary.average,
+      total_score: subjects.reduce((sum, s) => sum + s.totalScore, 0),
+      position_in_class: summary.positionInArm,
+      teacher_comment: comments.teacher,
+      principal_comment: comments.principal,
+      is_published: isPublished,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Transform subjects to the format expected by ResultSheetDesigns
+    const transformedSubjects = subjects.map(sub => {
+      // Extract CA and Exam scores from componentScores if available
+      let caScore = 0;
+      let examScore = 0;
+      
+      if (sub.componentScores) {
+        // Sum all non-exam components as CA score
+        Object.entries(sub.componentScores).forEach(([key, value]) => {
+          if (key.toLowerCase().includes('exam')) {
+            examScore += value;
+          } else {
+            caScore += value;
+          }
+        });
+      }
+      
+      return {
+        subject_name: sub.subjectName,
+        component_scores: sub.componentScores,
+        ca_score: caScore,
+        exam_score: examScore,
+        total_score: sub.totalScore,
+        grade: sub.gradeLabel,
+        remark: sub.remark,
+        subject_position: sub.subjectPosition,
+      };
+    });
+
+    // Use gradeLevelSize as a fallback for classSize if available, otherwise use 1 to avoid division by zero
+    // Note: classSize is not available in StudentTermReportDetails. Using gradeLevelSize provides
+    // a reasonable approximation. If neither is available, we use 1 which will display position as "X of 1"
+    // This is acceptable since the actual class size is not exposed in the current data structure
+    const estimatedClassSize = summary.gradeLevelSize || 1;
+
+    return {
+      report: reportData,
+      student: studentData,
+      subjects: transformedSubjects,
+      assessmentComponents,
+      gradingScheme: activeGradingScheme!,
+      schoolConfig: reportDetails.schoolConfig,
+      term: termData,
+      classPosition: summary.positionInArm,
+      classSize: estimatedClassSize,
+      gradeLevelPosition: summary.positionInGradeLevel || undefined,
+      gradeLevelSize: summary.gradeLevelSize,
+    };
+  };
+
+  // Render the appropriate printable design based on layout
+  const renderPrintableDesign = () => {
+    if (!activeGradingScheme) {
+      return <div>Loading grading scheme...</div>;
+    }
+
+    const props = transformDataForPrintableDesign();
+
+    // Map layout options to the correct design component
+    // Note: ResultSheetDesigns exports 4 designs: modern, banded, executive, minimalist
+    // We map the 9 layout options to these 4 designs based on visual similarity
+    switch (layout) {
+      case 'modern-gradient':
+        // Advanced layout: Modern Gradient uses the modern design component
+        return <ResultSheetDesigns.modern {...props} />;
+      case 'banded-rows':
+        // Advanced layout: Banded Rows uses the banded design component
+        return <ResultSheetDesigns.banded {...props} />;
+      case 'executive-dark':
+        // Advanced layout: Executive Dark uses the executive design component
+        return <ResultSheetDesigns.executive {...props} />;
+      case 'minimalist-clean':
+        // Advanced layout: Minimalist Clean uses the minimalist design component
+        return <ResultSheetDesigns.minimalist {...props} />;
+      case 'classic':
+      case 'compact':
+        // Standard layouts: Classic and Compact use formal banded-rows design for printing
+        return <ResultSheetDesigns.banded {...props} />;
+      case 'modern':
+        // Standard layout: Modern uses modern-gradient design for printing
+        return <ResultSheetDesigns.modern {...props} />;
+      case 'professional':
+        // Standard layout: Professional uses executive design for printing
+        return <ResultSheetDesigns.executive {...props} />;
+      case 'pastel':
+        // Standard layout: Pastel uses minimalist design for printing
+        return <ResultSheetDesigns.minimalist {...props} />;
+      default:
+        // Default to banded-rows for any unrecognized layout
+        return <ResultSheetDesigns.banded {...props} />;
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 print:bg-white print:p-0 font-sans">
@@ -616,9 +749,15 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
               background: white;
             }
             
-            /* Hide non-printable elements */
+            /* Hide screen-only elements */
+            .print\\:hidden,
             .no-print {
               display: none !important;
+            }
+            
+            /* Show print-only elements */
+            .hidden.print\\:block {
+              display: block !important;
             }
             
             .printable-report {
@@ -631,11 +770,6 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             
             /* Prevent page breaks inside elements */
             .page-break-inside-avoid {
-              page-break-inside: avoid;
-            }
-            
-            /* Handle charts in print */
-            .recharts-wrapper {
               page-break-inside: avoid;
             }
           }
@@ -675,7 +809,9 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           </div>
         </div>
 
-        <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
+        {/* Screen-only view (hidden when printing) */}
+        <div className="print:hidden">
+          <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
             
             {/* --- CLASSIC, MODERN & PASTEL LAYOUTS SHARE STRUCTURE --- */}
             {(layout === 'classic' || layout === 'modern' || layout === 'pastel') && (
@@ -848,6 +984,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                 </div>
             )}
 
+          </div>
+        </div>
+
+        {/* Print-only view (hidden on screen, shown when printing) */}
+        <div className="hidden print:block">
+          {renderPrintableDesign()}
         </div>
       </div>
     </div>

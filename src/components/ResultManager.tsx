@@ -57,9 +57,15 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     
     // Result sheet design options
     const resultSheetOptions = [
-        { id: 'default', name: 'Default', description: 'Standard result sheet layout' },
+        { id: 'classic', name: 'Classic', description: 'Standard table layout' },
+        { id: 'modern', name: 'Modern', description: 'Colored headers layout' },
         { id: 'compact', name: 'Compact', description: 'Space-efficient layout' },
-        { id: 'detailed', name: 'Detailed', description: 'Comprehensive view with extra details' }
+        { id: 'professional', name: 'Professional', description: 'Minimalist formal layout' },
+        { id: 'pastel', name: 'Pastel', description: 'Colorful friendly layout' },
+        { id: 'modern-gradient', name: 'Modern Gradient', description: 'Card-based with gradient accents' },
+        { id: 'banded-rows', name: 'Banded Rows', description: 'Formal table with alternating rows' },
+        { id: 'executive-dark', name: 'Executive Dark', description: 'Dark theme professional design' },
+        { id: 'minimalist-clean', name: 'Minimalist Clean', description: 'Clean typography-focused layout' },
     ];
 
     const assignmentsForTerm = useMemo(() => {

@@ -701,7 +701,7 @@ export interface AssessmentStructure {
 }
 
 export interface ReportCardConfig {
-    layout: 'classic' | 'modern' | 'compact' | 'professional' | 'pastel';
+    layout: 'classic' | 'modern' | 'compact' | 'professional' | 'pastel' | 'modern-gradient' | 'banded-rows' | 'executive-dark' | 'minimalist-clean';
     orientation: 'portrait' | 'landscape';
     showPhoto: boolean;
     showPosition: boolean;
