@@ -45,6 +45,12 @@ const InvoiceGenerator: React.FC<{
         return Array.from(uniqueClasses.entries()).map(([id, name]) => ({ id, name }));
     }, [students]);
 
+    // Count students working in bursary in selected class
+    const bursaryStudentsCount = useMemo(() => {
+        if (!selectedClass) return 0;
+        return students.filter(s => s.class_id === Number(selectedClass) && s.working_in_bursary).length;
+    }, [students, selectedClass]);
+
     return (
         <div className="space-y-4">
             <h3 className="font-bold">Generate Invoices</h3>
@@ -59,6 +65,13 @@ const InvoiceGenerator: React.FC<{
                 </select>
                 <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="p-2 border rounded w-full" placeholder="Due Date" />
             </div>
+            {bursaryStudentsCount > 0 && selectedClass && (
+                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <p className="text-xs text-purple-800 dark:text-purple-200">
+                        ℹ️ <strong>Note:</strong> {bursaryStudentsCount} student{bursaryStudentsCount !== 1 ? 's' : ''} in this class {bursaryStudentsCount !== 1 ? 'are' : 'is'} working in bursary and will be excluded from invoice generation.
+                    </p>
+                </div>
+            )}
             <div className="p-2 border rounded max-h-40 overflow-y-auto">
                 <p className="text-xs font-semibold mb-2">Select Fee Items</p>
                 {feeItems.map(f => (

@@ -524,7 +524,14 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                         <td className="px-6 py-4 font-mono text-xs">{student.admission_number}</td>
                         <td className="px-6 py-4">{student.class?.name}{student.arm?.name ? ` - ${student.arm.name}` : ''}</td>
                         <td className="px-6 py-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                            <div className="flex flex-col gap-1">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                                {student.working_in_bursary && (
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 flex items-center gap-1">
+                                        <span>💼</span> Bursary Staff
+                                    </span>
+                                )}
+                            </div>
                         </td>
                         <td className="px-6 py-4 text-xs font-mono">
                             {student.email ? (
