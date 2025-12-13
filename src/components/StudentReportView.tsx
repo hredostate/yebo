@@ -405,7 +405,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
 
   const renderTableBody = () => {
       if (!compositeData) {
-          // Standard Term
+          // Standard Term - show component breakdown
           return (
              <tbody>
                 {subjects.map((sub, idx) => {
@@ -415,19 +415,57 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                     }
                     const pastelStyle = layout === 'pastel' ? { backgroundColor: PASTEL_COLORS[idx % PASTEL_COLORS.length] + '40' } : {};
 
+                    // Calculate CA and Exam scores from componentScores for fallback
+                    let caScore = 0;
+                    let examScore = 0;
+                    if (sub.componentScores) {
+                        Object.entries(sub.componentScores).forEach(([key, value]) => {
+                            if (key.toLowerCase().includes('exam')) {
+                                examScore += value;
+                            } else {
+                                caScore += value;
+                            }
+                        });
+                    }
+
                     return (
                     <tr key={idx} className={rowClass} style={pastelStyle}>
+                        <td className={`${commonTdClasses} text-center`}>{idx + 1}</td>
                         <td className={commonTdClasses}>{sub.subjectName}</td>
+                        {assessmentComponents && assessmentComponents.length > 0 ? (
+                            // Dynamic component scores
+                            assessmentComponents.map((comp, compIdx) => (
+                                <td key={compIdx} className={`${commonTdClasses} text-center`}>
+                                    {sub.componentScores?.[comp.name] ?? '-'}
+                                </td>
+                            ))
+                        ) : (
+                            // Fallback to CA/Exam
+                            <>
+                                <td className={`${commonTdClasses} text-center`}>{sub.componentScores ? caScore : '-'}</td>
+                                <td className={`${commonTdClasses} text-center`}>{sub.componentScores ? examScore : '-'}</td>
+                            </>
+                        )}
                         <td className={`${commonTdClasses} text-center font-bold`}>{sub.totalScore}</td>
+                        <td className={`${commonTdClasses} text-center`}>
+                            <span className={`px-2 py-0.5 rounded font-bold ${
+                                sub.gradeLabel === 'A' ? 'bg-green-100 text-green-800' :
+                                sub.gradeLabel === 'B' ? 'bg-blue-100 text-blue-800' :
+                                sub.gradeLabel === 'C' ? 'bg-amber-100 text-amber-800' :
+                                sub.gradeLabel === 'D' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                            }`}>
+                                {sub.gradeLabel}
+                            </span>
+                        </td>
                         <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>{getOrdinal(sub.subjectPosition)}</td>
-                        <td className={`${commonTdClasses} text-center font-bold ${sub.gradeLabel === 'F' ? 'text-red-600' : ''}`}>{sub.gradeLabel}</td>
                         <td className={`${commonTdClasses} text-xs italic`}>{sub.remark}</td>
                     </tr>
                 )})}
             </tbody>
           )
       } else {
-          // Composite
+          // Keep existing composite data body logic for third term reports
           return (
             <tbody>
                 {compositeData.map((sub, idx) => {
@@ -468,15 +506,33 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
            return (
                 <thead>
                     <tr style={headerStyle}>
+                        <th className={`${commonThClasses} w-8 text-center`}>S/N</th>
                         <th className={commonThClasses}>Subject</th>
-                        <th className={`${commonThClasses} text-center w-24`}>Total Score</th>
-                        <th className={`${commonThClasses} text-center w-16`}>Pos</th>
-                        <th className={`${commonThClasses} text-center w-16`}>Grade</th>
+                        {assessmentComponents && assessmentComponents.length > 0 ? (
+                            // Dynamic component columns (CA1, CA2, Exam, etc.)
+                            assessmentComponents.map((comp, idx) => (
+                                <th key={idx} className={`${commonThClasses} text-center w-16`}>
+                                    {comp.name}
+                                    <br />
+                                    <span className="text-[10px] font-normal">/{comp.max_score}</span>
+                                </th>
+                            ))
+                        ) : (
+                            // Fallback to simple CA/Exam columns if no assessment structure
+                            <>
+                                <th className={`${commonThClasses} text-center w-16`}>CA</th>
+                                <th className={`${commonThClasses} text-center w-16`}>Exam</th>
+                            </>
+                        )}
+                        <th className={`${commonThClasses} text-center w-16`}>Total</th>
+                        <th className={`${commonThClasses} text-center w-14`}>Grade</th>
+                        <th className={`${commonThClasses} text-center w-14`}>Pos</th>
                         <th className={commonThClasses}>Remark</th>
                     </tr>
                 </thead>
            )
        }
+       // Keep existing composite data header logic for third term reports
        return (
             <thead>
                 <tr style={headerStyle}>
