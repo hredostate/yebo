@@ -329,7 +329,12 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   };
 
   // Helper to add alpha transparency to hex color
-  const addAlphaToColor = (hexColor: string, alpha: number): string => {
+  const addAlphaToColor = (hexColor: string | null | undefined, alpha: number): string => {
+    // Handle null/undefined input
+    if (!hexColor || typeof hexColor !== 'string') {
+      return '#000000'; // Return default color
+    }
+    
     // Ensure hex color starts with #
     const color = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
     
@@ -422,7 +427,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       htmlContent = `
         <div style="font-family: ${fontFamily}; color: #000; background: white;">
           <!-- Header Section -->
-          <div style="padding: 32px; border-bottom: 2px solid #e2e8f0; text-align: center; ${layout === 'pastel' ? `background: ${themeColor}10;` : ''}">
+          <div style="padding: 32px; border-bottom: 2px solid #e2e8f0; text-align: center; ${layout === 'pastel' ? `background: ${addAlphaToColor(themeColor, 10)};` : ''}">
             ${logoUrl ? `<img src="${logoUrl}" alt="Logo" style="width: 96px; height: 96px; object-fit: contain; margin: 0 auto 16px;" />` : ''}
             <h1 style="font-size: 28px; font-weight: bold; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">${sanitizedSchoolName}</h1>
             <p style="font-style: italic; margin: 4px 0; color: #64748b;">${sanitizedMotto}</p>
