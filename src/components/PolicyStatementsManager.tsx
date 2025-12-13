@@ -69,16 +69,30 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
 
     const loadAcknowledgmentStats = async (policyList: PolicyStatement[]) => {
         try {
-            // Get all users count
-            const { count: staffCount } = await supabase
-                .from('user_profiles')
-                .select('*', { count: 'exact', head: true })
-                .eq('school_id', userProfile.school_id);
-
-            const { count: studentCount } = await supabase
-                .from('students')
-                .select('*', { count: 'exact', head: true })
-                .eq('school_id', userProfile.school_id);
+            // Fetch all data in parallel
+            const [
+                { count: staffCount },
+                { count: studentCount },
+                { data: staffProfiles },
+                { data: students }
+            ] = await Promise.all([
+                supabase
+                    .from('user_profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('school_id', userProfile.school_id),
+                supabase
+                    .from('students')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('school_id', userProfile.school_id),
+                supabase
+                    .from('user_profiles')
+                    .select('policy_acknowledgments')
+                    .eq('school_id', userProfile.school_id),
+                supabase
+                    .from('students')
+                    .select('policy_acknowledgments')
+                    .eq('school_id', userProfile.school_id)
+            ]);
 
             const stats: Record<number, { total: number; acknowledged: number }> = {};
 
@@ -91,15 +105,10 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
                     total += staffCount || 0;
 
                     // Count staff who acknowledged
-                    const { data: staffProfiles } = await supabase
-                        .from('user_profiles')
-                        .select('policy_acknowledgments')
-                        .eq('school_id', userProfile.school_id);
-
                     if (staffProfiles) {
                         for (const profile of staffProfiles) {
-                            const acks = profile.policy_acknowledgments || [];
-                            if (acks.some((ack: any) => ack.policy_id === policy.id && ack.policy_version === policy.version)) {
+                            const acks = (profile.policy_acknowledgments || []) as PolicyAcknowledgment[];
+                            if (acks.some((ack) => ack.policy_id === policy.id && ack.policy_version === policy.version)) {
                                 acknowledged++;
                             }
                         }
@@ -111,15 +120,10 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
                     total += studentCount || 0;
 
                     // Count students who acknowledged
-                    const { data: students } = await supabase
-                        .from('students')
-                        .select('policy_acknowledgments')
-                        .eq('school_id', userProfile.school_id);
-
                     if (students) {
                         for (const student of students) {
-                            const acks = student.policy_acknowledgments || [];
-                            if (acks.some((ack: any) => ack.policy_id === policy.id && ack.policy_version === policy.version)) {
+                            const acks = (student.policy_acknowledgments || []) as PolicyAcknowledgment[];
+                            if (acks.some((ack) => ack.policy_id === policy.id && ack.policy_version === policy.version)) {
                                 acknowledged++;
                             }
                         }

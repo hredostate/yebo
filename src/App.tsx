@@ -649,17 +649,33 @@ const App: React.FC = () => {
 
     // Handle policy acknowledgment
     const handlePolicyAcknowledgment = useCallback(async (policyId: number, acknowledgment: PolicyAcknowledgment) => {
-        if (!userProfile) return;
+        if (!userProfile || !userType) return;
 
         try {
-            const tableName = userType === 'staff' ? 'user_profiles' : 'students';
-            const idField = userType === 'staff' ? 'id' : 'id';
+            // Helper to get the correct table and ID based on user type
+            const getUserIdentifier = () => {
+                if (userType === 'staff') {
+                    return {
+                        tableName: 'user_profiles' as const,
+                        idField: 'id' as const,
+                        userId: (userProfile as UserProfile).id
+                    };
+                } else {
+                    return {
+                        tableName: 'students' as const,
+                        idField: 'id' as const,
+                        userId: (userProfile as StudentProfile).student_record_id
+                    };
+                }
+            };
+
+            const { tableName, idField, userId } = getUserIdentifier();
             
             // Get current acknowledgments
             const { data: current } = await supabase
                 .from(tableName)
                 .select('policy_acknowledgments')
-                .eq(idField, userType === 'staff' ? (userProfile as UserProfile).id : (userProfile as StudentProfile).student_record_id)
+                .eq(idField, userId)
                 .single();
 
             const currentAcks = current?.policy_acknowledgments || [];
@@ -669,7 +685,7 @@ const App: React.FC = () => {
             const { error } = await supabase
                 .from(tableName)
                 .update({ policy_acknowledgments: updatedAcks })
-                .eq(idField, userType === 'staff' ? (userProfile as UserProfile).id : (userProfile as StudentProfile).student_record_id);
+                .eq(idField, userId);
 
             if (error) throw error;
 
