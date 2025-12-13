@@ -527,8 +527,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                             <div className="flex flex-col gap-1">
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
                                 {student.working_in_bursary && (
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 flex items-center gap-1">
-                                        <span>💼</span> Bursary Staff
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 flex items-center gap-1" title="Exempt from fees">
+                                        <span aria-hidden="true">💼</span>
+                                        <span>Bursary Staff</span>
                                     </span>
                                 )}
                             </div>
