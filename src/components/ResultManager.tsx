@@ -7,6 +7,7 @@ import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
+import BulkReportCardGenerator from './BulkReportCardGenerator';
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics';
 
@@ -97,6 +98,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             submittedAssignments: number;
             studentCount: number;
             isFullyLocked: boolean;
+            isFullyPublished: boolean;
             reportsCount: number;
             publishedCount: number;
         }>();
@@ -119,6 +121,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     submittedAssignments: 0,
                     studentCount: studentsInClass.length,
                     isFullyLocked: false,
+                    isFullyPublished: false,
                     reportsCount: reportsForClass.length,
                     publishedCount: reportsForClass.filter(r => r.is_published).length,
                 });
@@ -130,9 +133,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             if (a.submitted_at) classData.submittedAssignments++;
         });
 
-        // Mark classes as fully locked if all assignments are locked
+        // Mark classes as fully locked/published if all assignments/reports meet criteria
         classMap.forEach(c => {
             c.isFullyLocked = c.totalAssignments > 0 && c.lockedAssignments === c.totalAssignments;
+            c.isFullyPublished = c.reportsCount > 0 && c.publishedCount === c.reportsCount;
         });
 
         let classes = Array.from(classMap.values());
@@ -145,6 +149,20 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         
         return classes.sort((a, b) => a.name.localeCompare(b.name));
     }, [selectedTermId, assignmentsForTerm, academicClassStudents, studentTermReports, searchQuery]);
+    
+    // Compute term-level publish status
+    const termPublishStatus = useMemo(() => {
+        if (!selectedTermId) return { allPublished: false, totalReports: 0, publishedReports: 0 };
+        
+        const reportsForTerm = studentTermReports.filter(r => r.term_id === selectedTermId);
+        const publishedReports = reportsForTerm.filter(r => r.is_published);
+        
+        return {
+            allPublished: reportsForTerm.length > 0 && publishedReports.length === reportsForTerm.length,
+            totalReports: reportsForTerm.length,
+            publishedReports: publishedReports.length
+        };
+    }, [selectedTermId, studentTermReports]);
     
     const getGradingSchemeForAssignment = (assignment: AcademicTeachingAssignment) => {
         // 1. Try Class Specific
@@ -196,6 +214,38 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
+    // Unpublish results for an entire class
+    const handleUnpublishClass = async (classId: number, className: string) => {
+        if (!canLock || !selectedTermId) return;
+        
+        if (!window.confirm(`Are you sure you want to UNPUBLISH results for ${className}? Students will no longer be able to see their reports.`)) return;
+
+        setPublishingClassId(classId);
+        try {
+            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
+            const studentIds = studentsInClass.map(s => s.student_id);
+
+            if (studentIds.length === 0) {
+                addToast('No students found in this class.', 'error');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('student_term_reports')
+                .update({ is_published: false })
+                .eq('term_id', selectedTermId)
+                .in('student_id', studentIds);
+            
+            if (error) throw error;
+            
+            addToast(`Results for ${className} unpublished successfully!`, 'success');
+        } catch (e: any) {
+            addToast(`Unpublish failed: ${e.message}`, 'error');
+        } finally {
+            setPublishingClassId(null);
+        }
+    };
+
     // Lock all subjects for an entire class
     const handleLockClass = async (classId: number, className: string) => {
         if (!canLock) return;
@@ -217,6 +267,36 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast(`All subjects for ${className} have been locked.`, 'success');
         } catch (e: any) {
             addToast(`Lock failed: ${e.message}`, 'error');
+        } finally {
+            setPublishingClassId(null);
+        }
+    };
+
+    // Unlock all subjects for an entire class
+    const handleUnlockClass = async (classId: number, className: string) => {
+        if (!canLock) return;
+        
+        const classAssignments = assignmentsForTerm.filter(a => a.academic_class_id === classId && a.is_locked);
+        
+        if (classAssignments.length === 0) {
+            addToast('No locked subjects found for this class.', 'info');
+            return;
+        }
+
+        if (!window.confirm(`Unlock all ${classAssignments.length} subject(s) for ${className}? Teachers will be able to edit scores again.`)) return;
+
+        setPublishingClassId(classId);
+        try {
+            const { error } = await supabase
+                .from('academic_teaching_assignments')
+                .update({ is_locked: false })
+                .eq('academic_class_id', classId)
+                .eq('term_id', selectedTermId);
+            
+            if (error) throw error;
+            addToast(`All subjects for ${className} have been unlocked.`, 'success');
+        } catch (e: any) {
+            addToast(`Unlock failed: ${e.message}`, 'error');
         } finally {
             setPublishingClassId(null);
         }
@@ -307,6 +387,27 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast("Results published successfully!", "success");
         } catch (e: any) {
             addToast(`Publish failed: ${e.message}`, "error");
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+    // Unpublish Reports for a Term
+    const handleUnpublishTerm = async () => {
+        if (!selectedTermId) return;
+        if (!window.confirm("Are you sure you want to UNPUBLISH all results for this term? Students will no longer be able to see their reports.")) return;
+
+        setIsPublishing(true);
+        try {
+            const { error } = await supabase
+                .from('student_term_reports')
+                .update({ is_published: false })
+                .eq('term_id', selectedTermId);
+            
+            if (error) throw error;
+            addToast("Results unpublished successfully!", "success");
+        } catch (e: any) {
+            addToast(`Unpublish failed: ${e.message}`, "error");
         } finally {
             setIsPublishing(false);
         }
@@ -469,9 +570,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     };
 
     const handleEditClass = (classId: number, termId: number) => {
-        setScorePreviewFilters({ termId, classId });
-        setScorePreviewMode('edit');
-        setShowScorePreview(true);
+        navigateToScoreReviewWithFilters({
+            termId,
+            classId,
+            edit: true
+        });
     };
 
     const handleViewSubject = (assignment: AcademicTeachingAssignment) => {
@@ -485,13 +588,12 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     };
 
     const handleEditSubject = (assignment: AcademicTeachingAssignment) => {
-        setScorePreviewFilters({
+        navigateToScoreReviewWithFilters({
             termId: assignment.term_id,
             classId: assignment.academic_class_id,
-            subject: assignment.subject_name
+            subject: assignment.subject_name,
+            edit: true
         });
-        setScorePreviewMode('edit');
-        setShowScorePreview(true);
     };
     
     // Helper to open Score Review page (for users who want full page)
@@ -597,14 +699,25 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             {isGeneratingComments === 9999 ? <Spinner size="sm"/> : <WandIcon className="w-5 h-5" />}
                             Gen. Principal Comments
                         </button>
-                        <button 
-                            onClick={handlePublishTerm} 
-                            disabled={isPublishing}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-green-400"
-                        >
-                            {isPublishing ? <Spinner size="sm"/> : <GlobeIcon className="w-5 h-5" />}
-                            Publish All Results
-                        </button>
+                        {!termPublishStatus.allPublished ? (
+                            <button 
+                                onClick={handlePublishTerm} 
+                                disabled={isPublishing}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-green-400"
+                            >
+                                {isPublishing ? <Spinner size="sm"/> : <GlobeIcon className="w-5 h-5" />}
+                                Publish All Results
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={handleUnpublishTerm} 
+                                disabled={isPublishing}
+                                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:bg-orange-400"
+                            >
+                                {isPublishing ? <Spinner size="sm"/> : <GlobeIcon className="w-5 h-5" />}
+                                Unpublish All Results
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -647,7 +760,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Published:</span>
-                                        <span className={`font-medium ${c.publishedCount === c.reportsCount && c.reportsCount > 0 ? 'text-green-600' : ''}`}>
+                                        <span className={`font-medium ${c.isFullyPublished ? 'text-green-600' : ''}`}>
                                             {c.publishedCount}/{c.reportsCount}
                                         </span>
                                     </div>
@@ -673,7 +786,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                 Lock All Scores
                                             </button>
                                         )}
-                                        {canLock && (
+                                        {canLock && c.isFullyLocked && (
+                                            <button
+                                                onClick={() => handleUnlockClass(c.id, c.name)}
+                                                disabled={publishingClassId === c.id}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                                            >
+                                                {publishingClassId === c.id ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
+                                                Unlock All Scores
+                                            </button>
+                                        )}
+                                        {canLock && !c.isFullyPublished && (
                                             <button
                                                 onClick={() => handlePublishClass(c.id, c.name)}
                                                 disabled={publishingClassId === c.id || c.reportsCount === 0}
@@ -681,6 +804,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                             >
                                                 {publishingClassId === c.id ? <Spinner size="sm" /> : <GlobeIcon className="w-4 h-4" />}
                                                 Publish Class
+                                            </button>
+                                        )}
+                                        {canLock && c.isFullyPublished && (
+                                            <button
+                                                onClick={() => handleUnpublishClass(c.id, c.name)}
+                                                disabled={publishingClassId === c.id}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                                            >
+                                                {publishingClassId === c.id ? <Spinner size="sm" /> : <GlobeIcon className="w-4 h-4" />}
+                                                Unpublish Class
                                             </button>
                                         )}
                                     </div>
@@ -955,6 +1088,26 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         </div>
                     </div>
                 </div>
+            )}
+            
+            {/* Bulk Report Card Generator Modal */}
+            {showBulkGenerator && selectedClassForBulk && selectedTermId && (
+                <BulkReportCardGenerator
+                    classId={selectedClassForBulk.id}
+                    className={selectedClassForBulk.name}
+                    termId={Number(selectedTermId)}
+                    termName={terms.find(t => t.id === selectedTermId)?.term_label || ''}
+                    students={students.filter(s => 
+                        academicClassStudents.some(acs => 
+                            acs.academic_class_id === selectedClassForBulk.id && 
+                            acs.student_id === s.id
+                        )
+                    )}
+                    onClose={handleCloseBulkGenerator}
+                    addToast={addToast}
+                    schoolConfig={schoolConfig}
+                    gradingSchemes={gradingSchemes}
+                />
             )}
         </div>
     );
