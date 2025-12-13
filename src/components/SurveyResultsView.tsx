@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { aiClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
 import type { SurveyWithQuestions, DetailedSurveyResponse } from '../types';
 import Spinner from './common/Spinner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { DownloadIcon, WandIcon } from './common/icons';
 import { exportToCsv } from '../utils/export';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 interface SurveyResultsViewProps {
   survey: SurveyWithQuestions;
@@ -117,10 +117,14 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
         if (!question.results || question.results.length === 0) return;
         setSummarizingQuestionId(question.question_id);
         try {
+            const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI client not ready");
             const prompt = `Please summarize the key themes and overall sentiment from the following list of short answer responses:\n\n${question.results.join('\n- ')}`;
-            const response = await aiClient.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setSummaries(prev => ({ ...prev, [question.question_id]: textFromGemini(response) }));
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+            });
+            setSummaries(prev => ({ ...prev, [question.question_id]: textFromAI(response) }));
         } catch (e) {
             console.error(e);
             setSummaries(prev => ({ ...prev, [question.question_id]: "Failed to generate summary." }));
@@ -153,6 +157,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
                 throw new Error(error?.message || "Could not fetch detailed results for analysis.");
             }
 
+            const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI client not ready.");
             
             const promptContext = `
@@ -178,9 +183,13 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
             ${promptContext}
             `;
             
-            const responseStream = await aiClient.models.generateContentStream({ model: 'gemini-2.5-flash', contents: prompt });
-            for await (const chunk of responseStream) {
-                setAiAnalysis(prev => (prev || '') + textFromGemini(chunk));
+            const stream = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                stream: true,
+            });
+            for await (const chunk of stream) {
+                setAiAnalysis(prev => (prev || '') + (chunk.choices[0]?.delta?.content || ''));
             }
 
         } catch (err: any) {

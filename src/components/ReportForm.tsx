@@ -7,9 +7,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ReportType, type Student, type UserProfile } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, WandIcon } from './common/icons';
-import { aiClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
 import { VIEWS } from '../constants';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 interface ReportFormProps {
   students: Student[];
@@ -142,6 +142,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ students, users, onSubmit, onCa
 
     setIsEnhancing(true);
     try {
+      const aiClient = getAIClient();
       if (!aiClient) {
         throw new Error("AI Client is not available.");
       }
@@ -155,9 +156,12 @@ const ReportForm: React.FC<ReportFormProps> = ({ students, users, onSubmit, onCa
       
       Enhanced Report:`;
 
-      const response = await aiClient.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+      const response = await aiClient.chat.completions.create({
+        model: getCurrentModel(),
+        messages: [{ role: 'user', content: prompt }],
+      });
       
-      setReportText(textFromGemini(response));
+      setReportText(textFromAI(response));
       addToast('Report enhanced by AI.', 'success');
 
     } catch (error) {
