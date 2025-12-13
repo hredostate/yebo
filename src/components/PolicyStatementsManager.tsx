@@ -345,6 +345,9 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
         
         const dataToFilter = complianceTab === 'acknowledged' ? complianceData.acknowledged : complianceData.pending;
         
+        // Move search term processing outside the loop
+        const searchLower = complianceSearch.toLowerCase();
+        
         return dataToFilter.filter(user => {
             // Apply type filter
             if (complianceFilter !== 'all' && user.type !== complianceFilter) {
@@ -353,9 +356,9 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
             
             // Apply search filter
             if (complianceSearch) {
-                const searchLower = complianceSearch.toLowerCase();
+                const userName = user.name || '';
                 return (
-                    user.name.toLowerCase().includes(searchLower) ||
+                    userName.toLowerCase().includes(searchLower) ||
                     (user.email && user.email.toLowerCase().includes(searchLower)) ||
                     (user.role && user.role.toLowerCase().includes(searchLower)) ||
                     (user.class_name && user.class_name.toLowerCase().includes(searchLower))
