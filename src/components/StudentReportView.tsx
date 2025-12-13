@@ -802,18 +802,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             }
             
             body {
-              background: white;
+              background: white !important;
             }
             
             /* Hide screen-only elements */
-            .print\\:hidden,
             .no-print {
               display: none !important;
-            }
-            
-            /* Show print-only elements */
-            .hidden.print\\:block {
-              display: block !important;
             }
             
             .printable-report {
@@ -827,6 +821,47 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             /* Prevent page breaks inside elements */
             .page-break-inside-avoid {
               page-break-inside: avoid;
+            }
+            
+            /* Ensure grid layouts display properly in print */
+            .grid {
+              display: grid !important;
+            }
+            
+            /* Preserve background colors for cards and sections */
+            .bg-white,
+            .bg-slate-50,
+            .bg-slate-100,
+            .bg-gray-50,
+            .bg-gray-100,
+            .bg-blue-50,
+            .bg-green-50,
+            .bg-yellow-50,
+            .bg-red-50,
+            .bg-orange-50 {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Ensure charts render properly */
+            .recharts-wrapper,
+            .recharts-surface {
+              page-break-inside: avoid !important;
+            }
+            
+            /* Preserve borders */
+            .border,
+            .border-slate-200,
+            .border-slate-300,
+            .border-black {
+              border-color: currentColor !important;
+            }
+            
+            /* Maintain rounded corners */
+            .rounded,
+            .rounded-lg,
+            .rounded-xl {
+              border-radius: inherit !important;
             }
           }
         `}
@@ -865,8 +900,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           </div>
         </div>
 
-        {/* Screen-only view (hidden when printing) */}
-        <div className="print:hidden">
+        {/* Screen and print view - visible in both modes */}
+        <div>
           <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
             
             {/* --- CLASSIC, MODERN & PASTEL LAYOUTS SHARE STRUCTURE --- */}
@@ -1041,11 +1076,6 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             )}
 
           </div>
-        </div>
-
-        {/* Print-only view (hidden on screen, shown when printing) */}
-        <div className="hidden print:block">
-          {renderPrintableDesign()}
         </div>
       </div>
     </div>
