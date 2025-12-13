@@ -84,26 +84,57 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     useEffect(() => {
         try {
             const filtersJson = sessionStorage.getItem('scoreReviewFilters');
-            if (filtersJson) {
-                const filters = JSON.parse(filtersJson);
-                // Only use filters if they're recent (within last 5 seconds)
-                const age = Date.now() - (filters.timestamp || 0);
-                if (age < 5000) {
-                    if (filters.termId && !isNaN(filters.termId) && filters.termId > 0) {
-                        setSelectedTermId(filters.termId);
-                    }
-                    if (filters.classId && !isNaN(filters.classId) && filters.classId > 0) {
-                        setSelectedClassId(filters.classId);
-                    }
-                    if (filters.subject && typeof filters.subject === 'string') {
-                        setSelectedSubject(filters.subject.trim());
-                    }
+            if (!filtersJson) return;
+            
+            const filters = JSON.parse(filtersJson);
+            
+            // Validate the parsed object structure
+            if (!filters || typeof filters !== 'object') {
+                console.warn('Invalid score review filters structure');
+                return;
+            }
+            
+            // Only use filters if they're recent (within last 5 seconds)
+            const timestamp = filters.timestamp;
+            if (typeof timestamp !== 'number' || isNaN(timestamp)) {
+                console.warn('Invalid or missing timestamp in filters');
+                return;
+            }
+            
+            const age = Date.now() - timestamp;
+            if (age < 0 || age >= 5000) {
+                // Filters are stale or timestamp is in the future (possible tampering)
+                return;
+            }
+            
+            // Validate and apply termId
+            if (filters.termId !== undefined) {
+                const termId = Number(filters.termId);
+                if (!isNaN(termId) && termId > 0 && Number.isInteger(termId)) {
+                    setSelectedTermId(termId);
                 }
-                // Clear the filters from sessionStorage after using them
-                sessionStorage.removeItem('scoreReviewFilters');
+            }
+            
+            // Validate and apply classId
+            if (filters.classId !== undefined) {
+                const classId = Number(filters.classId);
+                if (!isNaN(classId) && classId > 0 && Number.isInteger(classId)) {
+                    setSelectedClassId(classId);
+                }
+            }
+            
+            // Validate and apply subject
+            if (filters.subject !== undefined) {
+                const subject = String(filters.subject).trim();
+                if (subject && subject.length > 0 && subject.length < 200) {
+                    setSelectedSubject(subject);
+                }
             }
         } catch (error) {
             console.error('Error parsing score review filters:', error);
+        } finally {
+            // Always clear the filters from sessionStorage after attempting to use them
+            sessionStorage.removeItem('scoreReviewFilters');
         }
     }, []);
 

@@ -346,57 +346,46 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setSelectedClassForBulk(null);
     };
 
-    // Navigate to Score Review with pre-applied filters
-    const handleViewClass = (classId: number, termId: number) => {
+    // Helper function to navigate to Score Review with filters
+    const navigateToScoreReviewWithFilters = (filters: {
+        termId: number;
+        classId: number;
+        subject?: string;
+        edit?: boolean;
+    }) => {
         if (onNavigate) {
-            // Store filter preferences in sessionStorage for ScoreReview to pick up
             sessionStorage.setItem('scoreReviewFilters', JSON.stringify({
-                termId,
-                classId,
+                ...filters,
                 timestamp: Date.now()
             }));
             onNavigate('Score Review');
         }
+    };
+
+    // Navigate to Score Review with pre-applied filters
+    const handleViewClass = (classId: number, termId: number) => {
+        navigateToScoreReviewWithFilters({ termId, classId });
     };
 
     const handleEditClass = (classId: number, termId: number) => {
-        if (onNavigate) {
-            // Store filter preferences in sessionStorage for ScoreReview to pick up
-            sessionStorage.setItem('scoreReviewFilters', JSON.stringify({
-                termId,
-                classId,
-                edit: true,
-                timestamp: Date.now()
-            }));
-            onNavigate('Score Review');
-        }
+        navigateToScoreReviewWithFilters({ termId, classId, edit: true });
     };
 
     const handleViewSubject = (assignment: AcademicTeachingAssignment) => {
-        if (onNavigate) {
-            // Store filter preferences in sessionStorage for ScoreReview to pick up
-            sessionStorage.setItem('scoreReviewFilters', JSON.stringify({
-                termId: assignment.term_id,
-                classId: assignment.academic_class_id,
-                subject: assignment.subject_name,
-                timestamp: Date.now()
-            }));
-            onNavigate('Score Review');
-        }
+        navigateToScoreReviewWithFilters({
+            termId: assignment.term_id,
+            classId: assignment.academic_class_id,
+            subject: assignment.subject_name
+        });
     };
 
     const handleEditSubject = (assignment: AcademicTeachingAssignment) => {
-        if (onNavigate) {
-            // Store filter preferences in sessionStorage for ScoreReview to pick up
-            sessionStorage.setItem('scoreReviewFilters', JSON.stringify({
-                termId: assignment.term_id,
-                classId: assignment.academic_class_id,
-                subject: assignment.subject_name,
-                edit: true,
-                timestamp: Date.now()
-            }));
-            onNavigate('Score Review');
-        }
+        navigateToScoreReviewWithFilters({
+            termId: assignment.term_id,
+            classId: assignment.academic_class_id,
+            subject: assignment.subject_name,
+            edit: true
+        });
     };
 
     return (
