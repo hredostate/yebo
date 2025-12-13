@@ -128,7 +128,7 @@ const BankDetailsModal: React.FC<{
     );
 };
 
-type ModuleSection = 'overview' | 'my_payslips' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'payroll_history' | 'staff_data' | 'adjustments' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
+type ModuleSection = 'overview' | 'my_payslips' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'payroll_history' | 'staff_data' | 'adjustments' | 'pension' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
 
 const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     userProfile,
