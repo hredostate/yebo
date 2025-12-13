@@ -344,6 +344,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 academicClasses={data.academicClasses}
                 terms={data.terms}
                 studentSubjectEnrollments={data.studentSubjectEnrollments}
+                academicClassStudents={data.academicClassStudents}
                 onRefreshData={actions.reloadData}
                 addToast={actions.addToast}
             />;

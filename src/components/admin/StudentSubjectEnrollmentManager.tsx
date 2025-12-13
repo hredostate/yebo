@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import type { Student, AcademicClass, Term, StudentSubjectEnrollment } from '../../types';
+import type { Student, AcademicClass, Term, StudentSubjectEnrollment, AcademicClassStudent } from '../../types';
 import Spinner from '../common/Spinner';
 import { SearchIcon, CheckCircleIcon, XCircleIcon, DownloadIcon, UploadCloudIcon } from '../common/icons';
 
@@ -12,6 +12,7 @@ interface StudentSubjectEnrollmentManagerProps {
   academicClasses: AcademicClass[];
   terms: Term[];
   studentSubjectEnrollments: StudentSubjectEnrollment[];
+  academicClassStudents: AcademicClassStudent[];
   onRefreshData: () => Promise<void>;
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -23,6 +24,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   academicClasses,
   terms,
   studentSubjectEnrollments,
+  academicClassStudents,
   onRefreshData,
   addToast 
 }) => {
@@ -50,13 +52,24 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   }, [academicClasses]);
 
   // Get students to show for the selected academic class and term
-  // Note: This shows all students in the school. In production, you may want to
-  // filter by academic_class_students to only show students enrolled in the selected class.
+  // Only show students enrolled in the selected academic class for the selected term
   const enrolledStudents = useMemo(() => {
     if (!selectedAcademicClassId || !selectedTermId) return [];
     
-    return students.sort((a, b) => a.name.localeCompare(b.name));
-  }, [students, selectedAcademicClassId, selectedTermId]);
+    // Get student IDs enrolled in this academic class for this term
+    const studentIdsInClass = new Set(
+      academicClassStudents
+        .filter(acs => 
+          acs.academic_class_id === selectedAcademicClassId && 
+          acs.enrolled_term_id === selectedTermId
+        )
+        .map(acs => acs.student_id)
+    );
+    
+    return students
+      .filter(s => studentIdsInClass.has(s.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [students, selectedAcademicClassId, selectedTermId, academicClassStudents]);
 
   // Get subjects for the selected class
   useEffect(() => {
@@ -123,19 +136,37 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
     );
   }, [enrolledStudents, searchTerm]);
 
-  // Check if a student is enrolled in a subject
-  const isEnrolled = useCallback((studentId: number, subjectId: number) => {
-    if (!selectedAcademicClassId || !selectedTermId) return false;
+  // Helper function to generate enrollment lookup key
+  const getEnrollmentKey = (studentId: number, subjectId: number) => 
+    `${studentId}:${subjectId}`;
+
+  // Create a lookup map for O(1) enrollment checks
+  const enrollmentMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (!selectedAcademicClassId || !selectedTermId) return map;
     
-    const enrollment = studentSubjectEnrollments.find(sse =>
-      sse.student_id === studentId &&
-      sse.subject_id === subjectId &&
+    // Pre-filter enrollments for the selected class and term
+    const relevantEnrollments = studentSubjectEnrollments.filter(sse =>
       sse.academic_class_id === selectedAcademicClassId &&
       sse.term_id === selectedTermId
     );
     
-    return enrollment?.is_enrolled ?? false;
+    // Build lookup map with composite key
+    for (const sse of relevantEnrollments) {
+      const key = getEnrollmentKey(sse.student_id, sse.subject_id);
+      map.set(key, sse.is_enrolled);
+    }
+    
+    return map;
   }, [studentSubjectEnrollments, selectedAcademicClassId, selectedTermId]);
+
+  // Check if a student is enrolled in a subject - O(1) lookup
+  const isEnrolled = useCallback((studentId: number, subjectId: number) => {
+    if (!selectedAcademicClassId || !selectedTermId) return false;
+    
+    const key = getEnrollmentKey(studentId, subjectId);
+    return enrollmentMap.get(key) ?? false;
+  }, [enrollmentMap, selectedAcademicClassId, selectedTermId]);
 
   // Toggle enrollment for a student-subject combination
   const toggleEnrollment = async (studentId: number, subjectId: number) => {
