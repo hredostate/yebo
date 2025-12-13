@@ -242,35 +242,38 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           }
       }
 
-      // 3. Fetch Class Config (Layout/Design)
-      // We need the AcademicClass record for this report to get `report_config`
-      // The RPC return might not have it fully. Let's fetch it.
-      if (data.student.className) {
-           // Best effort lookup by name (RPC returns name string)
-           // Or fetch from `academic_class_students` -> `academic_classes`
-           const { data: classData } = await supabase.from('academic_classes')
-             .select('report_config, assessment_structure_id')
-             .eq('session_label', data.term.sessionLabel)
-             .textSearch('name', data.student.className) // Rough match, ideally we'd have classId in RPC
-             .limit(1)
-             .maybeSingle();
-             
-           if (classData && classData.report_config) {
-               data.classReportConfig = classData.report_config;
-           }
-           
-           // Fetch assessment structure to get component definitions
-           if (classData?.assessment_structure_id) {
-               const { data: assessmentStructure } = await supabase
-                   .from('assessment_structures')
-                   .select('components')
-                   .eq('id', classData.assessment_structure_id)
-                   .maybeSingle();
-               
-               if (assessmentStructure?.components) {
-                   setAssessmentComponents(assessmentStructure.components);
-               }
-           }
+      // 3. Fetch Class Config (Layout/Design) - FIXED VERSION
+      // First, get the academic_class_id from academic_class_students
+      const { data: enrollment } = await supabase
+          .from('academic_class_students')
+          .select('academic_class_id')
+          .eq('student_id', studentId)
+          .eq('enrolled_term_id', termId)
+          .maybeSingle();
+
+      if (enrollment?.academic_class_id) {
+          const { data: classData } = await supabase
+              .from('academic_classes')
+              .select('report_config, assessment_structure_id')
+              .eq('id', enrollment.academic_class_id)
+              .maybeSingle();
+          
+          if (classData?.report_config) {
+              data.classReportConfig = classData.report_config;
+          }
+          
+          // Fetch assessment structure to get component definitions
+          if (classData?.assessment_structure_id) {
+              const { data: assessmentStructure } = await supabase
+                  .from('assessment_structures')
+                  .select('components')
+                  .eq('id', classData.assessment_structure_id)
+                  .maybeSingle();
+              
+              if (assessmentStructure?.components) {
+                  setAssessmentComponents(assessmentStructure.components);
+              }
+          }
       }
 
       setReportDetails(data);
