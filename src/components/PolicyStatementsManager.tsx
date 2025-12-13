@@ -19,6 +19,22 @@ interface PolicyFormData {
     effective_date: string;
 }
 
+interface ComplianceUser {
+    id: string | number;
+    name: string;
+    role?: string;
+    class_name?: string;
+    email?: string;
+    acknowledged_at?: string;
+    full_name_entered?: string;
+    type: 'staff' | 'student';
+}
+
+interface ComplianceData {
+    acknowledged: ComplianceUser[];
+    pending: ComplianceUser[];
+}
+
 const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
     userProfile,
     onShowToast,
@@ -38,6 +54,14 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
     });
     const [isSaving, setIsSaving] = useState(false);
     const [acknowledgmentStats, setAcknowledgmentStats] = useState<Record<number, { total: number; acknowledged: number }>>({});
+    
+    // Compliance dashboard state
+    const [expandedPolicyId, setExpandedPolicyId] = useState<number | null>(null);
+    const [complianceTab, setComplianceTab] = useState<'acknowledged' | 'pending'>('acknowledged');
+    const [complianceData, setComplianceData] = useState<ComplianceData | null>(null);
+    const [complianceFilter, setComplianceFilter] = useState<'all' | 'staff' | 'student'>('all');
+    const [complianceSearch, setComplianceSearch] = useState('');
+    const [isLoadingCompliance, setIsLoadingCompliance] = useState(false);
 
     useEffect(() => {
         loadPolicies();
@@ -137,6 +161,194 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
         } catch (error) {
             console.error('Failed to load acknowledgment stats:', error);
         }
+    };
+
+    const loadComplianceDetails = async (policy: PolicyStatement) => {
+        setIsLoadingCompliance(true);
+        try {
+            // Fetch acknowledgments from the new policy_acknowledgments table
+            const { data: acknowledgments, error: ackError } = await supabase
+                .from('policy_acknowledgments')
+                .select(`
+                    *,
+                    user_profiles:user_id (id, name, role, email),
+                    students:student_id (id, name, email, class:classes(name))
+                `)
+                .eq('policy_id', policy.id)
+                .eq('policy_version', policy.version);
+
+            if (ackError) throw ackError;
+
+            // Build acknowledged list
+            const acknowledged: ComplianceUser[] = (acknowledgments || []).map((ack: any) => {
+                if (ack.user_profiles) {
+                    return {
+                        id: ack.user_profiles.id,
+                        name: ack.user_profiles.name,
+                        role: ack.user_profiles.role,
+                        email: ack.user_profiles.email,
+                        acknowledged_at: ack.acknowledged_at,
+                        full_name_entered: ack.full_name_entered,
+                        type: 'staff' as const
+                    };
+                } else if (ack.students) {
+                    return {
+                        id: ack.students.id,
+                        name: ack.students.name,
+                        class_name: ack.students.class?.name,
+                        email: ack.students.email,
+                        acknowledged_at: ack.acknowledged_at,
+                        full_name_entered: ack.full_name_entered,
+                        type: 'student' as const
+                    };
+                }
+                return null;
+            }).filter(Boolean) as ComplianceUser[];
+
+            // Fetch all users and students to find who's pending
+            const pending: ComplianceUser[] = [];
+
+            if (policy.target_audience.includes('staff')) {
+                const { data: allStaff } = await supabase
+                    .from('user_profiles')
+                    .select('id, name, role, email')
+                    .eq('school_id', userProfile.school_id);
+
+                if (allStaff) {
+                    const acknowledgedStaffIds = new Set(
+                        acknowledged.filter(u => u.type === 'staff').map(u => u.id)
+                    );
+                    
+                    for (const staff of allStaff) {
+                        if (!acknowledgedStaffIds.has(staff.id)) {
+                            pending.push({
+                                id: staff.id,
+                                name: staff.name,
+                                role: staff.role,
+                                email: staff.email,
+                                type: 'staff'
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (policy.target_audience.includes('student')) {
+                const { data: allStudents } = await supabase
+                    .from('students')
+                    .select('id, name, email, class:classes(name)')
+                    .eq('school_id', userProfile.school_id);
+
+                if (allStudents) {
+                    const acknowledgedStudentIds = new Set(
+                        acknowledged.filter(u => u.type === 'student').map(u => u.id)
+                    );
+                    
+                    for (const student of allStudents) {
+                        if (!acknowledgedStudentIds.has(student.id)) {
+                            pending.push({
+                                id: student.id,
+                                name: student.name,
+                                class_name: student.class?.name,
+                                email: student.email,
+                                type: 'student'
+                            });
+                        }
+                    }
+                }
+            }
+
+            setComplianceData({ acknowledged, pending });
+        } catch (error) {
+            console.error('Failed to load compliance details:', error);
+            onShowToast('Failed to load compliance details', 'error');
+        } finally {
+            setIsLoadingCompliance(false);
+        }
+    };
+
+    const toggleComplianceSection = (policyId: number, policy: PolicyStatement) => {
+        if (expandedPolicyId === policyId) {
+            // Collapse
+            setExpandedPolicyId(null);
+            setComplianceData(null);
+            setComplianceSearch('');
+            setComplianceFilter('all');
+            setComplianceTab('acknowledged');
+        } else {
+            // Expand
+            setExpandedPolicyId(policyId);
+            setComplianceSearch('');
+            setComplianceFilter('all');
+            setComplianceTab('acknowledged');
+            loadComplianceDetails(policy);
+        }
+    };
+
+    const exportComplianceCSV = (policyTitle: string, data: ComplianceData, tab: 'acknowledged' | 'pending') => {
+        const rows = tab === 'acknowledged' 
+            ? data.acknowledged.map(u => ({
+                Name: u.name,
+                Type: u.type,
+                Role: u.role || u.class_name || '',
+                Email: u.email || '',
+                'Acknowledged Date': u.acknowledged_at ? new Date(u.acknowledged_at).toLocaleDateString() : '',
+                'Signature': u.full_name_entered || ''
+              }))
+            : data.pending.map(u => ({
+                Name: u.name,
+                Type: u.type,
+                Role: u.role || u.class_name || '',
+                Email: u.email || ''
+              }));
+
+        // Convert to CSV
+        const headers = Object.keys(rows[0] || {}).join(',');
+        const csvRows = rows.map(row => 
+            Object.values(row).map(val => 
+                typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+            ).join(',')
+        );
+        const csv = [headers, ...csvRows].join('\n');
+
+        // Download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${policyTitle.replace(/[^a-z0-9]/gi, '_')}_${tab}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        onShowToast('CSV exported successfully', 'success');
+    };
+
+    const getFilteredComplianceData = () => {
+        if (!complianceData) return [];
+        
+        const dataToFilter = complianceTab === 'acknowledged' ? complianceData.acknowledged : complianceData.pending;
+        
+        return dataToFilter.filter(user => {
+            // Apply type filter
+            if (complianceFilter !== 'all' && user.type !== complianceFilter) {
+                return false;
+            }
+            
+            // Apply search filter
+            if (complianceSearch) {
+                const searchLower = complianceSearch.toLowerCase();
+                return (
+                    user.name.toLowerCase().includes(searchLower) ||
+                    (user.email && user.email.toLowerCase().includes(searchLower)) ||
+                    (user.role && user.role.toLowerCase().includes(searchLower)) ||
+                    (user.class_name && user.class_name.toLowerCase().includes(searchLower))
+                );
+            }
+            
+            return true;
+        });
     };
 
     const handleCreate = () => {
@@ -336,23 +548,182 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Acknowledgment Stats */}
+                                {/* Acknowledgment Stats with Expandable Compliance Dashboard */}
                                 {policy.requires_acknowledgment && (
-                                    <div className="mt-4 p-4 bg-slate-500/10 rounded-lg">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                Acknowledgment Progress
-                                            </span>
-                                            <span className="text-sm text-slate-600 dark:text-slate-400">
-                                                {stats.acknowledged} / {stats.total} ({percentage}%)
-                                            </span>
+                                    <div className="mt-4">
+                                        <div 
+                                            className="p-4 bg-slate-500/10 rounded-lg cursor-pointer hover:bg-slate-500/15 transition-colors"
+                                            onClick={() => toggleComplianceSection(policy.id, policy)}
+                                        >
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                    Acknowledgment Progress
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-slate-600 dark:text-slate-400">
+                                                        {stats.acknowledged} / {stats.total} ({percentage}%)
+                                                    </span>
+                                                    <svg 
+                                                        className={`w-5 h-5 text-slate-600 dark:text-slate-400 transition-transform ${
+                                                            expandedPolicyId === policy.id ? 'rotate-180' : ''
+                                                        }`}
+                                                        fill="none" 
+                                                        stroke="currentColor" 
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-slate-300/30 dark:bg-slate-700/30 rounded-full h-2">
+                                                <div
+                                                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${percentage}%` }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-slate-300/30 dark:bg-slate-700/30 rounded-full h-2">
-                                            <div
-                                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${percentage}%` }}
-                                            />
-                                        </div>
+
+                                        {/* Expandable Compliance Details */}
+                                        {expandedPolicyId === policy.id && (
+                                            <div className="mt-4 p-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
+                                                {isLoadingCompliance ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <Spinner size="md" />
+                                                        <span className="ml-3 text-slate-600 dark:text-slate-400">Loading compliance data...</span>
+                                                    </div>
+                                                ) : complianceData ? (
+                                                    <>
+                                                        {/* Header with Tabs and Export */}
+                                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => setComplianceTab('acknowledged')}
+                                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                                        complianceTab === 'acknowledged'
+                                                                            ? 'bg-green-600 text-white'
+                                                                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                                                    }`}
+                                                                >
+                                                                    ✅ Acknowledged ({complianceData.acknowledged.length})
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setComplianceTab('pending')}
+                                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                                        complianceTab === 'pending'
+                                                                            ? 'bg-amber-600 text-white'
+                                                                            : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                                                    }`}
+                                                                >
+                                                                    ⚠️ Pending ({complianceData.pending.length})
+                                                                </button>
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    exportComplianceCSV(policy.title, complianceData, complianceTab);
+                                                                }}
+                                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                                Export CSV
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Search and Filters */}
+                                                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="🔍 Search by name, email, or role..."
+                                                                value={complianceSearch}
+                                                                onChange={(e) => setComplianceSearch(e.target.value)}
+                                                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
+                                                            />
+                                                            {policy.target_audience.length > 1 && (
+                                                                <select
+                                                                    value={complianceFilter}
+                                                                    onChange={(e) => setComplianceFilter(e.target.value as 'all' | 'staff' | 'student')}
+                                                                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
+                                                                >
+                                                                    <option value="all">All</option>
+                                                                    <option value="staff">Staff Only</option>
+                                                                    <option value="student">Students Only</option>
+                                                                </select>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Data Table */}
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm">
+                                                                <thead className="bg-slate-200/50 dark:bg-slate-700/50">
+                                                                    <tr>
+                                                                        <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Name</th>
+                                                                        <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Type</th>
+                                                                        <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Role/Class</th>
+                                                                        {complianceTab === 'acknowledged' && (
+                                                                            <>
+                                                                                <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Date</th>
+                                                                                <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Signature</th>
+                                                                            </>
+                                                                        )}
+                                                                        {complianceTab === 'pending' && (
+                                                                            <th className="px-4 py-2 text-left text-slate-700 dark:text-slate-300 font-semibold">Email</th>
+                                                                        )}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                                                    {getFilteredComplianceData().length === 0 ? (
+                                                                        <tr>
+                                                                            <td colSpan={complianceTab === 'acknowledged' ? 5 : 4} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                                                                                No {complianceTab} users found
+                                                                            </td>
+                                                                        </tr>
+                                                                    ) : (
+                                                                        getFilteredComplianceData().map((user, idx) => (
+                                                                            <tr key={`${user.type}-${user.id}-${idx}`} className="hover:bg-slate-100/50 dark:hover:bg-slate-700/30">
+                                                                                <td className="px-4 py-3 text-slate-900 dark:text-white">{user.name}</td>
+                                                                                <td className="px-4 py-3">
+                                                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                                                        user.type === 'staff' 
+                                                                                            ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                                                                                            : 'bg-purple-500/20 text-purple-700 dark:text-purple-300'
+                                                                                    }`}>
+                                                                                        {user.type}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                                                    {user.role || user.class_name || '-'}
+                                                                                </td>
+                                                                                {complianceTab === 'acknowledged' && (
+                                                                                    <>
+                                                                                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                                                            {user.acknowledged_at ? new Date(user.acknowledged_at).toLocaleDateString() : '-'}
+                                                                                        </td>
+                                                                                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                                                            {user.full_name_entered || '-'}
+                                                                                        </td>
+                                                                                    </>
+                                                                                )}
+                                                                                {complianceTab === 'pending' && (
+                                                                                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                                                        {user.email || '-'}
+                                                                                    </td>
+                                                                                )}
+                                                                            </tr>
+                                                                        ))
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                                                        Failed to load compliance data
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
