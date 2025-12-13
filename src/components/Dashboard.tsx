@@ -207,7 +207,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block shadow-lg shadow-indigo-500/50"></span>
                     {title}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {widgetsInThisSection.map(widgetId => (
                          <div key={widgetId} className="glass-panel rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.01] flex flex-col h-full">
                             {renderWidget(widgetId)}
@@ -221,18 +221,18 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     return (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
-                    <p className="text-slate-600 dark:text-slate-300 mt-1">Welcome back, <span className="font-semibold text-indigo-600 dark:text-indigo-400">{userProfile.name}</span>.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-1">Welcome back, <span className="font-semibold text-indigo-600 dark:text-indigo-400">{userProfile.name}</span>.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 w-full sm:w-auto">
                     <button 
                       onClick={() => setIsCustomizeModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-slate-800/80 border border-white/50 dark:border-slate-700 backdrop-blur-md text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm hover:shadow-md"
+                      className="flex items-center justify-center gap-2 px-4 py-2 min-h-touch bg-white/80 dark:bg-slate-800/80 border border-white/50 dark:border-slate-700 backdrop-blur-md text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm hover:shadow-md w-full sm:w-auto touch-target"
                     >
                         <CogIcon className="w-5 h-5" />
-                        Customize View
+                        <span className="sm:inline">Customize</span>
                     </button>
                 </div>
             </div>
