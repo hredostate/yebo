@@ -673,12 +673,21 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     
     // --- Render Student View ---
     if (isStudent) {
+         const studentClass = academicClasses.find(c => c.id === studentViewClassId);
+         
          return (
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
-                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                        <ClockIcon className="w-6 h-6 text-blue-600" /> Class Timetable
-                    </h1>
+                     <div>
+                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                            <ClockIcon className="w-6 h-6 text-blue-600" /> Class Timetable
+                        </h1>
+                        {studentClass && (
+                            <p className="text-slate-600 dark:text-slate-400 mt-1">
+                                {studentClass.name}
+                            </p>
+                        )}
+                     </div>
                      {isLoading && <Spinner size="sm" />}
                 </div>
                 
