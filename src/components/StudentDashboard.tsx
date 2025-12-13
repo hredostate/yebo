@@ -14,7 +14,8 @@ import {
   ClockIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  PencilIcon
+  PencilIcon,
+  GiftIcon
 } from './common/icons';
 import { VIEWS } from '../constants';
 
@@ -201,24 +202,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Comprehensive Feature Cards */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <PencilIcon className="h-8 w-8 text-blue-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Edit Profile</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <CalendarIcon className="h-8 w-8 text-green-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Request Absence</span>
-          </button>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">📚 Academic & Learning</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <button
             onClick={() => onNavigate(VIEWS.MY_SUBJECTS)}
             className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -227,11 +214,25 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">My Subjects</span>
           </button>
           <button
-            onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)}
+            onClick={() => onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}
             className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <ShieldIcon className="h-8 w-8 text-red-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Strikes</span>
+            <BookOpenIcon className="h-8 w-8 text-blue-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Lesson Plans</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.STUDENT_REPORTS)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <ChartBarIcon className="h-8 w-8 text-green-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Report Cards</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.STUDENT_HOMEWORK)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <PencilIcon className="h-8 w-8 text-orange-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">My Homework</span>
           </button>
           <button
             onClick={() => onNavigate(VIEWS.TIMETABLE)}
@@ -239,6 +240,62 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
           >
             <ClockIcon className="h-8 w-8 text-indigo-500" />
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Timetable</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Engagement Features */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">⭐ Engagement & Feedback</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <button
+            onClick={() => onNavigate(VIEWS.RATE_MY_TEACHER)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <StarIcon className="h-8 w-8 text-yellow-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Rate Teachers</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.STUDENT_SURVEYS)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <ClipboardListIcon className="h-8 w-8 text-blue-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Surveys & Quizzes</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Personal Management */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">👤 Personal & Admin</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <button
+            onClick={() => onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <UserCircleIcon className="h-8 w-8 text-blue-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Edit Profile</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <CalendarIcon className="h-8 w-8 text-green-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Absence Requests</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <ShieldIcon className="h-8 w-8 text-red-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Strikes & Appeals</span>
+          </button>
+          <button
+            onClick={() => onNavigate(VIEWS.STOREFRONT)}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <GiftIcon className="h-8 w-8 text-purple-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Reward Store</span>
           </button>
         </div>
       </div>

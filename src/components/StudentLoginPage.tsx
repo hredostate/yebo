@@ -251,19 +251,43 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
           <p className="mt-3 text-slate-600 dark:text-slate-300">Your personal hub for accessing lesson plans, tracking progress, and providing valuable feedback to your teachers.</p>
 
           <div className="mt-6 space-y-4 text-slate-700 dark:text-slate-200">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">🌟 Core Features</h2>
-            <ul className="list-disc pl-5 text-sm space-y-1">
-              <li>📚 Access your weekly lesson plans</li>
-              <li>📊 Track your progress & report cards</li>
-              <li>⭐ Rate your teachers & lessons</li>
-              <li>✅ Complete quizzes & surveys</li>
-            </ul>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">🌟 What You'll Access</h2>
+            <div className="grid grid-cols-1 gap-3 text-sm">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-2xl">📚</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Academic Hub</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Access lesson plans, homework, timetable & subjects</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-2xl">📊</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Track Progress</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">View report cards, grades & performance analytics</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-2xl">⭐</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Provide Feedback</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Rate teachers, complete surveys & quizzes</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-2xl">🎁</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Earn Rewards</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Collect points & redeem at the reward store</p>
+                </div>
+              </div>
+            </div>
 
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">🏫 Why It Matters</h2>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white pt-2">🏫 Why It Matters</h2>
             <ul className="list-disc pl-5 text-sm space-y-1">
-              <li>Helps you stay organized</li>
-              <li>Gives you a voice in your education</li>
-              <li>Connects you with your teachers</li>
+              <li>Stay organized & never miss assignments</li>
+              <li>Your voice shapes better learning experiences</li>
+              <li>Connect with teachers & track your growth</li>
             </ul>
           </div>
         </section>

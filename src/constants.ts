@@ -81,6 +81,7 @@ export const VIEWS = {
   STUDENT_PROFILE_EDIT: 'Student Profile Edit',
   STUDENT_STRIKES: 'My Strikes & Appeals',
   TAKE_QUIZ: 'Take Quiz',
+  QUIZ_TAKER: 'Take Quiz', // Alias for TAKE_QUIZ
   TAKE_SURVEY: 'Take Survey',
   SUBMIT_REPORT: 'Submit Report',
   REPORT_FEED: 'Report Feed',

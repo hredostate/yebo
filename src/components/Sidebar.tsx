@@ -348,16 +348,28 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
           ) : (
               /* Student Navigation */
               <ul className="space-y-2">
+                {/* Dashboard */}
                 <li>
                      <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_DASHBOARD)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_DASHBOARD ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <HomeIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>Dashboard</span>
                      </a>
                 </li>
+                
+                {/* Academic Section */}
+                <li className="pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">📚 Academic</p>
+                </li>
                 <li>
                      <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.MY_SUBJECTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.MY_SUBJECTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <BookOpenIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>My Subjects</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <BookOpenIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Lesson Plans</span>
                      </a>
                 </li>
                 <li>
@@ -373,15 +385,37 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_REPORTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <ChartBarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>Lesson Portal</span>
+                        <span>Report Cards</span>
                      </a>
                 </li>
-                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_REPORTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <FileTextIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>Report Cards</span>
+
+                {/* Engagement Section */}
+                <li className="pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">⭐ Engagement</p>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.RATE_MY_TEACHER ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <StarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Rate Teachers</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_SURVEYS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Surveys & Quizzes</span>
+                     </a>
+                </li>
+
+                {/* Personal Section */}
+                <li className="pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">👤 Personal</p>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <UserCircleIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>My Profile</span>
                      </a>
                 </li>
                 <li>
@@ -393,25 +427,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                 <li>
                      <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_STRIKES)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_STRIKES ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <ShieldIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>My Strikes</span>
+                        <span>Strikes & Appeals</span>
                      </a>
                 </li>
-                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.RATE_MY_TEACHER ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <StarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>Rate My Teacher</span>
-                     </a>
-                </li>
-                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_SURVEYS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>Surveys</span>
-                     </a>
+
+                {/* Rewards Section */}
+                <li className="pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">🎁 Rewards</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <UserCircleIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
-                        <span>My Profile</span>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STOREFRONT)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STOREFRONT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <GiftIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Store</span>
                      </a>
                 </li>
               </ul>
