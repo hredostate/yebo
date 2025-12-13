@@ -190,7 +190,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, users, onUpdateStat
                                                     <p className="text-sm text-slate-800 dark:text-slate-200">{note.note}</p>
                                                     <div className="flex justify-between items-center mt-2 text-xs text-slate-500">
                                                         <span>{note.author?.name} • {new Date(note.created_at).toLocaleDateString()}</span>
-                                                        <button onClick={() => onDeleteNote(note.id)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => {
+                                                            if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+                                                                onDeleteNote(note.id);
+                                                            }
+                                                        }} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <TrashIcon className="w-3 h-3" />
                                                         </button>
                                                     </div>
