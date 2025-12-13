@@ -284,6 +284,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                                     academicClasses={academicClasses}
                                     terms={terms}
                                     studentSubjectEnrollments={studentSubjectEnrollments}
+                                    academicClassStudents={academicClassStudents}
                                     onRefreshData={onRefreshData}
                                     addToast={addToast}
                                 />
