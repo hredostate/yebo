@@ -249,7 +249,7 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <BookOpenIcon className="w-8 h-8 text-blue-600" />
+            <BookOpenIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             Student Subject Choices
           </h1>
           <p className="text-slate-600 dark:text-slate-300 mt-1">View and export student subject selections</p>
@@ -393,7 +393,7 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-slate-700 dark:text-slate-300">
                         {choice.class_name || 'N/A'}
-                        {choice.arm_name && <span className="text-slate-500 dark:text-slate-500"> - {choice.arm_name}</span>}
+                        {choice.arm_name && <span className="text-slate-500 dark:text-slate-400"> - {choice.arm_name}</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -408,7 +408,7 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-500">None</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">None</span>
                         )}
                       </div>
                     </td>
@@ -424,7 +424,7 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-500">None</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">None</span>
                         )}
                       </div>
                     </td>
