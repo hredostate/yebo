@@ -659,6 +659,9 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
     });
 
     // Use gradeLevelSize as a fallback for classSize if available, otherwise use 1 to avoid division by zero
+    // Note: classSize is not available in StudentTermReportDetails. Using gradeLevelSize provides
+    // a reasonable approximation. If neither is available, we use 1 which will display position as "X of 1"
+    // This is acceptable since the actual class size is not exposed in the current data structure
     const estimatedClassSize = summary.gradeLevelSize || 1;
 
     return {
@@ -685,27 +688,33 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
     const props = transformDataForPrintableDesign();
 
     // Map layout options to the correct design component
+    // Note: ResultSheetDesigns exports 4 designs: modern, banded, executive, minimalist
+    // We map the 9 layout options to these 4 designs based on visual similarity
     switch (layout) {
       case 'modern-gradient':
+        // Advanced layout: Modern Gradient uses the modern design component
         return <ResultSheetDesigns.modern {...props} />;
       case 'banded-rows':
+        // Advanced layout: Banded Rows uses the banded design component
         return <ResultSheetDesigns.banded {...props} />;
       case 'executive-dark':
+        // Advanced layout: Executive Dark uses the executive design component
         return <ResultSheetDesigns.executive {...props} />;
       case 'minimalist-clean':
+        // Advanced layout: Minimalist Clean uses the minimalist design component
         return <ResultSheetDesigns.minimalist {...props} />;
       case 'classic':
       case 'compact':
-        // Classic and compact layouts use formal banded-rows design for printing
+        // Standard layouts: Classic and Compact use formal banded-rows design for printing
         return <ResultSheetDesigns.banded {...props} />;
       case 'modern':
-        // Modern layout uses modern-gradient design for printing
+        // Standard layout: Modern uses modern-gradient design for printing
         return <ResultSheetDesigns.modern {...props} />;
       case 'professional':
-        // Professional layout uses executive design for printing
+        // Standard layout: Professional uses executive design for printing
         return <ResultSheetDesigns.executive {...props} />;
       case 'pastel':
-        // Pastel layout uses minimalist design for printing
+        // Standard layout: Pastel uses minimalist design for printing
         return <ResultSheetDesigns.minimalist {...props} />;
       default:
         // Default to banded-rows for any unrecognized layout
