@@ -5853,7 +5853,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
 
     // Staff Layout
     return (
-        <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200`}>
+        <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
             <Sidebar 
                 currentView={currentView} 
                 onNavigate={setCurrentView} 
@@ -5863,7 +5863,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 isSidebarOpen={isSidebarOpen}
                 setIsSidebarOpen={setIsSidebarOpen}
             />
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 <Header 
                     userProfile={userProfile as UserProfile} 
                     onLogout={handleLogout} 
@@ -5874,7 +5874,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                     isDarkMode={isDarkMode}
                     toggleTheme={toggleTheme}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6 relative">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 relative">
                      <ErrorBoundary>
                         <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
                             <AppRouter 

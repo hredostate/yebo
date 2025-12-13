@@ -110,22 +110,24 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
   };
 
   return (
-    <header className="flex-shrink-0 flex items-center justify-between h-16 px-6 border-b border-white/40 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-sm z-30 transition-all duration-300">
-      <div className="flex items-center gap-4">
+    <header className="flex-shrink-0 flex items-center justify-between h-16 sm:h-16 px-4 sm:px-6 border-b border-white/40 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-sm z-30 transition-all duration-300">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
         <button 
             onClick={onToggleSidebar}
-            className="p-2 -ml-2 text-slate-600 dark:text-slate-300 rounded-lg md:hidden hover:bg-white/50 dark:hover:bg-slate-800 transition-colors"
+            className="touch-target p-3 -ml-2 text-slate-600 dark:text-slate-300 rounded-lg md:hidden hover:bg-white/50 dark:hover:bg-slate-800 transition-colors min-w-touch min-h-touch active:bg-slate-200 dark:active:bg-slate-700"
             aria-label="Open sidebar"
         >
              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
-        <GlobalSearchBar onNavigate={onNavigate} />
+        <div className="flex-1 min-w-0">
+          <GlobalSearchBar onNavigate={onNavigate} />
+        </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <button onClick={toggleTheme} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-colors">
+      <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+        <button onClick={toggleTheme} className="touch-target p-2 sm:p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-colors min-w-touch min-h-touch">
             {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
         </button>
         
