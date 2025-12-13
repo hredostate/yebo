@@ -67,7 +67,6 @@ const SurveyListView = lazy(() => import('./SurveyListView'));
 const StudentListView = lazy(() => import('./StudentListView'));
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
-const PayrollPortal = lazy(() => import('./PayrollPortal'));
 const HRPayrollModule = lazy(() => import('./HRPayrollModule'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
