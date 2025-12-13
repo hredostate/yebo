@@ -114,7 +114,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
       <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
         <button 
             onClick={onToggleSidebar}
-            className="touch-target p-3 -ml-2 text-slate-600 dark:text-slate-300 rounded-lg md:hidden hover:bg-white/50 dark:hover:bg-slate-800 transition-colors min-w-touch min-h-touch active:bg-slate-200 dark:active:bg-slate-700"
+            className="touch-target -ml-2 text-slate-600 dark:text-slate-300 rounded-lg md:hidden hover:bg-white/50 dark:hover:bg-slate-800 transition-colors active:bg-slate-200 dark:active:bg-slate-700"
             aria-label="Open sidebar"
         >
              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -127,7 +127,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
       </div>
 
       <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-        <button onClick={toggleTheme} className="touch-target p-2 sm:p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-colors min-w-touch min-h-touch">
+        <button onClick={toggleTheme} className="touch-target rounded-full text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-colors">
             {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
         </button>
         

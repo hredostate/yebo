@@ -261,7 +261,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
            </a>
            <button
             onClick={() => setIsSidebarOpen(false)}
-            className="touch-target p-3 text-slate-500 rounded-lg md:hidden hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 min-w-touch min-h-touch"
+            className="touch-target text-slate-500 rounded-lg md:hidden hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700"
             aria-label="Close sidebar"
            >
             <CloseIcon className="w-6 h-6" />

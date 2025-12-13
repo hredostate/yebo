@@ -79,7 +79,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     setIsSubmitting(false);
   };
   
-  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
+  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-sm rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-base";
 
   return (
     <div className="modal-responsive bg-black/30 backdrop-blur-sm animate-fade-in">
@@ -90,7 +90,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             <button 
               type="button" 
               onClick={onClose} 
-              className="md:hidden touch-target p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              className="md:hidden touch-target text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
               aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
