@@ -604,15 +604,39 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
               size: ${orientation};
               margin: 0.5cm;
             }
-            body {
-                background: white;
+            
+            /* Force colors to print */
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
+            
+            body {
+              background: white;
+            }
+            
+            /* Hide non-printable elements */
+            .no-print {
+              display: none !important;
+            }
+            
             .printable-report {
-                width: 100% !important;
-                max-width: none !important;
-                border: none !important;
-                box-shadow: none !important;
-                margin: 0 !important;
+              width: 100% !important;
+              max-width: none !important;
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+            }
+            
+            /* Prevent page breaks inside elements */
+            .page-break-inside-avoid {
+              page-break-inside: avoid;
+            }
+            
+            /* Handle charts in print */
+            .recharts-wrapper {
+              page-break-inside: avoid;
             }
           }
         `}
