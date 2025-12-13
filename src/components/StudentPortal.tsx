@@ -196,14 +196,20 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     return (
         <div className="space-y-6 animate-fade-in p-6">
             <div className="flex justify-between items-center">
-                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Student Portal</h1>
+                 <div>
+                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                         <BookOpenIcon className="w-8 h-8 text-blue-600" aria-hidden="true" />
+                         Student Subject Choices
+                     </h1>
+                     <p className="text-slate-600 dark:text-slate-300 mt-1">View and export student subject selections</p>
+                 </div>
                  <div className="flex items-center gap-3">
                     {toggleTheme && (
                         <button onClick={toggleTheme} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                             {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
                         </button>
                     )}
-                    <button onClick={onLogout} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-sm font-medium">Logout</button>
+                    <button onClick={onLogout} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-medium">Logout</button>
                  </div>
             </div>
 
@@ -211,19 +217,19 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 <div className="flex space-x-6">
                     <button 
                         onClick={() => setActiveTab('subjects')} 
-                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'subjects' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'subjects' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
                     >
                         <BookOpenIcon className="w-4 h-4"/> My Subjects
                     </button>
                     <button 
                         onClick={() => setActiveTab('timetable')} 
-                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'timetable' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'timetable' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
                     >
                         <ClockIcon className="w-4 h-4"/> Timetable
                     </button>
                     <button 
                         onClick={() => setActiveTab('wallet')} 
-                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'wallet' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'wallet' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>

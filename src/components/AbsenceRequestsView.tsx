@@ -46,12 +46,16 @@ const AbsenceRequestsView: React.FC<AbsenceRequestsViewProps> = ({
 
   // Filter requests based on active tab
   const filteredRequests = useMemo(() => {
+    if (!absenceRequests || !Array.isArray(absenceRequests)) return [];
     if (activeTab === 'all') return absenceRequests;
     return absenceRequests.filter(req => req.status === activeTab);
   }, [absenceRequests, activeTab]);
 
   // Calculate statistics
   const stats = useMemo(() => {
+    if (!absenceRequests || !Array.isArray(absenceRequests)) {
+      return { pending: 0, approved: 0, denied: 0, approvedThisMonth: 0 };
+    }
     const pending = absenceRequests.filter(r => r.status === 'pending').length;
     const approved = absenceRequests.filter(r => r.status === 'approved').length;
     const denied = absenceRequests.filter(r => r.status === 'denied').length;
@@ -161,7 +165,7 @@ const AbsenceRequestsView: React.FC<AbsenceRequestsViewProps> = ({
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          All ({absenceRequests.length})
+          All ({absenceRequests?.length || 0})
         </button>
         <button
           onClick={() => setActiveTab('pending')}
