@@ -59,13 +59,13 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
 
   const getStatusBadge = () => {
     const badges = {
-      pending: { class: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30', label: 'Pending Review' },
-      approved: { class: 'bg-green-500/20 text-green-300 border-green-500/30', label: 'Approved' },
-      denied: { class: 'bg-red-500/20 text-red-300 border-red-500/30', label: 'Denied' }
+      pending: { class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700', label: 'Pending Review' },
+      approved: { class: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-300 dark:border-green-700', label: 'Approved' },
+      denied: { class: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-300 dark:border-red-700', label: 'Denied' }
     };
     const badge = badges[request.status];
     return (
-      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border ${badge.class}`}>
+      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${badge.class}`}>
         {badge.label}
       </span>
     );
@@ -101,50 +101,50 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="glass-panel rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white">Absence Request Details</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Absence Request Details</h2>
             {getStatusBadge()}
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             disabled={isSubmitting}
           >
-            <XIcon className="h-5 w-5 text-gray-400" />
+            <XIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+            <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
 
           {/* Student Information */}
-          <div className="glass-panel rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
               Student Information
             </h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-300">Name:</span>
-                <span className="text-white font-medium">{request.student?.name || 'Unknown'}</span>
+                <span className="text-slate-600 dark:text-slate-400">Name:</span>
+                <span className="text-slate-900 dark:text-white font-medium">{request.student?.name || 'Unknown'}</span>
               </div>
               {request.student?.admission_number && (
                 <div className="flex justify-between">
-                  <span className="text-gray-300">Admission Number:</span>
-                  <span className="text-white font-medium">{request.student.admission_number}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Admission Number:</span>
+                  <span className="text-slate-900 dark:text-white font-medium">{request.student.admission_number}</span>
                 </div>
               )}
               {request.student?.class && (
                 <div className="flex justify-between">
-                  <span className="text-gray-300">Class:</span>
-                  <span className="text-white font-medium">
+                  <span className="text-slate-600 dark:text-slate-400">Class:</span>
+                  <span className="text-slate-900 dark:text-white font-medium">
                     {request.student.class.name}
                     {request.student.arm && ` - ${request.student.arm.name}`}
                   </span>
@@ -154,46 +154,46 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
           </div>
 
           {/* Request Details */}
-          <div className="glass-panel rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
               Request Details
             </h3>
             <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-400">Request Type:</span>
-                <p className="text-white font-medium mt-1">{getRequestTypeLabel(request.request_type)}</p>
+                <span className="text-sm text-slate-600 dark:text-slate-400">Request Type:</span>
+                <p className="text-slate-900 dark:text-white font-medium mt-1">{getRequestTypeLabel(request.request_type)}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm text-gray-400">Start Date:</span>
-                  <p className="text-white mt-1">{formatDate(request.start_date)}</p>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Start Date:</span>
+                  <p className="text-slate-900 dark:text-white mt-1">{formatDate(request.start_date)}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-400">End Date:</span>
-                  <p className="text-white mt-1">{formatDate(request.end_date)}</p>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">End Date:</span>
+                  <p className="text-slate-900 dark:text-white mt-1">{formatDate(request.end_date)}</p>
                 </div>
               </div>
 
               <div>
-                <span className="text-sm text-gray-400">Duration:</span>
-                <p className="text-white font-medium mt-1">{calculateDuration()}</p>
+                <span className="text-sm text-slate-600 dark:text-slate-400">Duration:</span>
+                <p className="text-slate-900 dark:text-white font-medium mt-1">{calculateDuration()}</p>
               </div>
 
               <div>
-                <span className="text-sm text-gray-400">Reason:</span>
-                <p className="text-white mt-1 whitespace-pre-wrap">{request.reason}</p>
+                <span className="text-sm text-slate-600 dark:text-slate-400">Reason:</span>
+                <p className="text-slate-900 dark:text-white mt-1 whitespace-pre-wrap">{request.reason}</p>
               </div>
 
               {request.supporting_document_url && (
                 <div>
-                  <span className="text-sm text-gray-400">Supporting Document:</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Supporting Document:</span>
                   <a
                     href={request.supporting_document_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 mt-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg text-sm font-medium transition-colors border border-blue-500/30 w-fit"
+                    className="flex items-center gap-2 mt-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium transition-colors border border-blue-300 dark:border-blue-700 w-fit"
                   >
                     <FileTextIcon className="h-4 w-4" />
                     View Document
@@ -204,16 +204,16 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
           </div>
 
           {/* Requester Information */}
-          <div className="glass-panel rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-3">Request Information</h3>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Request Information</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-300">Requested by:</span>
-                <span className="text-white">{request.requester?.name || 'Unknown'}</span>
+                <span className="text-slate-600 dark:text-slate-400">Requested by:</span>
+                <span className="text-slate-900 dark:text-white">{request.requester?.name || 'Unknown'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-300">Submitted on:</span>
-                <span className="text-white">
+                <span className="text-slate-600 dark:text-slate-400">Submitted on:</span>
+                <span className="text-slate-900 dark:text-white">
                   {new Date(request.created_at).toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric', 
@@ -228,17 +228,17 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
 
           {/* Review Information (if already reviewed) */}
           {!isPending && (
-            <div className="glass-panel rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-400 mb-3">Review Information</h3>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Review Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-300">Reviewed by:</span>
-                  <span className="text-white">{request.reviewer?.name || 'Unknown'}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Reviewed by:</span>
+                  <span className="text-slate-900 dark:text-white">{request.reviewer?.name || 'Unknown'}</span>
                 </div>
                 {request.reviewed_at && (
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Reviewed on:</span>
-                    <span className="text-white">
+                    <span className="text-slate-600 dark:text-slate-400">Reviewed on:</span>
+                    <span className="text-slate-900 dark:text-white">
                       {new Date(request.reviewed_at).toLocaleDateString('en-US', { 
                         month: 'long', 
                         day: 'numeric', 
@@ -251,8 +251,8 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
                 )}
                 {request.review_notes && (
                   <div>
-                    <span className="text-gray-300">Review Notes:</span>
-                    <p className="text-white mt-1 whitespace-pre-wrap">{request.review_notes}</p>
+                    <span className="text-slate-600 dark:text-slate-400">Review Notes:</span>
+                    <p className="text-slate-900 dark:text-white mt-1 whitespace-pre-wrap">{request.review_notes}</p>
                   </div>
                 )}
               </div>
@@ -263,24 +263,24 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
           {showReviewActions && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Review Notes {request.status === 'pending' && <span className="text-gray-500">(Optional for approval, required for denial)</span>}
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Review Notes {request.status === 'pending' && <span className="text-slate-500 dark:text-slate-400">(Optional for approval, required for denial)</span>}
                 </label>
                 <textarea
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="Add any notes or comments about this decision..."
                   disabled={isSubmitting}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={handleDeny}
-                  className="px-6 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg font-medium transition-colors border border-red-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg font-medium transition-colors border border-red-300 dark:border-red-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
                   <XCircleIcon className="h-5 w-5" />
@@ -289,7 +289,7 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
                 <button
                   type="button"
                   onClick={handleApprove}
-                  className="px-6 py-2.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg font-medium transition-colors border border-green-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 rounded-lg font-medium transition-colors border border-green-300 dark:border-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
                   <CheckCircleIcon className="h-5 w-5" />
@@ -301,10 +301,10 @@ const AbsenceRequestReview: React.FC<AbsenceRequestReviewProps> = ({
 
           {/* Close button for non-reviewable requests */}
           {!showReviewActions && (
-            <div className="flex justify-end pt-4 border-t border-white/10">
+            <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg font-medium text-gray-300 transition-colors"
+                className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-medium text-slate-700 dark:text-slate-300 transition-colors"
               >
                 Close
               </button>

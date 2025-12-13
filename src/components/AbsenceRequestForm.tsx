@@ -87,22 +87,22 @@ const AbsenceRequestForm: React.FC<AbsenceRequestFormProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="glass-panel rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-2xl font-bold text-white">New Absence Request</h2>
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">New Absence Request</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             disabled={isSubmitting}
           >
-            <XIcon className="h-5 w-5 text-gray-400" />
+            <XIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+            <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -110,13 +110,13 @@ const AbsenceRequestForm: React.FC<AbsenceRequestFormProps> = ({
           {/* Student Selection (only for non-students) */}
           {!isStudent && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Student <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Student <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <select
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 disabled={isSubmitting}
               >
@@ -131,22 +131,22 @@ const AbsenceRequestForm: React.FC<AbsenceRequestFormProps> = ({
           )}
 
           {isStudent && studentRecord && (
-            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-sm text-gray-300">
-                Requesting for: <span className="font-medium text-white">{studentRecord.name}</span>
+            <div className="p-4 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                Requesting for: <span className="font-medium text-slate-900 dark:text-white">{studentRecord.name}</span>
               </p>
             </div>
           )}
 
           {/* Request Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Request Type <span className="text-red-400">*</span>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Request Type <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <select
               value={requestType}
               onChange={(e) => setRequestType(e.target.value as AbsenceRequestType)}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               disabled={isSubmitting}
             >
@@ -161,28 +161,28 @@ const AbsenceRequestForm: React.FC<AbsenceRequestFormProps> = ({
           {/* Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Start Date <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Start Date <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 disabled={isSubmitting}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                End Date <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                End Date <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 disabled={isSubmitting}
               />
@@ -191,57 +191,57 @@ const AbsenceRequestForm: React.FC<AbsenceRequestFormProps> = ({
 
           {/* Reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Reason <span className="text-red-400">*</span>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Reason <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={4}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Please provide details about the absence..."
               required
               disabled={isSubmitting}
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {reason.length}/500 characters
             </p>
           </div>
 
           {/* Supporting Document URL (optional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Supporting Document URL (Optional)
             </label>
             <div className="relative">
-              <FileTextIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <FileTextIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
               <input
                 type="url"
                 value={supportingDocumentUrl}
                 onChange={(e) => setSupportingDocumentUrl(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/document.pdf"
                 disabled={isSubmitting}
               />
             </div>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Enter a URL to a supporting document (e.g., doctor's note, letter)
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg font-medium text-gray-300 transition-colors"
+              className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-medium text-slate-700 dark:text-slate-300 transition-colors"
               disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Request'}
