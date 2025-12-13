@@ -421,7 +421,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in h-full overflow-y-auto pb-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Student Subject Enrollment</h1>
         <p className="text-slate-600 dark:text-slate-300 mt-1">
@@ -525,7 +525,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
               <Spinner size="lg" />
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+            <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
               <table className="w-full text-sm min-w-max">
                 <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800 sticky top-0 z-20">
                   <tr>
