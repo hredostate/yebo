@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import type { StudentTermReportDetails, GradingScheme, StudentInvoice } from '../types';
+import type { StudentTermReportDetails, GradingScheme, StudentInvoice, Student, StudentTermReport, Term, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
+import ResultSheetDesigns from './ResultSheetDesigns';
 
 interface StudentReportViewProps {
   studentId: number;
@@ -589,6 +590,118 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
     </div>
   );
 
+  // Transform data from StudentReportView format to ResultSheetDesigns format
+  const transformDataForPrintableDesign = () => {
+    // Create Student object in the format expected by ResultSheetDesigns
+    const studentData: Student = {
+      id: student.id,
+      school_id: reportDetails.schoolConfig.school_id,
+      name: student.fullName,
+      admission_number: '', // Not available in StudentTermReportDetails
+      grade: student.className,
+      reward_points: 0,
+    };
+
+    // Create Term object
+    const termData: Term = {
+      id: termId,
+      school_id: reportDetails.schoolConfig.school_id,
+      session_label: term.sessionLabel,
+      term_label: term.termLabel,
+      start_date: '',
+      end_date: '',
+      is_active: false,
+    };
+
+    // Create StudentTermReport object
+    const reportData: StudentTermReport = {
+      id: 0,
+      student_id: student.id,
+      term_id: termId,
+      academic_class_id: 0,
+      average_score: summary.average,
+      total_score: subjects.reduce((sum, s) => sum + s.totalScore, 0),
+      position_in_class: summary.positionInArm,
+      teacher_comment: comments.teacher,
+      principal_comment: comments.principal,
+      is_published: isPublished,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Transform subjects to the format expected by ResultSheetDesigns
+    const transformedSubjects = subjects.map(sub => {
+      // Extract CA and Exam scores from componentScores if available
+      let caScore = 0;
+      let examScore = 0;
+      
+      if (sub.componentScores) {
+        // Sum all non-exam components as CA score
+        Object.entries(sub.componentScores).forEach(([key, value]) => {
+          if (key.toLowerCase().includes('exam')) {
+            examScore += value;
+          } else {
+            caScore += value;
+          }
+        });
+      }
+      
+      return {
+        subject_name: sub.subjectName,
+        component_scores: sub.componentScores,
+        ca_score: caScore,
+        exam_score: examScore,
+        total_score: sub.totalScore,
+        grade: sub.gradeLabel,
+        remark: sub.remark,
+        subject_position: sub.subjectPosition,
+      };
+    });
+
+    return {
+      report: reportData,
+      student: studentData,
+      subjects: transformedSubjects,
+      assessmentComponents,
+      gradingScheme: activeGradingScheme!,
+      schoolConfig: reportDetails.schoolConfig,
+      term: termData,
+      classPosition: summary.positionInArm,
+      classSize: 0, // Not available in StudentTermReportDetails
+      gradeLevelPosition: summary.positionInGradeLevel || undefined,
+      gradeLevelSize: summary.gradeLevelSize,
+    };
+  };
+
+  // Render the appropriate printable design based on layout
+  const renderPrintableDesign = () => {
+    if (!activeGradingScheme) {
+      return <div>Loading grading scheme...</div>;
+    }
+
+    const props = transformDataForPrintableDesign();
+
+    // Map layout options to the correct design component
+    switch (layout) {
+      case 'modern-gradient':
+        return <ResultSheetDesigns.modern {...props} />;
+      case 'banded-rows':
+        return <ResultSheetDesigns.banded {...props} />;
+      case 'executive-dark':
+        return <ResultSheetDesigns.executive {...props} />;
+      case 'minimalist-clean':
+        return <ResultSheetDesigns.minimalist {...props} />;
+      case 'classic':
+      case 'modern':
+      case 'compact':
+      case 'professional':
+      case 'pastel':
+      default:
+        // For standard layouts, use banded-rows as a print-optimized default
+        return <ResultSheetDesigns.banded {...props} />;
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 print:bg-white print:p-0 font-sans">
@@ -601,15 +714,40 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
               size: ${orientation};
               margin: 0.5cm;
             }
-            body {
-                background: white;
+            
+            /* Force colors to print */
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
+            
+            body {
+              background: white;
+            }
+            
+            /* Hide screen-only elements */
+            .print\\:hidden,
+            .no-print {
+              display: none !important;
+            }
+            
+            /* Show print-only elements */
+            .hidden.print\\:block {
+              display: block !important;
+            }
+            
             .printable-report {
-                width: 100% !important;
-                max-width: none !important;
-                border: none !important;
-                box-shadow: none !important;
-                margin: 0 !important;
+              width: 100% !important;
+              max-width: none !important;
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+            }
+            
+            /* Prevent page breaks inside elements */
+            .page-break-inside-avoid {
+              page-break-inside: avoid;
             }
           }
         `}
@@ -648,7 +786,9 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           </div>
         </div>
 
-        <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
+        {/* Screen-only view (hidden when printing) */}
+        <div className="print:hidden">
+          <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
             
             {/* --- CLASSIC, MODERN & PASTEL LAYOUTS SHARE STRUCTURE --- */}
             {(layout === 'classic' || layout === 'modern' || layout === 'pastel') && (
@@ -821,6 +961,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                 </div>
             )}
 
+          </div>
+        </div>
+
+        {/* Print-only view (hidden on screen, shown when printing) */}
+        <div className="hidden print:block">
+          {renderPrintableDesign()}
         </div>
       </div>
     </div>
