@@ -359,19 +359,59 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const filteredScoreEntries = useMemo(() => {
         if (!scorePreviewFilters) return [];
         
+        // DEBUG: Temporary logging to help diagnose filtering issues (can be removed once verified)
+        // TODO: Remove or convert to proper logging system after fix verification
+        console.log('[ResultManager] Filtering scores with:', {
+            termId: scorePreviewFilters.termId,
+            classId: scorePreviewFilters.classId,
+            subject: scorePreviewFilters.subject,
+            totalScoreEntries: scoreEntries.length
+        });
+        
         // Create student lookup map for O(n) performance
         const studentMap = new Map(students.map(s => [s.id, s]));
         
-        let filtered = scoreEntries.filter(entry => 
-            entry.term_id === scorePreviewFilters.termId &&
-            entry.academic_class_id === scorePreviewFilters.classId
-        );
+        // Ensure type consistency by converting to numbers for comparison
+        const filterTermId = Number(scorePreviewFilters.termId);
+        const filterClassId = Number(scorePreviewFilters.classId);
+        
+        // Get student IDs in this class for fallback matching
+        const studentsInClass = academicClassStudents
+            .filter(acs => Number(acs.academic_class_id) === filterClassId)
+            .map(acs => acs.student_id);
+        
+        // DEBUG: Log class students
+        console.log('[ResultManager] Students in class:', studentsInClass.length);
+        
+        // Filter with type-safe comparison and fallback logic
+        let filtered = scoreEntries.filter(entry => {
+            const entryTermId = Number(entry.term_id);
+            const entryClassId = Number(entry.academic_class_id);
+            
+            // Check term match
+            const termMatch = entryTermId === filterTermId;
+            
+            // Check class match - try direct match first, then fallback to student membership
+            const directClassMatch = entryClassId === filterClassId;
+            const studentInClassMatch = studentsInClass.includes(entry.student_id);
+            const classMatch = directClassMatch || studentInClassMatch;
+            
+            return termMatch && classMatch;
+        });
+        
+        // DEBUG: Log filtering results
+        console.log('[ResultManager] Scores matching term:', 
+            scoreEntries.filter(e => Number(e.term_id) === filterTermId).length);
+        console.log('[ResultManager] Scores matching class (direct):', 
+            scoreEntries.filter(e => Number(e.academic_class_id) === filterClassId).length);
+        console.log('[ResultManager] Scores matching both:', filtered.length);
         
         // If subject filter is specified, apply it
         if (scorePreviewFilters.subject) {
             filtered = filtered.filter(entry => 
                 entry.subject_name === scorePreviewFilters.subject
             );
+            console.log('[ResultManager] After subject filter:', filtered.length);
         }
         
         // Join with student data and calculate CA scores
@@ -397,7 +437,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                 caScore
             };
         }).sort((a, b) => a.studentName.localeCompare(b.studentName));
-    }, [scorePreviewFilters, scoreEntries, students]);
+    }, [scorePreviewFilters, scoreEntries, students, academicClassStudents]);
 
     // Helper function to navigate to Score Review with filters
     const navigateToScoreReviewWithFilters = (filters: {
@@ -830,14 +870,27 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         </div>
                         <div className="flex-grow overflow-auto">
                             {filteredScoreEntries.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="text-center">
-                                        <p className="text-gray-500 dark:text-gray-400 mb-2">No scores found</p>
-                                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                                <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                                    <div className="text-center p-8 max-w-md">
+                                        <div className="mb-4">
+                                            <svg className="w-20 h-20 mx-auto text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Scores Found</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                                             {scorePreviewMode === 'edit' 
-                                                ? 'Click "Open in Score Review" to add scores'
-                                                : 'No scores have been entered for this selection yet'}
+                                                ? 'No scores have been entered for this class/term combination yet.'
+                                                : 'No scores are available for this selection.'}
                                         </p>
+                                        <div className="space-y-2 text-sm text-left bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                            <p className="font-semibold text-blue-900 dark:text-blue-200 mb-1">Next Steps:</p>
+                                            <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-300">
+                                                <li>Teachers need to enter scores in Score Review</li>
+                                                <li>Make sure the correct term and class are selected</li>
+                                                {onNavigate && <li>Click "Open in Score Review" above to enter scores</li>}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
