@@ -46,6 +46,15 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
     
+    // State for inline score preview modal
+    const [showScorePreview, setShowScorePreview] = useState(false);
+    const [scorePreviewFilters, setScorePreviewFilters] = useState<{
+        termId: number;
+        classId: number;
+        subject?: string;
+    } | null>(null);
+    const [scorePreviewMode, setScorePreviewMode] = useState<'view' | 'edit'>('view');
+    
     // Result sheet design options
     const resultSheetOptions = [
         { id: 'default', name: 'Default', description: 'Standard result sheet layout' },
@@ -345,6 +354,50 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setShowBulkGenerator(false);
         setSelectedClassForBulk(null);
     };
+    
+    // Filter score entries for the preview modal
+    const filteredScoreEntries = useMemo(() => {
+        if (!scorePreviewFilters) return [];
+        
+        // Create student lookup map for O(n) performance
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        
+        let filtered = scoreEntries.filter(entry => 
+            entry.term_id === scorePreviewFilters.termId &&
+            entry.academic_class_id === scorePreviewFilters.classId
+        );
+        
+        // If subject filter is specified, apply it
+        if (scorePreviewFilters.subject) {
+            filtered = filtered.filter(entry => 
+                entry.subject_name === scorePreviewFilters.subject
+            );
+        }
+        
+        // Join with student data and calculate CA scores
+        return filtered.map(entry => {
+            const student = studentMap.get(entry.student_id);
+            
+            // Calculate CA score from component_scores or ca_scores_breakdown
+            let caScore: number | null = null;
+            if (entry.component_scores) {
+                // Sum all non-Exam components (case-insensitive match)
+                caScore = Object.entries(entry.component_scores)
+                    .filter(([key]) => key.toLowerCase() !== 'exam')
+                    .reduce((sum, [, value]) => sum + (value ?? 0), 0);
+            } else if (entry.ca_scores_breakdown) {
+                // Sum CA breakdown
+                caScore = Object.values(entry.ca_scores_breakdown)
+                    .reduce((sum, value) => sum + (value ?? 0), 0);
+            }
+            
+            return {
+                ...entry,
+                studentName: student?.name || 'Unknown Student',
+                caScore
+            };
+        }).sort((a, b) => a.studentName.localeCompare(b.studentName));
+    }, [scorePreviewFilters, scoreEntries, students]);
 
     // Helper function to navigate to Score Review with filters
     const navigateToScoreReviewWithFilters = (filters: {
@@ -362,30 +415,48 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
-    // Navigate to Score Review with pre-applied filters
+    // Open inline score preview modal
     const handleViewClass = (classId: number, termId: number) => {
-        navigateToScoreReviewWithFilters({ termId, classId });
+        setScorePreviewFilters({ termId, classId });
+        setScorePreviewMode('view');
+        setShowScorePreview(true);
     };
 
     const handleEditClass = (classId: number, termId: number) => {
-        navigateToScoreReviewWithFilters({ termId, classId, edit: true });
+        setScorePreviewFilters({ termId, classId });
+        setScorePreviewMode('edit');
+        setShowScorePreview(true);
     };
 
     const handleViewSubject = (assignment: AcademicTeachingAssignment) => {
-        navigateToScoreReviewWithFilters({
+        setScorePreviewFilters({
             termId: assignment.term_id,
             classId: assignment.academic_class_id,
             subject: assignment.subject_name
         });
+        setScorePreviewMode('view');
+        setShowScorePreview(true);
     };
 
     const handleEditSubject = (assignment: AcademicTeachingAssignment) => {
-        navigateToScoreReviewWithFilters({
+        setScorePreviewFilters({
             termId: assignment.term_id,
             classId: assignment.academic_class_id,
-            subject: assignment.subject_name,
-            edit: true
+            subject: assignment.subject_name
         });
+        setScorePreviewMode('edit');
+        setShowScorePreview(true);
+    };
+    
+    // Helper to open Score Review page (for users who want full page)
+    const handleOpenInScoreReview = () => {
+        if (scorePreviewFilters && onNavigate) {
+            navigateToScoreReviewWithFilters({
+                ...scorePreviewFilters,
+                edit: scorePreviewMode === 'edit'
+            });
+            setShowScorePreview(false);
+        }
     };
 
     return (
@@ -718,6 +789,112 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             : null
                         }
                     />
+                </div>
+            )}
+            
+            {/* Score Preview Modal */}
+            {showScorePreview && scorePreviewFilters && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in"
+                    aria-modal="true"
+                    role="dialog"
+                >
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col p-4 m-4">
+                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                                    {scorePreviewMode === 'edit' ? 'Edit Scores' : 'View Results'}
+                                    {scorePreviewFilters.subject && ` - ${scorePreviewFilters.subject}`}
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {academicClasses.find(c => c.id === scorePreviewFilters.classId)?.name || 'Class'} - {terms.find(t => t.id === scorePreviewFilters.termId)?.term_label || 'Term'}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {onNavigate && (
+                                    <button
+                                        onClick={handleOpenInScoreReview}
+                                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                                    >
+                                        Open in Score Review
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setShowScorePreview(false)}
+                                    className="text-gray-500 hover:text-gray-800 dark:hover:text-white text-2xl font-bold"
+                                    aria-label="Close"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-grow overflow-auto">
+                            {filteredScoreEntries.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center">
+                                        <p className="text-gray-500 dark:text-gray-400 mb-2">No scores found</p>
+                                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                                            {scorePreviewMode === 'edit' 
+                                                ? 'Click "Open in Score Review" to add scores'
+                                                : 'No scores have been entered for this selection yet'}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left border-collapse">
+                                        <thead className="bg-slate-100 dark:bg-slate-700 sticky top-0">
+                                            <tr>
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold">Student Name</th>
+                                                {!scorePreviewFilters.subject && (
+                                                    <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold">Subject</th>
+                                                )}
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold text-center">CA Score</th>
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold text-center">Exam Score</th>
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold text-center">Total Score</th>
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold text-center">Grade</th>
+                                                <th className="p-3 border border-slate-200 dark:border-slate-600 font-semibold">Remark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredScoreEntries.map((entry, index) => (
+                                                <tr key={entry.id} className={index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900'}>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.studentName}</td>
+                                                    {!scorePreviewFilters.subject && (
+                                                        <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.subject_name}</td>
+                                                    )}
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
+                                                        {entry.caScore != null ? entry.caScore.toFixed(1) : '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
+                                                        {entry.exam_score != null ? entry.exam_score.toFixed(1) : '-'}
+                                                    </td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">{entry.total_score.toFixed(1)}</td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
+                                                        <span className="inline-flex px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-bold">
+                                                            {entry.grade_label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-xs">{entry.remark || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                Showing {filteredScoreEntries.length} score{filteredScoreEntries.length !== 1 ? 's' : ''}
+                            </p>
+                            <button
+                                onClick={() => setShowScorePreview(false)}
+                                className="px-4 py-2 bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
