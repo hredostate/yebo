@@ -684,7 +684,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
                         </h1>
                         {studentClass && (
                             <p className="text-slate-600 dark:text-slate-400 mt-1">
-                                {studentClass.name} {studentClass.arm && `- ${studentClass.arm}`}
+                                {studentClass.name}
                             </p>
                         )}
                      </div>
