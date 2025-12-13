@@ -261,7 +261,7 @@ const ShiftManager: React.FC<ShiftManagerProps> = ({ shifts, users, onSave, onDe
     
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Principal' || u.role === 'Admin' || u.role === 'Maintenance' || u.role === 'School Secretary').sort((a,b) => a.name.localeCompare(b.name)), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Principal' || u.role === 'Admin' || u.role === 'Maintenance' || u.role === 'School Secretary') && (!u.employment_status || u.employment_status === 'Active')).sort((a,b) => a.name.localeCompare(b.name)), [users]);
 
     const handleBulkSave = async (newShifts: Partial<TeacherShift>[]) => {
         setIsSaving(true);

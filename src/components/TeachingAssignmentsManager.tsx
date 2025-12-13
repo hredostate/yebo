@@ -99,7 +99,7 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({
     const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
     const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal').sort((a,b) => a.name.localeCompare(b.name)), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && (!u.employment_status || u.employment_status === 'Active')).sort((a,b) => a.name.localeCompare(b.name)), [users]);
     
     // Fetch team members if user is a Team Lead
     useEffect(() => {

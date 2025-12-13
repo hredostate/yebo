@@ -92,7 +92,7 @@ const ClassSectionManager: React.FC<ClassSectionManagerProps> = ({ classSections
   const [editingSection, setEditingSection] = useState<ClassSection | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  const teachers = users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal');
+  const teachers = users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && (!u.employment_status || u.employment_status === 'Active'));
 
   const handleCreate = () => {
       setEditingSection(null);

@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -3419,9 +3419,43 @@ const App: React.FC = () => {
         }
     }, [addToast, logAuditAction, users]);
 
+    const handleUpdateEmploymentStatus = useCallback(async (userId: string, status: EmploymentStatus) => {
+        try {
+            const { error } = await Offline.update('user_profiles', { employment_status: status }, { id: userId });
+            if (error) {
+                addToast(error.message, 'error');
+                return;
+            }
+            
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, employment_status: status } : u));
+            addToast(`Employment status updated to ${status}.`, 'success');
+            
+            const userToUpdate = users.find(u => u.id === userId);
+            await logAuditAction('employment_status_updated', {
+                user_id: userId,
+                user_name: userToUpdate?.name,
+                new_status: status
+            });
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+        }
+    }, [addToast, logAuditAction, users]);
+
     const handleDeactivateUser = useCallback(async (userId: string, isActive: boolean) => {
-        // Logic to toggle active state in DB/Auth
-        addToast(`User ${isActive ? 'activated' : 'deactivated'}.`, 'success');
+        // For backward compatibility, this sets employment_status to Active or Resigned
+        const status = isActive ? EmploymentStatus.Active : EmploymentStatus.Resigned;
+        try {
+            const { error } = await Offline.update('user_profiles', { employment_status: status }, { id: userId });
+            if (error) {
+                addToast(error.message, 'error');
+                return;
+            }
+            
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, employment_status: status } : u));
+            addToast(`User ${isActive ? 'activated' : 'deactivated'}.`, 'success');
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+        }
     }, [addToast]);
 
     const handleUpdateUserCampus = useCallback(async (userId: string, campusId: number | null) => {
@@ -5567,6 +5601,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleUpdateUser,
                                         handleDeleteUser,
                                         handleDeactivateUser,
+                                        handleUpdateEmploymentStatus,
                                         handleUpdateUserCampus,
                                         handleSaveRole,
                                         handleUpdateRoleAssignments,
@@ -5824,6 +5859,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleUpdateUser,
                                     handleDeleteUser,
                                     handleDeactivateUser,
+                                    handleUpdateEmploymentStatus,
                                     handleUpdateUserCampus,
                                     handleSaveRole,
                                     handleUpdateRoleAssignments,

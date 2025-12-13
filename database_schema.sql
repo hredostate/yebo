@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     campus_id INTEGER,
     has_seen_tour BOOLEAN DEFAULT FALSE,
     dashboard_config TEXT[],
+    employment_status TEXT DEFAULT 'Active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

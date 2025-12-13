@@ -106,7 +106,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
 
   const teachers = useMemo(() => 
-    users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead').sort((a,b) => a.name.localeCompare(b.name))
+    users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && (!u.employment_status || u.employment_status === 'Active')).sort((a,b) => a.name.localeCompare(b.name))
   , [users]);
 
   const filteredStudents = useMemo(() => {

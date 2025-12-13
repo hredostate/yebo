@@ -28,7 +28,7 @@ const StaffTeacherRatingsView: React.FC<StaffTeacherRatingsViewProps> = ({ users
 
     const weekStart = getWeekStartDateString(currentDate);
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead'), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && (!u.employment_status || u.employment_status === 'Active')), [users]);
     
     useEffect(() => {
         const fetchComments = async () => {
