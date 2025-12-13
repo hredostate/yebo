@@ -904,11 +904,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
                   
                   <div 
                     ref={tableContainerRef}
-                    className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-400px)] scrollbar-thin scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 scrollbar-track-slate-200 dark:scrollbar-track-slate-800"
-                    style={{
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: 'rgb(148 163 184) rgb(226 232 240)'
-                    }}
+                    className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-400px)]"
                   >
                     <table className="w-full text-sm min-w-max">
                       <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800 sticky top-0 z-20">
