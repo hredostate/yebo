@@ -49,7 +49,11 @@ const LeaveTypesManager: React.FC<LeaveTypesManagerProps> = ({ leaveTypes, onSav
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(item)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => onDelete(item.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this leave type? This action cannot be undone and may affect leave requests using this type.')) {
+                                    onDelete(item.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600">Delete</button>
                         </div>
                     </div>
                 ))}

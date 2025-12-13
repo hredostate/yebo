@@ -151,7 +151,11 @@ const AssessmentStructureManager: React.FC<AssessmentStructureManagerProps> = ({
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(structure)} className="text-sm font-semibold text-blue-600 hover:underline">Edit</button>
-                            <button onClick={() => onDelete(structure.id)} className="text-sm font-semibold text-red-600 hover:underline">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this assessment structure? This action cannot be undone and may affect related academic classes and student assessments.')) {
+                                    onDelete(structure.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600 hover:underline">Delete</button>
                         </div>
                     </div>
                 ))}

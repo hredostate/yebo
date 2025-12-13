@@ -80,7 +80,11 @@ const PeriodManager: React.FC<{
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditingPeriod(period)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><EditIcon className="w-4 h-4"/></button>
-                            <button onClick={() => onDelete(period.id)} className="text-red-600 hover:bg-red-50 p-1 rounded"><TrashIcon className="w-4 h-4"/></button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this time period? This action cannot be undone and may affect timetable entries.')) {
+                                    onDelete(period.id);
+                                }
+                            }} className="text-red-600 hover:bg-red-50 p-1 rounded"><TrashIcon className="w-4 h-4"/></button>
                         </div>
                     </div>
                 ))}
@@ -194,7 +198,11 @@ const LocationManager: React.FC<{
                                                 <button onClick={() => setEditingLocation(location)} className="text-blue-600 hover:bg-blue-50 p-1 rounded">
                                                     <EditIcon className="w-4 h-4"/>
                                                 </button>
-                                                <button onClick={() => onDelete(location.id)} className="text-red-600 hover:bg-red-50 p-1 rounded">
+                                                <button onClick={() => {
+                                                    if (window.confirm('Are you sure you want to delete this location? This action cannot be undone and may affect timetable entries.')) {
+                                                        onDelete(location.id);
+                                                    }
+                                                }} className="text-red-600 hover:bg-red-50 p-1 rounded">
                                                     <TrashIcon className="w-4 h-4"/>
                                                 </button>
                                             </div>

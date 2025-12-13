@@ -127,7 +127,11 @@ const AssignmentCard: React.FC<AssignmentCardProps> = (props) => {
                             assessment={assessment} 
                             canManage={canManageAssessments}
                             onEdit={() => setEditingAssessment(assessment)}
-                            onDelete={() => onDeleteAssessment(assessment.id)}
+                            onDelete={() => {
+                                if (window.confirm('Are you sure you want to delete this assessment? This action cannot be undone and will remove all associated scores.')) {
+                                    onDeleteAssessment(assessment.id);
+                                }
+                            }}
                             onCopy={() => setAssessmentToCopy(assessment)}
                             {...props}
                         />

@@ -100,7 +100,11 @@ const MyLeaveView: React.FC<MyLeaveViewProps> = ({ currentUser, addToast, leaveR
                         <div className="flex items-center gap-4">
                             {getStatusChip(req.status)}
                             {req.status === 'pending' && (
-                                <button onClick={() => onDelete(req.id)} className="text-red-500 hover:text-red-700">
+                                <button onClick={() => {
+                                    if (window.confirm('Are you sure you want to delete this leave request? This action cannot be undone.')) {
+                                        onDelete(req.id);
+                                    }
+                                }} className="text-red-500 hover:text-red-700">
                                     <TrashIcon className="w-5 h-5" />
                                 </button>
                             )}

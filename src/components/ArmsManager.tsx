@@ -46,7 +46,11 @@ const ArmsManager: React.FC<ArmsManagerProps> = ({ arms = [], onSave, onDelete }
                         <p className="font-semibold">{arm.name}</p>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(arm)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => onDelete(arm.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this arm? This action cannot be undone and may affect students and class assignments.')) {
+                                    onDelete(arm.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600">Delete</button>
                         </div>
                     </div>
                 ))}
