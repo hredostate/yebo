@@ -384,11 +384,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                 // Sum all non-Exam components (case-insensitive match)
                 caScore = Object.entries(entry.component_scores)
                     .filter(([key]) => key.toLowerCase() !== 'exam')
-                    .reduce((sum, [, value]) => sum + (value || 0), 0);
+                    .reduce((sum, [, value]) => sum + (value ?? 0), 0);
             } else if (entry.ca_scores_breakdown) {
                 // Sum CA breakdown
                 caScore = Object.values(entry.ca_scores_breakdown)
-                    .reduce((sum, value) => sum + (value || 0), 0);
+                    .reduce((sum, value) => sum + (value ?? 0), 0);
             }
             
             return {
@@ -858,15 +858,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         </thead>
                                         <tbody>
                                             {filteredScoreEntries.map((entry, index) => (
-                                                <tr key={entry.id} className={index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}>
+                                                <tr key={entry.id} className={index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900'}>
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.studentName}</td>
                                                     {!scorePreviewFilters.subject && (
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.subject_name}</td>
                                                     )}
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
-                                                        {entry.caScore !== null ? entry.caScore.toFixed(1) : '-'}
+                                                        {entry.caScore != null ? entry.caScore.toFixed(1) : '-'}
                                                     </td>
-                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{entry.exam_score?.toFixed(1) || '-'}</td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
+                                                        {entry.exam_score != null ? entry.exam_score.toFixed(1) : '-'}
+                                                    </td>
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">{entry.total_score.toFixed(1)}</td>
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
                                                         <span className="inline-flex px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-bold">
