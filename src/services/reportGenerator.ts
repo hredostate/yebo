@@ -1,4 +1,5 @@
-import { aiClient } from './aiClient';
+import { getAIClient, getCurrentModel } from './aiClient';
+import { textFromAI } from '../utils/ai';
 import type { 
   GeneratedReport, 
   ReportGenerationRequest, 
@@ -51,6 +52,7 @@ async function generateSubjectComment(
   length: string,
   previousScore?: number
 ): Promise<string> {
+  const aiClient = getAIClient();
   if (!aiClient) {
     // Fallback template-based comment
     const improvement = previousScore ? score - previousScore : 0;
@@ -102,12 +104,12 @@ ${tone === 'balanced' ? 'Acknowledge both strengths and areas to develop.' : ''}
 
 Do not include the subject name in the comment as it will be shown under the subject heading.`;
 
-    const response = await aiClient.models.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      model: 'gemini-2.5-flash',
+    const response = await aiClient.chat.completions.create({
+      model: getCurrentModel(),
+      messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.text?.trim() || `Demonstrates ${effort} effort in ${subjectName}.`;
+    return textFromAI(response).trim() || `Demonstrates ${effort} effort in ${subjectName}.`;
   } catch (error) {
     console.error('AI comment generation error:', error);
     return `Shows ${effort} performance with ${score}% in ${subjectName}.`;
@@ -123,6 +125,7 @@ async function generateOverallComment(
   tone: string,
   length: string
 ): Promise<string> {
+  const aiClient = getAIClient();
   if (!aiClient) {
     const avgScore = data.subjectScores.reduce((sum, s) => sum + s.score, 0) / data.subjectScores.length;
     let comment = `${studentName} has `;
@@ -170,12 +173,12 @@ Write a ${tone} overall term comment (${lengthGuide[length as keyof typeof lengt
 
 Tone: ${tone}`;
 
-    const response = await aiClient.models.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      model: 'gemini-2.5-flash',
+    const response = await aiClient.chat.completions.create({
+      model: getCurrentModel(),
+      messages: [{ role: 'user', content: prompt }],
     });
 
-    return response.text?.trim() || `${studentName} has made progress this term and should continue to work hard.`;
+    return textFromAI(response).trim() || `${studentName} has made progress this term and should continue to work hard.`;
   } catch (error) {
     console.error('AI overall comment generation error:', error);
     return `${studentName} has completed the term with consistent effort across all subjects.`;

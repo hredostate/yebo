@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { aiClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
 import Spinner from './common/Spinner';
 import { ChartBarIcon, WandIcon } from './common/icons';
 import { extractAndParseJson } from '../utils/json';
-import { textFromGemini } from '../utils/ai';
+import { textFromAI } from '../utils/ai';
 
 interface DataAnalysisViewProps {
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -31,6 +31,7 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
   };
 
   const generateSuggestions = async (csvContent: string) => {
+    const aiClient = getAIClient();
     if (!aiClient) return;
     setIsSuggesting(true);
     try {
@@ -40,19 +41,13 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
         CSV Preview:
         ${firstFewLines}`;
 
-        const response = await aiClient.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: "ARRAY",
-                    items: { type: "STRING" }
-                }
-            }
+        const response = await aiClient.chat.completions.create({
+            model: getCurrentModel(),
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' }
         });
         
-        const suggestions = extractAndParseJson<string[]>(textFromGemini(response));
+        const suggestions = extractAndParseJson<string[]>(textFromAI(response));
         if (suggestions) {
             setSuggestedQuestions(suggestions);
         }
@@ -91,6 +86,7 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
     setIsLoading(true);
     setAnalysisResult('');
     try {
+        const aiClient = getAIClient();
         if (!aiClient) throw new Error("AI Client not ready.");
 
         const prompt = `You are a helpful data analyst for a school administrator. Analyze the following CSV data to answer the user's question.
@@ -103,13 +99,14 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
         Question: "${question}"
         `;
 
-        const responseStream = await aiClient.models.generateContentStream({
-            model: 'gemini-2.5-flash', 
-            contents: prompt
+        const stream = await aiClient.chat.completions.create({
+            model: getCurrentModel(),
+            messages: [{ role: 'user', content: prompt }],
+            stream: true,
         });
 
-        for await (const chunk of responseStream) {
-            setAnalysisResult(prev => prev + textFromGemini(chunk));
+        for await (const chunk of stream) {
+            setAnalysisResult(prev => prev + (chunk.choices[0]?.delta?.content || ''));
         }
 
     } catch (err) {

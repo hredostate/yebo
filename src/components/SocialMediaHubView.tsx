@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getAIClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
 import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import type { SocialMediaAnalytics, SocialAccount, PlatformTask, VideoSuggestion, PerformanceAnalysis, UserProfile } from '../types';
@@ -314,16 +314,17 @@ const SocialMediaHubView: React.FC<SocialMediaHubViewProps> = ({
     const [ideaToImplement, setIdeaToImplement] = useState<VideoSuggestion | null>(null);
 
     const handleGeneratePlan = async (topic: string) => {
+        const aiClient = getAIClient();
         if (!aiClient) return;
         const prompt = `You are a social media manager for a school. Create a content plan for an upcoming event: "${topic}".
         Provide a JSON array of objects, where each object has "platform" (Instagram, Facebook, or X) and "taskDescription" (a specific action for that platform).`;
         try {
-            const response = await aiClient.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' }
             });
-            const tasks = extractAndParseJson<PlatformTask[]>(textFromGemini(response));
+            const tasks = extractAndParseJson<PlatformTask[]>(textFromAI(response));
             if (tasks && Array.isArray(tasks)) {
                 setPlatformTasks(tasks);
                 addToast('Content plan generated!', 'success');
@@ -336,16 +337,17 @@ const SocialMediaHubView: React.FC<SocialMediaHubViewProps> = ({
     };
 
     const handleGenerateIdeas = async () => {
+        const aiClient = getAIClient();
         if (!aiClient) return;
         const prompt = `You are a creative strategist for a school's social media. Suggest 3 fresh and engaging short-form video ideas (for TikTok/Reels) that are relevant to school life.
         Provide a JSON array of objects, each with "trend" (the current trend it's based on), "idea" (the specific video concept for the school), and "example" (a brief script or shot list).`;
         try {
-            const response = await aiClient.models.generateContent({
-                model: 'gemini-2.5-pro',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' }
             });
-            const suggestions = extractAndParseJson<VideoSuggestion[]>(textFromGemini(response));
+            const suggestions = extractAndParseJson<VideoSuggestion[]>(textFromAI(response));
             if (suggestions && Array.isArray(suggestions)) {
                 setVideoSuggestions(suggestions);
                 addToast('Video ideas generated!', 'success');
@@ -358,17 +360,18 @@ const SocialMediaHubView: React.FC<SocialMediaHubViewProps> = ({
     };
 
     const handleAnalyzePerformance = async () => {
+        const aiClient = getAIClient();
         if (!aiClient || analyticsData.length === 0) return;
         const prompt = `Analyze the following social media performance data for a school. Identify key strengths, weaknesses, and provide 3 actionable recommendations.
         Data: ${JSON.stringify(analyticsData)}
         Provide a JSON object with "strengths" (array of strings), "weaknesses" (array of strings), and "recommendations" (array of strings).`;
         try {
-            const response = await aiClient.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' }
             });
-            const analysis = extractAndParseJson<PerformanceAnalysis>(textFromGemini(response));
+            const analysis = extractAndParseJson<PerformanceAnalysis>(textFromAI(response));
             if (analysis) {
                 setPerformanceAnalysis(analysis);
                 addToast('Performance analysis complete!', 'success');
