@@ -22,8 +22,8 @@ import type {
 import { VIEWS } from '../constants';
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_SOCIAL_ANALYTICS } from '../services/mockData';
 import { todayISO, checkInToday, checkOutToday, uploadCheckinPhoto } from '../services/checkins';
-import { aiClient } from '../services/aiClient';
-import { textFromGemini } from '../utils/ai';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import { fetchAllStudents } from '../utils/studentPagination';
 
@@ -570,9 +570,16 @@ export const useAppLogic = () => {
       // AI Analysis
       let analysis = null;
       try {
+          const aiClient = getAIClient();
           const prompt = `Analyze this school report: "${data.report_text}". Return JSON: { "sentiment": "Positive"|"Negative"|"Neutral", "urgency": "Low"|"Medium"|"High"|"Critical", "summary": "One sentence summary" }`;
-          const aiRes = await aiClient?.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
-          if (aiRes) analysis = extractAndParseJson(textFromGemini(aiRes));
+          if (aiClient) {
+              const aiRes = await aiClient.chat.completions.create({
+                  model: getCurrentModel(),
+                  messages: [{ role: 'user', content: prompt }],
+                  response_format: { type: 'json_object' }
+              });
+              analysis = extractAndParseJson(textFromAI(aiRes));
+          }
       } catch (e) { console.error("AI Error", e); }
 
       const payload = {
@@ -740,9 +747,14 @@ export const useAppLogic = () => {
              // AI Logic
              const prompt = `Analyze positive behavior records: ${JSON.stringify(positiveRecords.slice(0, 20))}. Generate 3 awards. JSON: [{student_id, award_type, reason}]`;
              try {
-                 const res = await aiClient?.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json'} });
-                 if(res) {
-                     const awards = extractAndParseJson<any[]>(textFromGemini(res));
+                 const aiClient = getAIClient();
+                 if (aiClient) {
+                     const res = await aiClient.chat.completions.create({
+                         model: getCurrentModel(),
+                         messages: [{ role: 'user', content: prompt }],
+                         response_format: { type: 'json_object' }
+                     });
+                     const awards = extractAndParseJson<any[]>(textFromAI(res));
                      if(awards) await supabase.from('student_awards').insert(awards.map((a: any) => ({...a, school_id: userProfile?.school_id})));
                      fetchData();
                  }
