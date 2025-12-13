@@ -199,9 +199,11 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                  <div>
                      <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
                          <BookOpenIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" aria-hidden="true" />
-                         Student Subject Choices
+                         Welcome, {studentProfile.full_name}
                      </h1>
-                     <p className="text-slate-600 dark:text-slate-300 mt-1">View and export student subject selections</p>
+                     <p className="text-slate-600 dark:text-slate-400 mt-1">
+                         {studentProfile.class_name} {studentProfile.arm_name && `- ${studentProfile.arm_name}`}
+                     </p>
                  </div>
                  <div className="flex items-center gap-3">
                     {toggleTheme && (
