@@ -378,12 +378,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
             <button 
                 onClick={handleGenerateAwards}
                 disabled={isGeneratingAwards}
-                className="touch-target text-sm bg-amber-500 text-white px-4 py-3 min-h-touch rounded-lg hover:bg-amber-600 disabled:bg-amber-400 flex items-center justify-center min-w-[150px]"
+                className="touch-target text-sm bg-amber-500 text-white px-4 rounded-lg hover:bg-amber-600 disabled:bg-amber-400 flex items-center justify-center min-w-[150px]"
             >
                 {isGeneratingAwards ? <Spinner size="sm" /> : '✨ Generate Awards'}
             </button>
-            {canManageStudents && <button onClick={onOpenCreateStudentAccountModal} className="touch-target px-4 py-3 min-h-touch bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">Create Account</button>}
-            {canManageStudents && <button onClick={() => setIsAddModalOpen(true)} className="touch-target px-4 py-3 min-h-touch bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">Add Student</button>}
+            {canManageStudents && <button onClick={onOpenCreateStudentAccountModal} className="touch-target px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">Create Account</button>}
+            {canManageStudents && <button onClick={() => setIsAddModalOpen(true)} className="touch-target px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">Add Student</button>}
         </div>
       </div>
 

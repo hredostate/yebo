@@ -154,11 +154,11 @@ body {
 
   /* Better touch target sizing for interactive elements */
   .touch-target {
-    @apply min-h-touch min-w-touch p-2;
+    @apply min-h-touch min-w-touch p-3;
   }
   
   .touch-target-lg {
-    @apply min-h-touch-lg min-w-touch-lg p-3;
+    @apply min-h-touch-lg min-w-touch-lg p-4;
   }
 
   /* Horizontal scroll wrapper for tables on mobile */

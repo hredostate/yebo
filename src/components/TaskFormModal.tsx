@@ -154,8 +154,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="touch-target px-4 py-3 min-h-touch bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="touch-target px-4 py-3 min-h-touch bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
+            <button type="button" onClick={onClose} className="touch-target px-4 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="touch-target px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
                 {isSubmitting ? <Spinner size="sm" /> : 'Create Task'}
             </button>
           </div>
