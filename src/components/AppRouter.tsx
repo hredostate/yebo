@@ -202,6 +202,13 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         />
                     </Suspense>
                 );
+            case VIEWS.STOREFRONT:
+                return <StorefrontView 
+                    inventory={data.inventory}
+                    onCreateOrder={actions.handleCreateOrder}
+                    userProfile={data.userProfile}
+                    addToast={actions.addToast}
+                />;
             default:
                 // Redirect unknown to Student Dashboard
                 return <StudentDashboard
