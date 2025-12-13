@@ -248,12 +248,15 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Student Subject Choices</h1>
-          <p className="text-gray-400 mt-1">View and export student subject selections</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            <BookOpenIcon className="w-8 h-8 text-blue-600" />
+            Student Subject Choices
+          </h1>
+          <p className="text-slate-600 dark:text-slate-300 mt-1">View and export student subject selections</p>
         </div>
         <button
           onClick={exportToCSV}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 rounded-lg font-medium text-white transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-colors flex items-center gap-2"
         >
           <DownloadIcon className="h-5 w-5" />
           Export to CSV
@@ -262,60 +265,60 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+          <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm opacity-90">Total Students</p>
+              <p className="text-blue-100 text-sm">Total Students</p>
               <p className="text-3xl font-bold mt-1">{studentChoices.length}</p>
             </div>
-            <UsersIcon className="h-12 w-12 opacity-80" />
+            <UsersIcon className="w-8 h-8 text-blue-200" />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+          <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm opacity-90">Filtered Results</p>
+              <p className="text-blue-100 text-sm">Filtered Results</p>
               <p className="text-3xl font-bold mt-1">{filteredChoices.length}</p>
             </div>
-            <FilterIcon className="h-12 w-12 opacity-80" />
+            <FilterIcon className="w-8 h-8 text-blue-200" />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+          <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm opacity-90">Total Subjects</p>
+              <p className="text-blue-100 text-sm">Total Subjects</p>
               <p className="text-3xl font-bold mt-1">{allSubjects.length}</p>
             </div>
-            <BookOpenIcon className="h-12 w-12 opacity-80" />
+            <BookOpenIcon className="w-8 h-8 text-blue-200" />
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Search</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Search</label>
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Student name or ID..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
           {/* Class Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Class</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Class</label>
             <select
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Classes</option>
               {classes.map(cls => (
@@ -326,11 +329,11 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
 
           {/* Arm Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Arm</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Arm</label>
             <select
               value={filterArm}
               onChange={(e) => setFilterArm(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Arms</option>
               {arms.map(arm => (
@@ -341,11 +344,11 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
 
           {/* Subject Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Subject</label>
             <select
               value={filterSubject}
               onChange={(e) => setFilterSubject(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Subjects</option>
               {allSubjects.map(subject => (
@@ -357,40 +360,40 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
       </div>
 
       {/* Table */}
-      <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-700 border-b border-slate-600">
+            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Compulsory Subjects</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Elective Subjects</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date Selected</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Student</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Class</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Compulsory Subjects</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Elective Subjects</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Date Selected</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredChoices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                     No student subject choices found
                   </td>
                 </tr>
               ) : (
                 filteredChoices.map((choice) => (
-                  <tr key={choice.student_id} className="hover:bg-slate-700/50 transition-colors">
+                  <tr key={choice.student_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-white">{choice.student_name}</div>
+                        <div className="text-sm font-medium text-slate-900 dark:text-white">{choice.student_name}</div>
                         {choice.admission_number && (
-                          <div className="text-xs text-gray-400">{choice.admission_number}</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">{choice.admission_number}</div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-300">
+                      <div className="text-sm text-slate-700 dark:text-slate-300">
                         {choice.class_name || 'N/A'}
-                        {choice.arm_name && <span className="text-gray-500"> - {choice.arm_name}</span>}
+                        {choice.arm_name && <span className="text-slate-500 dark:text-slate-500"> - {choice.arm_name}</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -399,13 +402,13 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                           choice.subjects.compulsory.map((subject, idx) => (
                             <span
                               key={idx}
-                              className="px-2 py-1 bg-blue-900/40 text-blue-300 text-xs rounded-full border border-blue-700"
+                              className="px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs rounded-full border border-blue-300 dark:border-blue-700"
                             >
                               {subject}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-gray-500">None</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-500">None</span>
                         )}
                       </div>
                     </td>
@@ -415,17 +418,17 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                           choice.subjects.elective.map((subject, idx) => (
                             <span
                               key={idx}
-                              className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-full border border-purple-700"
+                              className="px-2 py-1 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs rounded-full border border-purple-300 dark:border-purple-700"
                             >
                               {subject}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-gray-500">None</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-500">None</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                       {choice.date_selected ? new Date(choice.date_selected).toLocaleDateString() : 'N/A'}
                     </td>
                   </tr>
