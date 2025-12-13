@@ -144,6 +144,7 @@ pensionDeduction = employeeContribution + voluntaryContribution;
 Added "Pension" tab to HR/Payroll module:
 - Available to users with payroll management permissions
 - Accessible alongside other payroll features
+- Uses distinctive SaveIcon (📑) for easy identification and discoverability
 - Seamlessly integrated into existing navigation
 
 ## Key Features Summary
@@ -231,8 +232,8 @@ Added "Pension" tab to HR/Payroll module:
 
 ### For HR/Payroll Administrators
 
-1. **Navigate to HR/Payroll module**
-2. **Click "Pension" tab**
+1. **Navigate to HR/Payroll module** (Finance & Ops section in sidebar)
+2. **Click "Pension" tab** (identified by a bookmark/save icon 📑)
 3. **Configure pension for staff**:
    - Click edit icon next to staff member
    - Enable enrollment
