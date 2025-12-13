@@ -114,11 +114,26 @@ const PolicyStatementsManager = lazyWithRetry(() => import('./components/PolicyS
 const AUTH_ONLY_VIEWS = ['teacher-login', 'student-login', 'landing', 'public-ratings'];
 
 // Views that students are allowed to access
-const STUDENT_ALLOWED_VIEWS = ['My Subjects', 'Rate My Teacher', 'Surveys', 'Reports'];
+const STUDENT_ALLOWED_VIEWS = [
+    'My Subjects',
+    'Rate My Teacher',
+    'Student Surveys',
+    'Student Reports',
+    'Student Dashboard',
+    'Student Profile Edit',
+    'My Strikes & Appeals',
+    'Student Lessons',
+    'Timetable',
+    'My Homework',
+    'Absence Requests',
+    'School Store'
+];
 
 // Helper: Check if a view is allowed for students
 const isStudentAllowedView = (view: string): boolean => {
-    return STUDENT_ALLOWED_VIEWS.includes(view) || view.startsWith('Student Report/');
+    return STUDENT_ALLOWED_VIEWS.includes(view) || 
+           view.startsWith('Student Report/') || 
+           view.startsWith('Take Quiz/');
 };
 
 // Helper: Parse initial target view from URL hash
