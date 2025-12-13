@@ -56,6 +56,9 @@ const HolidaysManager: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
+        if (!window.confirm('Are you sure you want to delete this holiday? This action cannot be undone and may affect attendance rules.')) {
+            return;
+        }
         await supabase.from('holidays').delete().eq('id', id);
         setHolidays(prev => prev.filter(h => h.id !== id));
     };
@@ -350,7 +353,11 @@ const ShiftManager: React.FC<ShiftManagerProps> = ({ shifts, users, onSave, onDe
                                                 <div key={shift.id} className="flex justify-between items-center text-xs p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-100 dark:border-slate-700 group">
                                                     <span className={`font-bold w-8 ${[0,6].includes(shift.day_of_week) ? 'text-orange-500' : 'text-slate-600 dark:text-slate-300'}`}>{dayNames[shift.day_of_week]}</span>
                                                     <span className="font-mono text-slate-700 dark:text-slate-200">{shift.start_time.slice(0,5)} - {shift.end_time.slice(0,5)}</span>
-                                                    <button onClick={() => onDelete(shift.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => {
+                                                        if (window.confirm('Are you sure you want to delete this shift? This action cannot be undone and may affect attendance tracking.')) {
+                                                            onDelete(shift.id);
+                                                        }
+                                                    }} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-3 h-3"/></button>
                                                 </div>
                                             ))}
                                         </div>

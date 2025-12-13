@@ -47,6 +47,13 @@ const ClassSubjectsManager: React.FC<ClassSubjectsManagerProps> = ({
     const handleToggleSubject = async (subjectId: number, currentlyEnabled: boolean) => {
         if (!selectedClassId || isSaving) return;
         
+        if (currentlyEnabled) {
+            // Confirm before removing subject
+            if (!window.confirm('Are you sure you want to remove this subject from the class? This may affect student enrollments and timetables.')) {
+                return;
+            }
+        }
+        
         setIsSaving(true);
         setSavingSubjectId(subjectId);
         

@@ -47,7 +47,11 @@ const RewardsManager: React.FC<RewardsManagerProps> = ({ rewards, onSave, onDele
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(reward)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => onDelete(reward.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this reward? This action cannot be undone and may affect students who have purchased this reward.')) {
+                                    onDelete(reward.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600">Delete</button>
                         </div>
                     </div>
                 ))}

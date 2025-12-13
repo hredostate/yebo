@@ -158,7 +158,11 @@ const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSche
                                 <div className="flex gap-2">
                                     {schoolConfig?.active_grading_scheme_id !== scheme.id && <button onClick={() => onSetActiveScheme(scheme.id)} className="text-sm font-semibold text-green-600">Set Active</button>}
                                     <button onClick={() => setEditingScheme(scheme)} className="text-sm font-semibold">Edit</button>
-                                    <button onClick={() => onDeleteScheme(scheme.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                                    <button onClick={() => {
+                                        if (window.confirm('Are you sure you want to delete this grading scheme? This action cannot be undone and may affect student grades and reports.')) {
+                                            onDeleteScheme(scheme.id);
+                                        }
+                                    }} className="text-sm font-semibold text-red-600">Delete</button>
                                 </div>
                             </div>
                         </div>

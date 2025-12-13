@@ -71,7 +71,11 @@ const CampusesManager: React.FC<CampusesManagerProps> = ({ campuses, onSave, onD
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => setEditing(campus)} className="text-sm font-semibold text-blue-600 hover:underline">Edit</button>
-                                <button onClick={() => onDelete(campus.id)} className="text-sm font-semibold text-red-600 hover:underline">Delete</button>
+                                <button onClick={() => {
+                                    if (window.confirm('Are you sure you want to delete this campus? This action cannot be undone and may affect users, classes, and other campus-specific data.')) {
+                                        onDelete(campus.id);
+                                    }
+                                }} className="text-sm font-semibold text-red-600 hover:underline">Delete</button>
                             </div>
                         </div>
                     </div>

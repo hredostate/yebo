@@ -117,7 +117,11 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, onSave, 
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => setEditing(item)} className="text-sm font-semibold text-blue-600 hover:underline px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20">Edit</button>
-                                        <button onClick={() => onDelete(item.id)} className="text-sm font-semibold text-red-600 hover:underline px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
+                                        <button onClick={() => {
+                                            if (window.confirm('Are you sure you want to delete this inventory item? This action cannot be undone and may affect related transactions.')) {
+                                                onDelete(item.id);
+                                            }
+                                        }} className="text-sm font-semibold text-red-600 hover:underline px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
                                     </div>
                                 </div>
                             );

@@ -55,7 +55,11 @@ const TermsManager: React.FC<TermsManagerProps> = ({ terms = [], onSave, onDelet
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditingTerm(term)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => onDelete(term.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this term? This action cannot be undone and may affect related academic classes and assignments.')) {
+                                    onDelete(term.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600">Delete</button>
                         </div>
                     </div>
                 ))}

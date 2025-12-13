@@ -46,7 +46,11 @@ const SubjectsManager: React.FC<SubjectsManagerProps> = ({ subjects = [], onSave
                         <p className="font-semibold">{subject.name}</p>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(subject)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => onDelete(subject.id)} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this subject? This action cannot be undone and may affect class assignments and student enrollments.')) {
+                                    onDelete(subject.id);
+                                }
+                            }} className="text-sm font-semibold text-red-600">Delete</button>
                         </div>
                     </div>
                 ))}

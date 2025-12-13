@@ -495,7 +495,11 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
                                     <h4 className="font-bold text-lg text-slate-900 dark:text-white">{ac.name}</h4>
                                     <div className="flex gap-2">
                                         <button onClick={() => setEditingClass(ac)} className="text-slate-400 hover:text-blue-600"><EditIcon className="w-4 h-4"/></button>
-                                        <button onClick={() => onDelete(ac.id)} className="text-slate-400 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                        <button onClick={() => {
+                                            if (window.confirm('Are you sure you want to delete this academic class? This action cannot be undone and may affect students, assessments, and academic records.')) {
+                                                onDelete(ac.id);
+                                            }
+                                        }} className="text-slate-400 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
