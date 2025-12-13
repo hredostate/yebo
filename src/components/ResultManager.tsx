@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
@@ -27,11 +27,12 @@ interface ResultManagerProps {
     schoolConfig: SchoolConfig | null;
     onUpdateComments: (reportId: number, teacherComment: string, principalComment: string) => Promise<void>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    onNavigate?: (view: string) => void;
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
     terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
-    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, addToast 
+    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, addToast, onNavigate 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [isProcessing, setIsProcessing] = useState<number | null>(null); // assignment ID
@@ -345,6 +346,48 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setSelectedClassForBulk(null);
     };
 
+    // Helper function to navigate to Score Review with filters
+    const navigateToScoreReviewWithFilters = (filters: {
+        termId: number;
+        classId: number;
+        subject?: string;
+        edit?: boolean;
+    }) => {
+        if (onNavigate) {
+            sessionStorage.setItem('scoreReviewFilters', JSON.stringify({
+                ...filters,
+                timestamp: Date.now()
+            }));
+            onNavigate('Score Review');
+        }
+    };
+
+    // Navigate to Score Review with pre-applied filters
+    const handleViewClass = (classId: number, termId: number) => {
+        navigateToScoreReviewWithFilters({ termId, classId });
+    };
+
+    const handleEditClass = (classId: number, termId: number) => {
+        navigateToScoreReviewWithFilters({ termId, classId, edit: true });
+    };
+
+    const handleViewSubject = (assignment: AcademicTeachingAssignment) => {
+        navigateToScoreReviewWithFilters({
+            termId: assignment.term_id,
+            classId: assignment.academic_class_id,
+            subject: assignment.subject_name
+        });
+    };
+
+    const handleEditSubject = (assignment: AcademicTeachingAssignment) => {
+        navigateToScoreReviewWithFilters({
+            termId: assignment.term_id,
+            classId: assignment.academic_class_id,
+            subject: assignment.subject_name,
+            edit: true
+        });
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
@@ -534,6 +577,27 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         <DownloadIcon className="w-4 h-4" />
                                         Generate Report Cards
                                     </button>
+                                    
+                                    {/* View and Edit Scores Buttons */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleViewClass(c.id, Number(selectedTermId))}
+                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 text-sm font-semibold rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
+                                            title="View all scores for this class"
+                                        >
+                                            <EyeIcon className="w-4 h-4" />
+                                            View Results
+                                        </button>
+                                        <button
+                                            onClick={() => handleEditClass(c.id, Number(selectedTermId))}
+                                            disabled={c.isFullyLocked}
+                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-sm font-semibold rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title={c.isFullyLocked ? "Class is fully locked" : "Edit scores for this class"}
+                                        >
+                                            <EditIcon className="w-4 h-4" />
+                                            Edit Scores
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -590,6 +654,22 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                     title="Generate AI Comments for Students"
                                                 >
                                                     {isGeneratingComments === as.id ? <Spinner size="sm"/> : <WandIcon className="w-3 h-3"/>} AI Comments
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={() => handleViewSubject(as)} 
+                                                className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 flex items-center gap-1"
+                                                title="View scores for this subject"
+                                            >
+                                                <EyeIcon className="w-3 h-3"/> View
+                                            </button>
+                                            {!as.is_locked && (
+                                                <button 
+                                                    onClick={() => handleEditSubject(as)} 
+                                                    className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 flex items-center gap-1"
+                                                    title="Edit scores for this subject"
+                                                >
+                                                    <EditIcon className="w-3 h-3"/> Edit
                                                 </button>
                                             )}
                                             {canLock && !as.is_locked && (
