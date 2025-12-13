@@ -7,6 +7,17 @@ import { SearchIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import Pagination from './common/Pagination';
 
+// Helper function for status styling
+const getStatusStyling = (status: EmploymentStatus | undefined): string => {
+    if (!status || status === EmploymentStatus.Active) {
+        return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
+    }
+    if (status === EmploymentStatus.Suspended || status === EmploymentStatus.LongLeave) {
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
+    }
+    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
+};
+
 // --- Invite User Modal (Component-scoped) ---
 interface InviteUserModalProps {
     isOpen: boolean;
@@ -184,13 +195,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                                         <select
                                             value={user.employment_status || EmploymentStatus.Active}
                                             onChange={(e) => onUpdateEmploymentStatus?.(user.id, e.target.value as EmploymentStatus)}
-                                            className={`p-1 rounded-md border text-xs font-medium ${
-                                                (!user.employment_status || user.employment_status === EmploymentStatus.Active)
-                                                    ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
-                                                    : user.employment_status === EmploymentStatus.Suspended || user.employment_status === EmploymentStatus.LongLeave
-                                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'
-                                                    : 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
-                                            }`}
+                                            className={`p-1 rounded-md border text-xs font-medium ${getStatusStyling(user.employment_status)}`}
                                         >
                                             {Object.values(EmploymentStatus).map(status => (
                                                 <option key={status} value={status}>{status}</option>

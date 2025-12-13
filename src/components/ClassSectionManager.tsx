@@ -5,6 +5,7 @@ import type { ClassSection, UserProfile } from '../types';
 import Spinner from './common/Spinner';
 import SearchableSelect from './common/SearchableSelect';
 import { PlusCircleIcon, EditIcon, TrashIcon, RepeatIcon } from './common/icons';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 // --- Modal Component ---
 interface ClassSectionModalProps {
@@ -92,7 +93,7 @@ const ClassSectionManager: React.FC<ClassSectionManagerProps> = ({ classSections
   const [editingSection, setEditingSection] = useState<ClassSection | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  const teachers = users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && (!u.employment_status || u.employment_status === 'Active'));
+  const teachers = users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && isActiveEmployee(u));
 
   const handleCreate = () => {
       setEditingSection(null);

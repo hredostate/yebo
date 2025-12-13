@@ -6,6 +6,7 @@ import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, EditIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import { mapSupabaseError } from '../utils/errorHandling';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 interface TimetableViewProps {
     userProfile?: UserProfile;
@@ -350,7 +351,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, onDele
                             <input type="text" value={users.find(u => u.id === fixedTeacherId)?.name || 'You'} disabled className="w-full p-2 rounded border bg-slate-100 dark:bg-slate-700 text-slate-500 cursor-not-allowed" />
                         ) : (
                              <SearchableSelect 
-                                options={users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && (!u.employment_status || u.employment_status === 'Active')).map(u => ({ value: u.id, label: u.name }))} 
+                                options={users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && isActiveEmployee(u)).map(u => ({ value: u.id, label: u.name }))} 
                                 value={teacherId} 
                                 onChange={(val) => setTeacherId(String(val))} 
                                 placeholder="Select Teacher"

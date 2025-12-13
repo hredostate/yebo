@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { UserProfile, TeacherRatingWeekly, MaskedTeacherRating } from '../types';
 import Spinner from './common/Spinner';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 // Helper: Get Monday of a given week
 const getWeekStartDateString = (date: Date): string => {
@@ -28,7 +29,7 @@ const StaffTeacherRatingsView: React.FC<StaffTeacherRatingsViewProps> = ({ users
 
     const weekStart = getWeekStartDateString(currentDate);
 
-    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && (!u.employment_status || u.employment_status === 'Active')), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && isActiveEmployee(u)), [users]);
     
     useEffect(() => {
         const fetchComments = async () => {

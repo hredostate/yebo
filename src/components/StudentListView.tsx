@@ -8,6 +8,7 @@ import { VIEWS, STUDENT_STATUSES } from '../constants';
 import { exportToCsv } from '../utils/export';
 import { exportToExcel, type ExcelColumn } from '../utils/excelExport';
 import Pagination from './common/Pagination';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 interface StudentListViewProps {
   students: Student[];
@@ -106,7 +107,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
 
   const teachers = useMemo(() => 
-    users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && (!u.employment_status || u.employment_status === 'Active')).sort((a,b) => a.name.localeCompare(b.name))
+    users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead') && isActiveEmployee(u)).sort((a,b) => a.name.localeCompare(b.name))
   , [users]);
 
   const filteredStudents = useMemo(() => {
