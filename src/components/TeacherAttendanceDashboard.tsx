@@ -5,6 +5,19 @@ import type { Campus, AcademicTeachingAssignment, TeacherShift } from '../types'
 import Spinner from './common/Spinner';
 import { todayISO } from '../services/checkins';
 import Pagination from './common/Pagination';
+import { DownloadIcon, TrendingUpIcon, TrendingDownIcon } from './common/icons';
+import { exportToCsv } from '../utils/export';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    Cell,
+} from 'recharts';
 
 interface DailyAttendanceRow {
     teacher_id: string;
@@ -18,6 +31,17 @@ interface DailyAttendanceRow {
     photo_url: string | null;
     is_late: boolean;
     on_time: boolean;
+}
+
+interface CampusTrendData {
+    campus_name: string;
+    present: number;
+    late: number;
+    absent: number;
+    remote: number;
+    total: number;
+    on_time_rate: number;
+    early_birds: number;
 }
 
 interface TeacherAttendanceDashboardProps {
@@ -41,6 +65,9 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
     
     // Photo modal state
     const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
+    
+    // Show/hide campus trends section
+    const [showTrends, setShowTrends] = useState(false);
 
     // Fetch shifts to calculate early checkout
     useEffect(() => {
@@ -153,12 +180,199 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
         return checkoutTime < shiftEnd;
     }
 
+    // Check if a teacher arrived early (before shift start time)
+    const checkEarlyArrival = (checkinTimeStr: string | null, teacherId: string) => {
+        if (!checkinTimeStr) return false;
+        const shift = getShiftInfo(teacherId);
+        if (!shift || !shift.start_time) return false;
+        
+        const checkinTime = new Date(checkinTimeStr);
+        const [startHour, startMinute] = shift.start_time.split(':').map(Number);
+        
+        // Create shift start date object for same day
+        const shiftStart = new Date(checkinTime);
+        shiftStart.setHours(startHour, startMinute, 0, 0);
+        
+        // Early if check-in is 15+ minutes before shift start
+        const earlyThresholdMs = 15 * 60 * 1000; // 15 minutes
+        return checkinTime.getTime() < shiftStart.getTime() - earlyThresholdMs + 60000; // 1 min grace
+    };
+
+    // Calculate campus-based trends
+    const campusTrends = useMemo((): CampusTrendData[] => {
+        const trendMap = new Map<string, CampusTrendData>();
+        
+        attendanceData.forEach(row => {
+            const campusName = row.campus_name || 'No Campus';
+            if (!trendMap.has(campusName)) {
+                trendMap.set(campusName, {
+                    campus_name: campusName,
+                    present: 0,
+                    late: 0,
+                    absent: 0,
+                    remote: 0,
+                    total: 0,
+                    on_time_rate: 0,
+                    early_birds: 0
+                });
+            }
+            
+            const trend = trendMap.get(campusName)!;
+            trend.total++;
+            
+            if (row.status === 'Present') trend.present++;
+            else if (row.status === 'Late') trend.late++;
+            else if (row.status === 'Absent') trend.absent++;
+            else if (row.status === 'Remote') trend.remote++;
+            
+            if (row.on_time) trend.on_time_rate++;
+            
+            // Check for early birds
+            if (checkEarlyArrival(row.checkin_time, row.teacher_id)) {
+                trend.early_birds++;
+            }
+        });
+        
+        // Calculate percentages
+        trendMap.forEach(trend => {
+            trend.on_time_rate = trend.total > 0 
+                ? Math.round((trend.on_time_rate / trend.total) * 100) 
+                : 0;
+        });
+        
+        return Array.from(trendMap.values()).sort((a, b) => b.total - a.total);
+    }, [attendanceData, teacherShifts]);
+
+    // Export function
+    const handleExportAttendance = () => {
+        if (filteredAttendanceData.length === 0) return;
+        
+        const exportData = filteredAttendanceData.map(row => {
+            const shift = getShiftInfo(row.teacher_id);
+            const isEarlyBird = checkEarlyArrival(row.checkin_time, row.teacher_id);
+            const isEarlyLeave = checkEarlyLeave(row.checkout_time, row.teacher_id);
+            
+            return {
+                'Teacher Name': row.teacher_name,
+                'Role': row.teacher_role,
+                'Campus': row.campus_name,
+                'Status': row.status || 'Not Recorded',
+                'Shift Start': shift?.start_time?.slice(0, 5) || 'N/A',
+                'Shift End': shift?.end_time?.slice(0, 5) || 'N/A',
+                'Check In': row.checkin_time 
+                    ? new Date(row.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                    : '-',
+                'Check Out': row.checkout_time 
+                    ? new Date(row.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                    : '-',
+                'On Time': row.on_time ? 'Yes' : 'No',
+                'Late Arrival': row.is_late ? 'Yes' : 'No',
+                'Early Bird': isEarlyBird ? 'Yes' : 'No',
+                'Early Leave': isEarlyLeave ? 'Yes' : 'No',
+                'Notes': row.notes || ''
+            };
+        });
+        
+        exportToCsv(exportData, `teacher_attendance_${date}.csv`);
+    };
+
+    // Badge colors
+    const CHART_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
+
     return (
         <div className="space-y-6 animate-fade-in">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Teacher Attendance</h1>
-                <p className="text-slate-600 dark:text-slate-300 mt-1">Monitor daily staff check-ins, lateness, and early departures.</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Teacher Attendance</h1>
+                    <p className="text-slate-600 dark:text-slate-300 mt-1">Monitor daily staff check-ins, lateness, and early departures.</p>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowTrends(!showTrends)}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                            showTrends 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        <TrendingUpIcon className="w-4 h-4" />
+                        {showTrends ? 'Hide Trends' : 'Campus Trends'}
+                    </button>
+                    <button
+                        onClick={handleExportAttendance}
+                        disabled={filteredAttendanceData.length === 0}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <DownloadIcon className="w-4 h-4" />
+                        Export CSV
+                    </button>
+                </div>
             </div>
+
+            {/* Campus Trends Section */}
+            {showTrends && campusTrends.length > 0 && (
+                <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-6 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">📊 Campus Attendance Trends</h2>
+                    
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        {campusTrends.slice(0, 4).map((trend, index) => (
+                            <div key={index} className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 border border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-bold text-slate-900 dark:text-white truncate" title={trend.campus_name}>
+                                        {trend.campus_name}
+                                    </h3>
+                                    {trend.on_time_rate >= 80 ? (
+                                        <TrendingUpIcon className="w-5 h-5 text-green-500" />
+                                    ) : trend.on_time_rate >= 50 ? (
+                                        <span className="text-yellow-500">—</span>
+                                    ) : (
+                                        <TrendingDownIcon className="w-5 h-5 text-red-500" />
+                                    )}
+                                </div>
+                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{trend.on_time_rate}%</div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">On-time rate</p>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    <span className="px-2 py-0.5 text-[10px] rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                        {trend.present} Present
+                                    </span>
+                                    <span className="px-2 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                        {trend.late} Late
+                                    </span>
+                                    {trend.early_birds > 0 && (
+                                        <span className="px-2 py-0.5 text-[10px] rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                            🌅 {trend.early_birds} Early Birds
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Bar Chart */}
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={campusTrends} layout="vertical">
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <XAxis type="number" />
+                                <YAxis dataKey="campus_name" type="category" width={100} tick={{ fontSize: 12 }} />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: 'rgba(255,255,255,0.95)', 
+                                        borderRadius: '8px',
+                                        border: '1px solid #e5e7eb'
+                                    }}
+                                />
+                                <Legend />
+                                <Bar dataKey="present" name="Present" stackId="a" fill="#10b981" />
+                                <Bar dataKey="late" name="Late" stackId="a" fill="#f59e0b" />
+                                <Bar dataKey="absent" name="Absent" stackId="a" fill="#ef4444" />
+                                <Bar dataKey="remote" name="Remote" stackId="a" fill="#3b82f6" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
             <div className="p-4 rounded-xl border bg-white/60 dark:bg-slate-900/40 flex flex-col md:flex-row gap-4 flex-wrap items-center">
                 <input
@@ -213,20 +427,23 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
                                 <th className="px-6 py-3">Status</th>
                                 <th className="px-6 py-3">Check In</th>
                                 <th className="px-6 py-3">Check Out</th>
+                                <th className="px-6 py-3">Badges</th>
                                 <th className="px-6 py-3">Notes/Photo</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center">
+                                    <td colSpan={7} className="px-6 py-8 text-center">
                                         <Spinner size="lg" />
                                     </td>
                                 </tr>
                             ) : paginatedData.length > 0 ? (
                                 paginatedData.map((row, index) => {
                                     const shift = getShiftInfo(row.teacher_id);
-                                    const isEarly = checkEarlyLeave(row.checkout_time, row.teacher_id);
+                                    const isEarlyLeave = checkEarlyLeave(row.checkout_time, row.teacher_id);
+                                    const isEarlyBird = checkEarlyArrival(row.checkin_time, row.teacher_id);
+                                    const needsImprovement = row.is_late || isEarlyLeave;
                                     
                                     return (
                                     <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-500/10">
@@ -254,11 +471,33 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
                                             {row.checkout_time ? (
                                                 <div>
                                                     <p className="font-mono text-slate-900 dark:text-white">{new Date(row.checkout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                                    {isEarly && <span className="text-[10px] font-bold text-orange-600 uppercase bg-orange-100 px-1 rounded">EARLY LEAVE</span>}
+                                                    {isEarlyLeave && <span className="text-[10px] font-bold text-orange-600 uppercase bg-orange-100 px-1 rounded">EARLY LEAVE</span>}
                                                 </div>
                                             ) : (
                                                 row.checkin_time ? <span className="text-xs text-slate-400 italic">Active</span> : '-'
                                             )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1">
+                                                {/* Early Bird Badge */}
+                                                {isEarlyBird && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-900 shadow-sm" title="Arrived early for work">
+                                                        🌅 Early Bird
+                                                    </span>
+                                                )}
+                                                {/* Do Better Badge */}
+                                                {needsImprovement && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full bg-gradient-to-r from-red-100 to-orange-100 text-red-700 border border-red-200" title="Needs improvement - late arrival or early departure">
+                                                        📈 Do Better
+                                                    </span>
+                                                )}
+                                                {/* On Time Badge */}
+                                                {row.on_time && !isEarlyBird && !needsImprovement && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full bg-green-100 text-green-700" title="Arrived on time">
+                                                        ✓ On Time
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             {row.notes && <p className="text-xs italic mb-1 max-w-[150px] truncate" title={row.notes}>"{row.notes}"</p>}
@@ -275,7 +514,7 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
                                 )})
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                                         No records found for this selection.
                                     </td>
                                 </tr>
