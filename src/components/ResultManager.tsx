@@ -98,6 +98,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             submittedAssignments: number;
             studentCount: number;
             isFullyLocked: boolean;
+            isFullyPublished: boolean;
             reportsCount: number;
             publishedCount: number;
         }>();
@@ -120,6 +121,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     submittedAssignments: 0,
                     studentCount: studentsInClass.length,
                     isFullyLocked: false,
+                    isFullyPublished: false,
                     reportsCount: reportsForClass.length,
                     publishedCount: reportsForClass.filter(r => r.is_published).length,
                 });
@@ -131,9 +133,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             if (a.submitted_at) classData.submittedAssignments++;
         });
 
-        // Mark classes as fully locked if all assignments are locked
+        // Mark classes as fully locked/published if all assignments/reports meet criteria
         classMap.forEach(c => {
             c.isFullyLocked = c.totalAssignments > 0 && c.lockedAssignments === c.totalAssignments;
+            c.isFullyPublished = c.reportsCount > 0 && c.publishedCount === c.reportsCount;
         });
 
         let classes = Array.from(classMap.values());
@@ -757,7 +760,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600">Published:</span>
-                                        <span className={`font-medium ${c.publishedCount === c.reportsCount && c.reportsCount > 0 ? 'text-green-600' : ''}`}>
+                                        <span className={`font-medium ${c.isFullyPublished ? 'text-green-600' : ''}`}>
                                             {c.publishedCount}/{c.reportsCount}
                                         </span>
                                     </div>
@@ -793,7 +796,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                 Unlock All Scores
                                             </button>
                                         )}
-                                        {canLock && !(c.publishedCount === c.reportsCount && c.reportsCount > 0) && (
+                                        {canLock && !c.isFullyPublished && (
                                             <button
                                                 onClick={() => handlePublishClass(c.id, c.name)}
                                                 disabled={publishingClassId === c.id || c.reportsCount === 0}
@@ -803,7 +806,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                 Publish Class
                                             </button>
                                         )}
-                                        {canLock && c.publishedCount === c.reportsCount && c.reportsCount > 0 && (
+                                        {canLock && c.isFullyPublished && (
                                             <button
                                                 onClick={() => handleUnpublishClass(c.id, c.name)}
                                                 disabled={publishingClassId === c.id}
