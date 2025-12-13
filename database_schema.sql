@@ -70,7 +70,7 @@ INSERT INTO public.roles (school_id, title, description, permissions) VALUES
 (1, 'Admin', 'System Administrator', ARRAY['*']),
 (1, 'Principal', 'School Head', ARRAY['view-dashboard', 'view-all-reports', 'manage-users', 'manage-students', 'view-analytics', 'view-school-health-overview', 'manage-tasks', 'manage-announcements', 'view-teacher-ratings', 'view-ai-task-suggestions', 'view-at-risk-students', 'view-all-student-data', 'view-sensitive-reports', 'score_entries.view_all', 'score_entries.edit_all', 'results.lock_and_publish', 'view-campus-stats']),
 (1, 'Team Lead', 'Department Head', ARRAY['view-dashboard', 'submit-report', 'view-all-reports', 'assign-reports', 'comment-on-reports', 'manage-tasks', 'manage-curriculum', 'view-coverage-feedback', 'score_entries.view_all', 'score_entries.edit_all', 'results.lock_and_publish']),
-(1, 'Teacher', 'Classroom teacher', ARRAY['view-dashboard', 'submit-report', 'score_entries.edit_self', 'view-my-reports', 'view-my-classes', 'view-my-lesson-plans', 'view-my-coverage-feedback', 'take-class-attendance', 'view-curriculum-readonly']),
+(1, 'Teacher', 'Classroom teacher', ARRAY['view-dashboard', 'submit-report', 'score_entries.edit_self', 'view-my-reports', 'view-my-classes', 'view-my-lesson-plans', 'view-my-coverage-feedback', 'take-class-attendance', 'view-curriculum-readonly', 'query-living-policy']),
 (1, 'Counselor', 'Student guidance', ARRAY['view-dashboard', 'submit-report', 'view-all-reports', 'manage-students', 'view-at-risk-students', 'view-sensitive-reports']),
 (1, 'Accountant', 'Financial management', ARRAY['view-dashboard', 'manage-payroll', 'view-sms-balance', 'manage-finance', 'manage-orders']),
 (1, 'School Secretary', 'Admin support', ARRAY['view-dashboard', 'submit-report', 'manage-calendar', 'manage-announcements']),
@@ -1178,7 +1178,7 @@ BEGIN
         END IF;
         
         -- Write Policy (Check existence)
-        IF t IN ('reports', 'tasks', 'announcements', 'inventory_items', 'attendance_records', 'leave_requests', 'score_entries', 'orders', 'order_items', 'order_notes', 'team_feedback', 'report_comments', 'lesson_plans', 'quiz_responses', 'student_intervention_plans', 'sip_logs', 'student_invoices', 'payments', 'timetable_entries', 'timetable_periods', 'holidays', 'teacher_shifts', 'student_subject_choices', 'class_subjects', 'roles', 'user_role_assignments', 'assessment_structures', 'grading_schemes', 'grading_scheme_rules', 'school_config', 'academic_classes', 'terms', 'student_awards', 'staff_awards', 'audit_log') THEN
+        IF t IN ('reports', 'tasks', 'announcements', 'inventory_items', 'attendance_records', 'leave_requests', 'score_entries', 'orders', 'order_items', 'order_notes', 'team_feedback', 'report_comments', 'lesson_plans', 'quiz_responses', 'student_intervention_plans', 'sip_logs', 'student_invoices', 'payments', 'timetable_entries', 'timetable_periods', 'holidays', 'teacher_shifts', 'student_subject_choices', 'class_subjects', 'roles', 'user_role_assignments', 'assessment_structures', 'grading_schemes', 'grading_scheme_rules', 'school_config', 'academic_classes', 'terms', 'student_awards', 'staff_awards', 'audit_log', 'policy_statements') THEN
              IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = t AND policyname = format('Auth write %s', t)) THEN
                  EXECUTE format('CREATE POLICY "Auth write %I" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)', t, t);
              END IF;
@@ -1319,8 +1319,21 @@ END $$;
 
 -- Include Quiz RPCs
 
-
-
+-- Policy Statements Table
+CREATE TABLE IF NOT EXISTS public.policy_statements (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    version TEXT DEFAULT '1.0',
+    target_audience TEXT[] DEFAULT ARRAY['student', 'staff'],
+    is_active BOOLEAN DEFAULT TRUE,
+    requires_acknowledgment BOOLEAN DEFAULT TRUE,
+    effective_date DATE DEFAULT CURRENT_DATE,
+    created_by UUID REFERENCES public.user_profiles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- SECTION 2: ADDITIONAL FUNCTIONS
 DROP FUNCTION IF EXISTS public.get_daily_teacher_attendance(date,integer) CASCADE;
@@ -1744,6 +1757,16 @@ BEGIN
     WHERE subject_id IN (
         SELECT id FROM public.subjects WHERE name ILIKE '%Mathematics%' OR name ILIKE '%English%'
     );
+    
+    -- Add policy_acknowledgments column to user_profiles table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user_profiles' AND column_name='policy_acknowledgments') THEN
+        ALTER TABLE public.user_profiles ADD COLUMN policy_acknowledgments JSONB DEFAULT '[]'::jsonb;
+    END IF;
+    
+    -- Add policy_acknowledgments column to students table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='policy_acknowledgments') THEN
+        ALTER TABLE public.students ADD COLUMN policy_acknowledgments JSONB DEFAULT '[]'::jsonb;
+    END IF;
 END $$;
 
 -- SECTION 4: SEED DATA

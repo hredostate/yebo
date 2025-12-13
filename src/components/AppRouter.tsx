@@ -81,6 +81,8 @@ const NotesComplianceTracker = lazy(() => import('./NotesComplianceTracker'));
 const StudentLessonPortal = lazy(() => import('./StudentLessonPortal'));
 const NotificationHistory = lazy(() => import('./NotificationHistory'));
 const AbsenceRequestsView = lazy(() => import('./AbsenceRequestsView'));
+const PolicyQueryView = lazy(() => import('./PolicyQueryView'));
+const PolicyStatementsManager = lazy(() => import('./PolicyStatementsManager'));
 
 interface AppRouterProps {
     currentView: string;
@@ -646,6 +648,23 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 userProfile={data.userProfile} 
                 onSaveDocument={actions.handleSavePolicyDocument}
              />;
+        
+        case VIEWS.POLICY_QUERY:
+            return <Suspense fallback={<Spinner size="lg" />}>
+                <PolicyQueryView 
+                    userProfile={data.userProfile}
+                    schoolSettings={data.schoolSettings}
+                />
+            </Suspense>;
+        
+        case VIEWS.POLICY_STATEMENTS:
+            return <Suspense fallback={<Spinner size="lg" />}>
+                <PolicyStatementsManager 
+                    userProfile={data.userProfile}
+                    onShowToast={actions.addToast}
+                />
+            </Suspense>;
+
         case VIEWS.EMERGENCY_BROADCAST:
              return <EmergencyBroadcast onSendBroadcast={actions.handleSendEmergencyBroadcast} />;
         case VIEWS.PROFILE:
