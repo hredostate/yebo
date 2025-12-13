@@ -329,10 +329,12 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   };
 
   // Helper to add alpha transparency to hex color
+  const DEFAULT_FALLBACK_COLOR = '#000000';
+  
   const addAlphaToColor = (hexColor: string | null | undefined, alpha: number): string => {
     // Handle null/undefined input
     if (!hexColor || typeof hexColor !== 'string') {
-      return '#000000'; // Return default color
+      return DEFAULT_FALLBACK_COLOR;
     }
     
     // Ensure hex color starts with #
@@ -402,8 +404,11 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       borderRadius = '0';
     }
 
+    // Constant for default CA/Exam scores
+    const DEFAULT_SCORES = { caScore: 0, examScore: 0 };
+
     // Helper function to categorize assessment components
-    const categorizeComponentScore = (componentName: string, componentScores: Record<string, number>) => {
+    const categorizeComponentScore = (componentScores: Record<string, number>) => {
       let caScore = 0;
       let examScore = 0;
       
@@ -543,8 +548,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                   
                   // Calculate CA and Exam scores from componentScores using helper
                   const { caScore, examScore } = sub.componentScores 
-                    ? categorizeComponentScore(sub.subjectName, sub.componentScores)
-                    : { caScore: 0, examScore: 0 };
+                    ? categorizeComponentScore(sub.componentScores)
+                    : DEFAULT_SCORES;
                   
                   return `
                   <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
@@ -662,8 +667,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 
                 // Calculate CA and Exam scores from componentScores using helper
                 const { caScore, examScore } = sub.componentScores 
-                  ? categorizeComponentScore(sub.subjectName, sub.componentScores)
-                  : { caScore: 0, examScore: 0 };
+                  ? categorizeComponentScore(sub.componentScores)
+                  : DEFAULT_SCORES;
                 
                 return `
                 <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f5f5f5'};">
@@ -766,8 +771,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 
                 // Calculate CA and Exam scores from componentScores using helper
                 const { caScore, examScore } = sub.componentScores 
-                  ? categorizeComponentScore(sub.subjectName, sub.componentScores)
-                  : { caScore: 0, examScore: 0 };
+                  ? categorizeComponentScore(sub.componentScores)
+                  : DEFAULT_SCORES;
                 
                 return `
                 <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'};">
