@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supa as supabase } from '../offline/client';
-import type { Student, GradingScheme, SchoolConfig } from '../types';
+import type { Student, GradingScheme, SchoolConfig, ReportCardConfig } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';
 import html2canvas from 'html2canvas';
@@ -328,7 +328,28 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     return { label: 'Needs Improvement', color: '#dc2626', emoji: '⚠️', bgColor: '#fef2f2' };
   };
 
-  const createReportHTML = (reportData: ReportData, student: StudentWithDebt, classReportConfig?: any, assessmentComponents?: Array<{ name: string; max_score: number }> | null): string => {
+  // Helper to add alpha transparency to hex color
+  const addAlphaToColor = (hexColor: string, alpha: number): string => {
+    // Ensure hex color starts with #
+    const color = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
+    
+    // Convert 3-digit hex to 6-digit
+    let hex = color.replace('#', '');
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    // Validate hex color
+    if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
+      return color; // Return original if invalid
+    }
+    
+    // Convert alpha (0-100) to hex (00-FF)
+    const alphaHex = Math.round((alpha / 100) * 255).toString(16).padStart(2, '0');
+    return `#${hex}${alphaHex}`;
+  };
+
+  const createReportHTML = (reportData: ReportData, student: StudentWithDebt, classReportConfig?: ReportCardConfig | null, assessmentComponents?: Array<{ name: string; max_score: number }> | null): string => {
     const { student: studentData, term, subjects, schoolConfig: config, summary, comments, attendance } = reportData;
     
     // Extract configuration
@@ -369,12 +390,30 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       headerTextColor = 'white';
       borderRadius = '12px';
     } else if (layout === 'pastel') {
-      headerBgColor = themeColor + '20';
+      headerBgColor = addAlphaToColor(themeColor, 20);
       headerTextColor = 'black';
     } else if (layout === 'professional') {
       fontFamily = 'Georgia, serif';
       borderRadius = '0';
     }
+
+    // Helper function to categorize assessment components
+    const categorizeComponentScore = (componentName: string, componentScores: Record<string, number>) => {
+      let caScore = 0;
+      let examScore = 0;
+      
+      Object.entries(componentScores).forEach(([key, value]) => {
+        const lowerKey = key.toLowerCase();
+        // More robust exam detection - check for common exam keywords
+        if (lowerKey.includes('exam') || lowerKey.includes('test') || lowerKey.includes('final')) {
+          examScore += value;
+        } else {
+          caScore += value;
+        }
+      });
+      
+      return { caScore, examScore };
+    };
 
     // Generate HTML based on layout
     let htmlContent = '';
@@ -497,18 +536,10 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                   const sanitizedGrade = sanitizeString(sub.grade || '-');
                   const sanitizedRemark = sanitizeString(sub.remark || '-');
                   
-                  // Calculate CA and Exam scores from componentScores
-                  let caScore = 0;
-                  let examScore = 0;
-                  if (sub.componentScores) {
-                    Object.entries(sub.componentScores).forEach(([key, value]) => {
-                      if (key.toLowerCase().includes('exam')) {
-                        examScore += value;
-                      } else {
-                        caScore += value;
-                      }
-                    });
-                  }
+                  // Calculate CA and Exam scores from componentScores using helper
+                  const { caScore, examScore } = sub.componentScores 
+                    ? categorizeComponentScore(sub.subjectName, sub.componentScores)
+                    : { caScore: 0, examScore: 0 };
                   
                   return `
                   <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
@@ -624,17 +655,10 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 const sanitizedGrade = sanitizeString(sub.grade || '-');
                 const sanitizedRemark = sanitizeString(sub.remark || '-');
                 
-                let caScore = 0;
-                let examScore = 0;
-                if (sub.componentScores) {
-                  Object.entries(sub.componentScores).forEach(([key, value]) => {
-                    if (key.toLowerCase().includes('exam')) {
-                      examScore += value;
-                    } else {
-                      caScore += value;
-                    }
-                  });
-                }
+                // Calculate CA and Exam scores from componentScores using helper
+                const { caScore, examScore } = sub.componentScores 
+                  ? categorizeComponentScore(sub.subjectName, sub.componentScores)
+                  : { caScore: 0, examScore: 0 };
                 
                 return `
                 <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f5f5f5'};">
@@ -735,17 +759,10 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 const sanitizedGrade = sanitizeString(sub.grade || '-');
                 const sanitizedRemark = sanitizeString(sub.remark || '-');
                 
-                let caScore = 0;
-                let examScore = 0;
-                if (sub.componentScores) {
-                  Object.entries(sub.componentScores).forEach(([key, value]) => {
-                    if (key.toLowerCase().includes('exam')) {
-                      examScore += value;
-                    } else {
-                      caScore += value;
-                    }
-                  });
-                }
+                // Calculate CA and Exam scores from componentScores using helper
+                const { caScore, examScore } = sub.componentScores 
+                  ? categorizeComponentScore(sub.subjectName, sub.componentScores)
+                  : { caScore: 0, examScore: 0 };
                 
                 return `
                 <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'};">
