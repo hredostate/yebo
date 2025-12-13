@@ -1,3 +1,14 @@
+import type { UserProfile } from '../types';
+import { EmploymentStatus } from '../types';
+
+/**
+ * Check if a user is actively employed
+ * Returns true if the user has no employment_status set (defaults to Active) or has Active status
+ */
+export function isActiveEmployee(user: UserProfile): boolean {
+  return !user.employment_status || user.employment_status === EmploymentStatus.Active;
+}
+
 /**
  * Get the current logged-in user's ID from session/local storage
  * This is a helper for components that need user-specific persistence but don't have direct access to userProfile

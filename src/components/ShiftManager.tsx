@@ -5,6 +5,7 @@ import { PlusCircleIcon, TrashIcon, CalendarIcon, CloseIcon } from './common/ico
 import Spinner from './common/Spinner';
 import SearchableSelect from './common/SearchableSelect';
 import { supabase } from '../services/supabaseClient';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 interface ShiftManagerProps {
     shifts: TeacherShift[];
@@ -261,7 +262,7 @@ const ShiftManager: React.FC<ShiftManagerProps> = ({ shifts, users, onSave, onDe
     
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Principal' || u.role === 'Admin' || u.role === 'Maintenance' || u.role === 'School Secretary').sort((a,b) => a.name.localeCompare(b.name)), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Principal' || u.role === 'Admin' || u.role === 'Maintenance' || u.role === 'School Secretary') && isActiveEmployee(u)).sort((a,b) => a.name.localeCompare(b.name)), [users]);
 
     const handleBulkSave = async (newShifts: Partial<TeacherShift>[]) => {
         setIsSaving(true);

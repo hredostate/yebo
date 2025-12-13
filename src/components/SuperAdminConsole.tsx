@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment } from '../types';
+import { EmploymentStatus } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
 import BrandingSettings from './BrandingSettings';
@@ -66,6 +67,7 @@ interface SuperAdminConsoleProps {
     onUpdateUser: (userId: string, userData: Partial<UserProfile>) => Promise<boolean>;
     onDeleteUser: (userId: string) => Promise<boolean>;
     onDeactivateUser: (userId: string, isActive: boolean) => Promise<void>;
+    onUpdateEmploymentStatus?: (userId: string, status: EmploymentStatus) => Promise<void>;
     campuses: Campus[];
     onUpdateUserCampus: (userId: string, campusId: number | null) => Promise<void>;
     onSaveCampus: (campus: Partial<Campus>) => Promise<boolean>;
@@ -146,7 +148,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         onSaveArm, onDeleteArm,
         onSaveInventoryItem, onDeleteInventoryItem,
         onSaveReward, onDeleteReward,
-        onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus,
+        onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateEmploymentStatus, onUpdateUserCampus,
         onSaveCampus, onDeleteCampus,
         onImportLegacyAssignments,
         onUpdateClassEnrollment,
@@ -196,7 +198,8 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                     onInviteUser={onInviteUser}
                     onUpdateUser={onUpdateUser}
                     onDeleteUser={onDeleteUser}
-                    onDeactivateUser={onDeactivateUser} 
+                    onDeactivateUser={onDeactivateUser}
+                    onUpdateEmploymentStatus={onUpdateEmploymentStatus}
                     campuses={campuses}
                     onUpdateUserCampus={onUpdateUserCampus}
                 />;

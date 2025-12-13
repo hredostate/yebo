@@ -1,10 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
 import type { UserProfile, RoleDetails, RoleTitle, Campus } from '../types';
+import { EmploymentStatus } from '../types';
 import Spinner from './common/Spinner';
 import { SearchIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import Pagination from './common/Pagination';
+
+// Helper function for status styling
+const getStatusStyling = (status: EmploymentStatus | undefined): string => {
+    if (!status || status === EmploymentStatus.Active) {
+        return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
+    }
+    if (status === EmploymentStatus.Suspended || status === EmploymentStatus.LongLeave) {
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
+    }
+    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
+};
 
 // --- Invite User Modal (Component-scoped) ---
 interface InviteUserModalProps {
@@ -78,24 +90,40 @@ interface UserManagementProps {
     onDeleteUser: (userId: string) => Promise<boolean>;
     onDeactivateUser: (userId: string, isActive: boolean) => Promise<void>;
     onUpdateUserCampus: (userId: string, campusId: number | null) => Promise<void>;
+    onUpdateEmploymentStatus?: (userId: string, status: EmploymentStatus) => Promise<void>;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, campuses = [], onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, campuses = [], onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus, onUpdateEmploymentStatus }) => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<EmploymentStatus | 'all'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 15;
 
     const filteredUsers = useMemo(() => {
-        if (!searchTerm.trim()) return users;
-        const lowercasedTerm = searchTerm.toLowerCase();
-        return users.filter(user =>
-            user.name.toLowerCase().includes(lowercasedTerm) ||
-            user.email.toLowerCase().includes(lowercasedTerm) ||
-            user.role.toLowerCase().includes(lowercasedTerm)
-        );
-    }, [users, searchTerm]);
+        let filtered = users;
+        
+        // Filter by status
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(user => 
+                user.employment_status === statusFilter || 
+                (!user.employment_status && statusFilter === EmploymentStatus.Active)
+            );
+        }
+        
+        // Filter by search term
+        if (searchTerm.trim()) {
+            const lowercasedTerm = searchTerm.toLowerCase();
+            filtered = filtered.filter(user =>
+                user.name.toLowerCase().includes(lowercasedTerm) ||
+                user.email.toLowerCase().includes(lowercasedTerm) ||
+                user.role.toLowerCase().includes(lowercasedTerm)
+            );
+        }
+        
+        return filtered;
+    }, [users, searchTerm, statusFilter]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
@@ -119,17 +147,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                 <button onClick={() => setIsInviteModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Invite New User</button>
             </div>
             
-             <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <SearchIcon className="h-5 w-5 text-slate-400" />
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder="Search by name, email, or role..."
+                        className="w-full h-11 pl-10 pr-4 bg-white/60 dark:bg-slate-900/40 border border-slate-300/60 dark:border-slate-700/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                 </div>
-                <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    placeholder="Search by name, email, or role..."
-                    className="w-full h-11 pl-10 pr-4 bg-white/60 dark:bg-slate-900/40 border border-slate-300/60 dark:border-slate-700/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <select
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value as EmploymentStatus | 'all'); setCurrentPage(1); }}
+                    className="h-11 px-4 bg-white/60 dark:bg-slate-900/40 border border-slate-300/60 dark:border-slate-700/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="all">All Statuses</option>
+                    {Object.values(EmploymentStatus).map(status => (
+                        <option key={status} value={status}>{status}</option>
+                    ))}
+                </select>
             </div>
             
             <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 overflow-hidden">
@@ -140,6 +180,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                                 <th className="px-6 py-3 whitespace-nowrap">Name</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Email</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Role</th>
+                                <th className="px-6 py-3 whitespace-nowrap">Status</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Campus</th>
                                 <th className="px-6 py-3 text-right whitespace-nowrap"><span className="sr-only">Actions</span></th>
                             </tr>
@@ -150,6 +191,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{user.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{user.role}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <select
+                                            value={user.employment_status || EmploymentStatus.Active}
+                                            onChange={(e) => onUpdateEmploymentStatus?.(user.id, e.target.value as EmploymentStatus)}
+                                            className={`p-1 rounded-md border text-xs font-medium ${getStatusStyling(user.employment_status)}`}
+                                        >
+                                            {Object.values(EmploymentStatus).map(status => (
+                                                <option key={status} value={status}>{status}</option>
+                                            ))}
+                                        </select>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <select
                                             value={user.campus_id || ''}
@@ -182,7 +234,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                             ))}
                             {filteredUsers.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No users found.</td>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No users found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -237,6 +289,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
         phone_number: user.phone_number || '',
         staff_code: user.staff_code || '',
         campus_id: user.campus_id || null,
+        employment_status: user.employment_status || EmploymentStatus.Active,
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -322,6 +375,19 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                         >
                             <option value="">Unassigned</option>
                             {campuses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Employment Status</label>
+                        <select 
+                            value={formData.employment_status} 
+                            onChange={e => setFormData(prev => ({ ...prev, employment_status: e.target.value as EmploymentStatus }))} 
+                            className={inputClasses}
+                        >
+                            {Object.values(EmploymentStatus).map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
                         </select>
                     </div>
                     

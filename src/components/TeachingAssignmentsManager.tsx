@@ -7,6 +7,7 @@ import SearchableSelect from './common/SearchableSelect';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
+import { isActiveEmployee } from '../utils/userHelpers';
 
 // Workload thresholds
 const WORKLOAD_THRESHOLDS = {
@@ -99,7 +100,7 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({
     const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
     const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal').sort((a,b) => a.name.localeCompare(b.name)), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && isActiveEmployee(u)).sort((a,b) => a.name.localeCompare(b.name)), [users]);
     
     // Fetch team members if user is a Team Lead
     useEffect(() => {

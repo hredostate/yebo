@@ -4,6 +4,14 @@
 
 export type RoleTitle = 'Admin' | 'Principal' | 'Team Lead' | 'Teacher' | 'Counselor' | 'Accountant' | 'School Secretary' | 'IT Support' | 'Maintenance' | 'Librarian' | 'Bookstore and Uniform Attendant' | 'Day care Administrator' | 'Social Media Manager' | 'Guardian' | 'Student';
 
+export enum EmploymentStatus {
+    Active = 'Active',
+    Resigned = 'Resigned',
+    Fired = 'Fired',
+    Suspended = 'Suspended',
+    LongLeave = 'Long Leave'
+}
+
 export interface UserProfile {
     id: string;
     school_id: number;
@@ -23,6 +31,7 @@ export interface UserProfile {
     campus_id?: number | null;
     has_seen_tour?: boolean;
     dashboard_config?: string[];
+    employment_status?: EmploymentStatus;
     created_at: string;
 }
 

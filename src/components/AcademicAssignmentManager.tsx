@@ -5,7 +5,7 @@ import Spinner from './common/Spinner';
 import { PlusCircleIcon, SearchIcon, TrashIcon, EditIcon, RepeatIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
-import { getCurrentUserId } from '../utils/userHelpers';
+import { getCurrentUserId, isActiveEmployee } from '../utils/userHelpers';
 
 interface AcademicAssignmentManagerProps {
     assignments: AcademicTeachingAssignment[];
@@ -145,7 +145,7 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
         ''
     );
 
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal').sort((a,b) => a.name.localeCompare(b.name)), [users]);
+    const teachers = useMemo(() => users.filter(u => (u.role === 'Teacher' || u.role === 'Team Lead' || u.role === 'Admin' || u.role === 'Principal') && isActiveEmployee(u)).sort((a,b) => a.name.localeCompare(b.name)), [users]);
     
     useEffect(() => {
         if (selectedTermId === '' && terms.length > 0) {
