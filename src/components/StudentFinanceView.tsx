@@ -68,7 +68,7 @@ const InvoiceGenerator: React.FC<{
             {bursaryStudentsCount > 0 && selectedClass && (
                 <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                     <p className="text-xs text-purple-800 dark:text-purple-200">
-                        ℹ️ <strong>Note:</strong> {bursaryStudentsCount} {bursaryStudentsCount === 1 ? 'student is' : 'students are'} working in bursary and will be excluded from invoice generation.
+                        <span aria-hidden="true">ℹ️</span> <strong>Note:</strong> {bursaryStudentsCount} {bursaryStudentsCount === 1 ? 'student is' : 'students are'} working in bursary and will be excluded from invoice generation.
                     </p>
                 </div>
             )}

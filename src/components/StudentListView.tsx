@@ -389,7 +389,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       </div>
 
       <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-6 gap-4 mb-4">
           <input type="text" placeholder="Search by name or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={commonInputClasses} />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={commonInputClasses}>
               <option value="">All Statuses</option>
