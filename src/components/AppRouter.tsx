@@ -609,6 +609,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolConfig={data.schoolConfig}
                 onUpdateComments={actions.handleUpdateReportComments}
                 addToast={actions.addToast}
+                onNavigate={actions.setCurrentView}
              />;
         case VIEWS.SCORE_REVIEW:
              return <ScoreReviewView 
@@ -623,6 +624,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 currentUserId={data.userProfile.id}
                 onUpdateScore={actions.handleUpdateScore}
                 addToast={actions.addToast}
+                academicClasses={data.academicClasses}
              />;
         case VIEWS.COVERAGE_FEEDBACK:
              return <CoverageFeedbackReport 

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { 
     ScoreEntry, 
     Student, 
@@ -25,6 +25,7 @@ interface ScoreReviewViewProps {
     currentUserId: string;
     onUpdateScore: (scoreId: number, updates: Partial<ScoreEntry>) => Promise<boolean>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    academicClasses?: any[]; // Optional - for when passed from AppRouter
 }
 
 const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({ 
@@ -38,7 +39,8 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     userPermissions, 
     currentUserId,
     onUpdateScore,
-    addToast 
+    addToast,
+    academicClasses 
 }) => {
     // Add null safety with default empty arrays
     const safeScoreEntries = scoreEntries || [];
@@ -77,16 +79,58 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     const canEdit = safeUserPermissions.includes('score_entries.edit_all') || safeUserPermissions.includes('*');
     const canView = canEdit || safeUserPermissions.includes('score_entries.view_all');
 
-    // Get unique classes from assignments
+    // Parse URL parameters for pre-filtering
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const termParam = urlParams.get('term');
+        const classParam = urlParams.get('class');
+        const subjectParam = urlParams.get('subject');
+        
+        if (termParam) {
+            setSelectedTermId(Number(termParam));
+        }
+        if (classParam) {
+            setSelectedClassId(Number(classParam));
+        }
+        if (subjectParam) {
+            setSelectedSubject(decodeURIComponent(subjectParam));
+        }
+    }, []);
+
+    // Get unique classes from assignments, academicClasses, and score entries
     const uniqueClasses = useMemo(() => {
         const classMap = new Map();
+        
+        // Add classes from assignments
         safeAcademicAssignments.forEach(a => {
             if (a.academic_class) {
                 classMap.set(a.academic_class_id, a.academic_class);
             }
         });
+        
+        // Add classes from academicClasses prop if available
+        if (academicClasses) {
+            academicClasses.forEach(ac => {
+                if (ac && ac.id) {
+                    classMap.set(ac.id, ac);
+                }
+            });
+        }
+        
+        // Add any classes referenced in score entries that we don't have yet
+        // This ensures we can display all scores even if assignment data is incomplete
+        safeScoreEntries.forEach(se => {
+            if (se.academic_class_id && !classMap.has(se.academic_class_id)) {
+                // Create a minimal class object from score entry data
+                // The academic_class might be embedded in the score entry
+                if (se.academic_class) {
+                    classMap.set(se.academic_class_id, se.academic_class);
+                }
+            }
+        });
+        
         return Array.from(classMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [safeAcademicAssignments]);
+    }, [safeAcademicAssignments, academicClasses, safeScoreEntries]);
 
     // Get unique subjects
     const uniqueSubjects = useMemo(() => {
@@ -346,8 +390,29 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
             </div>
 
             {/* Results Summary */}
-            <div className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-                Showing {filteredScores.length} score {filteredScores.length === 1 ? 'entry' : 'entries'}
+            <div className="mb-4 flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                    Showing <span className="font-semibold text-blue-700 dark:text-blue-300">{filteredScores.length}</span> score {filteredScores.length === 1 ? 'entry' : 'entries'}
+                    {filteredScores.length !== safeScoreEntries.length && (
+                        <span className="ml-2 text-xs">
+                            (Total in system: <span className="font-semibold">{safeScoreEntries.length}</span>)
+                        </span>
+                    )}
+                </div>
+                {(selectedTermId || selectedClassId || selectedSubject || selectedTeacherId || searchQuery) && (
+                    <button
+                        onClick={() => {
+                            setSelectedTermId('');
+                            setSelectedClassId('');
+                            setSelectedSubject('');
+                            setSelectedTeacherId('');
+                            setSearchQuery('');
+                        }}
+                        className="text-xs px-3 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
+                    >
+                        Clear All Filters
+                    </button>
+                )}
             </div>
 
             {/* Scores Table */}
