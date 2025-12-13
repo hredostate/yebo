@@ -18,6 +18,7 @@ const AbsenceRequestsList: React.FC<AbsenceRequestsListProps> = ({
 
   // Filter and search requests
   const filteredRequests = useMemo(() => {
+    if (!requests || !Array.isArray(requests)) return [];
     let filtered = requests;
 
     // Filter by status
@@ -134,7 +135,7 @@ const AbsenceRequestsList: React.FC<AbsenceRequestsListProps> = ({
 
       {/* Results count */}
       <div className="text-sm text-gray-400">
-        Showing {filteredRequests.length} of {requests.length} requests
+        Showing {filteredRequests.length} of {requests?.length || 0} requests
       </div>
 
       {/* Requests List */}
