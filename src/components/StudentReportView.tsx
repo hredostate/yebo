@@ -241,8 +241,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           }
       }
 
-      // 3. Fetch Class Config via enrollment lookup for reliable class ID
-      // Get the academic_class_id from the student's enrollment
+      // 3. Fetch Class Config (Layout/Design) - FIXED VERSION
+      // First, get the academic_class_id from academic_class_students
       const { data: enrollment } = await supabase
           .from('academic_class_students')
           .select('academic_class_id')
@@ -250,9 +250,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           .eq('enrolled_term_id', termId)
           .maybeSingle();
 
-      // If student is enrolled, fetch their class configuration
       if (enrollment?.academic_class_id) {
-          // Fetch class data using reliable ID-based lookup
           const { data: classData } = await supabase
               .from('academic_classes')
               .select('report_config, assessment_structure_id')
