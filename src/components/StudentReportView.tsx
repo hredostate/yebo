@@ -442,8 +442,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         ) : (
                             // Fallback to CA/Exam
                             <>
-                                <td className={`${commonTdClasses} text-center`}>{caScore || '-'}</td>
-                                <td className={`${commonTdClasses} text-center`}>{examScore || '-'}</td>
+                                <td className={`${commonTdClasses} text-center`}>{sub.componentScores ? caScore : '-'}</td>
+                                <td className={`${commonTdClasses} text-center`}>{sub.componentScores ? examScore : '-'}</td>
                             </>
                         )}
                         <td className={`${commonTdClasses} text-center font-bold`}>{sub.totalScore}</td>
