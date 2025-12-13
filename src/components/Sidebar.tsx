@@ -249,7 +249,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         `} 
         aria-label="Sidebar"
       >
-        <div className="h-full px-4 sm:px-4 py-6 glass-panel border-r-0 rounded-r-2xl md:rounded-none md:rounded-r-2xl flex flex-col safe-area-inset">
+        <div className="h-full px-4 sm:px-4 py-6 glass-panel border-r-0 rounded-r-2xl md:rounded-none md:rounded-r-2xl flex flex-col">
           
           {/* Brand Header */}
           <div className="flex items-center justify-between mb-6 pl-1">
