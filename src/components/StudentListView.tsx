@@ -362,7 +362,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       });
   };
 
-  const commonInputClasses = "w-full p-3 min-h-touch text-sm border rounded-md bg-white/50 dark:bg-slate-800/50 border-slate-300/60 dark:border-slate-700/60 focus:ring-blue-500 focus:border-blue-500";
+  const commonInputClasses = "w-full p-3 min-h-touch text-base border rounded-md bg-white/50 dark:bg-slate-800/50 border-slate-300/60 dark:border-slate-700/60 focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
 
   return (
     <div className="space-y-6 animate-fade-in">
