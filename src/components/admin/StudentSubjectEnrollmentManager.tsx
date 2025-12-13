@@ -525,15 +525,15 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
               <Spinner size="lg" />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-500/10 sticky top-0">
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+              <table className="w-full text-sm min-w-max">
+                <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800 sticky top-0 z-20">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold sticky left-0 bg-slate-500/10 z-10">
+                    <th className="px-6 py-3 text-left font-semibold sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 border-r border-slate-200 dark:border-slate-700">
                       Student
                     </th>
                     {classSubjects.map(subject => (
-                      <th key={subject.id} className="px-4 py-3 text-center font-semibold">
+                      <th key={subject.id} className="px-4 py-3 text-center font-semibold bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 last:border-r-0 min-w-[140px]">
                         <div className="flex flex-col items-center space-y-2">
                           <span className="max-w-[120px] truncate" title={subject.name}>
                             {subject.name}
@@ -569,7 +569,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
                   ) : (
                     filteredStudents.map(student => (
                       <tr key={student.id} className="border-b border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-500/5">
-                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white sticky left-0 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl">
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white sticky left-0 bg-white dark:bg-slate-900 backdrop-blur-xl z-10 border-r border-slate-200 dark:border-slate-700">
                           <div>
                             <div className="font-semibold">{student.name}</div>
                             {student.admission_number && (
@@ -582,7 +582,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
                         {classSubjects.map(subject => {
                           const enrolled = isEnrolled(student.id, subject.id);
                           return (
-                            <td key={subject.id} className="px-4 py-4 text-center">
+                            <td key={subject.id} className="px-4 py-4 text-center border-r border-slate-200 dark:border-slate-700 last:border-r-0">
                               <button
                                 onClick={() => toggleEnrollment(student.id, subject.id)}
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
