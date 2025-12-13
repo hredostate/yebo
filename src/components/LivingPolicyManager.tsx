@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import type { LivingPolicySnippet, UserProfile } from '../types';
-import { aiClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { textFromAI } from '../utils/ai';
 import { WandIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';
 
@@ -36,12 +37,16 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         if (!input.trim() || isEnhancing) return;
         setIsEnhancing(true);
         try {
+            const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI Client not available.");
             const prompt = `You are an expert in writing clear, professional school policies. Enhance the following policy idea to be more formal and comprehensive.
             Original idea: "${input}"
             Enhanced version:`;
-            const response = await aiClient.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setInput(response.text);
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+            });
+            setInput(textFromAI(response));
         } catch (error) {
             console.error("AI enhancement failed:", error);
         } finally {
@@ -54,6 +59,7 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         setIsGenerating(true);
         setGeneratedDocument('');
         try {
+            const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI Client not available.");
             const snippetsText = policySnippets.map(s => `- ${s.content}`).join('\n');
             const prompt = `You are an expert in drafting official school documents.
@@ -65,9 +71,13 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
             ${snippetsText}`;
 
             let fullResponse = '';
-            const responseStream = await aiClient.models.generateContentStream({ model: 'gemini-2.5-flash', contents: prompt });
-            for await (const chunk of responseStream) {
-                fullResponse += chunk.text;
+            const stream = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                stream: true,
+            });
+            for await (const chunk of stream) {
+                fullResponse += chunk.choices[0]?.delta?.content || '';
                 setGeneratedDocument(fullResponse);
             }
             await onSaveDocument(fullResponse);
@@ -83,6 +93,7 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         setIsQuerying(true);
         setQueryAnswer(''); // Use empty string for streaming
         try {
+            const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI Client not available.");
             
             const snippetsText = policySnippets.map(s => `- ${s.content}`).join('\n');
@@ -97,10 +108,14 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
 
             Answer:`;
 
-            const responseStream = await aiClient.models.generateContentStream({ model: 'gemini-2.5-flash', contents: prompt });
+            const stream = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+                stream: true,
+            });
 
-            for await (const chunk of responseStream) {
-                setQueryAnswer(prev => (prev || '') + chunk.text);
+            for await (const chunk of stream) {
+                setQueryAnswer(prev => (prev || '') + (chunk.choices[0]?.delta?.content || ''));
             }
         } catch (error) {
             console.error("Policy query failed:", error);
