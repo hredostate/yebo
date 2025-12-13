@@ -32,6 +32,7 @@ export interface UserProfile {
     has_seen_tour?: boolean;
     dashboard_config?: string[];
     employment_status?: EmploymentStatus;
+    policy_acknowledgments?: PolicyAcknowledgment[];
     created_at: string;
 }
 
@@ -65,6 +66,7 @@ export interface Student {
     status?: StudentStatus;
     reward_points: number;
     user_id?: string | null; // Auth ID if created
+    policy_acknowledgments?: PolicyAcknowledgment[];
     created_at?: string;
     class?: { id: number; name: string };
     arm?: { id: number; name: string };
@@ -342,6 +344,30 @@ export interface LivingPolicySnippet {
     school_id: number;
     created_at: string;
     author?: { name: string };
+}
+
+export interface PolicyAcknowledgment {
+    policy_id: number;
+    policy_title: string;
+    policy_version: string;
+    acknowledged_at: string;
+    full_name_entered: string;
+    ip_address?: string;
+}
+
+export interface PolicyStatement {
+    id: number;
+    school_id: number;
+    title: string;
+    content: string;
+    version: string;
+    target_audience: ('student' | 'staff')[];
+    is_active: boolean;
+    requires_acknowledgment: boolean;
+    effective_date: string;
+    created_by?: string;
+    created_at: string;
+    updated_at?: string;
 }
 
 export interface AtRiskTeacher {
