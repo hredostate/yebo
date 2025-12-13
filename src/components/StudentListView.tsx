@@ -84,6 +84,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [classFilter, setClassFilter] = useState('');
   const [teacherFilter, setTeacherFilter] = useState('');
   const [loginFilter, setLoginFilter] = useState(''); // 'missing' or ''
+  const [bursaryFilter, setBursaryFilter] = useState(''); // 'bursary' or ''
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isGeneratingAwards, setIsGeneratingAwards] = useState(false);
   const [isDeletingAccounts, setIsDeletingAccounts] = useState(false);
@@ -127,8 +128,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         );
         
         const loginMatch = loginFilter === 'missing' ? !student.user_id : true;
+        const bursaryMatch = bursaryFilter === 'bursary' ? student.working_in_bursary === true : true;
         
-        return nameMatch && statusMatch && classMatch && teacherMatch && loginMatch;
+        return nameMatch && statusMatch && classMatch && teacherMatch && loginMatch && bursaryMatch;
     });
 
     // Apply sorting
@@ -161,12 +163,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
             return compareA > compareB ? -1 : compareA < compareB ? 1 : 0;
         }
     });
-  }, [students, searchTerm, statusFilter, classFilter, teacherFilter, teachingAssignments, loginFilter, sortField, sortDirection]);
+  }, [students, searchTerm, statusFilter, classFilter, teacherFilter, teachingAssignments, loginFilter, bursaryFilter, sortField, sortDirection]);
 
   // Reset pagination when filters change
   useMemo(() => {
       setCurrentPage(1);
-  }, [searchTerm, statusFilter, classFilter, teacherFilter, loginFilter]);
+  }, [searchTerm, statusFilter, classFilter, teacherFilter, loginFilter, bursaryFilter]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const paginatedStudents = useMemo(() => {
@@ -387,7 +389,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       </div>
 
       <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
           <input type="text" placeholder="Search by name or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={commonInputClasses} />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={commonInputClasses}>
               <option value="">All Statuses</option>
@@ -400,6 +402,10 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           <select value={loginFilter} onChange={e => setLoginFilter(e.target.value)} className={commonInputClasses}>
               <option value="">All Accounts</option>
               <option value="missing">Missing Login</option>
+          </select>
+          <select value={bursaryFilter} onChange={e => setBursaryFilter(e.target.value)} className={commonInputClasses}>
+              <option value="">All Students</option>
+              <option value="bursary">Bursary Staff Only</option>
           </select>
           <div className="flex gap-2">
             <select value={teacherFilter} onChange={e => setTeacherFilter(e.target.value)} className={commonInputClasses + " flex-1"}>
