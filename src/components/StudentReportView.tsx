@@ -658,6 +658,9 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       };
     });
 
+    // Use gradeLevelSize as a fallback for classSize if available, otherwise use 1 to avoid division by zero
+    const estimatedClassSize = summary.gradeLevelSize || 1;
+
     return {
       report: reportData,
       student: studentData,
@@ -667,7 +670,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       schoolConfig: reportDetails.schoolConfig,
       term: termData,
       classPosition: summary.positionInArm,
-      classSize: 0, // Not available in StudentTermReportDetails
+      classSize: estimatedClassSize,
       gradeLevelPosition: summary.positionInGradeLevel || undefined,
       gradeLevelSize: summary.gradeLevelSize,
     };
@@ -692,12 +695,20 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       case 'minimalist-clean':
         return <ResultSheetDesigns.minimalist {...props} />;
       case 'classic':
-      case 'modern':
       case 'compact':
+        // Classic and compact layouts use formal banded-rows design for printing
+        return <ResultSheetDesigns.banded {...props} />;
+      case 'modern':
+        // Modern layout uses modern-gradient design for printing
+        return <ResultSheetDesigns.modern {...props} />;
       case 'professional':
+        // Professional layout uses executive design for printing
+        return <ResultSheetDesigns.executive {...props} />;
       case 'pastel':
+        // Pastel layout uses minimalist design for printing
+        return <ResultSheetDesigns.minimalist {...props} />;
       default:
-        // For standard layouts, use banded-rows as a print-optimized default
+        // Default to banded-rows for any unrecognized layout
         return <ResultSheetDesigns.banded {...props} />;
     }
   };
