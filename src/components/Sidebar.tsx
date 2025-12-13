@@ -5,7 +5,7 @@ import {
   ChartBarIcon, MegaphoneIcon, EyeIcon, WandIcon, UserCircleIcon, LogoutIcon,
   GiftIcon, WrenchScrewdriverIcon, TrendingUpIcon, CloseIcon, CheckCircleIcon,
   ChevronDownIcon, SearchIcon, BanknotesIcon, ClockIcon, MapPinIcon, ShoppingCartIcon,
-  GlobeIcon, StarIcon
+  GlobeIcon, StarIcon, PencilIcon
 } from './common/icons';
 import type { UserProfile, StudentProfile } from '../types';
 import { VIEWS, SCHOOL_LOGO_URL } from '../constants';
@@ -368,7 +368,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                 </li>
                 <li>
                      <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_HOMEWORK)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_HOMEWORK ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <PencilIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>My Homework</span>
                      </a>
                 </li>

@@ -194,8 +194,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                             absenceRequests={data.absenceRequests}
                             students={data.students}
                             currentUserId={data.userProfile.id}
-                            userRole="Student"
-                            userPermissions={[]}
+                            userRole={data.userType === 'student' ? 'Student' : data.userProfile.role}
+                            userPermissions={data.userPermissions || []}
                             onCreateRequest={actions.handleCreateAbsenceRequest}
                             onApproveRequest={actions.handleApproveAbsenceRequest}
                             onDenyRequest={actions.handleDenyAbsenceRequest}
