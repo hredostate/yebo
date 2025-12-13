@@ -355,6 +355,18 @@ export interface PolicyAcknowledgment {
     ip_address?: string;
 }
 
+export interface PolicyAcknowledgmentRecord {
+    id: number;
+    policy_id: number;
+    school_id: number;
+    user_id?: string;
+    student_id?: number;
+    full_name_entered: string;
+    policy_version: string;
+    acknowledged_at: string;
+    ip_address?: string;
+}
+
 export interface PolicyStatement {
     id: number;
     school_id: number;

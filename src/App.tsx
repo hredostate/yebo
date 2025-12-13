@@ -673,18 +673,20 @@ const App: React.FC = () => {
                     return {
                         tableName: 'user_profiles' as const,
                         idField: 'id' as const,
-                        userId: (userProfile as UserProfile).id
+                        userId: (userProfile as UserProfile).id,
+                        schoolId: (userProfile as UserProfile).school_id
                     };
                 } else {
                     return {
                         tableName: 'students' as const,
                         idField: 'id' as const,
-                        userId: (userProfile as StudentProfile).student_record_id
+                        userId: (userProfile as StudentProfile).student_record_id,
+                        schoolId: (userProfile as StudentProfile).school_id
                     };
                 }
             };
 
-            const { tableName, idField, userId } = getUserIdentifier();
+            const { tableName, idField, userId, schoolId } = getUserIdentifier();
             
             // Get current acknowledgments
             const { data: current } = await supabase
@@ -696,13 +698,34 @@ const App: React.FC = () => {
             const currentAcks = current?.policy_acknowledgments || [];
             const updatedAcks = [...currentAcks, acknowledgment];
 
-            // Update the profile with new acknowledgment
+            // Dual-write: 1) Update the profile with new acknowledgment (existing behavior)
             const { error } = await supabase
                 .from(tableName)
                 .update({ policy_acknowledgments: updatedAcks })
                 .eq(idField, userId);
 
             if (error) throw error;
+
+            // Dual-write: 2) Insert into policy_acknowledgments table (new behavior for efficient queries)
+            const acknowledgmentRecord = {
+                policy_id: policyId,
+                school_id: schoolId,
+                user_id: userType === 'staff' ? (userProfile as UserProfile).id : null,
+                student_id: userType === 'student' ? userId : null,
+                full_name_entered: acknowledgment.full_name_entered,
+                policy_version: acknowledgment.policy_version,
+                acknowledged_at: acknowledgment.acknowledged_at,
+                ip_address: acknowledgment.ip_address
+            };
+
+            const { error: ackError } = await supabase
+                .from('policy_acknowledgments')
+                .insert(acknowledgmentRecord);
+
+            if (ackError) {
+                console.error('Failed to insert into policy_acknowledgments table:', ackError);
+                // Don't throw - the main JSONB update succeeded
+            }
 
             // Update local profile state
             setUserProfile(prev => {

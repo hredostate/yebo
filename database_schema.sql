@@ -1335,6 +1335,37 @@ CREATE TABLE IF NOT EXISTS public.policy_statements (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Policy Acknowledgments Table (for efficient querying of who acknowledged what)
+CREATE TABLE IF NOT EXISTS public.policy_acknowledgments (
+    id SERIAL PRIMARY KEY,
+    policy_id INTEGER REFERENCES public.policy_statements(id) ON DELETE CASCADE,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+    full_name_entered TEXT NOT NULL,
+    policy_version TEXT NOT NULL,
+    acknowledged_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ip_address TEXT,
+    UNIQUE(policy_id, user_id),
+    UNIQUE(policy_id, student_id),
+    CHECK ((user_id IS NOT NULL AND student_id IS NULL) OR (user_id IS NULL AND student_id IS NOT NULL))
+);
+
+-- Add RLS policies for policy_acknowledgments
+ALTER TABLE public.policy_acknowledgments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view acknowledgments for their school" ON public.policy_acknowledgments;
+CREATE POLICY "Users can view acknowledgments for their school" ON public.policy_acknowledgments
+    FOR SELECT USING (school_id = (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()));
+
+DROP POLICY IF EXISTS "Users can insert their own acknowledgments" ON public.policy_acknowledgments;
+CREATE POLICY "Users can insert their own acknowledgments" ON public.policy_acknowledgments
+    FOR INSERT WITH CHECK (
+        (user_id = auth.uid() AND school_id = (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()))
+        OR 
+        (student_id IS NOT NULL AND school_id = (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()))
+    );
+
 -- SECTION 2: ADDITIONAL FUNCTIONS
 DROP FUNCTION IF EXISTS public.get_daily_teacher_attendance(date,integer) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_daily_teacher_attendance(p_date date, p_campus_id int DEFAULT NULL)
