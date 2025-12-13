@@ -59,7 +59,13 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
     { key: 'timestamp', header: 'Timestamp', width: 20, type: 'string' },
     { key: 'actor', header: 'Actor', width: 20, type: 'string' },
     { key: 'action', header: 'Action', width: 30, type: 'string' },
-    { key: 'details', header: 'Details', width: 50, type: 'string' },
+    { 
+      key: 'details', 
+      header: 'Details', 
+      width: 50, 
+      type: 'string',
+      format: (value: any) => JSON.stringify(value)
+    },
   ];
 
   const exportData = useMemo(() => {
@@ -67,7 +73,7 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
       timestamp: new Date(log.created_at).toLocaleString(),
       actor: log.actor?.name || 'Unknown User',
       action: log.action,
-      details: JSON.stringify(log.details),
+      details: log.details,
     }));
   }, [filteredLogs]);
 
@@ -109,7 +115,7 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
          </div>
       </div>
 
-      <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-lg border border-slate-200/60 dark:border-slate-800/60">{' '}
+      <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-lg border border-slate-200/60 dark:border-slate-800/60">
         <table className="w-full text-sm text-left">
           <thead className="text-xs uppercase bg-slate-100 dark:bg-slate-800 sticky top-0 text-slate-700 dark:text-slate-300">
             <tr>
