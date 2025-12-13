@@ -842,13 +842,13 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredScoreEntries.map((entry) => {
+                                            {filteredScoreEntries.map((entry, index) => {
                                                 // Calculate CA score from component_scores or ca_scores_breakdown
-                                                let caScore = 0;
+                                                let caScore: number | null = null;
                                                 if (entry.component_scores) {
-                                                    // Sum all non-Exam components (exact match for 'Exam' key)
+                                                    // Sum all non-Exam components (case-insensitive match)
                                                     caScore = Object.entries(entry.component_scores)
-                                                        .filter(([key]) => key !== 'Exam' && key !== 'exam')
+                                                        .filter(([key]) => key.toLowerCase() !== 'exam')
                                                         .reduce((sum, [, value]) => sum + (value || 0), 0);
                                                 } else if (entry.ca_scores_breakdown) {
                                                     // Sum CA breakdown
@@ -857,12 +857,14 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                 }
                                                 
                                                 return (
-                                                    <tr key={entry.id} className={entry.id % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}>
+                                                    <tr key={entry.id} className={index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.studentName}</td>
                                                         {!scorePreviewFilters.subject && (
                                                             <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.subject_name}</td>
                                                         )}
-                                                        <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{(caScore || 0).toFixed(1)}</td>
+                                                        <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
+                                                            {caScore !== null ? caScore.toFixed(1) : '-'}
+                                                        </td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{entry.exam_score?.toFixed(1) || '-'}</td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">{entry.total_score.toFixed(1)}</td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
