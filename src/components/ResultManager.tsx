@@ -359,6 +359,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const filteredScoreEntries = useMemo(() => {
         if (!scorePreviewFilters) return [];
         
+        // Create student lookup map for O(n) performance
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        
         let filtered = scoreEntries.filter(entry => 
             entry.term_id === scorePreviewFilters.termId &&
             entry.academic_class_id === scorePreviewFilters.classId
@@ -373,7 +376,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         
         // Join with student data
         return filtered.map(entry => {
-            const student = students.find(s => s.id === entry.student_id);
+            const student = studentMap.get(entry.student_id);
             return {
                 ...entry,
                 studentName: student?.name || 'Unknown Student'
@@ -839,27 +842,27 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredScoreEntries.map((entry, idx) => {
+                                            {filteredScoreEntries.map((entry) => {
                                                 // Calculate CA score from component_scores or ca_scores_breakdown
                                                 let caScore = 0;
                                                 if (entry.component_scores) {
-                                                    // Sum all non-Exam components
+                                                    // Sum all non-Exam components (exact match for 'Exam' key)
                                                     caScore = Object.entries(entry.component_scores)
-                                                        .filter(([key]) => !key.toLowerCase().includes('exam'))
-                                                        .reduce((sum, [, value]) => sum + value, 0);
+                                                        .filter(([key]) => key !== 'Exam' && key !== 'exam')
+                                                        .reduce((sum, [, value]) => sum + (value || 0), 0);
                                                 } else if (entry.ca_scores_breakdown) {
                                                     // Sum CA breakdown
                                                     caScore = Object.values(entry.ca_scores_breakdown)
-                                                        .reduce((sum, value) => sum + value, 0);
+                                                        .reduce((sum, value) => sum + (value || 0), 0);
                                                 }
                                                 
                                                 return (
-                                                    <tr key={entry.id} className={idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}>
+                                                    <tr key={entry.id} className={entry.id % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.studentName}</td>
                                                         {!scorePreviewFilters.subject && (
                                                             <td className="p-3 border border-slate-200 dark:border-slate-600">{entry.subject_name}</td>
                                                         )}
-                                                        <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{caScore.toFixed(1)}</td>
+                                                        <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{(caScore || 0).toFixed(1)}</td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">{entry.exam_score?.toFixed(1) || '-'}</td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">{entry.total_score.toFixed(1)}</td>
                                                         <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
