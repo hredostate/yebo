@@ -349,27 +349,69 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
               /* Student Navigation */
               <ul className="space-y-2">
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.MY_SUBJECTS)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_DASHBOARD)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_DASHBOARD ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <HomeIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Dashboard</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.MY_SUBJECTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.MY_SUBJECTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <BookOpenIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>My Subjects</span>
                      </a>
                 </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TIMETABLE)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.TIMETABLE ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <ClockIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Timetable</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_HOMEWORK)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_HOMEWORK ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>My Homework</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <ChartBarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Lesson Portal</span>
+                     </a>
+                </li>
                  <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_REPORTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <FileTextIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>Report Cards</span>
                      </a>
                 </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.ABSENCE_REQUESTS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.ABSENCE_REQUESTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <CalendarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Absence Requests</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_STRIKES)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_STRIKES ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <ShieldIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>My Strikes</span>
+                     </a>
+                </li>
                  <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.RATE_MY_TEACHER ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <StarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>Rate My Teacher</span>
                      </a>
                 </li>
                  <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className="flex items-center p-3 text-base font-medium text-slate-900 dark:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_SURVEYS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>Surveys</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}} className={`flex items-center p-3 text-base font-medium rounded-xl transition-colors ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <UserCircleIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>My Profile</span>
                      </a>
                 </li>
               </ul>
@@ -378,7 +420,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
 
         {/* User Profile Footer */}
         <div className="pt-4 mt-4 border-t border-slate-200/60 dark:border-slate-700/60">
-           <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group" onClick={() => onNavigate(VIEWS.PROFILE)}>
+           <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group" onClick={() => onNavigate(role === 'Student' ? VIEWS.STUDENT_PROFILE_EDIT : VIEWS.PROFILE)}>
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md ring-2 ring-white dark:ring-slate-800 overflow-hidden flex-shrink-0 group-hover:scale-110 transition-transform">
                 {avatarUrl ? (
                     <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />

@@ -174,9 +174,42 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         <StudentLessonPortal studentProfile={data.userProfile} />
                     </Suspense>
                 );
+            case VIEWS.TIMETABLE:
+                return (
+                    <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                        <TimetableView
+                            userProfile={data.userProfile}
+                            users={data.users}
+                            terms={data.terms}
+                            academicClasses={data.academicClasses}
+                            subjects={data.allSubjects}
+                            addToast={actions.addToast}
+                        />
+                    </Suspense>
+                );
+            case VIEWS.ABSENCE_REQUESTS:
+                return (
+                    <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                        <AbsenceRequestsView
+                            absenceRequests={data.absenceRequests}
+                            students={data.students}
+                            currentUserId={data.userProfile.id}
+                            userRole="Student"
+                            userPermissions={[]}
+                            onCreateRequest={actions.handleCreateAbsenceRequest}
+                            onApproveRequest={actions.handleApproveAbsenceRequest}
+                            onDenyRequest={actions.handleDenyAbsenceRequest}
+                        />
+                    </Suspense>
+                );
             default:
-                // Redirect unknown to My Subjects
-                return <StudentPortal studentProfile={data.userProfile} addToast={actions.addToast} onLogout={actions.handleLogout} />;
+                // Redirect unknown to Student Dashboard
+                return <StudentDashboard
+                    studentProfile={data.userProfile}
+                    addToast={actions.addToast}
+                    onNavigate={actions.setCurrentView}
+                    isDarkMode={data.isDarkMode}
+                />;
         }
     }
 
