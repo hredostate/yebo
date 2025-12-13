@@ -447,8 +447,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                             </>
                         )}
                         <td className={`${commonTdClasses} text-center font-bold`}>{sub.totalScore}</td>
-                        <td className={`${commonTdClasses} text-center font-bold ${sub.gradeLabel === 'F' ? 'text-red-600' : ''}`}>
-                            <span className={`px-2 py-0.5 rounded ${
+                        <td className={`${commonTdClasses} text-center`}>
+                            <span className={`px-2 py-0.5 rounded font-bold ${
                                 sub.gradeLabel === 'A' ? 'bg-green-100 text-green-800' :
                                 sub.gradeLabel === 'B' ? 'bg-blue-100 text-blue-800' :
                                 sub.gradeLabel === 'C' ? 'bg-amber-100 text-amber-800' :
