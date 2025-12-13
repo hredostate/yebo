@@ -136,6 +136,9 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='campus_id') THEN
         ALTER TABLE public.students ADD COLUMN campus_id INTEGER REFERENCES public.campuses(id) ON DELETE SET NULL;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='working_in_bursary') THEN
+        ALTER TABLE public.students ADD COLUMN working_in_bursary BOOLEAN DEFAULT FALSE;
+    END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS public.student_profiles (

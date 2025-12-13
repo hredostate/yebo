@@ -67,6 +67,11 @@ export interface Student {
      * Format may vary by payment provider (e.g., Paystack, Wema Bank)
      */
     dva?: string;
+    /**
+     * Indicates if the student is working in the bursary department
+     * Students working in bursary are typically exempt from paying fees
+     */
+    working_in_bursary?: boolean;
     // Editable profile fields
     phone?: string;
     street_address?: string;
@@ -1464,6 +1469,7 @@ export interface StudentFormData {
     arm_id?: number | null;
     address?: string;
     email?: string;
+    working_in_bursary?: boolean;
 }
 
 export interface PayrollUpdateData {

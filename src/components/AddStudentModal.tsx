@@ -23,6 +23,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
   const [armId, setArmId] = useState<string>('');
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
+  const [workingInBursary, setWorkingInBursary] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,6 +46,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
       arm_id: armId ? Number(armId) : null,
       address,
       email,
+      working_in_bursary: workingInBursary,
     });
     
     if (success) {
@@ -58,6 +60,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
         setArmId('');
         setAddress('');
         setEmail('');
+        setWorkingInBursary(false);
     } else {
         setError('An error occurred. Please try again.');
     }
@@ -121,6 +124,22 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
               <select id="student-status" value={status} onChange={e => setStatus(e.target.value as StudentStatus)} className={commonInputClasses}>
                 {STUDENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={workingInBursary} 
+                  onChange={e => setWorkingInBursary(e.target.checked)} 
+                  className="w-4 h-4 text-blue-600 bg-white/80 border-slate-300 rounded focus:ring-blue-500 dark:bg-slate-800/80 dark:border-slate-700"
+                />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Working in Bursary (Exempt from Fees)
+                </span>
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 ml-6">
+                Students working in bursary will be automatically excluded from fee generation
+              </p>
             </div>
           </div>
           <div className="flex justify-end space-x-3 mt-6">

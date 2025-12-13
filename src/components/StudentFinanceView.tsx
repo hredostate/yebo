@@ -23,7 +23,10 @@ const InvoiceGenerator: React.FC<{
 
     const filteredStudents = useMemo(() => {
         if (!selectedClass) return [];
-        return students.filter(s => s.class_id === Number(selectedClass));
+        return students.filter(s => 
+            s.class_id === Number(selectedClass) && 
+            !s.working_in_bursary // Exclude students working in bursary
+        );
     }, [students, selectedClass]);
 
     const handleGenerate = async () => {
