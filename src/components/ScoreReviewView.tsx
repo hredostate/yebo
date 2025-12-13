@@ -6,7 +6,8 @@ import type {
     AcademicTeachingAssignment, 
     UserProfile, 
     GradingScheme,
-    AcademicClassStudent 
+    AcademicClassStudent,
+    AcademicClass 
 } from '../types';
 import Spinner from './common/Spinner';
 import { SearchIcon, FilterIcon, EditIcon, CheckCircleIcon, XCircleIcon, UserCircleIcon } from './common/icons';
@@ -25,7 +26,7 @@ interface ScoreReviewViewProps {
     currentUserId: string;
     onUpdateScore: (scoreId: number, updates: Partial<ScoreEntry>) => Promise<boolean>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-    academicClasses?: any[]; // Optional - for when passed from AppRouter
+    academicClasses?: AcademicClass[]; // Optional - for when passed from AppRouter
 }
 
 const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({ 
@@ -79,21 +80,30 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     const canEdit = safeUserPermissions.includes('score_entries.edit_all') || safeUserPermissions.includes('*');
     const canView = canEdit || safeUserPermissions.includes('score_entries.view_all');
 
-    // Parse URL parameters for pre-filtering
+    // Parse navigation context filters from sessionStorage
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const termParam = urlParams.get('term');
-        const classParam = urlParams.get('class');
-        const subjectParam = urlParams.get('subject');
-        
-        if (termParam) {
-            setSelectedTermId(Number(termParam));
-        }
-        if (classParam) {
-            setSelectedClassId(Number(classParam));
-        }
-        if (subjectParam) {
-            setSelectedSubject(decodeURIComponent(subjectParam));
+        try {
+            const filtersJson = sessionStorage.getItem('scoreReviewFilters');
+            if (filtersJson) {
+                const filters = JSON.parse(filtersJson);
+                // Only use filters if they're recent (within last 5 seconds)
+                const age = Date.now() - (filters.timestamp || 0);
+                if (age < 5000) {
+                    if (filters.termId && !isNaN(filters.termId) && filters.termId > 0) {
+                        setSelectedTermId(filters.termId);
+                    }
+                    if (filters.classId && !isNaN(filters.classId) && filters.classId > 0) {
+                        setSelectedClassId(filters.classId);
+                    }
+                    if (filters.subject && typeof filters.subject === 'string') {
+                        setSelectedSubject(filters.subject.trim());
+                    }
+                }
+                // Clear the filters from sessionStorage after using them
+                sessionStorage.removeItem('scoreReviewFilters');
+            }
+        } catch (error) {
+            console.error('Error parsing score review filters:', error);
         }
     }, []);
 
