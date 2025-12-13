@@ -63,6 +63,10 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 15;
     
+    // Time constants for badge calculations
+    const EARLY_ARRIVAL_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes before shift
+    const GRACE_PERIOD_MS = 60 * 1000; // 1 minute grace period
+    
     // Photo modal state
     const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
     
@@ -193,9 +197,8 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
         const shiftStart = new Date(checkinTime);
         shiftStart.setHours(startHour, startMinute, 0, 0);
         
-        // Early if check-in is 15+ minutes before shift start
-        const earlyThresholdMs = 15 * 60 * 1000; // 15 minutes
-        return checkinTime.getTime() < shiftStart.getTime() - earlyThresholdMs + 60000; // 1 min grace
+        // Early if check-in is before shift start minus threshold plus grace period
+        return checkinTime.getTime() < shiftStart.getTime() - EARLY_ARRIVAL_THRESHOLD_MS + GRACE_PERIOD_MS;
     };
 
     // Calculate campus-based trends
