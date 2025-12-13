@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { PolicyStatement, UserProfile } from '../types';
+import type { PolicyStatement, UserProfile, PolicyAcknowledgment } from '../types';
 import { supa as supabase } from '../offline/client';
 import Spinner from './common/Spinner';
 import { BookOpenIcon, PlusCircleIcon, PencilIcon, CheckCircleIcon, CloseIcon } from './common/icons';
