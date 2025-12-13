@@ -136,6 +136,10 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
     );
   }, [enrolledStudents, searchTerm]);
 
+  // Helper function to generate enrollment lookup key
+  const getEnrollmentKey = (studentId: number, subjectId: number) => 
+    `${studentId}:${subjectId}`;
+
   // Create a lookup map for O(1) enrollment checks
   const enrollmentMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -147,9 +151,9 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       sse.term_id === selectedTermId
     );
     
-    // Build lookup map with composite key: "studentId-subjectId"
+    // Build lookup map with composite key
     for (const sse of relevantEnrollments) {
-      const key = `${sse.student_id}-${sse.subject_id}`;
+      const key = getEnrollmentKey(sse.student_id, sse.subject_id);
       map.set(key, sse.is_enrolled);
     }
     
@@ -160,7 +164,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   const isEnrolled = useCallback((studentId: number, subjectId: number) => {
     if (!selectedAcademicClassId || !selectedTermId) return false;
     
-    const key = `${studentId}-${subjectId}`;
+    const key = getEnrollmentKey(studentId, subjectId);
     return enrollmentMap.get(key) ?? false;
   }, [enrollmentMap, selectedAcademicClassId, selectedTermId]);
 
