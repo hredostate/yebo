@@ -359,7 +359,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const filteredScoreEntries = useMemo(() => {
         if (!scorePreviewFilters) return [];
         
-        // DEBUG: Log filter parameters
+        // DEBUG: Temporary logging to help diagnose filtering issues (can be removed once verified)
+        // TODO: Remove or convert to proper logging system after fix verification
         console.log('[ResultManager] Filtering scores with:', {
             termId: scorePreviewFilters.termId,
             classId: scorePreviewFilters.classId,
