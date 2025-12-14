@@ -1,6 +1,6 @@
 /**
  * WhatsApp Service for Parent Notifications
- * Supports Termii integration for sending WhatsApp messages
+ * Supports Kudi SMS integration for sending WhatsApp messages
  */
 
 import { supabase } from './supabaseClient';
@@ -24,7 +24,7 @@ interface BulkSendResult {
 }
 
 /**
- * Send a WhatsApp message using Termii integration
+ * Send a WhatsApp message using Kudi SMS integration
  */
 export async function sendWhatsAppNotification(params: SendWhatsAppParams): Promise<boolean> {
     const {
@@ -84,13 +84,18 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
             return false;
         }
 
-        // 4. Send via Termii edge function
+        // 4. Send via Kudi SMS edge function
+        // Build parameters string (comma-separated values)
+        const parameterValues = template.variables?.map((v: string) => variables[v] || '') || [];
+        const parameters = parameterValues.join(',');
+
         const { data: sendResult, error: sendError } = await supabase.functions.invoke(
-            'termii-send-whatsapp',
+            'kudisms-send-whatsapp',
             {
                 body: {
                     phone_number: recipientPhone,
-                    message: messageContent,
+                    template_code: template.template_id, // Template code should be stored in template_id field
+                    parameters: parameters,
                     school_id: schoolId
                 }
             }
@@ -116,7 +121,7 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
             .update({
                 status: 'sent',
                 sent_at: new Date().toISOString(),
-                termii_message_id: sendResult.message_id
+                termii_message_id: sendResult.message_id // Keep field name for backward compatibility
             })
             .eq('id', notification.id);
 

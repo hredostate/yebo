@@ -1606,6 +1606,51 @@ export interface TermiiPhonebookContact {
     created_at: string;
 }
 
+// ============================================
+// Kudi SMS Integration Types
+// ============================================
+
+export interface KudiSmsSettings {
+    id: number;
+    school_id: number;
+    campus_id: number | null;
+    token: string;
+    sender_id: string;
+    payment_receipt_template_code?: string;
+    fee_reminder_template_code?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    campus?: { name: string };
+}
+
+export interface KudiSmsResponse {
+    status: 'success' | 'error';
+    error_code: string;
+    cost?: number;
+    data?: string;
+    msg: string;
+    balance?: string;
+}
+
+export interface KudiSmsMessageLog {
+    id: number;
+    school_id: number;
+    recipient_phone: string;
+    template_code?: string;
+    message_type: 'whatsapp' | 'personalised_sms' | 'auto_compose_sms';
+    message_content?: Record<string, any>;
+    parameters?: string;
+    kudi_message_id?: string;
+    status: 'pending' | 'sent' | 'delivered' | 'failed';
+    error_code?: string;
+    error_message?: string;
+    cost?: number;
+    balance?: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface ZeroScoreEntry {
     id: number;
     school_id: number;

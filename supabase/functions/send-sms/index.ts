@@ -1,8 +1,8 @@
 
-// Supabase Edge Function for sending messages via Termii WhatsApp API.
-// Migrated from BulkSMSNigeria to Termii for better delivery and cost efficiency.
+// Supabase Edge Function for sending messages via Kudi SMS WhatsApp API.
+// Migrated from Termii to Kudi SMS for better delivery and cost efficiency.
 // This function maintains backward compatibility with the original send-sms interface.
-// It internally delegates to the termii-send-whatsapp function.
+// It internally delegates to the kudisms-send-whatsapp function.
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -50,10 +50,13 @@ serve(async (req) => {
     // Get authorization header to pass through
     const authHeader = req.headers.get('Authorization') || '';
 
+    // Get default template code from environment or use a fallback
+    const defaultTemplateCode = Deno.env.get('KUDI_DEFAULT_TEMPLATE_CODE') || '';
+
     for (const phoneNumber of to) {
       try {
-        // Call the termii-send-whatsapp function internally
-        const response = await fetch(`${supabaseUrl}/functions/v1/termii-send-whatsapp`, {
+        // Call the kudisms-send-whatsapp function internally
+        const response = await fetch(`${supabaseUrl}/functions/v1/kudisms-send-whatsapp`, {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
@@ -62,8 +65,8 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             phone_number: phoneNumber,
-            message_type: 'conversational',
-            message: body,
+            template_code: defaultTemplateCode,
+            parameters: body,
           }),
         });
 
@@ -89,11 +92,11 @@ serve(async (req) => {
           message_body: body,
           reference_id: reference || null,
           provider_message_id: responseData.message_id || null,
-          provider_code: 'TERMII',
-          cost: null, // Termii balance updates happen in real-time
+          provider_code: 'KUDISMS',
+          cost: responseData.cost || null,
           currency: 'NGN',
           ok: isSuccess,
-          friendly_message: isSuccess ? 'WhatsApp message sent via Termii' : (responseData.message || responseData.error || 'Failed to send'),
+          friendly_message: isSuccess ? 'WhatsApp message sent via Kudi SMS' : (responseData.message || responseData.error || 'Failed to send'),
         };
 
         const { error: auditError } = await supabaseClient
