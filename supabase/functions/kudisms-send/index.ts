@@ -12,9 +12,12 @@ const corsHeaders = {
 
 interface SmsRequest {
   phone_number: string;
-  message: string;
+  message?: string;
   school_id?: number;
   recipient_name?: string;
+  gateway?: '1' | '2'; // '1' for SMS, '2' for WhatsApp
+  template_code?: string; // WhatsApp template code
+  params?: string; // Comma-separated parameters for WhatsApp template
 }
 
 /**
@@ -77,6 +80,9 @@ serve(async (req) => {
       message,
       school_id,
       recipient_name = '',
+      gateway = '1', // Default to SMS
+      template_code,
+      params,
     } = body;
 
     // Validate required fields
@@ -84,8 +90,14 @@ serve(async (req) => {
       throw new Error('phone_number is required');
     }
 
-    if (!message) {
-      throw new Error('message is required');
+    // For SMS (gateway=1), message is required
+    // For WhatsApp (gateway=2), template_code is required
+    if (gateway === '1' && !message) {
+      throw new Error('message is required for SMS');
+    }
+
+    if (gateway === '2' && !template_code) {
+      throw new Error('template_code is required for WhatsApp');
     }
 
     // Create Supabase admin client
@@ -137,33 +149,66 @@ serve(async (req) => {
     // Format phone number
     const formattedPhone = formatPhoneNumber(phone_number);
 
-    // Prepare Kudi SMS API request (using personalized SMS endpoint)
-    const kudiPayload = {
-      token: effectiveToken,
-      senderID: effectiveSenderId,
-      message: message,
-      csvHeaders: ['phone_number', 'name'],
-      recipients: [
-        {
-          phone_number: formattedPhone,
-          name: recipient_name
-        }
-      ]
-    };
+    let kudiResponse: Response;
+    let kudiResult: any;
+    let channel: string;
 
-    // Send SMS via Kudi SMS API
-    console.log('Sending SMS via Kudi SMS:', { sender: effectiveSenderId });
-    
-    const kudiResponse = await fetch(`${kudiSmsBaseUrl}/personalisedsms`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(kudiPayload),
-    });
+    if (gateway === '2') {
+      // Send WhatsApp via Kudi SMS API (application/x-www-form-urlencoded)
+      channel = 'whatsapp';
+      console.log('Sending WhatsApp via Kudi SMS:', { sender: effectiveSenderId, template: template_code });
+      
+      const whatsappParams = new URLSearchParams({
+        token: effectiveToken,
+        senderID: effectiveSenderId,
+        recipients: formattedPhone,
+        gateway: '2',
+        template_code: template_code || '',
+      });
 
-    const kudiResult = await kudiResponse.json();
-    console.log('Kudi SMS response:', kudiResult);
+      if (params) {
+        whatsappParams.append('params', params);
+      }
+
+      kudiResponse = await fetch(`${kudiSmsBaseUrl}/corporate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: whatsappParams.toString(),
+      });
+
+      kudiResult = await kudiResponse.json();
+      console.log('Kudi SMS WhatsApp response:', kudiResult);
+    } else {
+      // Send SMS via Kudi SMS API (personalized SMS endpoint)
+      channel = 'sms';
+      console.log('Sending SMS via Kudi SMS:', { sender: effectiveSenderId });
+      
+      const kudiPayload = {
+        token: effectiveToken,
+        senderID: effectiveSenderId,
+        message: message,
+        csvHeaders: ['phone_number', 'name'],
+        recipients: [
+          {
+            phone_number: formattedPhone,
+            name: recipient_name
+          }
+        ]
+      };
+      
+      kudiResponse = await fetch(`${kudiSmsBaseUrl}/personalisedsms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(kudiPayload),
+      });
+
+      kudiResult = await kudiResponse.json();
+      console.log('Kudi SMS response:', kudiResult);
+    }
 
     const isSuccess = kudiResponse.ok && kudiResult && kudiResult.error_code === '000';
     const status = isSuccess ? 'sent' : 'failed';
@@ -173,11 +218,13 @@ serve(async (req) => {
     const logEntry = {
       school_id: finalSchoolId,
       recipient_phone: formattedPhone,
-      message_type: 'personalised',
-      message_content: message,
+      message_type: gateway === '2' ? 'whatsapp' : 'personalised',
+      message_content: message || `WhatsApp Template: ${template_code}`,
       kudi_response: kudiResult,
       status: status,
       error_message: errorMessage,
+      channel: channel,
+      fallback_used: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

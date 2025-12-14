@@ -1,10 +1,11 @@
 /**
  * SMS Service for Parent Notifications
- * Supports Kudi SMS integration for sending SMS messages
+ * Supports Kudi SMS integration for sending SMS and WhatsApp messages
+ * with channel selection and fallback logic
  */
 
 import { supabase } from './supabaseClient';
-import type { SmsTemplate, SmsNotification } from '../types';
+import type { SmsTemplate, SmsNotification, NotificationType, NotificationChannel } from '../types';
 
 interface SendSmsParams {
     schoolId: number;
@@ -13,7 +14,7 @@ interface SendSmsParams {
     templateName: string;
     variables?: Record<string, string>;
     referenceId?: number;
-    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published' | 'payment_receipt' | 'general';
+    notificationType: NotificationType;
     sentBy: string;
 }
 
@@ -24,7 +25,52 @@ interface BulkSendResult {
 }
 
 /**
- * Send an SMS message using Kudi SMS integration
+ * Send a notification via specific channel (SMS or WhatsApp)
+ */
+async function sendViaChannel(
+    channel: 'sms' | 'whatsapp',
+    recipientPhone: string,
+    messageContent: string,
+    schoolId: number,
+    templateCode?: string,
+    templateParams?: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const body: any = {
+            phone_number: recipientPhone,
+            school_id: schoolId,
+        };
+
+        if (channel === 'whatsapp') {
+            body.gateway = '2';
+            body.template_code = templateCode || '';
+            body.params = templateParams || '';
+        } else {
+            body.gateway = '1';
+            body.message = messageContent;
+        }
+
+        const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+            'kudisms-send',
+            { body }
+        );
+
+        if (sendError || !sendResult?.success) {
+            return {
+                success: false,
+                error: sendError?.message || sendResult?.error || 'Unknown error'
+            };
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Send an SMS/WhatsApp notification using Kudi SMS integration
+ * with channel selection and fallback logic
  */
 export async function sendSmsNotification(params: SendSmsParams): Promise<boolean> {
     const {
@@ -53,7 +99,19 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
             return false;
         }
 
-        // 2. Replace variables in message content
+        // 2. Get Kudi SMS settings to determine channel preference
+        const { data: settings } = await supabase
+            .from('kudisms_settings')
+            .select('*')
+            .eq('school_id', schoolId)
+            .eq('is_active', true)
+            .single();
+
+        const channel: NotificationChannel = settings?.notification_channels?.[notificationType] || 'sms';
+        const enableFallback = settings?.enable_fallback ?? true;
+        const whatsappTemplateCode = settings?.whatsapp_template_codes?.[notificationType];
+
+        // 3. Replace variables in message content
         let messageContent = template.message_content;
         if (template.variables && template.variables.length > 0) {
             template.variables.forEach((variable: string) => {
@@ -62,7 +120,7 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
             });
         }
 
-        // 3. Create notification record
+        // 4. Create notification record
         const { data: notification, error: notificationError } = await supabase
             .from('sms_notifications')
             .insert({
@@ -84,33 +142,54 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
             return false;
         }
 
-        // 4. Send via Kudi SMS edge function
-        const { data: sendResult, error: sendError } = await supabase.functions.invoke(
-            'kudisms-send',
-            {
-                body: {
-                    phone_number: recipientPhone,
-                    message: messageContent,
-                    school_id: schoolId
-                }
-            }
-        );
+        // 5. Send via selected channel with fallback logic
+        let sendResult: { success: boolean; error?: string };
+        let usedChannel: 'sms' | 'whatsapp' = 'sms';
+        let fallbackUsed = false;
 
-        if (sendError || !sendResult?.success) {
+        // Prepare WhatsApp template parameters (comma-separated values)
+        const templateParams = template.variables?.map((v: string) => variables[v] || '').join(',');
+
+        if (channel === 'whatsapp' || channel === 'both') {
+            // Try WhatsApp first
+            usedChannel = 'whatsapp';
+            sendResult = await sendViaChannel(
+                'whatsapp',
+                recipientPhone,
+                messageContent,
+                schoolId,
+                whatsappTemplateCode,
+                templateParams
+            );
+
+            // Fallback to SMS if WhatsApp fails and fallback is enabled
+            if (!sendResult.success && (channel === 'both' || enableFallback)) {
+                console.log('WhatsApp failed, falling back to SMS');
+                usedChannel = 'sms';
+                fallbackUsed = true;
+                sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId);
+            }
+        } else {
+            // Send via SMS directly
+            usedChannel = 'sms';
+            sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId);
+        }
+
+        if (!sendResult.success) {
             // Update notification status to failed
             await supabase
                 .from('sms_notifications')
                 .update({
                     status: 'failed',
-                    error_message: sendError?.message || sendResult?.error || 'Unknown error'
+                    error_message: sendResult.error || 'Unknown error'
                 })
                 .eq('id', notification.id);
 
-            console.error('Failed to send SMS message:', sendError || sendResult?.error);
+            console.error('Failed to send message:', sendResult.error);
             return false;
         }
 
-        // 5. Update notification status to sent
+        // 6. Update notification status to sent
         await supabase
             .from('sms_notifications')
             .update({
