@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Component } from 'react';
 import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
-import { initializeAIClient, getAIClient, getAIClientError } from './services/aiClient';
+import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
 import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
 
@@ -3690,6 +3690,99 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         }
     }, [addToast]);
 
+    // Generate AI-powered report card comment
+    const handleGenerateReportComment = useCallback(async (
+        studentId: number, 
+        termId: number, 
+        commentType: 'teacher' | 'principal'
+    ): Promise<string | null> => {
+        const aiClient = getAIClient();
+        if (!aiClient) {
+            addToast('AI client not available. Please configure AI in Settings.', 'error');
+            return null;
+        }
+        
+        try {
+            // Gather student data
+            const student = students.find(s => s.id === studentId);
+            if (!student) {
+                addToast('Student not found.', 'error');
+                return null;
+            }
+            
+            const studentScores = scoreEntries.filter(s => s.student_id === studentId && s.term_id === termId);
+            const termReport = studentTermReports.find(r => r.student_id === studentId && r.term_id === termId);
+            const studentAttendance = attendanceRecords.filter(a => a.student_id === studentId);
+            const behaviorReports = reports.filter(r => r.involved_students?.includes(studentId));
+            const homeworkSubmissions_filtered = homeworkSubmissions.filter(h => h.student_id === studentId);
+            
+            // Calculate attendance rate
+            const termAttendance = studentAttendance; // You might want to filter by term if possible
+            const attendanceRate = termAttendance.length > 0
+                ? (termAttendance.filter(a => a.status === 'Present').length / termAttendance.length) * 100
+                : 0;
+            
+            // Calculate homework completion
+            const homeworkCompletion = homeworkSubmissions_filtered.length > 0
+                ? (homeworkSubmissions_filtered.filter(h => h.status === 'Completed' || h.status === 'Graded').length / homeworkSubmissions_filtered.length) * 100
+                : 0;
+            
+            const context = {
+                studentName: student.name,
+                scores: studentScores.map(s => ({ 
+                    subject: s.subject_name, 
+                    score: s.total_score, 
+                    grade: s.grade_label 
+                })),
+                averageScore: termReport?.average_score,
+                positionInClass: termReport?.position_in_class,
+                attendanceRate: attendanceRate.toFixed(1),
+                behaviorSummary: behaviorReports.slice(0, 5).map(r => 
+                    r.analysis?.summary || r.report_text.substring(0, 100)
+                ),
+                homeworkCompletion: homeworkCompletion.toFixed(1)
+            };
+            
+            const prompt = commentType === 'teacher' 
+                ? `Generate a warm, professional teacher's comment for ${student.name}'s report card.
+                   
+                   Academic Performance: ${JSON.stringify(context.scores)}
+                   Average: ${context.averageScore}%, Position: ${context.positionInClass}
+                   Attendance: ${context.attendanceRate}%
+                   Behavior Notes: ${context.behaviorSummary.join('; ')}
+                   Homework Completion: ${context.homeworkCompletion}%
+                   
+                   The comment should:
+                   - Be 2-3 sentences
+                   - Highlight specific strengths
+                   - Mention one area for improvement constructively
+                   - End with encouragement
+                   - Be personalized, not generic`
+                
+                : `Generate a professional principal's comment for ${student.name}'s report card.
+                   
+                   Average: ${context.averageScore}%, Position: ${context.positionInClass}
+                   Overall Performance: ${context.averageScore && context.averageScore >= 70 ? 'Excellent' : context.averageScore && context.averageScore >= 50 ? 'Good' : 'Needs Support'}
+                   
+                   The comment should:
+                   - Be 1-2 sentences
+                   - Acknowledge effort or achievement
+                   - Provide encouragement for next term
+                   - Be appropriately formal`;
+            
+            const response = await aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: prompt }],
+            });
+            
+            return textFromAI(response);
+        } catch (e: any) {
+            console.error('Error generating comment:', e);
+            addToast(`Failed to generate comment: ${e.message}`, 'error');
+            return null;
+        }
+    }, [students, scoreEntries, studentTermReports, attendanceRecords, reports, homeworkSubmissions, addToast]);
+
     // --- Grading Scheme Handlers ---
     const handleSaveGradingScheme = useCallback(async (scheme: Partial<GradingScheme>): Promise<boolean> => {
         if (!userProfile) return false;
@@ -6660,6 +6753,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleLockScores,
                                     handleResetSubmission,
                                     handleUpdateReportComments,
+                                    handleGenerateReportComment,
                                     handleBulkAddStudents,
                                     handleAddPolicySnippet,
                                     handleSavePolicyDocument,

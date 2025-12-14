@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { SurveyWithQuestions, SurveyQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption } from '../types';
+import type { SurveyWithQuestions, SurveyQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption, ScoreEntry, AttendanceRecord, ReportRecord } from '../types';
 import { SurveyQuestionType } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon } from './common/icons';
@@ -14,6 +14,9 @@ interface SurveyManagerProps {
     allClasses: BaseDataObject[];
     allArms: BaseDataObject[];
     allRoles: RoleDetails[];
+    scoreEntries?: ScoreEntry[];
+    attendanceRecords?: AttendanceRecord[];
+    reports?: ReportRecord[];
 }
 
 const AddAudienceRule: React.FC<{
@@ -269,7 +272,7 @@ const SurveyBuilderModal: React.FC<{
 };
 
 
-const SurveyManager: React.FC<SurveyManagerProps> = ({ surveys, onSaveSurvey, onDeleteSurvey, addToast, allClasses, allArms, allRoles }) => {
+const SurveyManager: React.FC<SurveyManagerProps> = ({ surveys, onSaveSurvey, onDeleteSurvey, addToast, allClasses, allArms, allRoles, scoreEntries = [], attendanceRecords = [], reports = [] }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSurvey, setEditingSurvey] = useState<SurveyWithQuestions | null>(null);
     const [viewingResultsSurvey, setViewingResultsSurvey] = useState<SurveyWithQuestions | null>(null);
@@ -286,7 +289,14 @@ const SurveyManager: React.FC<SurveyManagerProps> = ({ surveys, onSaveSurvey, on
     }
 
     if (viewingResultsSurvey) {
-        return <SurveyResultsView survey={viewingResultsSurvey} onBack={() => setViewingResultsSurvey(null)} addToast={addToast} />;
+        return <SurveyResultsView 
+            survey={viewingResultsSurvey} 
+            onBack={() => setViewingResultsSurvey(null)} 
+            addToast={addToast}
+            scoreEntries={scoreEntries}
+            attendanceRecords={attendanceRecords}
+            reports={reports}
+        />;
     }
 
     return (

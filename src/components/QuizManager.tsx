@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { QuizWithQuestions, QuizQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption } from '../types';
+import type { QuizWithQuestions, QuizQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption, ScoreEntry, AttendanceRecord, ReportRecord } from '../types';
 import { QuizQuestionType } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon } from './common/icons';
@@ -14,6 +14,9 @@ interface QuizManagerProps {
     allClasses: BaseDataObject[];
     allArms: BaseDataObject[];
     allRoles: RoleDetails[];
+    scoreEntries?: ScoreEntry[];
+    attendanceRecords?: AttendanceRecord[];
+    reports?: ReportRecord[];
 }
 
 const AddAudienceRule: React.FC<{
@@ -257,7 +260,7 @@ const QuizBuilderModal: React.FC<{
 };
 
 
-const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDeleteQuiz, addToast, allClasses, allArms, allRoles }) => {
+const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDeleteQuiz, addToast, allClasses, allArms, allRoles, scoreEntries = [], attendanceRecords = [], reports = [] }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingQuiz, setEditingQuiz] = useState<QuizWithQuestions | null>(null);
     const [viewingResultsQuiz, setViewingResultsQuiz] = useState<QuizWithQuestions | null>(null);
@@ -274,7 +277,14 @@ const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDelete
     }
 
     if (viewingResultsQuiz) {
-        return <QuizResultsView quiz={viewingResultsQuiz} onBack={() => setViewingResultsQuiz(null)} addToast={addToast} />;
+        return <QuizResultsView 
+            quiz={viewingResultsQuiz} 
+            onBack={() => setViewingResultsQuiz(null)} 
+            addToast={addToast}
+            scoreEntries={scoreEntries}
+            attendanceRecords={attendanceRecords}
+            reports={reports}
+        />;
     }
 
     return (

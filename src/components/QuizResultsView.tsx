@@ -7,11 +7,15 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { DownloadIcon, WandIcon } from './common/icons';
 import { exportToCsv } from '../utils/export';
 import { textFromAI } from '../utils/ai';
+import type { ScoreEntry, AttendanceRecord, ReportRecord } from '../types';
 
 interface QuizResultsViewProps {
   quiz: QuizWithQuestions;
   onBack: () => void;
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  scoreEntries?: ScoreEntry[];
+  attendanceRecords?: AttendanceRecord[];
+  reports?: ReportRecord[];
 }
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
@@ -87,7 +91,7 @@ const QuestionResultCard: React.FC<{ questionResult: any, onSummarize: (question
 };
 
 
-const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToast }) => {
+const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToast, scoreEntries = [], attendanceRecords = [], reports = [] }) => {
     const [results, setResults] = useState<any[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -158,22 +162,67 @@ const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToas
             const aiClient = getAIClient();
             if (!aiClient) throw new Error("AI client not ready.");
             
+            // NEW: Fetch additional context for respondents if data is available
+            const respondentIds: number[] = [...new Set(detailedResults.map((r: any) => Number(r.student_id)).filter(id => !isNaN(id)))];
+            
+            let respondentProfiles: any[] = [];
+            if (respondentIds.length > 0 && scoreEntries.length > 0) {
+                // Get academic data for respondents
+                const respondentScores = scoreEntries.filter(s => respondentIds.includes(s.student_id));
+                const respondentAttendance = attendanceRecords.filter(a => respondentIds.includes(a.student_id));
+                const respondentBehavior = reports.filter(r => 
+                    r.involved_students?.some(id => respondentIds.includes(id))
+                );
+                
+                // Calculate correlations
+                respondentProfiles = respondentIds.map(id => {
+                    const scores = respondentScores.filter(s => s.student_id === id);
+                    const avgScore = scores.length > 0 
+                        ? scores.reduce((sum, s) => sum + s.total_score, 0) / scores.length 
+                        : null;
+                    const attendance = respondentAttendance.filter(a => a.student_id === id);
+                    const attendanceRate = attendance.length > 0
+                        ? (attendance.filter(a => a.status === 'Present').length / attendance.length) * 100
+                        : null;
+                    const behaviorReports = respondentBehavior.filter(r => 
+                        r.involved_students?.includes(id)
+                    );
+                    
+                    return {
+                        studentId: id,
+                        averageAcademicScore: avgScore,
+                        attendanceRate: attendanceRate,
+                        negativeBehaviorCount: behaviorReports.filter(r => r.analysis?.sentiment === 'Negative').length,
+                        positiveBehaviorCount: behaviorReports.filter(r => r.analysis?.sentiment === 'Positive').length
+                    };
+                });
+            }
+            
             const promptContext = `
                 Quiz Title: ${quiz.title}
                 Quiz Description: ${quiz.description}
                 Number of Questions: ${quiz.questions.length}
                 
-                Here are the detailed, per-user responses:
-                ${JSON.stringify(detailedResults, null, 2)}
+                Quiz Responses: ${JSON.stringify(detailedResults, null, 2)}
+                ${respondentProfiles.length > 0 ? `
+                
+                Respondent Academic/Behavioral Profiles: ${JSON.stringify(respondentProfiles, null, 2)}
+                ` : ''}
             `;
 
             const prompt = `You are a helpful data analyst for a school administrator.
-            Analyze the provided quiz results and generate a summary.
+            Analyze the provided quiz results${respondentProfiles.length > 0 ? ' WITH correlation to student performance data' : ''} and generate a summary.
+            
             Your analysis should include:
-            1. An overall summary of participation and general performance.
-            2. Identification of any questions that were commonly answered incorrectly or showed significant disagreement.
-            3. Key themes or insights from any open-ended (short answer) questions.
-            4. Actionable recommendations for the school based on these results.
+            1. Overall participation and general performance summary
+            2. Identification of any questions that were commonly answered incorrectly or showed significant disagreement
+            3. Key themes or insights from any open-ended (short answer) questions
+            ${respondentProfiles.length > 0 ? `4. **Correlation Analysis**
+               - Do students with lower academic scores perform differently on the quiz?
+               - Is there a pattern between attendance rate and quiz performance?
+               - Do students with behavior issues show different performance patterns?
+            5. Identify any concerning patterns (e.g., struggling students performing poorly on specific topics)
+            6. Actionable recommendations based on correlations found` : '4. Actionable recommendations for the school based on these results'}
             
             Format your response in clear, readable Markdown.
             
