@@ -3,7 +3,7 @@ import type { SchoolSettings, SchoolConfig } from '../types';
 import SchoolBranding from './SchoolBranding';
 import BrandingSettings from './BrandingSettings';
 import PaymentGatewaySettings from './PaymentGatewaySettings';
-import TermiiSettings from './TermiiSettings';
+import KudiSmsSettings from './KudiSmsSettings';
 import GroqSettings from './GroqSettings';
 import Spinner from './common/Spinner';
 import DATABASE_SCHEMA, { DICTIONARY_FIX_SQL, RESEED_DATA_SQL, ATTENDANCE_FIX_SQL } from '../databaseSchema';
@@ -80,7 +80,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
             case 'Payment Gateway':
                 return settings ? <PaymentGatewaySettings schoolId={settings.id} /> : null;
             case 'Messaging Gateway':
-                return settings ? <TermiiSettings schoolId={settings.id} /> : null;
+                return settings ? <KudiSmsSettings schoolId={settings.id} /> : null;
             case 'AI Configuration':
                 return settings ? <GroqSettings schoolId={settings.id} /> : null;
             case 'Data':

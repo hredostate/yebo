@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { sendWhatsAppNotification, wasRecentlyNotified } from '../services/whatsappService';
+import { sendSmsNotification, wasRecentlyNotified } from '../services/smsService';
 import Spinner from './common/Spinner';
 import { BellIcon, CheckCircleIcon, XCircleIcon } from './common/icons';
 
@@ -52,7 +52,7 @@ const NotifyParentButton: React.FC<NotifyParentButtonProps> = ({
 
         setSending(true);
         try {
-            const success = await sendWhatsAppNotification({
+            const success = await sendSmsNotification({
                 schoolId,
                 studentId,
                 recipientPhone: parentPhone,

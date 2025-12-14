@@ -72,16 +72,15 @@ const EmergencyBroadcast: React.FC<EmergencyBroadcastProps> = ({ onSendBroadcast
 
       setWhatsappProgress({ sent: 0, total: totalParents, errors: 0 });
 
-      // Send WhatsApp messages to each parent
+      // Send SMS messages to each parent
       for (const [phoneNumber, studentName] of uniquePhones) {
         try {
-          const whatsappMessage = `🚨 *URGENT SCHOOL ALERT* 🚨\n\n*${title}*\n\n${message}\n\n_This is an official emergency broadcast from the school. Please acknowledge receipt._`;
+          const smsMessage = `URGENT SCHOOL ALERT\n\n${title}\n\n${message}\n\nThis is an official emergency broadcast from the school. Please acknowledge receipt.`;
 
-          const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+          const { error: sendError } = await supabase.functions.invoke('kudisms-send', {
             body: {
               phone_number: phoneNumber,
-              message_type: 'conversational',
-              message: whatsappMessage,
+              message: smsMessage,
             }
           });
 

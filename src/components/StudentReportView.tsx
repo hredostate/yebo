@@ -128,8 +128,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   const [isOwing, setIsOwing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [assessmentComponents, setAssessmentComponents] = useState<Array<{ name: string; max_score: number }> | null>(null);
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-  const [whatsappSent, setWhatsappSent] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
 
   const handleSendToParent = async () => {
     if (!reportDetails?.student?.parent_phone_number_1) {
@@ -137,31 +137,28 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       return;
     }
 
-    if (!window.confirm('Send report card notification to parent via WhatsApp?')) {
+    if (!window.confirm('Send report card notification to parent via SMS?')) {
       return;
     }
 
-    setIsSendingWhatsApp(true);
+    setIsSendingSms(true);
     
     try {
       const studentName = `${reportDetails.student.firstName} ${reportDetails.student.lastName}`;
       const termName = reportDetails.term.termName || 'Current Term';
       const sessionLabel = reportDetails.term.sessionLabel || '';
       
-      // For now, send a conversational message
-      // In production, you would generate a PDF URL and use template_media
-      const message = `📚 *Report Card Available* 📚\n\n` +
+      const message = `Report Card Available\n\n` +
         `Dear Parent,\n\n` +
-        `The report card for *${studentName}* is now available for ${termName}, ${sessionLabel}.\n\n` +
+        `The report card for ${studentName} is now available for ${termName}, ${sessionLabel}.\n\n` +
         `Please log in to the School Guardian 360 portal to view and download the full report card.\n\n` +
         `If you have any questions, please contact the school.\n\n` +
         `Best regards,\n` +
         `School Administration`;
 
-      const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+      const { error: sendError } = await supabase.functions.invoke('kudisms-send', {
         body: {
           phone_number: reportDetails.student.parent_phone_number_1,
-          message_type: 'conversational',
           message: message,
         }
       });
@@ -170,13 +167,13 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         throw sendError;
       }
 
-      setWhatsappSent(true);
+      setSmsSent(true);
       alert('Report card notification sent successfully to parent!');
     } catch (err: any) {
-      console.error('Error sending WhatsApp:', err);
-      alert(`Failed to send WhatsApp message: ${err.message || 'Unknown error'}`);
+      console.error('Error sending SMS:', err);
+      alert(`Failed to send SMS message: ${err.message || 'Unknown error'}`);
     } finally {
-      setIsSendingWhatsApp(false);
+      setIsSendingSms(false);
     }
   };
 
@@ -887,14 +884,14 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
           </button>
           <div className="flex gap-2">
             {!isPublished && <span className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg font-bold border border-yellow-300">Unpublished Preview</span>}
-            {whatsappSent && <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg font-medium border border-green-300">✓ Sent to Parent</span>}
+            {smsSent && <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg font-medium border border-green-300">✓ Sent to Parent</span>}
             {!isStudentUser && reportDetails?.student?.parent_phone_number_1 && (
               <button 
                 onClick={handleSendToParent}
-                disabled={isSendingWhatsApp}
+                disabled={isSendingSms}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 font-medium disabled:bg-green-400 flex items-center gap-2"
               >
-                {isSendingWhatsApp ? (
+                {isSendingSms ? (
                   <>
                     <Spinner size="sm" />
                     Sending...

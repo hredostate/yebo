@@ -38,9 +38,9 @@ interface WebhookEvent {
 }
 
 /**
- * Send WhatsApp payment receipt to parent
+ * Send SMS payment receipt to parent
  */
-async function sendWhatsAppPaymentReceipt(
+async function sendSmsPaymentReceipt(
   supabaseAdmin: any,
   schoolId: number,
   studentId: number,
@@ -71,7 +71,7 @@ async function sendWhatsAppPaymentReceipt(
       year: 'numeric'
     });
 
-    // Prepare WhatsApp message
+    // Prepare SMS message
     const message = `Dear Parent,\n\nPayment Receipt Confirmation\n\n` +
       `Student: ${student.name}\n` +
       `Amount Paid: ₦${amountPaid.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
@@ -83,56 +83,67 @@ async function sendWhatsAppPaymentReceipt(
       `Thank you for your payment.\n\n` +
       `School Guardian 360`;
 
-    // Get Termii settings
-    const { data: termiiSettings } = await supabaseAdmin
-      .from('termii_settings')
-      .select('api_key, device_id, base_url, is_active')
+    // Get Kudi SMS settings
+    const { data: kudiSettings } = await supabaseAdmin
+      .from('kudisms_settings')
+      .select('token, sender_id, is_active')
       .eq('school_id', schoolId)
       .eq('is_active', true)
       .single();
 
-    if (!termiiSettings) {
-      console.log('Termii not configured for school', schoolId);
+    if (!kudiSettings) {
+      console.log('Kudi SMS not configured for school', schoolId);
       return;
     }
 
-    // Send via Termii
-    const termiiUrl = `${termiiSettings.base_url || 'https://api.ng.termii.com'}/api/sms/send`;
-    const termiiPayload = {
-      api_key: termiiSettings.api_key,
-      to: student.parent_phone_number_1,
-      from: 'SchoolGuardian',
-      sms: message,
-      type: 'plain',
-      channel: 'whatsapp',
+    // Format phone number
+    let formattedPhone = student.parent_phone_number_1.replace(/\D/g, '');
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = formattedPhone.substring(1);
+    }
+    if (!formattedPhone.startsWith('234')) {
+      formattedPhone = '234' + formattedPhone;
+    }
+
+    // Send via Kudi SMS
+    const kudiUrl = 'https://my.kudisms.net/api/personalisedsms';
+    const kudiPayload = {
+      token: kudiSettings.token,
+      senderID: kudiSettings.sender_id,
+      message: message,
+      csvHeaders: ['phone_number', 'name'],
+      recipients: [
+        {
+          phone_number: formattedPhone,
+          name: student.name
+        }
+      ]
     };
 
-    const termiiResponse = await fetch(termiiUrl, {
+    const kudiResponse = await fetch(kudiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(termiiPayload),
+      body: JSON.stringify(kudiPayload),
     });
 
-    const termiiResult = await termiiResponse.json();
+    const kudiResult = await kudiResponse.json();
     
     // Log the message
-    await supabaseAdmin.from('whatsapp_message_logs').insert({
+    await supabaseAdmin.from('sms_message_logs').insert({
       school_id: schoolId,
-      recipient_phone: student.parent_phone_number_1,
-      template_id: null,
-      message_type: 'conversational',
-      message_content: { message, reference },
-      media_url: null,
-      termii_message_id: termiiResult.message_id,
-      status: termiiResponse.ok ? 'sent' : 'failed',
-      error_message: termiiResponse.ok ? null : (termiiResult.message || 'Failed to send'),
+      recipient_phone: formattedPhone,
+      message_type: 'personalised',
+      message_content: message,
+      kudi_response: kudiResult,
+      status: (kudiResponse.ok && kudiResult.error_code === '000') ? 'sent' : 'failed',
+      error_message: (kudiResponse.ok && kudiResult.error_code === '000') ? null : (kudiResult.msg || 'Failed to send'),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
 
-    console.log(`WhatsApp receipt sent to ${student.parent_phone_number_1} for payment ${reference}`);
+    console.log(`SMS receipt sent to ${formattedPhone} for payment ${reference}`);
   } catch (error) {
-    console.error('Error sending WhatsApp receipt:', error);
+    console.error('Error sending SMS receipt:', error);
     // Don't throw - receipt sending is non-critical
   }
 }
@@ -425,8 +436,8 @@ serve(async (req) => {
 
       console.log(`Payment processed successfully: ${amount} NGN, invoice ${invoice.id} updated to ${newStatus}`);
 
-      // Send WhatsApp payment receipt to parent
-      await sendWhatsAppPaymentReceipt(
+      // Send SMS payment receipt to parent
+      await sendSmsPaymentReceipt(
         supabaseAdmin,
         dvaRecord.school_id,
         dvaRecord.student_id,
@@ -676,9 +687,9 @@ serve(async (req) => {
         }
       }
 
-      // Send WhatsApp receipt if we have student info
+      // Send SMS receipt if we have student info
       if (studentId) {
-        await sendWhatsAppPaymentReceipt(
+        await sendSmsPaymentReceipt(
           supabaseAdmin,
           schoolId,
           studentId,

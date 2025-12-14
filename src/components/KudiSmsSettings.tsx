@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import type { TermiiSettings } from '../types';
+import type { KudiSmsSettings } from '../types';
 import Spinner from './common/Spinner';
 import { mapSupabaseError } from '../utils/errorHandling';
 
@@ -9,23 +9,21 @@ interface Campus {
     name: string;
 }
 
-interface TermiiSettingsProps {
+interface KudiSmsSettingsProps {
     schoolId: number;
 }
 
-const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) => {
+const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) => {
     const [campuses, setCampuses] = useState<Campus[]>([]);
-    const [settings, setSettings] = useState<TermiiSettings[]>([]);
+    const [settings, setSettings] = useState<KudiSmsSettings[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [editingCampus, setEditingCampus] = useState<number | null>(null);
-    const [showApiKey, setShowApiKey] = useState(false);
+    const [showToken, setShowToken] = useState(false);
     const [formData, setFormData] = useState({
         campus_id: 0,
-        api_key: '',
-        device_id: '',
-        base_url: 'https://api.ng.termii.com',
-        environment: 'test' as 'test' | 'live',
+        token: '',
+        sender_id: '',
         is_active: true
     });
 
@@ -46,9 +44,9 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
             if (campusError) throw campusError;
             setCampuses(campusData || []);
 
-            // Fetch existing Termii settings
+            // Fetch existing Kudi SMS settings
             const { data: settingsData, error: settingsError } = await supabase
-                .from('termii_settings')
+                .from('kudisms_settings')
                 .select('*, campus:campuses(name)')
                 .eq('school_id', schoolId);
 
@@ -61,22 +59,26 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
         }
     };
 
-    const handleEdit = (setting: TermiiSettings) => {
+    const handleEdit = (setting: KudiSmsSettings) => {
         setEditingCampus(setting.campus_id || 0);
         setFormData({
             campus_id: setting.campus_id || 0,
-            api_key: '', // Don't show the actual key for security
-            device_id: setting.device_id || '',
-            base_url: setting.base_url || 'https://api.ng.termii.com',
-            environment: setting.environment,
+            token: '', // Don't show the actual token for security
+            sender_id: setting.sender_id || '',
             is_active: setting.is_active
         });
     };
 
     const handleSave = async () => {
-        // Only validate API key for new entries, not edits
-        if (!formData.api_key && editingCampus === null) {
-            alert('API key is required');
+        // Validate required fields
+        if (!formData.sender_id) {
+            alert('Sender ID is required');
+            return;
+        }
+
+        // Only validate token for new entries, not edits
+        if (!formData.token && editingCampus === null) {
+            alert('Token is required');
             return;
         }
 
@@ -96,30 +98,28 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
             const dataToSave: any = {
                 school_id: schoolId,
                 campus_id: formData.campus_id || null,
-                device_id: formData.device_id || null,
-                base_url: formData.base_url,
-                environment: formData.environment,
+                sender_id: formData.sender_id,
                 is_active: formData.is_active
             };
 
-            // Only include api_key if it's been entered (for edits, it's optional)
-            if (formData.api_key) {
-                dataToSave.api_key = formData.api_key;
+            // Only include token if it's been entered (for edits, it's optional)
+            if (formData.token) {
+                dataToSave.token = formData.token;
             }
 
             if (editingCampus !== null) {
                 // Update existing
                 const { error } = await supabase
-                    .from('termii_settings')
+                    .from('kudisms_settings')
                     .update(dataToSave)
                     .eq('school_id', schoolId)
                     .eq('campus_id', editingCampus);
 
                 if (error) throw error;
             } else {
-                // Insert new (api_key is required)
+                // Insert new (token is required)
                 const { error } = await supabase
-                    .from('termii_settings')
+                    .from('kudisms_settings')
                     .insert([dataToSave]);
 
                 if (error) throw error;
@@ -129,13 +129,11 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
             setEditingCampus(null);
             setFormData({
                 campus_id: 0,
-                api_key: '',
-                device_id: '',
-                base_url: 'https://api.ng.termii.com',
-                environment: 'test',
+                token: '',
+                sender_id: '',
                 is_active: true
             });
-            setShowApiKey(false);
+            setShowToken(false);
             fetchData();
         } catch (error: any) {
             console.error('Error saving settings:', error);
@@ -147,11 +145,11 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
     };
 
     const handleDelete = async (campus_id: number | null) => {
-        if (!confirm('Are you sure you want to delete these Termii settings?')) return;
+        if (!confirm('Are you sure you want to delete these Kudi SMS settings?')) return;
 
         try {
             const { error } = await supabase
-                .from('termii_settings')
+                .from('kudisms_settings')
                 .delete()
                 .eq('school_id', schoolId)
                 .eq('campus_id', campus_id);
@@ -178,10 +176,10 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
         <div className="space-y-6">
             <div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
-                    Termii WhatsApp Messaging Gateway
+                    Kudi SMS Messaging Gateway
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    Configure Termii API credentials for WhatsApp messaging per campus.
+                    Configure Kudi SMS API credentials for SMS messaging per campus.
                 </p>
             </div>
 
@@ -203,24 +201,15 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
                                     </p>
                                     <div className="flex items-center gap-3 mt-1 text-sm text-slate-600 dark:text-slate-400">
                                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                            setting.environment === 'live'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                        }`}>
-                                            {setting.environment.toUpperCase()}
-                                        </span>
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                             setting.is_active
                                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                                                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                                         }`}>
                                             {setting.is_active ? 'Active' : 'Inactive'}
                                         </span>
-                                        {setting.device_id && (
-                                            <span className="text-xs">
-                                                Device ID: {setting.device_id.substring(0, 8)}...
-                                            </span>
-                                        )}
+                                        <span className="text-xs">
+                                            Sender ID: {setting.sender_id}
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -246,7 +235,7 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
             {/* Add/Edit Form */}
             <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
                 <h4 className="font-medium text-slate-800 dark:text-white mb-4">
-                    {editingCampus !== null ? 'Edit Termii Settings' : 'Add New Termii Settings'}
+                    {editingCampus !== null ? 'Edit Kudi SMS Settings' : 'Add New Kudi SMS Settings'}
                 </h4>
                 
                 <div className="space-y-4">
@@ -271,75 +260,45 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            API Key *
+                            API Token *
                         </label>
                         <div className="relative">
                             <input
-                                type={showApiKey ? "text" : "password"}
-                                value={formData.api_key}
-                                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-                                placeholder="Your Termii API Key"
+                                type={showToken ? "text" : "password"}
+                                value={formData.token}
+                                onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+                                placeholder="Your Kudi SMS API Token"
                                 className="w-full p-2 pr-20 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                             />
                             <button
                                 type="button"
-                                onClick={() => setShowApiKey(!showApiKey)}
+                                onClick={() => setShowToken(!showToken)}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                             >
-                                {showApiKey ? 'Hide' : 'Show'}
+                                {showToken ? 'Hide' : 'Show'}
                             </button>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
                             {editingCampus !== null 
-                                ? 'Leave blank to keep the existing API key. Enter a new key to update it.'
-                                : 'Your Termii API key from the Termii Dashboard.'}
+                                ? 'Leave blank to keep the existing token. Enter a new token to update it.'
+                                : 'Your Kudi SMS API token from your Kudi SMS account.'}
                         </p>
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            WhatsApp Device ID (Optional)
+                            Sender ID *
                         </label>
                         <input
                             type="text"
-                            value={formData.device_id}
-                            onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
-                            placeholder="Device ID for WhatsApp"
+                            value={formData.sender_id}
+                            onChange={(e) => setFormData({ ...formData, sender_id: e.target.value })}
+                            placeholder="e.g., SchoolName"
                             className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
                         <p className="text-xs text-slate-500 mt-1">
-                            Required only if you want to send WhatsApp messages.
+                            The sender ID that will appear on SMS messages. Must be approved by Kudi SMS.
                         </p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Base URL
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.base_url}
-                            onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-                            placeholder="https://api.ng.termii.com"
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                        />
-                        <p className="text-xs text-slate-500 mt-1">
-                            Default is https://api.ng.termii.com
-                        </p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Environment
-                        </label>
-                        <select
-                            value={formData.environment}
-                            onChange={(e) => setFormData({ ...formData, environment: e.target.value as 'test' | 'live' })}
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                        >
-                            <option value="test">Test</option>
-                            <option value="live">Live</option>
-                        </select>
                     </div>
 
                     <div className="flex items-center">
@@ -369,13 +328,11 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
                                     setEditingCampus(null);
                                     setFormData({
                                         campus_id: 0,
-                                        api_key: '',
-                                        device_id: '',
-                                        base_url: 'https://api.ng.termii.com',
-                                        environment: 'test',
+                                        token: '',
+                                        sender_id: '',
                                         is_active: true
                                     });
-                                    setShowApiKey(false);
+                                    setShowToken(false);
                                 }}
                                 className="px-4 py-2 bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-400 dark:hover:bg-slate-600"
                             >
@@ -389,19 +346,29 @@ const TermiiSettingsComponent: React.FC<TermiiSettingsProps> = ({ schoolId }) =>
             {/* Help Section */}
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                    📘 How to get your Termii API credentials
+                    📘 How to get your Kudi SMS credentials
                 </h4>
                 <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                    <li>Log in to your Termii Dashboard (<a href="https://accounts.termii.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">https://accounts.termii.com</a>)</li>
-                    <li>Go to API section to copy your API Key</li>
-                    <li>For WhatsApp, go to Manage Devices to get your Device ID</li>
-                    <li>Create and get approval for WhatsApp templates before sending messages</li>
-                    <li>Paste your credentials in the form above</li>
-                    <li>Use Test environment for testing and Live for production</li>
+                    <li>Log in to your Kudi SMS account (<a href="https://my.kudisms.net" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">https://my.kudisms.net</a>)</li>
+                    <li>Navigate to API section to get your API Token</li>
+                    <li>Create and get approval for a Sender ID</li>
+                    <li>Copy your credentials and paste them in the form above</li>
+                    <li>Make sure you have sufficient credit balance for sending messages</li>
                 </ol>
+                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
+                    <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                        ⚠️ Important Notes:
+                    </p>
+                    <ul className="text-xs text-amber-700 dark:text-amber-400 mt-1 space-y-1 list-disc list-inside">
+                        <li>Maximum 100 recipients per batch</li>
+                        <li>Maximum 6 pages of SMS per message</li>
+                        <li>Phone numbers should be in format: 234XXXXXXXXXX</li>
+                        <li>Sender IDs must be approved before use</li>
+                    </ul>
+                </div>
             </div>
         </div>
     );
 };
 
-export default TermiiSettingsComponent;
+export default KudiSmsSettingsComponent;
