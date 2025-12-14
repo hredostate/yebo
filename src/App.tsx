@@ -3712,9 +3712,23 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             
             const studentScores = scoreEntries.filter(s => s.student_id === studentId && s.term_id === termId);
             const termReport = studentTermReports.find(r => r.student_id === studentId && r.term_id === termId);
-            const studentAttendance = attendanceRecords.filter(a => a.student_id === studentId);
+            
+            // Extract attendance records from classGroups
+            const allAttendance: AttendanceRecord[] = [];
+            classGroups.forEach(group => {
+                group.members?.forEach(member => {
+                    if (member.records) {
+                        allAttendance.push(...member.records);
+                    }
+                });
+            });
+            const studentAttendance = allAttendance.filter(a => a.student_id === studentId);
+            
             const behaviorReports = reports.filter(r => r.involved_students?.includes(studentId));
-            const homeworkSubmissions_filtered = homeworkSubmissions.filter(h => h.student_id === studentId);
+            
+            // TODO: Implement homework submissions feature
+            // For now, using empty array as homework submissions state doesn't exist
+            const homeworkSubmissions_filtered: any[] = [];
             
             // Calculate attendance rate
             const termAttendance = studentAttendance; // You might want to filter by term if possible
@@ -3781,7 +3795,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             addToast(`Failed to generate comment: ${e.message}`, 'error');
             return null;
         }
-    }, [students, scoreEntries, studentTermReports, attendanceRecords, reports, homeworkSubmissions, addToast]);
+    }, [students, scoreEntries, studentTermReports, classGroups, reports, addToast]);
 
     // --- Grading Scheme Handlers ---
     const handleSaveGradingScheme = useCallback(async (scheme: Partial<GradingScheme>): Promise<boolean> => {
