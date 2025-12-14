@@ -176,7 +176,6 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
         }
 
         if (!sendResult.success) {
-        if (!sendResult.success) {
             // Update notification status to failed
             await supabase
                 .from('sms_notifications')
