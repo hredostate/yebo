@@ -4,7 +4,7 @@ import type { AcademicTeachingAssignment, Assessment, AssessmentScore, Student, 
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, DownloadIcon, UploadCloudIcon, TrashIcon, EditIcon, CopyIcon } from './common/icons';
 import CopyAssessmentModal from './CopyAssessmentModal';
-import { parseCsv } from '../utils/feesCsvUtils';
+import { parseCsv, findColumnByVariations } from '../utils/feesCsvUtils';
 
 // --- Prop Types ---
 interface AssessmentManagerProps {
@@ -266,18 +266,10 @@ const ScoreManager: React.FC<AssessmentManagerProps & { assessment: Assessment }
             const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
             
             // Find required columns (case-insensitive)
-            const studentIdCol = headerMap.get('student_id') || 
-                                headerMap.get('studentid') || 
-                                headerMap.get('student id');
-            const studentNameCol = headerMap.get('student_name') || 
-                                  headerMap.get('studentname') || 
-                                  headerMap.get('student name') ||
-                                  headerMap.get('name');
-            const scoreCol = headerMap.get('score');
-            const commentsCol = headerMap.get('comments') || 
-                              headerMap.get('comment') || 
-                              headerMap.get('remarks') || 
-                              headerMap.get('remark');
+            const studentIdCol = findColumnByVariations(headerMap, ['student_id', 'studentid', 'student id']);
+            const studentNameCol = findColumnByVariations(headerMap, ['student_name', 'studentname', 'student name', 'name']);
+            const scoreCol = findColumnByVariations(headerMap, ['score']);
+            const commentsCol = findColumnByVariations(headerMap, ['comments', 'comment', 'remarks', 'remark']);
             
             if (!studentIdCol) {
                 addToast("CSV must contain 'student_id' column.", 'error');

@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { AcademicTeachingAssignment, Student, AcademicClassStudent, ScoreEntry, GradingScheme, SchoolConfig, AssessmentComponent, StudentSubjectEnrollment } from '../types';
 import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
-import { parseCsv } from '../utils/feesCsvUtils';
+import { parseCsv, findColumnByVariations } from '../utils/feesCsvUtils';
 
 interface TeacherScoreEntryViewProps {
     assignmentId: number;
@@ -297,17 +296,14 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
             
             // Find student_id column (case-insensitive)
-            const studentIdCol = headerMap.get('student_id') || headerMap.get('studentid') || headerMap.get('student id');
+            const studentIdCol = findColumnByVariations(headerMap, ['student_id', 'studentid', 'student id']);
             
             if (!studentIdCol) {
                 throw new Error("Missing 'student_id' column in CSV.");
             }
             
             // Find remark/comment column (case-insensitive)
-            const commentCol = headerMap.get('remark') || 
-                              headerMap.get('comment') || 
-                              headerMap.get('remarks') || 
-                              headerMap.get('comments');
+            const commentCol = findColumnByVariations(headerMap, ['remark', 'comment', 'remarks', 'comments']);
             
             // Identify which component columns exist in the CSV (case-insensitive matching)
             const componentColumns = new Map<string, string>(); // componentName -> csvColumnName

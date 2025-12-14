@@ -399,9 +399,15 @@ export function displayRowToDataIndex(displayRow: number): number {
 
 // ============= FLEXIBLE CSV COLUMN MATCHING =============
 
+/**
+ * Result of matching CSV columns to expected columns
+ */
 export interface FlexibleColumnMatchResult {
+  /** List of column names from CSV that matched expected columns */
   matchedColumns: string[];
+  /** List of column names from CSV that did not match any expected column */
   unmatchedColumns: string[];
+  /** Number of columns that were successfully matched */
   matchedCount: number;
 }
 
@@ -450,12 +456,12 @@ export function matchCsvColumns(
  * 
  * @param csvText - Raw CSV text content
  * @param expectedColumns - List of expected column names (for matching)
- * @returns Parsed data with only matched columns
+ * @returns Parsed data with only matched columns and match result information
  */
 export function parseFlexibleCsv(
   csvText: string,
   expectedColumns: string[]
-): { data: any[], matchResult: FlexibleColumnMatchResult } {
+): { data: Record<string, any>[]; matchResult: FlexibleColumnMatchResult } {
   const data = parseCsv(csvText);
   
   if (data.length === 0) {
@@ -475,7 +481,7 @@ export function parseFlexibleCsv(
   
   // Filter data to only include matched columns
   const filteredData = data.map(row => {
-    const filtered: any = {};
+    const filtered: Record<string, any> = {};
     matchResult.matchedColumns.forEach(col => {
       filtered[col] = row[col];
     });
@@ -486,4 +492,27 @@ export function parseFlexibleCsv(
     data: filteredData,
     matchResult
   };
+}
+
+/**
+ * Find a column in CSV headers by trying multiple name variations
+ * Useful for case-insensitive matching with common variations like:
+ * - "Student ID", "student_id", "studentid", "student id"
+ * 
+ * @param headers - Map of lowercase header names to original header names
+ * @param variations - Array of possible column name variations to try
+ * @returns The original column name if found, undefined otherwise
+ */
+export function findColumnByVariations(
+  headers: Map<string, string>,
+  variations: string[]
+): string | undefined {
+  for (const variation of variations) {
+    const normalized = variation.toLowerCase().trim();
+    const match = headers.get(normalized);
+    if (match) {
+      return match;
+    }
+  }
+  return undefined;
 }

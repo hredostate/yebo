@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import type { Student, AcademicClass, Term, StudentSubjectEnrollment, AcademicClassStudent } from '../../types';
@@ -16,7 +15,7 @@ import {
   FilterIcon,
   ChevronDownIcon
 } from '../common/icons';
-import { parseCsv } from '../../utils/feesCsvUtils';
+import { parseCsv, findColumnByVariations } from '../../utils/feesCsvUtils';
 
 
 interface StudentSubjectEnrollmentManagerProps {
@@ -569,7 +568,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       
       // Check for required columns (case-insensitive)
       const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
-      const studentIdCol = headerMap.get('student id') || headerMap.get('studentid');
+      const studentIdCol = findColumnByVariations(headerMap, ['Student ID', 'student_id', 'studentid', 'student id']);
       
       if (!studentIdCol) {
         addToast('CSV must contain "Student ID" column', 'error');
