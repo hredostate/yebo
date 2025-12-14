@@ -4227,8 +4227,29 @@ const App: React.FC = () => {
         if (!userProfile || userType !== 'staff') return false;
         
         try {
+            // Get current valid student IDs
+            const validStudentIds = new Set(students.map(s => s.id));
+            
+            // Filter out scores for students that no longer exist
+            const validScores = scores.filter(score => {
+                if (score.student_id && !validStudentIds.has(score.student_id)) {
+                    console.warn(`Skipping score for non-existent student ID: ${score.student_id}`);
+                    return false;
+                }
+                return true;
+            });
+            
+            if (validScores.length === 0) {
+                addToast('No valid students to save scores for. Please refresh the page.', 'error');
+                return false;
+            }
+            
+            if (validScores.length < scores.length) {
+                addToast(`${scores.length - validScores.length} student(s) were skipped because they no longer exist. Saving remaining scores...`, 'info');
+            }
+            
             // Add entered_by_user_id and last_modified_by_user_id to each score
-            const enrichedScores = scores.map(score => ({
+            const enrichedScores = validScores.map(score => ({
                 ...score,
                 entered_by_user_id: score.entered_by_user_id || userProfile.id,
                 last_modified_by_user_id: userProfile.id
@@ -4241,6 +4262,10 @@ const App: React.FC = () => {
             
             if (error) {
                 addToast(`Error saving scores: ${error.message}`, 'error');
+                // If foreign key error, trigger data refresh
+                if (error.message.includes('foreign key constraint') || error.message.includes('violates')) {
+                    addToast('Data may be stale. Please refresh the page.', 'warning');
+                }
                 return false;
             }
             
@@ -4253,7 +4278,7 @@ const App: React.FC = () => {
             const zeroScoreEntries: Omit<ZeroScoreEntry, 'id' | 'created_at' | 'reviewed' | 'reviewed_by' | 'reviewed_at' | 'review_notes'>[] = [];
             const staffProfile = userProfile as UserProfile;
             
-            for (const score of scores) {
+            for (const score of validScores) {
                 // Check if any component scores are explicitly zero
                 const componentScores = score.component_scores || {};
                 const hasZeroComponent = Object.entries(componentScores).some(([name, value]) => isExplicitZero(value));
@@ -4341,7 +4366,7 @@ const App: React.FC = () => {
             addToast(`Error saving scores: ${error.message}`, 'error');
             return false;
         }
-    }, [userProfile, userType, addToast, setScoreEntries]);
+    }, [userProfile, userType, addToast, setScoreEntries, students]);
 
     const handleUpdateScore = useCallback(async (scoreId: number, updates: Partial<ScoreEntry>): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
