@@ -315,7 +315,9 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             });
             
             if (componentColumns.size === 0) {
-                throw new Error("No matching score component columns found in CSV. Make sure column names match component names.");
+                throw new Error(
+                    `No matching component columns found in CSV. Expected components: ${components.map(c => c.name).join(', ')}`
+                );
             }
 
             let updatedCount = 0;

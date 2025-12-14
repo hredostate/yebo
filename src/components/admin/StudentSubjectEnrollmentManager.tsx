@@ -131,7 +131,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
           .single();
 
         if (!baseClassData) {
-          // If base class not found, show empty subjects list
+          // If base class is not found, display empty list instead of falling back to all subjects to prevent layout overflow
           setClassSubjects([]);
           return;
         }
@@ -597,7 +597,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       });
 
       if (subjectMap.size === 0) {
-        addToast('No matching subjects found in CSV. Make sure subject column names match enabled subjects.', 'error');
+        addToast('No matching subjects found in CSV. Make sure subject column names match the subjects configured for this class.', 'error');
         return;
       }
 
