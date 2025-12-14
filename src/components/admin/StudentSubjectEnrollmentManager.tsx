@@ -603,7 +603,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
           if (!subjectId) return;
 
           const cellValue = cells[subjectStartIndex + index];
-          const isEnrolled = cellValue === '1' || cellValue.toLowerCase() === 'true' || cellValue.toLowerCase() === 'yes';
+          const shouldEnroll = cellValue === '1' || cellValue.toLowerCase() === 'true' || cellValue.toLowerCase() === 'yes';
 
           enrollments.push({
             school_id: schoolId,
@@ -611,7 +611,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
             subject_id: subjectId,
             academic_class_id: selectedAcademicClassId,
             term_id: selectedTermId,
-            is_enrolled: isEnrolled
+            is_enrolled: shouldEnroll
           });
         });
       }
