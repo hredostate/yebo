@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { sendSmsNotification, wasRecentlyNotified } from '../services/smsService';
 import Spinner from './common/Spinner';
 import { BellIcon, CheckCircleIcon, XCircleIcon } from './common/icons';
+import type { NotificationType } from '../types';
 
 interface NotifyParentButtonProps {
     studentId: number;
     studentName: string;
     parentPhone: string;
     templateName: string;
-    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published';
+    notificationType: NotificationType;
     variables: Record<string, string>;
     referenceId?: number;
     schoolId: number;
