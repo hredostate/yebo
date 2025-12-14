@@ -241,7 +241,7 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
         // Calculate summary statistics for context
         const totalStudents = props.students.length;
         const avgScore = props.scoreEntries.length > 0
-            ? (props.scoreEntries.reduce((sum, e) => sum + (e.score || 0), 0) / props.scoreEntries.length).toFixed(1)
+            ? (props.scoreEntries.reduce((sum, e) => sum + (e.total_score || 0), 0) / props.scoreEntries.length).toFixed(1)
             : 'N/A';
         const attendanceRate = props.attendanceRecords.length > 0
             ? ((props.attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Remote').length / props.attendanceRecords.length) * 100).toFixed(0)

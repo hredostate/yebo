@@ -1755,9 +1755,9 @@ const App: React.FC = () => {
             const studentDataForAI = allStudents.slice(0, 100).map(s => {
                 const studentScores = scoreEntries.filter(e => e.student_id === s.id);
                 const avgScore = studentScores.length > 0 
-                    ? studentScores.reduce((sum, e) => sum + (e.score || 0), 0) / studentScores.length 
+                    ? studentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / studentScores.length 
                     : null;
-                const lowScores = studentScores.filter(e => (e.score || 0) < 50).length;
+                const lowScores = studentScores.filter(e => (e.total_score || 0) < 50).length;
                 
                 const attendance = attendanceMap[s.id];
                 const attendanceRate = attendance ? (attendance.present / attendance.total) * 100 : null;
@@ -2088,7 +2088,7 @@ Context: ${JSON.stringify(contextData)}`;
              // Academic performance
              const recentScores = scoreEntries.slice(0, 500);
              const avgAcademicScore = recentScores.length > 0
-                 ? recentScores.reduce((sum, e) => sum + (e.score || 0), 0) / recentScores.length
+                 ? recentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / recentScores.length
                  : 0;
              
              // Lesson plan compliance
@@ -2571,7 +2571,7 @@ Operational Data: ${JSON.stringify(contextData)}`;
                     if (!subjectPerformance[se.subject_id]) {
                         subjectPerformance[se.subject_id] = { avgScore: 0, count: 0 };
                     }
-                    subjectPerformance[se.subject_id].avgScore += se.score || 0;
+                    subjectPerformance[se.subject_id].avgScore += se.total_score || 0;
                     subjectPerformance[se.subject_id].count += 1;
                 }
             });
@@ -3463,9 +3463,9 @@ Return a JSON object with:
                 // Academic excellence or improvement
                 const studentScores = scoreEntries.filter(e => e.student_id === s.id);
                 const avgScore = studentScores.length > 0
-                    ? studentScores.reduce((sum, e) => sum + (e.score || 0), 0) / studentScores.length
+                    ? studentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / studentScores.length
                     : null;
-                const highScores = studentScores.filter(e => (e.score || 0) >= 85).length;
+                const highScores = studentScores.filter(e => (e.total_score || 0) >= 85).length;
                 
                 // Attendance
                 const attendance = attendanceMap[s.id];
