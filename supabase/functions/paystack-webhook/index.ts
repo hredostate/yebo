@@ -64,6 +64,27 @@ async function sendWhatsAppPaymentReceipt(
       return;
     }
 
+    // Get Kudi SMS settings
+    const { data: kudiSettings } = await supabaseAdmin
+      .from('kudisms_settings')
+      .select('api_token, template_codes, is_active')
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .single();
+
+    if (!kudiSettings) {
+      console.log('Kudi SMS not configured for school', schoolId);
+      return;
+    }
+
+    // Format phone number to Nigerian international format
+    let phoneNumber = student.parent_phone_number_1.replace(/\D/g, '');
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '234' + phoneNumber.substring(1);
+    } else if (!phoneNumber.startsWith('234')) {
+      phoneNumber = '234' + phoneNumber;
+    }
+
     const remainingBalance = totalAmount - totalPaid;
     const formattedDate = new Date(paymentDate).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -71,66 +92,64 @@ async function sendWhatsAppPaymentReceipt(
       year: 'numeric'
     });
 
-    // Prepare WhatsApp message
-    const message = `Dear Parent,\n\nPayment Receipt Confirmation\n\n` +
-      `Student: ${student.name}\n` +
-      `Amount Paid: ₦${amountPaid.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
-      `Payment Method: ${paymentMethod}\n` +
-      `Reference: ${reference}\n` +
-      `Date: ${formattedDate}\n` +
-      `Total Paid: ₦${totalPaid.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
-      `Remaining Balance: ₦${remainingBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n` +
-      `Thank you for your payment.\n\n` +
-      `School Guardian 360`;
+    // Get payment receipt template code
+    const templateCode = kudiSettings.template_codes?.payment_receipt || kudiSettings.template_codes?.default;
 
-    // Get Termii settings
-    const { data: termiiSettings } = await supabaseAdmin
-      .from('termii_settings')
-      .select('api_key, device_id, base_url, is_active')
-      .eq('school_id', schoolId)
-      .eq('is_active', true)
-      .single();
+    if (templateCode) {
+      // Send via WhatsApp using template
+      const parameters = [
+        student.name,
+        amountPaid.toFixed(2),
+        paymentMethod,
+        reference,
+        formattedDate,
+        totalPaid.toFixed(2),
+        remainingBalance.toFixed(2)
+      ].join(',');
 
-    if (!termiiSettings) {
-      console.log('Termii not configured for school', schoolId);
-      return;
+      const formData = new URLSearchParams();
+      formData.append('token', kudiSettings.api_token);
+      formData.append('recipient', phoneNumber);
+      formData.append('template_code', templateCode);
+      formData.append('parameters', parameters);
+      formData.append('button_parameters', '');
+      formData.append('header_parameters', '');
+
+      const kudiResponse = await fetch('https://my.kudisms.net/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+      });
+
+      const kudiResult = await kudiResponse.json();
+      
+      // Log the message
+      await supabaseAdmin.from('whatsapp_message_logs').insert({
+        school_id: schoolId,
+        recipient_phone: phoneNumber,
+        template_code: templateCode,
+        message_type: 'whatsapp',
+        message_content: { 
+          student_name: student.name,
+          amount_paid: amountPaid,
+          payment_method: paymentMethod,
+          reference,
+          date: formattedDate,
+          total_paid: totalPaid,
+          remaining_balance: remainingBalance
+        },
+        kudisms_message_id: kudiResult.data,
+        status: (kudiResult.status === 'success' || kudiResult.error_code === '000') ? 'sent' : 'failed',
+        error_message: kudiResult.status === 'error' ? kudiResult.msg : null,
+        cost: kudiResult.cost,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      console.log(`WhatsApp receipt sent to ${phoneNumber} for payment ${reference}`);
+    } else {
+      console.log('No payment receipt template configured for school', schoolId);
     }
-
-    // Send via Termii
-    const termiiUrl = `${termiiSettings.base_url || 'https://api.ng.termii.com'}/api/sms/send`;
-    const termiiPayload = {
-      api_key: termiiSettings.api_key,
-      to: student.parent_phone_number_1,
-      from: 'SchoolGuardian',
-      sms: message,
-      type: 'plain',
-      channel: 'whatsapp',
-    };
-
-    const termiiResponse = await fetch(termiiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(termiiPayload),
-    });
-
-    const termiiResult = await termiiResponse.json();
-    
-    // Log the message
-    await supabaseAdmin.from('whatsapp_message_logs').insert({
-      school_id: schoolId,
-      recipient_phone: student.parent_phone_number_1,
-      template_id: null,
-      message_type: 'conversational',
-      message_content: { message, reference },
-      media_url: null,
-      termii_message_id: termiiResult.message_id,
-      status: termiiResponse.ok ? 'sent' : 'failed',
-      error_message: termiiResponse.ok ? null : (termiiResult.message || 'Failed to send'),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-
-    console.log(`WhatsApp receipt sent to ${student.parent_phone_number_1} for payment ${reference}`);
   } catch (error) {
     console.error('Error sending WhatsApp receipt:', error);
     // Don't throw - receipt sending is non-critical
