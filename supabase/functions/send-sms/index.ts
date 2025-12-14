@@ -50,12 +50,19 @@ serve(async (req) => {
     // Get authorization header to pass through
     const authHeader = req.headers.get('Authorization') || '';
 
-    // Get default template code from environment or use a fallback
+    // Get default template code from environment
     const defaultTemplateCode = Deno.env.get('KUDI_DEFAULT_TEMPLATE_CODE') || '';
+
+    if (!defaultTemplateCode) {
+      console.warn('KUDI_DEFAULT_TEMPLATE_CODE not set. Emergency broadcasts and free-form messages may not work.');
+      console.warn('Please configure a default WhatsApp template in Supabase Edge Function secrets.');
+    }
 
     for (const phoneNumber of to) {
       try {
-        // Call the kudisms-send-whatsapp function internally
+        // For Kudi SMS, we need a template code and parameters
+        // The body is passed as a single parameter to the template
+        // Template should have a single {{message}} placeholder
         const response = await fetch(`${supabaseUrl}/functions/v1/kudisms-send-whatsapp`, {
           method: 'POST',
           headers: {
@@ -66,7 +73,7 @@ serve(async (req) => {
           body: JSON.stringify({
             phone_number: phoneNumber,
             template_code: defaultTemplateCode,
-            parameters: body,
+            parameters: body, // Pass message body as single parameter
           }),
         });
 

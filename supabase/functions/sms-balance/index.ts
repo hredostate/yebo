@@ -76,8 +76,21 @@ serve(async (req) => {
     }
 
     // Parse balance - Kudi SMS returns balance as string with commas (e.g., "161,864.98")
-    const balanceStr = lastMessage.balance.replace(/,/g, '');
-    const balanceRaw = parseFloat(balanceStr);
+    let balanceRaw = 0;
+    try {
+      if (lastMessage.balance) {
+        const balanceStr = lastMessage.balance.replace(/,/g, '');
+        balanceRaw = parseFloat(balanceStr);
+        
+        if (isNaN(balanceRaw)) {
+          balanceRaw = 0;
+        }
+      }
+    } catch (parseError) {
+      console.error('Error parsing balance:', parseError);
+      balanceRaw = 0;
+    }
+    
     const currency = 'NGN'; // Kudi SMS uses Nigerian Naira
     const balanceFormatted = `${currency} ${balanceRaw.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 

@@ -73,6 +73,12 @@ Please make payment at your earliest convenience.
 Thank you.
 ```
 
+#### Default Message Template (for emergency broadcasts and free-form messages)
+```
+{{message}}
+```
+**Note**: This template is required for the `send-sms` endpoint to work with emergency broadcasts and other free-form messages. It should contain a single `{{message}}` placeholder that will be replaced with the actual message content.
+
 **Important Notes:**
 - Templates must be approved by WhatsApp before use
 - Template approval can take 24-48 hours

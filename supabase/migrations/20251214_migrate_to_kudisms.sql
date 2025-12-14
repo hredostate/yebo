@@ -14,9 +14,13 @@ CREATE TABLE IF NOT EXISTS public.kudisms_settings (
     fee_reminder_template_code TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(school_id, campus_id)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create unique index that handles NULL campus_id properly
+-- For school-wide settings, campus_id should be NULL and there should be only one per school
+CREATE UNIQUE INDEX kudisms_settings_school_campus_unique 
+ON public.kudisms_settings (school_id, COALESCE(campus_id, -1));
 
 -- Create kudisms_message_logs table
 CREATE TABLE IF NOT EXISTS public.kudisms_message_logs (
