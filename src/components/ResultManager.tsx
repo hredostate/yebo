@@ -8,8 +8,9 @@ import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
+import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 
-type ViewMode = 'by-class' | 'by-subject' | 'statistics';
+type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores';
 
 interface ResultManagerProps {
     terms: any[];
@@ -665,6 +666,12 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             >
                                 Statistics
                             </button>
+                            <button
+                                onClick={() => setViewMode('zero-scores')}
+                                className={`px-3 py-1 text-sm font-medium rounded-md transition ${viewMode === 'zero-scores' ? 'bg-white dark:bg-slate-600 shadow' : ''}`}
+                            >
+                                Zero Scores
+                            </button>
                         </div>
                         {/* Result Sheet Design Selector */}
                         <div className="relative">
@@ -969,6 +976,14 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         }
                     />
                 </div>
+            )}
+
+            {selectedTermId && viewMode === 'zero-scores' && (
+                <ZeroScoreReviewPanel 
+                    termId={Number(selectedTermId)}
+                    addToast={addToast}
+                    userPermissions={userPermissions}
+                />
             )}
             
             {/* Score Preview Modal */}
