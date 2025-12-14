@@ -6290,6 +6290,18 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>;
     }
 
+    // Check for public report view (no authentication required)
+    const pathname = window.location.pathname;
+    if (pathname.startsWith('/report/')) {
+        const token = pathname.split('/report/')[1];
+        const PublicReportView = React.lazy(() => import('./components/PublicReportView'));
+        return (
+            <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>}>
+                <PublicReportView />
+            </React.Suspense>
+        );
+    }
+
     if (!session) {
         if (currentView === 'student-login') return <StudentLoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'teacher-login') setCurrentView('teacher-login'); else if (view === 'public-ratings') setCurrentView('public-ratings'); }} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
         if (currentView === 'public-ratings') return <PublicTeacherRatingsView onShowLogin={() => setCurrentView('teacher-login')} />;

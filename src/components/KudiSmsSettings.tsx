@@ -3,6 +3,15 @@ import { supabase } from '../services/supabaseClient';
 import type { KudiSmsSettings, SmsTemplate, NotificationChannel, NotificationType } from '../types';
 import Spinner from './common/Spinner';
 import { mapSupabaseError } from '../utils/errorHandling';
+import { getKudiSmsBalance, testSendMessage } from '../services/kudiSmsService';
+import { getSmsTemplates, saveSmsTemplate } from '../services/smsService';
+import {
+    ConfigurationTab,
+    ChannelsTab,
+    SmsTemplatesTab,
+    WhatsAppTemplatesTab,
+    TestPanelTab
+} from './KudiSmsSettingsTabs';
 
 interface Campus {
     id: number;
@@ -73,6 +82,12 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
     useEffect(() => {
         fetchData();
     }, [schoolId, selectedCampus]);
+
+    useEffect(() => {
+        if (activeTab === 'sms_templates') {
+            fetchTemplates();
+        }
+    }, [activeTab]);
 
     const fetchData = async () => {
         setLoading(true);

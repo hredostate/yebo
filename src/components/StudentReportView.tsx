@@ -137,7 +137,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       return;
     }
 
-    if (!window.confirm('Send report card notification to parent via SMS?')) {
+    if (!window.confirm('Send report card notification with download link to parent via SMS/WhatsApp?')) {
       return;
     }
 
@@ -148,30 +148,105 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       const termName = reportDetails.term.termName || 'Current Term';
       const sessionLabel = reportDetails.term.sessionLabel || '';
       
-      const message = `Report Card Available\n\n` +
-        `Dear Parent,\n\n` +
-        `The report card for ${studentName} is now available for ${termName}, ${sessionLabel}.\n\n` +
-        `Please log in to the School Guardian 360 portal to view and download the full report card.\n\n` +
-        `If you have any questions, please contact the school.\n\n` +
-        `Best regards,\n` +
-        `School Administration`;
+      // Generate a unique public token
+      const publicToken = crypto.randomUUID();
+      const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
-      const { error: sendError } = await supabase.functions.invoke('kudisms-send', {
-        body: {
-          phone_number: reportDetails.student.parent_phone_number_1,
-          message: message,
-        }
-      });
+      // Find or get the report ID
+      const { data: reportData, error: reportError } = await supabase
+        .from('student_term_reports')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('term_id', termId)
+        .maybeSingle();
 
-      if (sendError) {
-        throw sendError;
+      if (reportError) {
+        throw reportError;
       }
 
-      setSmsSent(true);
-      alert('Report card notification sent successfully to parent!');
+      let reportId = reportData?.id;
+
+      // If no report exists, we need to create one
+      if (!reportId) {
+        const { data: newReport, error: createError } = await supabase
+          .from('student_term_reports')
+          .insert({
+            student_id: studentId,
+            term_id: termId,
+            academic_class_id: reportDetails.student.classId || 0,
+            average_score: reportDetails.overallAverage || 0,
+            total_score: reportDetails.overallTotal || 0,
+            position_in_class: reportDetails.studentPosition || 0,
+            is_published: true,
+            public_token: publicToken,
+            token_expires_at: tokenExpiresAt.toISOString()
+          })
+          .select('id')
+          .single();
+
+        if (createError) throw createError;
+        reportId = newReport.id;
+      } else {
+        // Update existing report with token
+        const { error: updateError } = await supabase
+          .from('student_term_reports')
+          .update({
+            public_token: publicToken,
+            token_expires_at: tokenExpiresAt.toISOString()
+          })
+          .eq('id', reportId);
+
+        if (updateError) throw updateError;
+      }
+
+      // Build the public download link
+      const downloadLink = `${window.location.origin}/report/${publicToken}`;
+      
+      // Get user for school_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Not authenticated');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        alert('User profile not found');
+        return;
+      }
+
+      // Use the report_card_ready template with variables
+      const variables = {
+        student_name: studentName,
+        term: `${termName}, ${sessionLabel}`,
+        class_name: reportDetails.student.className || '',
+        download_link: downloadLink
+      };
+
+      // Send via smsService which will use the channel preferences
+      const { sendNotificationWithChannel } = await import('../services/kudiSmsService');
+      const result = await sendNotificationWithChannel('report_card_ready', {
+        schoolId: profile.school_id,
+        recipientPhone: reportDetails.student.parent_phone_number_1,
+        templateName: 'report_card_ready',
+        variables,
+        studentId: studentId
+      });
+
+      if (result.success) {
+        setSmsSent(true);
+        alert(`Report card notification sent successfully via ${result.channel}!${result.fallback ? ' (fallback to SMS)' : ''}\n\nDownload link: ${downloadLink}`);
+      } else {
+        throw new Error(result.error || 'Failed to send notification');
+      }
     } catch (err: any) {
-      console.error('Error sending SMS:', err);
-      alert(`Failed to send SMS message: ${err.message || 'Unknown error'}`);
+      console.error('Error sending notification:', err);
+      alert(`Failed to send notification: ${err.message || 'Unknown error'}`);
     } finally {
       setIsSendingSms(false);
     }

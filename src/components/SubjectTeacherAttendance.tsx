@@ -265,12 +265,22 @@ const SubjectTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, scho
                         className="p-2 border rounded-md bg-transparent"
                     />
                 </div>
-                 <button 
-                    onClick={handleExportReport}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                    <DownloadIcon className="w-4 h-4" /> Export History
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleExportReport}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <DownloadIcon className="w-4 h-4" /> Export History
+                    </button>
+                    <button 
+                        onClick={() => handleBulkNotify([AttendanceStatus.Absent, AttendanceStatus.Late])}
+                        disabled={isNotifying}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                        title="Notify all parents of absent and late students for this class"
+                    >
+                        {isNotifying ? <Spinner size="sm" /> : <><BellIcon className="w-4 h-4" /> Notify Absent/Late</>}
+                    </button>
+                </div>
             </div>
             
              {scheduledToday.length > 0 ? (
