@@ -324,7 +324,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                         </label>
                         <select
                             value={filterReviewed}
-                            onChange={(e) => setFilterReviewed(e.target.value as any)}
+                            onChange={(e) => setFilterReviewed(e.target.value as 'all' | 'reviewed' | 'unreviewed')}
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                         >
                             <option value="all">All</option>
@@ -445,7 +445,8 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                                                     checked={selectedEntries.has(entry.id)}
                                                     onChange={() => toggleSelectEntry(entry.id)}
                                                     disabled={entry.reviewed}
-                                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
+                                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    title={entry.reviewed ? "Cannot select reviewed entries" : "Select entry"}
                                                 />
                                             </td>
                                         )}
