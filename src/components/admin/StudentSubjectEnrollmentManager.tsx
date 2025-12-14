@@ -16,6 +16,8 @@ import {
   FilterIcon,
   ChevronDownIcon
 } from '../common/icons';
+import { parseCsv } from '../../utils/feesCsvUtils';
+
 
 interface StudentSubjectEnrollmentManagerProps {
   schoolId: number;
@@ -130,11 +132,12 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
           .single();
 
         if (!baseClassData) {
-          setClassSubjects(allSubjects);
+          // If base class not found, show empty subjects list
+          setClassSubjects([]);
           return;
         }
 
-        // Get subjects for this class
+        // Get subjects for this class - only show subjects that are enabled/ticked
         const { data: csData } = await supabase
           .from('class_subjects')
           .select('subject_id')
@@ -145,12 +148,13 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
           const subjects = allSubjects.filter(s => subjectIds.includes(s.id));
           setClassSubjects(subjects);
         } else {
-          // If no class subjects defined, show all subjects
-          setClassSubjects(allSubjects);
+          // If no class subjects are enabled for this class, show empty list
+          setClassSubjects([]);
         }
       } catch (error) {
         console.error('Error fetching class subjects:', error);
-        setClassSubjects(allSubjects);
+        // On error, show empty list instead of all subjects
+        setClassSubjects([]);
       } finally {
         setIsLoading(false);
       }
@@ -548,33 +552,57 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
     try {
       setIsSaving(true);
       const text = await file.text();
-      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
       
-      if (rows.length < 2) {
+      // Parse CSV using the shared utility
+      const rows = parseCsv(text);
+      
+      if (rows.length === 0) {
         addToast('CSV file is empty or invalid', 'error');
         return;
       }
 
-      // Parse header to get subject names and positions
-      const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const subjectStartIndex = 3; // After Student ID, Student Name, Admission Number
-      const subjectHeaders = headers.slice(subjectStartIndex);
+      // Get headers from the first row
+      const headers = Object.keys(rows[0]);
+      
+      // Fixed columns that should always be present
+      const requiredColumns = ['Student ID', 'Student Name', 'Admission Number'];
+      
+      // Check for required columns (case-insensitive)
+      const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
+      const studentIdCol = headerMap.get('student id') || headerMap.get('studentid');
+      
+      if (!studentIdCol) {
+        addToast('CSV must contain "Student ID" column', 'error');
+        return;
+      }
 
-      // Map subject names to IDs
-      const subjectMap = new Map<string, number>();
-      subjectHeaders.forEach(subjectName => {
-        const subject = classSubjects.find(s => s.name === subjectName);
+      // Find all subject columns (those not in the required columns list)
+      const requiredLower = requiredColumns.map(c => c.toLowerCase());
+      const subjectColumns = headers.filter(h => 
+        !requiredLower.includes(h.toLowerCase())
+      );
+
+      // Map subject column names to subject IDs (case-insensitive matching)
+      const subjectMap = new Map<string, { id: number; columnName: string }>();
+      let matchedSubjects = 0;
+      
+      subjectColumns.forEach(columnName => {
+        // Try to match the column name to a subject in classSubjects (case-insensitive)
+        const subject = classSubjects.find(s => 
+          s.name.toLowerCase() === columnName.toLowerCase().trim()
+        );
         if (subject) {
-          subjectMap.set(subjectName, subject.id);
+          subjectMap.set(columnName, { id: subject.id, columnName });
+          matchedSubjects++;
         }
       });
 
       if (subjectMap.size === 0) {
-        addToast('No matching subjects found in CSV', 'error');
+        addToast('No matching subjects found in CSV. Make sure subject column names match enabled subjects.', 'error');
         return;
       }
 
-      // Parse data rows and build enrollment records
+      // Build enrollment records from CSV data
       const enrollments: Array<{
         school_id: number;
         student_id: number;
@@ -584,31 +612,38 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
         is_enrolled: boolean;
       }> = [];
 
-      for (let i = 1; i < rows.length; i++) {
-        const cells = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-        const studentId = parseInt(cells[0]);
-        
-        if (isNaN(studentId)) continue;
+      let processedStudents = 0;
+      let skippedRows = 0;
 
-        // Check if student exists
-        const student = filteredStudents.find(s => s.id === studentId);
-        if (!student) {
-          console.warn(`Student ID ${studentId} not found, skipping row ${i + 1}`);
+      for (const row of rows) {
+        const studentId = parseInt(row[studentIdCol]);
+        
+        if (isNaN(studentId)) {
+          skippedRows++;
           continue;
         }
 
-        // Process each subject column
-        subjectHeaders.forEach((subjectName, index) => {
-          const subjectId = subjectMap.get(subjectName);
-          if (!subjectId) return;
+        // Check if student exists in filtered students
+        const student = filteredStudents.find(s => s.id === studentId);
+        if (!student) {
+          console.warn(`Student ID ${studentId} not found in enrolled students, skipping`);
+          skippedRows++;
+          continue;
+        }
 
-          const cellValue = cells[subjectStartIndex + index];
-          const shouldEnroll = cellValue === '1' || cellValue.toLowerCase() === 'true' || cellValue.toLowerCase() === 'yes';
+        processedStudents++;
+
+        // Process each subject column that was matched
+        subjectMap.forEach((subjectInfo, columnName) => {
+          const cellValue = row[columnName] || '';
+          const shouldEnroll = cellValue === '1' || 
+                               cellValue.toLowerCase() === 'true' || 
+                               cellValue.toLowerCase() === 'yes';
 
           enrollments.push({
             school_id: schoolId,
             student_id: studentId,
-            subject_id: subjectId,
+            subject_id: subjectInfo.id,
             academic_class_id: selectedAcademicClassId,
             term_id: selectedTermId,
             is_enrolled: shouldEnroll
@@ -631,7 +666,15 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       if (error) throw error;
 
       await onRefreshData();
-      addToast(`Successfully imported ${enrollments.length} enrollment records`, 'success');
+      
+      const matchMessage = matchedSubjects < subjectColumns.length 
+        ? ` (${matchedSubjects} of ${subjectColumns.length} subject columns matched)`
+        : '';
+      
+      addToast(
+        `Successfully imported ${enrollments.length} enrollment records for ${processedStudents} students${matchMessage}`,
+        'success'
+      );
       
       // Clear file input
       if (fileInputRef.current) {
@@ -720,7 +763,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       {/* Import/Export Section */}
       {selectedAcademicClassId && selectedTermId && (
         <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Bulk Import/Export</h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Download template, edit in Excel, then upload to update enrollments in bulk</p>
