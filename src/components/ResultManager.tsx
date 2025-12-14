@@ -27,13 +27,14 @@ interface ResultManagerProps {
     gradingSchemes: GradingScheme[];
     schoolConfig: SchoolConfig | null;
     onUpdateComments: (reportId: number, teacherComment: string, principalComment: string) => Promise<void>;
+    onGenerateReportComment?: (studentId: number, termId: number, commentType: 'teacher' | 'principal') => Promise<string | null>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
     onNavigate?: (view: string) => void;
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
     terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
-    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, addToast, onNavigate 
+    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [isProcessing, setIsProcessing] = useState<number | null>(null); // assignment ID
@@ -415,35 +416,45 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
     const handleGeneratePrincipalComments = async () => {
         if (!selectedTermId) return;
+        if (!onGenerateReportComment) {
+            addToast("AI comment generation not available.", "error");
+            return;
+        }
+        
         setIsGeneratingComments(9999); // Using a dummy ID for loading state
         addToast("Generating Principal's remarks based on overall performance...", "info");
 
         try {
-            if (!aiClient) throw new Error("AI Client not ready");
-
             // 1. Fetch all report summaries for this term
-            // We rely on studentTermReports prop which should be pre-fetched
             const reportsToProcess = studentTermReports.filter(r => r.term_id === selectedTermId);
 
             if (reportsToProcess.length === 0) {
                 throw new Error("No reports found for this term to comment on.");
             }
 
-            // Process in batches to avoid token limits? For MVP, let's do a small sample or just structure the logic.
-            // We will simulate the batching for now.
+            // Process each report
+            let successCount = 0;
+            let errorCount = 0;
             
-            // Example logic for ONE report:
-            /*
-            const report = reportsToProcess[0];
-            const student = students.find(s => s.id === report.student_id);
-            const prompt = `Generate a formal, encouraging Principal's remark for ${student?.name}. 
-            Average: ${report.average_score}%. Position: ${report.position_in_class}.
-            Tone: Professional, inspiring. Max 20 words.`;
-            */
-
-            // Mocking the update
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            addToast("Principal comments generated and saved. (Simulated)", "success");
+            for (const report of reportsToProcess) {
+                try {
+                    // Only generate if comment is empty
+                    if (!report.principal_comment || report.principal_comment.trim() === '') {
+                        const comment = await onGenerateReportComment(report.student_id, selectedTermId, 'principal');
+                        if (comment) {
+                            await onUpdateComments(report.id, report.teacher_comment || '', comment);
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Failed to generate comment for student ${report.student_id}:`, e);
+                    errorCount++;
+                }
+            }
+            
+            addToast(`Principal comments generated: ${successCount} successful, ${errorCount} failed`, successCount > 0 ? "success" : "error");
 
         } catch (e: any) {
             addToast(`Error: ${e.message}`, "error");

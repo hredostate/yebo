@@ -613,6 +613,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 gradingSchemes={data.gradingSchemes}
                 schoolConfig={data.schoolConfig}
                 onUpdateComments={actions.handleUpdateReportComments}
+                onGenerateReportComment={actions.handleGenerateReportComment}
                 addToast={actions.addToast}
                 onNavigate={actions.setCurrentView}
              />;
