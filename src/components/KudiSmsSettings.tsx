@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import type { KudiSmsSettings } from '../types';
+import type { KudiSmsSettings, SmsTemplate, NotificationType } from '../types';
 import Spinner from './common/Spinner';
 import { mapSupabaseError } from '../utils/errorHandling';
+import { getKudiSmsBalance, testSendMessage } from '../services/kudiSmsService';
+import { getSmsTemplates, saveSmsTemplate } from '../services/smsService';
+import {
+    ConfigurationTab,
+    ChannelsTab,
+    SmsTemplatesTab,
+    WhatsAppTemplatesTab,
+    TestPanelTab
+} from './KudiSmsSettingsTabs';
 
 interface Campus {
     id: number;
@@ -13,7 +22,25 @@ interface KudiSmsSettingsProps {
     schoolId: number;
 }
 
+type TabType = 'configuration' | 'channels' | 'sms_templates' | 'whatsapp_templates' | 'test_panel';
+
+const NOTIFICATION_TYPES: Array<{ key: NotificationType; label: string }> = [
+    { key: 'payment_receipt', label: 'Payment Receipt' },
+    { key: 'homework_missing', label: 'Homework Missing' },
+    { key: 'homework_reminder', label: 'Homework Reminder' },
+    { key: 'notes_incomplete', label: 'Notes Incomplete' },
+    { key: 'lesson_published', label: 'Lesson Published' },
+    { key: 'attendance_present', label: 'Attendance Present' },
+    { key: 'absentee_alert', label: 'Absentee Alert' },
+    { key: 'late_arrival', label: 'Late Arrival' },
+    { key: 'subject_absentee', label: 'Subject Absentee' },
+    { key: 'subject_late', label: 'Subject Late' },
+    { key: 'report_card_ready', label: 'Report Card Ready' },
+    { key: 'emergency_broadcast', label: 'Emergency Broadcast' }
+];
+
 const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('configuration');
     const [campuses, setCampuses] = useState<Campus[]>([]);
     const [settings, setSettings] = useState<KudiSmsSettings[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,12 +51,40 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         campus_id: 0,
         token: '',
         sender_id: '',
-        is_active: true
+        is_active: true,
+        enable_fallback: true
     });
+
+    // SMS Templates state
+    const [templates, setTemplates] = useState<SmsTemplate[]>([]);
+    const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
+    const [templateModalOpen, setTemplateModalOpen] = useState(false);
+
+    // Channel preferences state
+    const [channelPreferences, setChannelPreferences] = useState<Record<string, 'sms' | 'whatsapp' | 'both'>>({});
+    
+    // WhatsApp template codes state
+    const [whatsappCodes, setWhatsappCodes] = useState<Record<string, string>>({});
+
+    // Test panel state
+    const [balance, setBalance] = useState<string>('');
+    const [balanceLoading, setBalanceLoading] = useState(false);
+    const [testPhone, setTestPhone] = useState('');
+    const [testMessageType, setTestMessageType] = useState<'sms' | 'whatsapp'>('sms');
+    const [testTemplate, setTestTemplate] = useState('');
+    const [testParameters, setTestParameters] = useState('');
+    const [testResult, setTestResult] = useState<string>('');
+    const [testing, setTesting] = useState(false);
 
     useEffect(() => {
         fetchData();
     }, [schoolId]);
+
+    useEffect(() => {
+        if (activeTab === 'sms_templates') {
+            fetchTemplates();
+        }
+    }, [activeTab]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -52,11 +107,23 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
             if (settingsError) throw settingsError;
             setSettings(settingsData || []);
+
+            // Load channel preferences and WhatsApp codes from first active setting
+            const activeSetting = settingsData?.find(s => s.is_active);
+            if (activeSetting) {
+                setChannelPreferences(activeSetting.notification_channels || {});
+                setWhatsappCodes(activeSetting.whatsapp_template_codes || {});
+            }
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchTemplates = async () => {
+        const templatesData = await getSmsTemplates(schoolId);
+        setTemplates(templatesData);
     };
 
     const handleEdit = (setting: KudiSmsSettings) => {
@@ -65,8 +132,11 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
             campus_id: setting.campus_id || 0,
             token: '', // Don't show the actual token for security
             sender_id: setting.sender_id || '',
-            is_active: setting.is_active
+            is_active: setting.is_active,
+            enable_fallback: setting.enable_fallback ?? true
         });
+        setChannelPreferences(setting.notification_channels || {});
+        setWhatsappCodes(setting.whatsapp_template_codes || {});
     };
 
     const handleSave = async () => {
@@ -99,7 +169,10 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                 school_id: schoolId,
                 campus_id: formData.campus_id || null,
                 sender_id: formData.sender_id,
-                is_active: formData.is_active
+                is_active: formData.is_active,
+                enable_fallback: formData.enable_fallback,
+                notification_channels: channelPreferences,
+                whatsapp_template_codes: whatsappCodes
             };
 
             // Only include token if it's been entered (for edits, it's optional)
@@ -131,7 +204,8 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                 campus_id: 0,
                 token: '',
                 sender_id: '',
-                is_active: true
+                is_active: true,
+                enable_fallback: true
             });
             setShowToken(false);
             fetchData();
@@ -164,6 +238,114 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         }
     };
 
+    const handleSaveChannelPreferences = async () => {
+        setSaving(true);
+        try {
+            // Update the active setting with new channel preferences
+            const activeSetting = settings.find(s => s.is_active);
+            if (!activeSetting) {
+                alert('No active configuration found');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('kudisms_settings')
+                .update({ notification_channels: channelPreferences })
+                .eq('id', activeSetting.id);
+
+            if (error) throw error;
+            alert('Channel preferences saved successfully');
+            fetchData();
+        } catch (error: any) {
+            console.error('Error saving channel preferences:', error);
+            alert(`Failed to save: ${mapSupabaseError(error)}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveWhatsAppCodes = async () => {
+        setSaving(true);
+        try {
+            const activeSetting = settings.find(s => s.is_active);
+            if (!activeSetting) {
+                alert('No active configuration found');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('kudisms_settings')
+                .update({ whatsapp_template_codes: whatsappCodes })
+                .eq('id', activeSetting.id);
+
+            if (error) throw error;
+            alert('WhatsApp template codes saved successfully');
+            fetchData();
+        } catch (error: any) {
+            console.error('Error saving WhatsApp codes:', error);
+            alert(`Failed to save: ${mapSupabaseError(error)}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRefreshBalance = async () => {
+        setBalanceLoading(true);
+        try {
+            const result = await getKudiSmsBalance(schoolId);
+            if (result.success) {
+                setBalance(`${result.currency}${result.balance}`);
+            } else {
+                setBalance('Error: ' + result.error);
+            }
+        } catch (error: any) {
+            setBalance('Error: ' + error.message);
+        } finally {
+            setBalanceLoading(false);
+        }
+    };
+
+    const handleTestSend = async () => {
+        if (!testPhone || !testTemplate) {
+            alert('Please provide phone number and template');
+            return;
+        }
+
+        setTesting(true);
+        setTestResult('');
+        try {
+            // Parse parameters (comma-separated)
+            const params: Record<string, string> = {};
+            if (testParameters) {
+                const paramArray = testParameters.split(',').map(p => p.trim());
+                paramArray.forEach((value, index) => {
+                    params[`param${index + 1}`] = value;
+                });
+            }
+
+            const result = await testSendMessage({
+                schoolId,
+                recipientPhone: testPhone,
+                messageType: testMessageType,
+                templateName: testTemplate,
+                variables: params
+            });
+
+            if (result.success) {
+                setTestResult(`✅ Success! Message sent via ${result.channel}${result.fallback ? ' (fallback)' : ''}`);
+            } else {
+                setTestResult(`❌ Failed: ${result.error}`);
+            }
+
+            // Refresh balance after send
+            handleRefreshBalance();
+        } catch (error: any) {
+            setTestResult(`❌ Error: ${error.message}`);
+        } finally {
+            setTesting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center py-8">
@@ -179,193 +361,99 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                     Kudi SMS Messaging Gateway
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    Configure Kudi SMS API credentials for SMS messaging per campus.
+                    Configure multi-channel messaging (SMS & WhatsApp) via Kudi SMS API.
                 </p>
             </div>
 
-            {/* Existing Settings */}
-            {settings.length > 0 && (
-                <div className="space-y-3">
-                    <h4 className="font-medium text-slate-700 dark:text-slate-300">
-                        Configured Campuses
-                    </h4>
-                    {settings.map((setting) => (
-                        <div
-                            key={setting.id}
-                            className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-800 dark:text-white">
-                                        {setting.campus?.name || 'All Campuses'}
-                                    </p>
-                                    <div className="flex items-center gap-3 mt-1 text-sm text-slate-600 dark:text-slate-400">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                            setting.is_active
-                                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
-                                        }`}>
-                                            {setting.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                        <span className="text-xs">
-                                            Sender ID: {setting.sender_id}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => handleEdit(setting)}
-                                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(setting.campus_id)}
-                                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Add/Edit Form */}
-            <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
-                <h4 className="font-medium text-slate-800 dark:text-white mb-4">
-                    {editingCampus !== null ? 'Edit Kudi SMS Settings' : 'Add New Kudi SMS Settings'}
-                </h4>
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Campus
-                        </label>
-                        <select
-                            value={formData.campus_id}
-                            onChange={(e) => setFormData({ ...formData, campus_id: Number(e.target.value) })}
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                            disabled={editingCampus !== null}
-                        >
-                            <option value={0}>All Campuses (Default)</option>
-                            {campuses.map((campus) => (
-                                <option key={campus.id} value={campus.id}>
-                                    {campus.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            API Token *
-                        </label>
-                        <div className="relative">
-                            <input
-                                type={showToken ? "text" : "password"}
-                                value={formData.token}
-                                onChange={(e) => setFormData({ ...formData, token: e.target.value })}
-                                placeholder="Your Kudi SMS API Token"
-                                className="w-full p-2 pr-20 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowToken(!showToken)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                            >
-                                {showToken ? 'Hide' : 'Show'}
-                            </button>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                            {editingCampus !== null 
-                                ? 'Leave blank to keep the existing token. Enter a new token to update it.'
-                                : 'Your Kudi SMS API token from your Kudi SMS account.'}
-                        </p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Sender ID *
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.sender_id}
-                            onChange={(e) => setFormData({ ...formData, sender_id: e.target.value })}
-                            placeholder="e.g., SchoolName"
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                        />
-                        <p className="text-xs text-slate-500 mt-1">
-                            The sender ID that will appear on SMS messages. Must be approved by Kudi SMS.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            id="is_active"
-                            checked={formData.is_active}
-                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                            className="mr-2"
-                        />
-                        <label htmlFor="is_active" className="text-sm text-slate-700 dark:text-slate-300">
-                            Enable this configuration
-                        </label>
-                    </div>
-
-                    <div className="flex gap-2">
+            {/* Tab Navigation */}
+            <div className="border-b border-slate-200 dark:border-slate-700">
+                <div className="flex gap-2 overflow-x-auto">
+                    {[
+                        { key: 'configuration', label: 'Configuration' },
+                        { key: 'channels', label: 'Channels' },
+                        { key: 'sms_templates', label: 'SMS Templates' },
+                        { key: 'whatsapp_templates', label: 'WhatsApp' },
+                        { key: 'test_panel', label: 'Test Panel' }
+                    ].map((tab) => (
                         <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key as TabType)}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                activeTab === tab.key
+                                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
                         >
-                            {saving ? <Spinner size="sm" /> : (editingCampus !== null ? 'Update' : 'Save')}
+                            {tab.label}
                         </button>
-                        {editingCampus !== null && (
-                            <button
-                                onClick={() => {
-                                    setEditingCampus(null);
-                                    setFormData({
-                                        campus_id: 0,
-                                        token: '',
-                                        sender_id: '',
-                                        is_active: true
-                                    });
-                                    setShowToken(false);
-                                }}
-                                className="px-4 py-2 bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-400 dark:hover:bg-slate-600"
-                            >
-                                Cancel
-                            </button>
-                        )}
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Help Section */}
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                    📘 How to get your Kudi SMS credentials
-                </h4>
-                <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                    <li>Log in to your Kudi SMS account (<a href="https://my.kudisms.net" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-600">https://my.kudisms.net</a>)</li>
-                    <li>Navigate to API section to get your API Token</li>
-                    <li>Create and get approval for a Sender ID</li>
-                    <li>Copy your credentials and paste them in the form above</li>
-                    <li>Make sure you have sufficient credit balance for sending messages</li>
-                </ol>
-                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
-                    <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                        ⚠️ Important Notes:
-                    </p>
-                    <ul className="text-xs text-amber-700 dark:text-amber-400 mt-1 space-y-1 list-disc list-inside">
-                        <li>Maximum 100 recipients per batch</li>
-                        <li>Maximum 6 pages of SMS per message</li>
-                        <li>Phone numbers should be in format: 234XXXXXXXXXX</li>
-                        <li>Sender IDs must be approved before use</li>
-                    </ul>
-                </div>
+            {/* Tab Content */}
+            <div className="mt-6">
+                {activeTab === 'configuration' && (
+                    <ConfigurationTab
+                        settings={settings}
+                        campuses={campuses}
+                        formData={formData}
+                        setFormData={setFormData}
+                        showToken={showToken}
+                        setShowToken={setShowToken}
+                        editingCampus={editingCampus}
+                        setEditingCampus={setEditingCampus}
+                        saving={saving}
+                        handleSave={handleSave}
+                        handleEdit={handleEdit}
+                        handleDelete={handleDelete}
+                    />
+                )}
+
+                {activeTab === 'channels' && (
+                    <ChannelsTab
+                        channelPreferences={channelPreferences}
+                        setChannelPreferences={setChannelPreferences}
+                        saving={saving}
+                        handleSave={handleSaveChannelPreferences}
+                    />
+                )}
+
+                {activeTab === 'sms_templates' && (
+                    <SmsTemplatesTab
+                        templates={templates}
+                        fetchTemplates={fetchTemplates}
+                        schoolId={schoolId}
+                    />
+                )}
+
+                {activeTab === 'whatsapp_templates' && (
+                    <WhatsAppTemplatesTab
+                        whatsappCodes={whatsappCodes}
+                        setWhatsappCodes={setWhatsappCodes}
+                        saving={saving}
+                        handleSave={handleSaveWhatsAppCodes}
+                    />
+                )}
+
+                {activeTab === 'test_panel' && (
+                    <TestPanelTab
+                        balance={balance}
+                        balanceLoading={balanceLoading}
+                        testPhone={testPhone}
+                        setTestPhone={setTestPhone}
+                        testMessageType={testMessageType}
+                        setTestMessageType={setTestMessageType}
+                        testTemplate={testTemplate}
+                        setTestTemplate={setTestTemplate}
+                        testParameters={testParameters}
+                        setTestParameters={setTestParameters}
+                        testResult={testResult}
+                        testing={testing}
+                        templates={templates}
+                        handleRefreshBalance={handleRefreshBalance}
+                        handleTestSend={handleTestSend}
+                    />
+                )}
             </div>
         </div>
     );
