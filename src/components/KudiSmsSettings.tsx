@@ -5,13 +5,6 @@ import Spinner from './common/Spinner';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { getKudiSmsBalance, testSendMessage } from '../services/kudiSmsService';
 import { getSmsTemplates, saveSmsTemplate } from '../services/smsService';
-import {
-    ConfigurationTab,
-    ChannelsTab,
-    SmsTemplatesTab,
-    WhatsAppTemplatesTab,
-    TestPanelTab
-} from './KudiSmsSettingsTabs';
 
 interface Campus {
     id: number;
@@ -84,7 +77,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
     }, [schoolId, selectedCampus]);
 
     useEffect(() => {
-        if (activeTab === 'sms_templates') {
+        if (activeTab === 'sms-templates') {
             fetchTemplates();
         }
     }, [activeTab]);
@@ -144,6 +137,23 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTemplates = async () => {
+        try {
+            const { data: templatesData, error: templatesError } = await supabase
+                .from('sms_templates')
+                .select('*')
+                .eq('school_id', schoolId)
+                .eq('is_active', true)
+                .order('template_name');
+
+            if (!templatesError) {
+                setTemplates(templatesData || []);
+            }
+        } catch (error) {
+            console.error('Error fetching templates:', error);
         }
     };
 
