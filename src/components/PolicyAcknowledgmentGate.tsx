@@ -117,7 +117,7 @@ const PolicyAcknowledgmentGate: React.FC<PolicyAcknowledgmentGateProps> = ({
                     <div
                         ref={contentRef}
                         onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto bg-slate-900/50 rounded-xl p-6 border border-slate-700/40 mb-6"
+                        className="flex-1 overflow-y-auto bg-slate-900/50 rounded-xl p-6 border border-slate-700/40 mb-6 min-h-[400px]"
                     >
                         <div className="prose prose-invert prose-sm max-w-none">
                             {/* Simple markdown-like rendering */}
