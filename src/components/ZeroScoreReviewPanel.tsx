@@ -38,7 +38,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                     *,
                     students(name),
                     academic_classes(name),
-                    user_profiles(name)
+                    teacher:user_profiles!teacher_user_id(name)
                 `)
                 .eq('term_id', termId)
                 .order('entry_date', { ascending: false });
@@ -465,7 +465,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                                             {entry.total_score}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
-                                            {entry.user_profiles?.name || 'Unknown'}
+                                            {entry.teacher?.name || 'Unknown'}
                                         </td>
                                         <td className="px-4 py-3 text-sm">
                                             {entry.reviewed ? (
