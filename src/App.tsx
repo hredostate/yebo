@@ -6266,7 +6266,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     // ... (Rendering Logic) ...
 
     if (booting) {
-        return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /></div>;
+        return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>;
     }
 
     if (!session) {
@@ -6332,7 +6332,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     }
     
     if (!userProfile) {
-        return <div className="flex items-center justify-center h-screen"><Spinner size="lg" text="Loading profile..." /></div>;
+        return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" text="Loading profile..." /></div>;
     }
     
     if (userType === 'student') {
