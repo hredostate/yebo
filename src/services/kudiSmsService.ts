@@ -152,8 +152,9 @@ export function getErrorMessage(errorCode: string): string {
 
 /**
  * Format phone number to Nigerian international format (234XXXXXXXXXX)
+ * Returns null if phone number is invalid
  */
-export function formatPhoneNumber(phone: string): string {
+export function formatPhoneNumber(phone: string): string | null {
   // Remove all non-numeric characters
   let cleaned = phone.replace(/\D/g, '');
   
@@ -165,6 +166,12 @@ export function formatPhoneNumber(phone: string): string {
   // If doesn't start with 234, prepend it
   if (!cleaned.startsWith('234')) {
     cleaned = '234' + cleaned;
+  }
+  
+  // Validate: must be exactly 13 digits (234 + 10 digits)
+  if (cleaned.length !== 13 || !cleaned.startsWith('234')) {
+    console.warn(`Invalid phone number format: ${phone} -> ${cleaned}`);
+    return null;
   }
   
   return cleaned;

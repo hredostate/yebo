@@ -102,18 +102,21 @@ COMMENT ON COLUMN whatsapp_message_logs.kudisms_message_id IS 'Message ID return
 COMMENT ON COLUMN whatsapp_message_logs.cost IS 'Cost of sending the message in Naira';
 
 -- 5. Grant permissions (adjust role names as needed)
+-- Only admins should manage Kudi SMS settings
 GRANT SELECT, INSERT, UPDATE, DELETE ON kudisms_settings TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE kudisms_settings_id_seq TO authenticated;
 
 -- 6. Enable RLS on kudisms_settings
 ALTER TABLE kudisms_settings ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policy for kudisms_settings
-CREATE POLICY "Users can manage settings for their school"
+-- Create RLS policy for kudisms_settings - Admin users only
+CREATE POLICY "Admin users can manage settings for their school"
     ON kudisms_settings
     FOR ALL
     USING (
         school_id IN (
-            SELECT school_id FROM user_profiles WHERE id = auth.uid()
+            SELECT school_id FROM user_profiles 
+            WHERE id = auth.uid() 
+            AND role = 'Admin'
         )
     );

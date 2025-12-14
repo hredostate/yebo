@@ -362,6 +362,8 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                             setFormData({ ...formData, api_token: e.target.value })
                                         }
                                         placeholder={editingCampus !== null ? 'Leave blank to keep current token' : 'Enter API token'}
+                                        autoComplete="off"
+                                        spellCheck="false"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                     <button

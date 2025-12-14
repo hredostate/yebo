@@ -7,6 +7,8 @@ import { createHmac } from 'https://deno.land/std@0.177.0/node/crypto.ts';
 
 declare const Deno: any;
 
+const KUDI_SMS_BASE_URL = 'https://my.kudisms.net/api';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-paystack-signature',
@@ -115,7 +117,7 @@ async function sendWhatsAppPaymentReceipt(
       formData.append('button_parameters', '');
       formData.append('header_parameters', '');
 
-      const kudiResponse = await fetch('https://my.kudisms.net/api/whatsapp', {
+      const kudiResponse = await fetch(`${KUDI_SMS_BASE_URL}/whatsapp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
