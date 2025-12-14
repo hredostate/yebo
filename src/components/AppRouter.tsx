@@ -451,6 +451,9 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 allClasses={data.allClasses}
                 allArms={data.allArms}
                 allRoles={Object.values(data.roles)}
+                scoreEntries={data.scoreEntries}
+                attendanceRecords={data.attendanceRecords}
+                reports={data.reports}
             />;
         case VIEWS.CALENDAR:
             return <CalendarView 

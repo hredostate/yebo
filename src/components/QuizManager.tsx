@@ -14,6 +14,9 @@ interface QuizManagerProps {
     allClasses: BaseDataObject[];
     allArms: BaseDataObject[];
     allRoles: RoleDetails[];
+    scoreEntries?: any[];
+    attendanceRecords?: any[];
+    reports?: any[];
 }
 
 const AddAudienceRule: React.FC<{
@@ -257,7 +260,7 @@ const QuizBuilderModal: React.FC<{
 };
 
 
-const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDeleteQuiz, addToast, allClasses, allArms, allRoles }) => {
+const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDeleteQuiz, addToast, allClasses, allArms, allRoles, scoreEntries = [], attendanceRecords = [], reports = [] }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingQuiz, setEditingQuiz] = useState<QuizWithQuestions | null>(null);
     const [viewingResultsQuiz, setViewingResultsQuiz] = useState<QuizWithQuestions | null>(null);
@@ -274,7 +277,14 @@ const QuizManager: React.FC<QuizManagerProps> = ({ quizzes, onSaveQuiz, onDelete
     }
 
     if (viewingResultsQuiz) {
-        return <QuizResultsView quiz={viewingResultsQuiz} onBack={() => setViewingResultsQuiz(null)} addToast={addToast} />;
+        return <QuizResultsView 
+            quiz={viewingResultsQuiz} 
+            onBack={() => setViewingResultsQuiz(null)} 
+            addToast={addToast}
+            scoreEntries={scoreEntries}
+            attendanceRecords={attendanceRecords}
+            reports={reports}
+        />;
     }
 
     return (

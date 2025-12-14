@@ -348,3 +348,104 @@ export const generateTeacherPerformanceData = (
     kpis,
   };
 };
+
+/**
+ * Generate AI-powered teacher performance narrative
+ * @param teacherId Teacher ID
+ * @param teacherName Teacher name
+ * @param kpis Teacher KPIs
+ * @param feedbackAnalysis Feedback analysis
+ * @param lessonPlans Lesson plans
+ * @param checkins Teacher checkins
+ * @param classPerformance Class performance data
+ * @returns AI-generated performance narrative or null if AI unavailable
+ */
+export const generateTeacherPerformanceNarrative = async (
+  teacherId: string,
+  teacherName: string,
+  kpis: TeacherKPIs,
+  feedbackAnalysis: FeedbackAnalysis,
+  lessonPlans: any[],
+  checkins: any[],
+  classPerformance: ClassPerformance[]
+): Promise<string | null> => {
+  // Import AI client dynamically to avoid circular dependencies
+  const { getAIClient, getCurrentModel } = await import('../services/aiClient');
+  const { textFromAI } = await import('../utils/ai');
+  
+  const aiClient = getAIClient();
+  if (!aiClient) return null;
+  
+  try {
+    // Calculate statistics
+    const avgMood = checkins.length > 0
+      ? checkins.reduce((sum, c) => sum + (c.mood || 3), 0) / checkins.length
+      : 0;
+    const avgEnergy = checkins.length > 0
+      ? checkins.reduce((sum, c) => sum + (c.energy_level || 3), 0) / checkins.length
+      : 0;
+    
+    const context = {
+      teacherName,
+      kpis: {
+        lessonPlanCompletion: kpis.lessonPlanCompletion,
+        attendanceRate: kpis.attendanceRate,
+        averageClassPerformance: kpis.averageClassPerformance,
+        studentSatisfaction: kpis.studentSatisfaction,
+      },
+      feedback: {
+        totalResponses: feedbackAnalysis.totalFeedbacks,
+        sentimentBreakdown: feedbackAnalysis.sentimentBreakdown,
+        commonThemes: feedbackAnalysis.commonThemes.map(t => ({
+          theme: t.theme,
+          count: t.count,
+          sentiment: t.sentiment
+        }))
+      },
+      lessonPlanStats: {
+        total: lessonPlans.length,
+        onTime: lessonPlans.filter(lp => lp.submission_status === 'On Time').length,
+        approved: lessonPlans.filter(lp => lp.status === 'approved').length
+      },
+      checkinStats: {
+        total: checkins.length,
+        present: checkins.filter(c => c.status === 'Present').length,
+        late: checkins.filter(c => c.status === 'Late').length,
+        avgMood: avgMood.toFixed(1),
+        avgEnergy: avgEnergy.toFixed(1)
+      },
+      classPerformance: classPerformance.map(cp => ({
+        className: cp.className,
+        averageScore: cp.averageScore,
+        passRate: cp.passRate
+      }))
+    };
+    
+    const prompt = `Generate a professional performance narrative for teacher ${teacherName}.
+    
+    KPIs: ${JSON.stringify(context.kpis)}
+    Student Feedback: ${JSON.stringify(context.feedback)}
+    Lesson Plans: ${JSON.stringify(context.lessonPlanStats)}
+    Attendance: ${JSON.stringify(context.checkinStats)}
+    Class Performance: ${JSON.stringify(context.classPerformance)}
+    
+    Generate a 3-4 paragraph narrative that:
+    1. Opens with overall performance assessment
+    2. Highlights key strengths with specific metrics
+    3. Identifies areas for professional development
+    4. Provides actionable recommendations
+    5. Ends with forward-looking statement
+    
+    Tone: Professional, constructive, balanced`;
+    
+    const response = await aiClient.chat.completions.create({
+      model: getCurrentModel(),
+      messages: [{ role: 'user', content: prompt }],
+    });
+    
+    return textFromAI(response);
+  } catch (error) {
+    console.error('Error generating teacher performance narrative:', error);
+    return null;
+  }
+};
