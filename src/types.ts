@@ -1485,20 +1485,6 @@ export interface BankProvider {
     bank_name: string;
 }
 
-export interface TermiiSettings {
-    id: number;
-    school_id: number;
-    campus_id: number | null;
-    api_key: string;
-    device_id: string | null;
-    base_url: string;
-    environment: 'test' | 'live';
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-    campus?: { name: string };
-}
-
 // Form data interfaces for handler parameters
 export interface StudentFormData {
     name: string;
@@ -1528,82 +1514,49 @@ export interface CommunicationLogData {
 }
 
 // ============================================
-// Termii WhatsApp Integration Types
+// Kudi SMS Integration Types
 // ============================================
 
-export interface TermiiSettings {
+export interface KudiSmsSettings {
     id: number;
     school_id: number;
-    api_key: string;
-    device_id?: string;
-    base_url: string;
+    campus_id: number | null;
+    token: string;
+    sender_id: string;
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    campus?: { name: string };
 }
 
-export interface WhatsAppMessageLog {
+export interface KudiSmsResponse {
+    status: 'success' | 'error';
+    status_msg: string;
+    error_code: string;
+    msg: string;
+    length?: number;
+    page?: number;
+    initial_balance?: string;
+    units_used?: string;
+    current_balance?: string;
+}
+
+export interface KudiSmsRecipient {
+    phone_number: string;
+    name?: string;
+}
+
+export interface SmsMessageLog {
     id: number;
     school_id: number;
     recipient_phone: string;
-    template_id?: string;
-    message_type: 'template' | 'template_media' | 'conversational';
-    message_content?: Record<string, any>;
-    media_url?: string;
-    termii_message_id?: string;
-    status: 'pending' | 'sent' | 'delivered' | 'failed';
+    message_type: 'personalised' | 'auto_compose';
+    message_content: string;
+    kudi_response?: Record<string, any>;
+    status: 'pending' | 'sent' | 'failed';
     error_message?: string;
     created_at: string;
     updated_at: string;
-}
-
-export interface TermiiTemplateMessage {
-    api_key: string;
-    device_id: string;
-    template_id: string;
-    phone_number: string;
-    data: Record<string, string>; // Template variable replacements
-}
-
-export interface TermiiTemplateMediaMessage {
-    api_key: string;
-    device_id: string;
-    template_id: string;
-    phone_number: string;
-    data: Record<string, string>;
-    media: {
-        url: string;
-        caption?: string;
-    };
-}
-
-export interface TermiiConversationalMessage {
-    api_key: string;
-    to: string;
-    from: string;
-    sms: string;
-    type: string;
-    channel: 'whatsapp';
-}
-
-export interface TermiiSenderId {
-    sender_id: string;
-    status: string;
-    company: string;
-    usecase: string;
-    country: string;
-    created_at: string;
-}
-
-export interface TermiiPhonebookContact {
-    id: number;
-    pid: number;
-    phone_number: string;
-    email_address: string;
-    first_name: string;
-    last_name: string;
-    company: string;
-    created_at: string;
 }
 
 export interface ZeroScoreEntry {
@@ -1767,12 +1720,10 @@ export interface NotesCompliance {
     student?: Student;
 }
 
-export interface WhatsAppTemplate {
+export interface SmsTemplate {
     id: number;
     school_id: number;
     template_name: string;
-    template_type: 'template' | 'conversational';
-    template_id?: string;
     message_content: string;
     variables?: string[];
     is_active: boolean;
@@ -1780,17 +1731,16 @@ export interface WhatsAppTemplate {
     updated_at: string;
 }
 
-export interface WhatsAppNotification {
+export interface SmsNotification {
     id: number;
     school_id: number;
     student_id: number;
     recipient_phone: string;
     template_name?: string;
     message_content?: string;
-    notification_type: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published';
+    notification_type: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published' | 'payment_receipt' | 'general';
     reference_id?: number;
-    status: 'pending' | 'sent' | 'delivered' | 'failed';
-    termii_message_id?: string;
+    status: 'pending' | 'sent' | 'failed';
     error_message?: string;
     sent_by?: string;
     sent_at?: string;

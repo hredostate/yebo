@@ -1,19 +1,19 @@
 /**
- * WhatsApp Service for Parent Notifications
- * Supports Termii integration for sending WhatsApp messages
+ * SMS Service for Parent Notifications
+ * Supports Kudi SMS integration for sending SMS messages
  */
 
 import { supabase } from './supabaseClient';
-import type { WhatsAppTemplate, WhatsAppNotification } from '../types';
+import type { SmsTemplate, SmsNotification } from '../types';
 
-interface SendWhatsAppParams {
+interface SendSmsParams {
     schoolId: number;
     studentId: number;
     recipientPhone: string;
     templateName: string;
     variables?: Record<string, string>;
     referenceId?: number;
-    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published';
+    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published' | 'payment_receipt' | 'general';
     sentBy: string;
 }
 
@@ -24,9 +24,9 @@ interface BulkSendResult {
 }
 
 /**
- * Send a WhatsApp message using Termii integration
+ * Send an SMS message using Kudi SMS integration
  */
-export async function sendWhatsAppNotification(params: SendWhatsAppParams): Promise<boolean> {
+export async function sendSmsNotification(params: SendSmsParams): Promise<boolean> {
     const {
         schoolId,
         studentId,
@@ -41,7 +41,7 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
     try {
         // 1. Get the template
         const { data: template, error: templateError } = await supabase
-            .from('whatsapp_templates')
+            .from('sms_templates')
             .select('*')
             .eq('school_id', schoolId)
             .eq('template_name', templateName)
@@ -64,7 +64,7 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
 
         // 3. Create notification record
         const { data: notification, error: notificationError } = await supabase
-            .from('whatsapp_notifications')
+            .from('sms_notifications')
             .insert({
                 school_id: schoolId,
                 student_id: studentId,
@@ -84,9 +84,9 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
             return false;
         }
 
-        // 4. Send via Termii edge function
+        // 4. Send via Kudi SMS edge function
         const { data: sendResult, error: sendError } = await supabase.functions.invoke(
-            'termii-send-whatsapp',
+            'kudisms-send',
             {
                 body: {
                     phone_number: recipientPhone,
@@ -99,39 +99,38 @@ export async function sendWhatsAppNotification(params: SendWhatsAppParams): Prom
         if (sendError || !sendResult?.success) {
             // Update notification status to failed
             await supabase
-                .from('whatsapp_notifications')
+                .from('sms_notifications')
                 .update({
                     status: 'failed',
                     error_message: sendError?.message || sendResult?.error || 'Unknown error'
                 })
                 .eq('id', notification.id);
 
-            console.error('Failed to send WhatsApp message:', sendError || sendResult?.error);
+            console.error('Failed to send SMS message:', sendError || sendResult?.error);
             return false;
         }
 
         // 5. Update notification status to sent
         await supabase
-            .from('whatsapp_notifications')
+            .from('sms_notifications')
             .update({
                 status: 'sent',
-                sent_at: new Date().toISOString(),
-                termii_message_id: sendResult.message_id
+                sent_at: new Date().toISOString()
             })
             .eq('id', notification.id);
 
         return true;
     } catch (error) {
-        console.error('Error sending WhatsApp notification:', error);
+        console.error('Error sending SMS notification:', error);
         return false;
     }
 }
 
 /**
- * Send WhatsApp notifications to multiple recipients with rate limiting
+ * Send SMS notifications to multiple recipients with rate limiting
  */
-export async function bulkSendWhatsAppNotifications(
-    recipients: Array<SendWhatsAppParams>
+export async function bulkSendSmsNotifications(
+    recipients: Array<SendSmsParams>
 ): Promise<BulkSendResult> {
     const result: BulkSendResult = {
         sent: 0,
@@ -141,7 +140,7 @@ export async function bulkSendWhatsAppNotifications(
 
     // Rate limiting: 50-150ms delay between messages
     for (const recipient of recipients) {
-        const success = await sendWhatsAppNotification(recipient);
+        const success = await sendSmsNotification(recipient);
         
         if (success) {
             result.sent++;
@@ -173,7 +172,7 @@ export async function wasRecentlyNotified(
     cutoffTime.setMinutes(cutoffTime.getMinutes() - withinMinutes);
 
     const { data, error } = await supabase
-        .from('whatsapp_notifications')
+        .from('sms_notifications')
         .select('id')
         .eq('student_id', studentId)
         .eq('notification_type', notificationType)
@@ -194,9 +193,9 @@ export async function wasRecentlyNotified(
 export async function getNotificationHistory(
     studentId: number,
     limit: number = 50
-): Promise<WhatsAppNotification[]> {
+): Promise<SmsNotification[]> {
     const { data, error } = await supabase
-        .from('whatsapp_notifications')
+        .from('sms_notifications')
         .select('*')
         .eq('student_id', studentId)
         .order('created_at', { ascending: false })
@@ -211,15 +210,15 @@ export async function getNotificationHistory(
 }
 
 /**
- * Create or update a WhatsApp template
+ * Create or update an SMS template
  */
-export async function saveWhatsAppTemplate(
-    template: Partial<WhatsAppTemplate>
-): Promise<WhatsAppTemplate | null> {
+export async function saveSmsTemplate(
+    template: Partial<SmsTemplate>
+): Promise<SmsTemplate | null> {
     if (template.id) {
         // Update existing template
         const { data, error } = await supabase
-            .from('whatsapp_templates')
+            .from('sms_templates')
             .update({
                 message_content: template.message_content,
                 variables: template.variables,
@@ -239,12 +238,10 @@ export async function saveWhatsAppTemplate(
     } else {
         // Create new template
         const { data, error } = await supabase
-            .from('whatsapp_templates')
+            .from('sms_templates')
             .insert({
                 school_id: template.school_id,
                 template_name: template.template_name,
-                template_type: template.template_type || 'conversational',
-                template_id: template.template_id,
                 message_content: template.message_content,
                 variables: template.variables,
                 is_active: template.is_active !== false
@@ -264,9 +261,9 @@ export async function saveWhatsAppTemplate(
 /**
  * Get all active templates for a school
  */
-export async function getWhatsAppTemplates(schoolId: number): Promise<WhatsAppTemplate[]> {
+export async function getSmsTemplates(schoolId: number): Promise<SmsTemplate[]> {
     const { data, error } = await supabase
-        .from('whatsapp_templates')
+        .from('sms_templates')
         .select('*')
         .eq('school_id', schoolId)
         .order('template_name');
@@ -308,11 +305,10 @@ export async function initializeDefaultTemplates(schoolId: number): Promise<void
 
     for (const template of defaultTemplates) {
         await supabase
-            .from('whatsapp_templates')
+            .from('sms_templates')
             .insert({
                 school_id: schoolId,
                 ...template,
-                template_type: 'conversational',
                 is_active: true
             })
             .select()

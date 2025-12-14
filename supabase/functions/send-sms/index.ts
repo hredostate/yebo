@@ -1,8 +1,8 @@
 
-// Supabase Edge Function for sending messages via Termii WhatsApp API.
-// Migrated from BulkSMSNigeria to Termii for better delivery and cost efficiency.
+// Supabase Edge Function for sending messages via Kudi SMS API.
+// Migrated from Termii to Kudi SMS for better delivery and cost efficiency.
 // This function maintains backward compatibility with the original send-sms interface.
-// It internally delegates to the termii-send-whatsapp function.
+// It internally delegates to the kudisms-send function.
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -42,7 +42,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Send WhatsApp messages by calling termii-send-whatsapp for each recipient
+    // Send SMS messages by calling kudisms-send for each recipient
     const results = [];
     let successCount = 0;
     let failureCount = 0;
@@ -52,8 +52,8 @@ serve(async (req) => {
 
     for (const phoneNumber of to) {
       try {
-        // Call the termii-send-whatsapp function internally
-        const response = await fetch(`${supabaseUrl}/functions/v1/termii-send-whatsapp`, {
+        // Call the kudisms-send function internally
+        const response = await fetch(`${supabaseUrl}/functions/v1/kudisms-send`, {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
@@ -62,7 +62,6 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             phone_number: phoneNumber,
-            message_type: 'conversational',
             message: body,
           }),
         });
@@ -79,7 +78,6 @@ serve(async (req) => {
         results.push({
           phone_number: phoneNumber,
           success: isSuccess,
-          message_id: responseData.message_id || null,
           error: !isSuccess ? (responseData.message || responseData.error || 'Unknown error') : null,
         });
 
@@ -88,12 +86,11 @@ serve(async (req) => {
           recipients: [phoneNumber],
           message_body: body,
           reference_id: reference || null,
-          provider_message_id: responseData.message_id || null,
-          provider_code: 'TERMII',
-          cost: null, // Termii balance updates happen in real-time
+          provider_code: 'KUDISMS',
+          cost: null, // Kudi SMS balance updates happen in real-time
           currency: 'NGN',
           ok: isSuccess,
-          friendly_message: isSuccess ? 'WhatsApp message sent via Termii' : (responseData.message || responseData.error || 'Failed to send'),
+          friendly_message: isSuccess ? 'SMS message sent via Kudi SMS' : (responseData.message || responseData.error || 'Failed to send'),
         };
 
         const { error: auditError } = await supabaseClient
@@ -122,7 +119,7 @@ serve(async (req) => {
     // Return a success response to the client
     return new Response(JSON.stringify({ 
       ok: successCount > 0,
-      message: `WhatsApp messages sent: ${successCount} succeeded, ${failureCount} failed.`,
+      message: `SMS messages sent: ${successCount} succeeded, ${failureCount} failed.`,
       results: results,
       success_count: successCount,
       failure_count: failureCount,
