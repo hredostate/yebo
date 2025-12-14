@@ -396,3 +396,123 @@ export function transformDataWithMapping(data: any[], mappings: ColumnMapping[])
 export function displayRowToDataIndex(displayRow: number): number {
   return displayRow - 2; // displayRow is 1-based with header at row 1, so data starts at row 2
 }
+
+// ============= FLEXIBLE CSV COLUMN MATCHING =============
+
+/**
+ * Result of matching CSV columns to expected columns
+ */
+export interface FlexibleColumnMatchResult {
+  /** List of column names from CSV that matched expected columns */
+  matchedColumns: string[];
+  /** List of column names from CSV that did not match any expected column */
+  unmatchedColumns: string[];
+  /** Number of columns that were successfully matched */
+  matchedCount: number;
+}
+
+/**
+ * Match CSV headers to expected columns flexibly (case-insensitive)
+ * Only processes columns that exist in both the CSV and expected columns list
+ * 
+ * @param csvHeaders - Headers from the uploaded CSV file
+ * @param expectedColumns - List of expected column names
+ * @returns Object containing matched columns, unmatched columns, and counts
+ */
+export function matchCsvColumns(
+  csvHeaders: string[],
+  expectedColumns: string[]
+): FlexibleColumnMatchResult {
+  const matchedColumns: string[] = [];
+  const unmatchedColumns: string[] = [];
+  
+  // Create a case-insensitive map of expected columns
+  const expectedMap = new Map<string, string>();
+  expectedColumns.forEach(col => {
+    expectedMap.set(col.toLowerCase().trim(), col);
+  });
+  
+  // Match CSV headers to expected columns
+  csvHeaders.forEach(header => {
+    const normalized = header.toLowerCase().trim();
+    const matched = expectedMap.get(normalized);
+    
+    if (matched) {
+      matchedColumns.push(header);
+    } else {
+      unmatchedColumns.push(header);
+    }
+  });
+  
+  return {
+    matchedColumns,
+    unmatchedColumns,
+    matchedCount: matchedColumns.length
+  };
+}
+
+/**
+ * Parse CSV and extract only matched columns
+ * 
+ * @param csvText - Raw CSV text content
+ * @param expectedColumns - List of expected column names (for matching)
+ * @returns Parsed data with only matched columns and match result information
+ */
+export function parseFlexibleCsv(
+  csvText: string,
+  expectedColumns: string[]
+): { data: Record<string, any>[]; matchResult: FlexibleColumnMatchResult } {
+  const data = parseCsv(csvText);
+  
+  if (data.length === 0) {
+    return {
+      data: [],
+      matchResult: {
+        matchedColumns: [],
+        unmatchedColumns: [],
+        matchedCount: 0
+      }
+    };
+  }
+  
+  // Get headers from first row's keys
+  const csvHeaders = Object.keys(data[0]);
+  const matchResult = matchCsvColumns(csvHeaders, expectedColumns);
+  
+  // Filter data to only include matched columns
+  const filteredData = data.map(row => {
+    const filtered: Record<string, any> = {};
+    matchResult.matchedColumns.forEach(col => {
+      filtered[col] = row[col];
+    });
+    return filtered;
+  });
+  
+  return {
+    data: filteredData,
+    matchResult
+  };
+}
+
+/**
+ * Find a column in CSV headers by trying multiple name variations
+ * Useful for case-insensitive matching with common variations like:
+ * - "Student ID", "student_id", "studentid", "student id"
+ * 
+ * @param headers - Map of lowercase header names to original header names
+ * @param variations - Array of possible column name variations to try
+ * @returns The original column name if found, undefined otherwise
+ */
+export function findColumnByVariations(
+  headers: Map<string, string>,
+  variations: string[]
+): string | undefined {
+  for (const variation of variations) {
+    const normalized = variation.toLowerCase().trim();
+    const match = headers.get(normalized);
+    if (match) {
+      return match;
+    }
+  }
+  return undefined;
+}

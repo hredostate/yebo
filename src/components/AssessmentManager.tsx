@@ -4,6 +4,7 @@ import type { AcademicTeachingAssignment, Assessment, AssessmentScore, Student, 
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, DownloadIcon, UploadCloudIcon, TrashIcon, EditIcon, CopyIcon } from './common/icons';
 import CopyAssessmentModal from './CopyAssessmentModal';
+import { parseCsv, findColumnByVariations } from '../utils/feesCsvUtils';
 
 // --- Prop Types ---
 interface AssessmentManagerProps {
@@ -251,39 +252,80 @@ const ScoreManager: React.FC<AssessmentManagerProps & { assessment: Assessment }
         setIsUploading(true);
         try {
             const text = await file.text();
-            const lines = text.split(/\r\n|\n/).filter(line => line.trim());
-            const headers = lines[0].split(',').map(h => h.trim());
+            
+            // Parse CSV using the shared utility
+            const rows = parseCsv(text);
+            
+            if (rows.length === 0) {
+                addToast("CSV file is empty or invalid.", 'error');
+                return;
+            }
+
+            // Get headers from first row
+            const headers = Object.keys(rows[0]);
+            const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
+            
+            // Find required columns (case-insensitive)
+            const studentIdCol = findColumnByVariations(headerMap, ['student_id', 'studentid', 'student id']);
+            const studentNameCol = findColumnByVariations(headerMap, ['student_name', 'studentname', 'student name', 'name']);
+            const scoreCol = findColumnByVariations(headerMap, ['score']);
+            const commentsCol = findColumnByVariations(headerMap, ['comments', 'comment', 'remarks', 'remark']);
+            
+            if (!studentIdCol) {
+                addToast("CSV must contain 'student_id' column.", 'error');
+                return;
+            }
+
             const scoresToUpload: Partial<AssessmentScore>[] = [];
+            let processedRows = 0;
+            let skippedRows = 0;
 
-            for (let i = 1; i < lines.length; i++) {
-                // Regex to handle CSV parsing with quotes
-                const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+            for (const row of rows) {
+                const studentId = Number(row[studentIdCol]);
                 
-                if (values.length < headers.length) continue;
-
-                const row = headers.reduce((obj, header, index) => {
-                    obj[header] = values[index] || '';
-                    return obj;
-                }, {} as Record<string, string>);
-                
-                const studentId = Number(row.student_id);
-                if (!studentId || !roster.some(s => s.id === studentId)) {
+                if (!studentId || isNaN(studentId)) {
+                    skippedRows++;
                     continue;
                 }
-                const score = row.score ? Number(row.score) : null;
-                if (score !== null && (score < 0 || score > assessment.max_score)) {
-                     addToast(`Invalid score for ${row.student_name}: ${score}. Score must be between 0 and ${assessment.max_score}.`, 'error');
-                     continue;
+                
+                if (!roster.some(s => s.id === studentId)) {
+                    console.warn(`Student ID ${studentId} not found in roster, skipping`);
+                    skippedRows++;
+                    continue;
                 }
+                
+                // Parse score if column exists
+                let score = null;
+                if (scoreCol && row[scoreCol]) {
+                    const scoreValue = Number(row[scoreCol]);
+                    if (!isNaN(scoreValue)) {
+                        if (scoreValue < 0 || scoreValue > assessment.max_score) {
+                            const studentName = studentNameCol ? row[studentNameCol] : `ID ${studentId}`;
+                            addToast(
+                                `Invalid score for ${studentName}: ${scoreValue}. Score must be between 0 and ${assessment.max_score}.`,
+                                'error'
+                            );
+                            skippedRows++;
+                            continue;
+                        }
+                        score = scoreValue;
+                    }
+                }
+                
+                // Parse comments if column exists
+                const comments = commentsCol && row[commentsCol] ? String(row[commentsCol]).trim() : null;
 
                 scoresToUpload.push({
                     assessment_id: assessment.id,
                     student_id: studentId,
                     score: score,
-                    comments: row.comments || null
+                    comments: comments
                 });
+                
+                processedRows++;
             }
-            if(scoresToUpload.length > 0) {
+            
+            if (scoresToUpload.length > 0) {
                 await onSaveScores(scoresToUpload);
                 addToast(`Uploaded ${scoresToUpload.length} scores successfully.`, 'success');
             } else {
