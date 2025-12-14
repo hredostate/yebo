@@ -1711,7 +1711,7 @@ const App: React.FC = () => {
 
     const analyzeAtRiskStudents = useCallback(async (allStudents: Student[], allReports: ReportRecord[]) => {
         const aiClient = getAIClient();
-        if (!aiClient || allStudents.length === 0 || allReports.length === 0) return;
+        if (!aiClient || allStudents.length === 0) return;
         
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
@@ -1720,6 +1720,7 @@ const App: React.FC = () => {
         }
         
         try {
+            // Collect negative behavior reports
             const studentReportMap: Record<number, string[]> = {};
             allReports.forEach(r => {
                 if(r.analysis?.sentiment === 'Negative') {
@@ -1731,9 +1732,66 @@ const App: React.FC = () => {
                     });
                 }
             });
-            const studentsWithReports = allStudents.filter(s => studentReportMap[s.id]);
-            if (studentsWithReports.length === 0) { setAtRiskStudents([]); return; }
-            const prompt = `Analyze the following reports to identify at-risk students. Return a JSON array of objects with "studentId" (number), "riskScore" (1-100), and "reasons" (array of short strings). Only include students with a risk score > 60. Students and their associated negative report texts: ${studentsWithReports.map(s => `Student ID ${s.id} (${s.name}):\n- ${studentReportMap[s.id].join('\n- ')}`).join('\n\n')}`;
+            
+            // Extract attendance data from class groups
+            const attendanceMap: Record<number, { present: number; total: number }> = {};
+            classGroups.forEach(group => {
+                group.members?.forEach(member => {
+                    const records = member.records || [];
+                    const presentCount = records.filter(r => r.status === 'Present' || r.status === 'Remote').length;
+                    const totalCount = records.length;
+                    if (totalCount > 0) {
+                        const studentId = member.student_id;
+                        if (!attendanceMap[studentId]) {
+                            attendanceMap[studentId] = { present: 0, total: 0 };
+                        }
+                        attendanceMap[studentId].present += presentCount;
+                        attendanceMap[studentId].total += totalCount;
+                    }
+                });
+            });
+            
+            // Build comprehensive student data for AI analysis
+            const studentDataForAI = allStudents.slice(0, 100).map(s => {
+                const studentScores = scoreEntries.filter(e => e.student_id === s.id);
+                const avgScore = studentScores.length > 0 
+                    ? studentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / studentScores.length 
+                    : null;
+                const lowScores = studentScores.filter(e => (e.total_score || 0) < 50).length;
+                
+                const attendance = attendanceMap[s.id];
+                const attendanceRate = attendance ? (attendance.present / attendance.total) * 100 : null;
+                
+                const termReports = studentTermReports.filter(tr => tr.student_id === s.id).slice(0, 3);
+                
+                return {
+                    id: s.id,
+                    name: s.name,
+                    negativeReports: studentReportMap[s.id] || [],
+                    academicPerformance: {
+                        avgScore: avgScore ? Math.round(avgScore) : null,
+                        lowScoreCount: lowScores,
+                        totalScores: studentScores.length
+                    },
+                    attendance: attendanceRate ? Math.round(attendanceRate) : null,
+                    termReportTrends: termReports.map(tr => ({
+                        term: tr.term?.name,
+                        avgGrade: tr.overall_average,
+                        position: tr.class_position
+                    }))
+                };
+            }).filter(s => 
+                s.negativeReports.length > 0 || 
+                (s.academicPerformance.avgScore !== null && s.academicPerformance.avgScore < 50) || 
+                (s.attendance !== null && s.attendance < 85)
+            );
+            
+            if (studentDataForAI.length === 0) { setAtRiskStudents([]); return; }
+            
+            const prompt = `Analyze student data to identify at-risk students. Consider: negative behavior reports, low academic scores (below 50%), poor attendance (below 85%), and declining trends. Return a JSON array of objects with "studentId" (number), "riskScore" (1-100), and "reasons" (array of short strings explaining specific concerns). Only include students with risk score > 60.
+
+Student Data: ${JSON.stringify(studentDataForAI)}`;
+            
             const response = await aiClient.chat.completions.create({ 
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
                 messages: [{ role: 'user', content: prompt }],
@@ -1754,7 +1812,7 @@ const App: React.FC = () => {
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             }
         }
-    }, [addToast, schoolSettings]);
+    }, [addToast, schoolSettings, classGroups, scoreEntries, studentTermReports]);
 
     // Generate fallback task suggestions based on user role and context
     const generateFallbackTaskSuggestions = useCallback((allReports: ReportRecord[], userRole: RoleTitle | undefined): SuggestedTask[] => {
@@ -1841,7 +1899,7 @@ const App: React.FC = () => {
 
     const generateTaskSuggestions = useCallback(async (allReports: ReportRecord[]) => {
         const aiClient = getAIClient();
-        if (!aiClient || allReports.length === 0) return;
+        if (!aiClient) return;
         
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
@@ -1854,12 +1912,54 @@ const App: React.FC = () => {
         
         try {
             const urgentReports = allReports.filter(r => (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && !tasks.some(t => t.report_id === r.id));
-            if (urgentReports.length === 0) { 
+            
+            // Additional task sources beyond urgent reports
+            const lowStockItems = inventory.filter(item => item.quantity < (item.reorder_level || 10)).slice(0, 5);
+            const pendingLeaveRequests = leaveRequests.filter(lr => lr.status === 'Pending').slice(0, 5);
+            const overdueLessonPlans = lessonPlans.filter(lp => 
+                lp.submission_status === 'Missed' || lp.submission_status === 'Late'
+            ).slice(0, 5);
+            const atRiskCount = atRiskStudents.length;
+            
+            // Build context for AI
+            const contextData = {
+                urgentReports: urgentReports.slice(0, 10).map(r => ({
+                    id: r.id,
+                    text: r.report_text.substring(0, 200),
+                    summary: r.analysis?.summary,
+                    urgency: r.analysis?.urgency
+                })),
+                lowStockItems: lowStockItems.map(item => ({
+                    name: item.name,
+                    quantity: item.quantity,
+                    reorderLevel: item.reorder_level
+                })),
+                pendingLeaveRequests: pendingLeaveRequests.map(lr => ({
+                    teacherName: lr.requester?.name,
+                    startDate: lr.start_date,
+                    leaveType: lr.leave_type?.name
+                })),
+                overdueLessonPlans: overdueLessonPlans.map(lp => ({
+                    teacherName: lp.author?.name,
+                    title: lp.title,
+                    status: lp.submission_status
+                })),
+                atRiskStudentsCount: atRiskCount
+            };
+            
+            const hasTaskableData = urgentReports.length > 0 || lowStockItems.length > 0 || 
+                                   pendingLeaveRequests.length > 0 || overdueLessonPlans.length > 0 || atRiskCount > 0;
+            
+            if (!hasTaskableData) { 
                 setTaskSuggestions([]);
                 setAreFallbackSuggestions(false);
                 return; 
             }
-            const prompt = `Analyze these urgent school reports and suggest concrete, actionable tasks. For each report, generate one task. Return a JSON array of objects, each with "reportId" (number), "title" (string, max 50 chars), "description" (string, max 150 chars), "priority" (string: 'High' or 'Critical'), and "suggestedRole" (string, one of: 'Admin', 'Principal', 'Counselor', 'Team Lead', 'Maintenance'). Reports:\n${urgentReports.map(r => `ID ${r.id}: "${r.report_text}" - Summary: ${r.analysis?.summary}`).join('\n')}`;
+            
+            const prompt = `Analyze the following school data and generate actionable task suggestions. Consider urgent reports, low inventory, pending leave requests, overdue lesson plans, and at-risk students. Return a JSON array of task objects with "reportId" (number or null), "title" (string, max 50 chars), "description" (string, max 150 chars), "priority" (string: 'Low', 'Medium', 'High', or 'Critical'), and "suggestedRole" (string: 'Admin', 'Principal', 'Counselor', 'Team Lead', 'Teacher', or 'Maintenance'). Prioritize high-impact tasks.
+
+Context: ${JSON.stringify(contextData)}`;
+            
             const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
                 messages: [{ role: 'user', content: prompt }],
@@ -1867,7 +1967,10 @@ const App: React.FC = () => {
             });
             const results = extractAndParseJson<Omit<SuggestedTask, 'id'>[]>(textFromAI(response));
             if (results && Array.isArray(results)) {
-                const suggestions: SuggestedTask[] = results.map(res => ({ ...res, id: `sugg-${res.reportId}-${Date.now()}` }));
+                const suggestions: SuggestedTask[] = results.map((res, idx) => ({ 
+                    ...res, 
+                    id: `sugg-${res.reportId || 'auto'}-${Date.now()}-${idx}` 
+                }));
                 setTaskSuggestions(suggestions);
                 setAreFallbackSuggestions(false);
             }
@@ -1889,7 +1992,7 @@ const App: React.FC = () => {
                 setAreFallbackSuggestions(true);
             }
         }
-    }, [tasks, addToast, generateFallbackTaskSuggestions, userProfile, schoolSettings]);
+    }, [tasks, addToast, generateFallbackTaskSuggestions, userProfile, schoolSettings, inventory, leaveRequests, lessonPlans, atRiskStudents]);
 
     const handleGenerateForesight = useCallback(async (question: string): Promise<UPSSGPTResponse | null> => {
         const aiClient = getAIClient();
@@ -1960,13 +2063,51 @@ const App: React.FC = () => {
          if (!aiClient || !session) { addToast("AI client is not configured.", "error"); return; }
          addToast("Generating School Health Report...", "info");
          try {
+             // Extract attendance data from class groups
+             const allAttendanceRecords: AttendanceRecord[] = [];
+             classGroups.forEach(group => {
+                 group.members?.forEach(member => {
+                     if (member.records) {
+                         allAttendanceRecords.push(...member.records);
+                     }
+                 });
+             });
+             const presentCount = allAttendanceRecords.filter(r => r.status === 'Present' || r.status === 'Remote').length;
+             const studentAttendanceRate = allAttendanceRecords.length > 0 
+                 ? (presentCount / allAttendanceRecords.length) * 100 
+                 : 0;
+             
+             // Teacher attendance from checkins
+             const today = new Date();
+             const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+             const recentCheckins = teacherCheckins.filter(c => new Date(c.checkin_date) >= last7Days);
+             const staffAttendanceRate = recentCheckins.length > 0
+                 ? (recentCheckins.filter(c => c.status === 'Present').length / recentCheckins.length) * 100
+                 : 0;
+             
+             // Academic performance
+             const recentScores = scoreEntries.slice(0, 500);
+             const avgAcademicScore = recentScores.length > 0
+                 ? recentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / recentScores.length
+                 : 0;
+             
+             // Lesson plan compliance
+             const totalLessonPlans = lessonPlans.length;
+             const submittedPlans = lessonPlans.filter(lp => lp.submission_status !== 'Missed').length;
+             const lessonPlanComplianceRate = totalLessonPlans > 0 
+                 ? (submittedPlans / totalLessonPlans) * 100 
+                 : 100;
+             
              const reportCount = reports.length;
              const taskCompletionRate = tasks.length > 0 ? (tasks.filter(t => t.status === TaskStatus.Completed).length / tasks.length) * 100 : 100;
              const atRiskCount = atRiskStudents.length;
              const positiveBehaviorCount = positiveRecords.length;
              const averageTeamPulse = teamPulse.length > 0 ? teamPulse.reduce((acc, p) => acc + p.overallScore, 0) / teamPulse.length : 0;
-             const context = `Total Reports: ${reportCount}, Task Completion Rate: ${taskCompletionRate.toFixed(1)}%, At-Risk Students: ${atRiskCount}, Positive Behaviors: ${positiveBehaviorCount}, Team Pulse: ${averageTeamPulse.toFixed(1)}`;
-             const prompt = `You are an AI school administrator. Generate a "School Health Report" JSON with "overall_score" (0-100), "summary" (string), and "metrics" (array of {metric, score, summary}). Data: ${context}`;
+             
+             const context = `Total Reports: ${reportCount}, Task Completion Rate: ${taskCompletionRate.toFixed(1)}%, At-Risk Students: ${atRiskCount}, Positive Behaviors: ${positiveBehaviorCount}, Team Pulse: ${averageTeamPulse.toFixed(1)}, Student Attendance: ${studentAttendanceRate.toFixed(1)}%, Staff Attendance: ${staffAttendanceRate.toFixed(1)}%, Average Academic Score: ${avgAcademicScore.toFixed(1)}, Lesson Plan Compliance: ${lessonPlanComplianceRate.toFixed(1)}%, Low Inventory Items: ${inventory.filter(i => i.quantity < (i.reorder_level || 10)).length}`;
+             
+             const prompt = `You are an AI school administrator. Generate a comprehensive "School Health Report" JSON with "overall_score" (0-100), "summary" (string), and "metrics" (array of {metric, score, summary}). Consider all aspects: academics, attendance, staff morale, operational efficiency, and resource management. Data: ${context}`;
+             
              const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
                 messages: [{ role: 'user', content: prompt }],
@@ -1986,7 +2127,7 @@ const App: React.FC = () => {
                  addToast(`Failed: ${e.message}`, 'error');
              }
          }
-    }, [session, addToast, reports, tasks, atRiskStudents, positiveRecords, teamPulse, schoolSettings, handleUpdateSchoolSettings, fetchData]);
+    }, [session, addToast, reports, tasks, atRiskStudents, positiveRecords, teamPulse, schoolSettings, handleUpdateSchoolSettings, fetchData, classGroups, teacherCheckins, scoreEntries, lessonPlans, inventory]);
 
     // ... (Existing handlers: tasks, announcements, etc.) ...
     const handleUpdateTaskStatus = useCallback(async (taskId: number, status: TaskStatus) => {
@@ -2055,15 +2196,123 @@ const App: React.FC = () => {
     // ... (Handlers for staff awards, team feedback, etc.) ...
      const handleGenerateStaffAwards = useCallback(async () => {
         const aiClient = getAIClient();
-        if (!aiClient) return;
+        if (!aiClient) {
+            addToast('AI client is not available.', 'error');
+            return;
+        }
+        
+        // Check if AI is in cooldown
+        if (isAiInCooldown()) {
+            addToast('AI service is cooling down. Please try again in a few minutes.', 'warning');
+            return;
+        }
+        
         addToast('Analyzing staff performance...', 'info');
-        // Simplified mock generation
-        const newAwards = [
-            { id: Date.now(), school_id: 1, recipient_id: '1', recipient_name: 'John Doe', reason: 'Outstanding dedication', created_at: new Date().toISOString(), source_report_ids: [] }
-        ];
-        setStaffAwards(prev => [...newAwards, ...prev]);
-        addToast('Staff awards generated!', 'success');
-    }, [addToast]);
+        
+        try {
+            // Gather staff performance data
+            const staffData = users.slice(0, 50).map(staff => {
+                // Count reports authored
+                const reportsAuthored = reports.filter(r => r.author_id === staff.id).length;
+                
+                // Count positive mentions in reports
+                const positiveMentions = reports.filter(r => 
+                    r.analysis?.sentiment === 'Positive' && 
+                    (r.report_text.toLowerCase().includes(staff.name.toLowerCase()) || 
+                     r.involved_staff?.includes(staff.id))
+                ).length;
+                
+                // Get teacher ratings
+                const teacherRatings = weeklyRatings.filter(wr => wr.teacher_id === staff.id);
+                const avgRating = teacherRatings.length > 0
+                    ? teacherRatings.reduce((sum, r) => sum + (r.weighted_avg || 0), 0) / teacherRatings.length
+                    : null;
+                
+                // Check punctuality from checkins
+                const staffCheckins = teacherCheckins.filter(c => c.teacher_id === staff.id);
+                const punctualCheckins = staffCheckins.filter(c => c.status === 'Present').length;
+                const punctualityRate = staffCheckins.length > 0 
+                    ? (punctualCheckins / staffCheckins.length) * 100 
+                    : null;
+                
+                // Lesson plan compliance
+                const staffLessonPlans = lessonPlans.filter(lp => lp.author_id === staff.id);
+                const onTimePlans = staffLessonPlans.filter(lp => 
+                    lp.submission_status === 'On Time' || lp.submission_status === 'Early'
+                ).length;
+                const lessonPlanCompliance = staffLessonPlans.length > 0
+                    ? (onTimePlans / staffLessonPlans.length) * 100
+                    : null;
+                
+                // Leave usage (lower is better for dedication indicator)
+                const staffLeaveRequests = leaveRequests.filter(lr => 
+                    lr.requester_id === staff.id && lr.status === 'Approved'
+                );
+                
+                return {
+                    id: staff.id,
+                    name: staff.name,
+                    role: staff.role,
+                    reportsAuthored,
+                    positiveMentions,
+                    avgRating: avgRating ? avgRating.toFixed(1) : null,
+                    punctualityRate: punctualityRate ? punctualityRate.toFixed(0) : null,
+                    lessonPlanCompliance: lessonPlanCompliance ? lessonPlanCompliance.toFixed(0) : null,
+                    leaveRequestCount: staffLeaveRequests.length
+                };
+            }).filter(s => 
+                // Include staff with notable achievements
+                s.reportsAuthored > 5 || 
+                s.positiveMentions > 0 || 
+                (s.avgRating !== null && parseFloat(s.avgRating) >= 4) ||
+                (s.punctualityRate !== null && parseFloat(s.punctualityRate) >= 90) ||
+                (s.lessonPlanCompliance !== null && parseFloat(s.lessonPlanCompliance) >= 90)
+            );
+            
+            if (staffData.length === 0) {
+                addToast('Not enough staff performance data to generate awards.', 'info');
+                return;
+            }
+            
+            const prompt = `Analyze staff performance data and generate awards for outstanding staff members. Consider: productivity (reports authored), positive feedback, student ratings, punctuality, lesson plan compliance, and dedication (low leave usage). Return a JSON array of award objects with "staff_id" (string), "staff_name" (string), "award_type" (string: e.g., "Outstanding Teacher", "Exemplary Dedication", "Student Favorite"), and "reason" (string, max 150 chars explaining why). Generate up to 5 awards for the most deserving staff.
+
+Staff Performance Data: ${JSON.stringify(staffData)}`;
+            
+            const response = await aiClient.chat.completions.create({
+                model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' }
+            });
+            
+            const result = extractAndParseJson<{ staff_id: string; staff_name: string; award_type: string; reason: string }[]>(textFromAI(response));
+            
+            if (result && Array.isArray(result) && result.length > 0) {
+                const newAwards: StaffAward[] = result.map(award => ({
+                    id: Date.now() + Math.random(),
+                    school_id: userProfile?.school_id || 1,
+                    recipient_id: award.staff_id,
+                    recipient_name: award.staff_name,
+                    award_type: award.award_type,
+                    reason: award.reason,
+                    created_at: new Date().toISOString(),
+                    source_report_ids: []
+                }));
+                
+                setStaffAwards(prev => [...newAwards, ...prev]);
+                addToast(`${newAwards.length} staff award(s) generated!`, 'success');
+            } else {
+                addToast('No awards generated. Staff may already be recognized or need more performance data.', 'info');
+            }
+        } catch (e: any) {
+            console.error('Staff awards generation error:', e);
+            if (isRateLimitError(e)) {
+                setAiCooldown();
+                addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
+            } else {
+                addToast('Failed to generate staff awards. Please try again.', 'error');
+            }
+        }
+    }, [addToast, users, reports, weeklyRatings, teacherCheckins, lessonPlans, leaveRequests, userProfile, schoolSettings]);
 
     const handleAnalyzeTeacherRisk = useCallback(async () => {
          const aiClient = getAIClient();
@@ -2071,8 +2320,85 @@ const App: React.FC = () => {
          addToast('Analyzing teacher risk factors...', 'info');
          
          try {
-            const reportContext = reports.map(r => `Report (${r.created_at}): ${r.report_text}`).join('\n');
-            const prompt = `Analyze the following reports for signs of teacher burnout, stress, or performance issues. Return a JSON array of objects with "teacherName" (string), "riskScore" (1-100), and "reasons" (array of strings). Only include high-risk cases. Reports: ${reportContext}`;
+            // Gather comprehensive teacher data
+            const teacherData = users.filter(u => u.role === 'Teacher' || u.role === 'Team Lead').slice(0, 50).map(teacher => {
+                // Check checkin patterns
+                const checkins = teacherCheckins.filter(c => c.teacher_id === teacher.id);
+                const lateCheckins = checkins.filter(c => c.status === 'Late').length;
+                const checkinRate = checkins.length > 0 ? (lateCheckins / checkins.length) * 100 : 0;
+                
+                // Mood trends from checkins
+                const recentMoods = checkins.slice(0, 10).map(c => c.mood).filter(Boolean);
+                const negativeMoodCount = recentMoods.filter(m => 
+                    m === 'stressed' || m === 'frustrated' || m === 'overwhelmed'
+                ).length;
+                
+                // Leave patterns
+                const teacherLeaveRequests = leaveRequests.filter(lr => lr.requester_id === teacher.id);
+                const recentLeaves = teacherLeaveRequests.filter(lr => {
+                    const leaveDate = new Date(lr.start_date);
+                    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                    return leaveDate >= thirtyDaysAgo;
+                }).length;
+                
+                // Lesson plan submission compliance
+                const teacherLessonPlans = lessonPlans.filter(lp => lp.author_id === teacher.id);
+                const missedOrLatePlans = teacherLessonPlans.filter(lp => 
+                    lp.submission_status === 'Missed' || lp.submission_status === 'Late'
+                ).length;
+                const complianceIssues = teacherLessonPlans.length > 0
+                    ? (missedOrLatePlans / teacherLessonPlans.length) * 100
+                    : 0;
+                
+                // Student ratings
+                const ratings = weeklyRatings.filter(wr => wr.teacher_id === teacher.id);
+                const avgRating = ratings.length > 0
+                    ? ratings.reduce((sum, r) => sum + (r.weighted_avg || 0), 0) / ratings.length
+                    : null;
+                
+                // Team feedback scores
+                const feedback = teamFeedback.filter(tf => tf.author_id === teacher.id);
+                const avgTeamFeedback = feedback.length > 0
+                    ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length
+                    : null;
+                
+                // Negative reports about the teacher
+                const negativeReports = reports.filter(r => 
+                    r.analysis?.sentiment === 'Negative' && 
+                    (r.report_text.toLowerCase().includes(teacher.name.toLowerCase()) ||
+                     r.involved_staff?.includes(teacher.id))
+                );
+                
+                return {
+                    name: teacher.name,
+                    role: teacher.role,
+                    lateCheckinRate: checkinRate.toFixed(0),
+                    negativeMoodCount,
+                    recentLeaveCount: recentLeaves,
+                    lessonPlanComplianceIssues: complianceIssues.toFixed(0),
+                    avgStudentRating: avgRating ? avgRating.toFixed(1) : null,
+                    avgTeamFeedback: avgTeamFeedback ? avgTeamFeedback.toFixed(1) : null,
+                    negativeReportsCount: negativeReports.length
+                };
+            }).filter(t => 
+                // Filter to teachers showing potential risk factors
+                parseFloat(t.lateCheckinRate) > 20 ||
+                t.negativeMoodCount > 3 ||
+                t.recentLeaveCount > 2 ||
+                parseFloat(t.lessonPlanComplianceIssues) > 30 ||
+                (t.avgStudentRating !== null && parseFloat(t.avgStudentRating) < 3) ||
+                t.negativeReportsCount > 0
+            );
+            
+            if (teacherData.length === 0) {
+                setAtRiskTeachers([]);
+                addToast('Analysis complete. No high-risk factors detected.', 'success');
+                return;
+            }
+            
+            const prompt = `Analyze teacher data for signs of burnout, stress, or performance issues. Consider: late arrivals, negative moods, frequent leave, poor lesson plan compliance, low student ratings, team feedback, and negative reports. Return a JSON array of objects with "teacherName" (string), "riskScore" (1-100), and "reasons" (array of specific concerns). Only include high-risk cases (score > 60).
+
+Teacher Data: ${JSON.stringify(teacherData)}`;
             
             const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
@@ -2088,7 +2414,7 @@ const App: React.FC = () => {
                     return teacher ? { teacher, score: r.riskScore, reasons: r.reasons } : null;
                 }).filter((r): r is AtRiskTeacher => r !== null);
                 setAtRiskTeachers(mappedRisks);
-                addToast(`Identified ${mappedRisks.length} potential risk cases.`, 'warning');
+                addToast(`Identified ${mappedRisks.length} potential risk ${mappedRisks.length === 1 ? 'case' : 'cases'}.`, 'warning');
             } else {
                 setAtRiskTeachers([]);
                 addToast('Analysis complete. No high-risk factors detected.', 'success');
@@ -2101,7 +2427,7 @@ const App: React.FC = () => {
                  addToast('Failed to analyze risks.', 'error');
              }
          }
-    }, [reports, users, addToast, schoolSettings]);
+    }, [users, addToast, schoolSettings, teacherCheckins, leaveRequests, lessonPlans, weeklyRatings, teamFeedback, reports]);
 
     const handleSaveTeamFeedback = useCallback(async (teamId: number, rating: number, comments: string | null): Promise<boolean> => {
         if (!userProfile) return false;
@@ -2128,8 +2454,62 @@ const App: React.FC = () => {
         addToast('Scanning for policy gaps...', 'info');
         
         try {
-            const incidents = reports.filter(r => r.report_type === ReportType.Incident).map(r => r.report_text).join('\n---\n');
-            const prompt = `Analyze these school incident reports. Identify 3 areas where school policy might be unclear, missing, or frequently violated. Return a JSON array of objects with "category", "question", and "context". Incidents:\n${incidents}`;
+            const incidents = reports.filter(r => r.report_type === ReportType.Incident).slice(0, 20);
+            
+            // Extract attendance records from class groups
+            const allAttendanceRecords: AttendanceRecord[] = [];
+            classGroups.forEach(group => {
+                group.members?.forEach(member => {
+                    if (member.records) {
+                        allAttendanceRecords.push(...member.records);
+                    }
+                });
+            });
+            
+            // Find attendance anomalies (excessive absences)
+            const attendanceIssues = allAttendanceRecords.filter(r => 
+                r.status === 'Absent' || r.status === 'Late'
+            ).length;
+            
+            // Check leave patterns that might indicate policy gaps
+            const frequentLeaves = leaveRequests.filter(lr => lr.status === 'Approved');
+            const leaveTypeDistribution: Record<string, number> = {};
+            frequentLeaves.forEach(lr => {
+                const type = lr.leave_type?.name || 'Unknown';
+                leaveTypeDistribution[type] = (leaveTypeDistribution[type] || 0) + 1;
+            });
+            
+            // Checkin anomalies
+            const lateCheckins = teacherCheckins.filter(c => c.status === 'Late').length;
+            const missedCheckouts = teacherCheckins.filter(c => !c.checkout_time && c.status === 'Present').length;
+            
+            // Low stock patterns suggesting procurement policy issues
+            const lowStockItems = inventory.filter(item => item.quantity < (item.reorder_level || 10));
+            
+            const contextData = {
+                incidentReports: incidents.map(r => ({
+                    type: r.report_type,
+                    text: r.report_text.substring(0, 150),
+                    category: r.category
+                })),
+                attendanceAnomalies: {
+                    totalAbsences: attendanceIssues,
+                    concernLevel: attendanceIssues > 50 ? 'high' : 'normal'
+                },
+                leavePatterns: leaveTypeDistribution,
+                checkinIssues: {
+                    lateArrivals: lateCheckins,
+                    missedCheckouts: missedCheckouts
+                },
+                inventoryIssues: {
+                    lowStockCount: lowStockItems.length,
+                    categories: lowStockItems.map(i => i.category).filter(Boolean)
+                }
+            };
+            
+            const prompt = `Analyze school operational data to identify policy gaps or areas needing clearer guidelines. Look for patterns in incidents, attendance issues, leave requests, checkin violations, and inventory management that suggest unclear or missing policies. Return a JSON array of policy inquiry objects with "category" (string), "question" (string), and "context" (string explaining the pattern observed). Generate 3-5 most important policy questions.
+
+Operational Data: ${JSON.stringify(contextData)}`;
             
             const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
@@ -2150,7 +2530,7 @@ const App: React.FC = () => {
                 addToast('Failed to generate inquiries.', 'error');
             }
         }
-    }, [reports, addToast, schoolSettings]);
+    }, [reports, addToast, schoolSettings, classGroups, leaveRequests, teacherCheckins, inventory]);
 
     const handleGenerateCurriculumReport = useCallback(async () => {
         const aiClient = getAIClient();
@@ -2161,9 +2541,55 @@ const App: React.FC = () => {
             const submittedPlans = lessonPlans.filter(p => p.submission_status !== 'Missed');
             const submissionRate = lessonPlans.length > 0 ? Math.round((submittedPlans.length / lessonPlans.length) * 100) : 0;
             
-            const prompt = `Analyze the following lesson plan titles and statuses. Identify coverage gaps or topics that seem to be falling behind schedule. Return a JSON object with "summary" (string), "coverage_gaps" (array of {teacher_name, class_name, topic, suggestion}).
+            // Get coverage data from lesson plans
+            const coverageData = lessonPlans.slice(0, 50).map(lp => ({
+                teacher: lp.author?.name,
+                class: lp.teaching_entity?.academic_class?.name,
+                title: lp.title,
+                coverageStatus: lp.coverage_status,
+                submissionStatus: lp.submission_status
+            }));
             
-            Plans: ${JSON.stringify(lessonPlans.map(p => ({ title: p.title, status: p.coverage_status, teacher: p.author?.name })))}`;
+            // Get expected curriculum weeks for comparison
+            const weeklyExpectations = curriculumWeeks.slice(0, 20).map(cw => ({
+                weekNumber: cw.week_number,
+                expectedTopics: cw.topics,
+                learningObjectives: cw.learning_objectives
+            }));
+            
+            // Get teaching assignments for context
+            const assignments = academicAssignments.slice(0, 30).map(a => ({
+                teacher: a.teacher?.name,
+                class: a.academic_class?.name,
+                subjectId: a.subject_id
+            }));
+            
+            // Get student performance data to identify coverage-performance correlation
+            const subjectPerformance: Record<number, { avgScore: number; count: number }> = {};
+            scoreEntries.forEach(se => {
+                if (se.subject_id) {
+                    if (!subjectPerformance[se.subject_id]) {
+                        subjectPerformance[se.subject_id] = { avgScore: 0, count: 0 };
+                    }
+                    subjectPerformance[se.subject_id].avgScore += se.total_score || 0;
+                    subjectPerformance[se.subject_id].count += 1;
+                }
+            });
+            
+            // Calculate average scores per subject
+            const performanceBySubject = Object.entries(subjectPerformance).map(([subjectId, data]) => ({
+                subjectId: parseInt(subjectId),
+                avgScore: data.count > 0 ? (data.avgScore / data.count).toFixed(1) : '0'
+            }));
+            
+            const prompt = `Analyze curriculum delivery and identify coverage gaps or topics falling behind. Consider lesson plan submissions, coverage status, expected weekly topics, teacher assignments, and student performance by subject. Identify if poor coverage correlates with poor student scores. Return a JSON object with "summary" (string), "coverage_gaps" (array of {teacher_name, class_name, topic, suggestion, student_performance_impact}).
+
+Data:
+- Lesson Plans: ${JSON.stringify(coverageData)}
+- Expected Curriculum: ${JSON.stringify(weeklyExpectations)}
+- Teaching Assignments: ${JSON.stringify(assignments)}
+- Subject Performance: ${JSON.stringify(performanceBySubject)}
+- Overall Submission Rate: ${submissionRate}%`;
             
             const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
@@ -2192,7 +2618,7 @@ const App: React.FC = () => {
                 addToast('Failed to generate report.', 'error');
             }
         }
-    }, [lessonPlans, addToast, schoolSettings]);
+    }, [lessonPlans, addToast, schoolSettings, curriculumWeeks, academicAssignments, scoreEntries]);
 
     const handleUpdateProfile = useCallback(async (data: Partial<UserProfile>): Promise<boolean> => {
         if (!userProfile) return false;
@@ -2224,17 +2650,89 @@ const App: React.FC = () => {
             const recentReports = reports.filter(r => new Date(r.created_at) > oneDayAgo);
             const pendingTasks = tasks.filter(t => t.status !== TaskStatus.Completed);
             
-            const prompt = `Generate a Daily Briefing for the school principal.
+            // Today's staff attendance from checkins
+            const today = todayISO();
+            const todayCheckins = teacherCheckins.filter(c => c.checkin_date === today);
+            const presentStaff = todayCheckins.filter(c => c.status === 'Present').length;
+            const totalExpectedStaff = users.filter(u => u.role !== 'Admin').length;
+            const staffAttendanceRate = totalExpectedStaff > 0 ? (presentStaff / totalExpectedStaff) * 100 : 0;
             
-            Recent Reports (Last 24h): ${JSON.stringify(recentReports.map(r => ({ type: r.report_type, text: r.report_text, sentiment: r.analysis?.sentiment })))}
-            Pending Tasks: ${JSON.stringify(pendingTasks.map(t => ({ title: t.title, priority: t.priority })))}
+            // Staff mood summary
+            const moodCounts: Record<string, number> = {};
+            todayCheckins.forEach(c => {
+                if (c.mood) {
+                    moodCounts[c.mood] = (moodCounts[c.mood] || 0) + 1;
+                }
+            });
             
-            Return a JSON object with:
-            - daily_summary: A concise paragraph summarizing key events.
-            - morale_forecast: A short prediction of school morale (Positive, Neutral, Negative) with a reason.
-            - resource_allocation_suggestions: Array of strings suggesting where to focus attention.
-            - parent_communication_points: Array of strings for potential parent updates.
-            `;
+            // Upcoming approved leaves (next 7 days)
+            const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            const upcomingLeaves = leaveRequests.filter(lr => {
+                const startDate = new Date(lr.start_date);
+                return lr.status === 'Approved' && startDate >= new Date() && startDate <= sevenDaysFromNow;
+            }).map(lr => ({
+                teacher: lr.requester?.name,
+                startDate: lr.start_date,
+                type: lr.leave_type?.name
+            }));
+            
+            // Low stock alerts
+            const lowStockAlerts = inventory.filter(i => i.quantity < (i.reorder_level || 10)).map(i => ({
+                name: i.name,
+                quantity: i.quantity,
+                reorderLevel: i.reorder_level
+            }));
+            
+            // Upcoming assessment deadlines
+            const upcomingAssessments = assessments.filter(a => {
+                if (!a.due_date) return false;
+                const dueDate = new Date(a.due_date);
+                return dueDate >= new Date() && dueDate <= sevenDaysFromNow;
+            }).map(a => ({
+                title: a.title,
+                dueDate: a.due_date,
+                class: a.assignment?.academic_class?.name
+            }));
+            
+            // Current at-risk student count
+            const atRiskCount = atRiskStudents.length;
+            
+            // Team morale scores
+            const teamMoraleScores = teamPulse.map(tp => ({
+                team: tp.teamName,
+                score: tp.overallScore
+            }));
+            
+            const contextData = {
+                recentReports: recentReports.slice(0, 20).map(r => ({ 
+                    type: r.report_type, 
+                    text: r.report_text.substring(0, 150), 
+                    sentiment: r.analysis?.sentiment 
+                })),
+                pendingTasks: pendingTasks.slice(0, 15).map(t => ({ title: t.title, priority: t.priority })),
+                staffAttendance: {
+                    rate: staffAttendanceRate.toFixed(0),
+                    presentCount: presentStaff,
+                    totalExpected: totalExpectedStaff,
+                    moodSummary: moodCounts
+                },
+                upcomingLeaves: upcomingLeaves.slice(0, 10),
+                lowStockAlerts: lowStockAlerts.slice(0, 5),
+                upcomingAssessments: upcomingAssessments.slice(0, 5),
+                atRiskStudentsCount: atRiskCount,
+                teamMorale: teamMoraleScores
+            };
+            
+            const prompt = `Generate a comprehensive Daily Briefing for the school principal.
+
+Context Data: ${JSON.stringify(contextData)}
+            
+Return a JSON object with:
+- daily_summary: A concise paragraph summarizing key events and priorities for today.
+- morale_forecast: A short prediction of school morale (Positive, Neutral, Negative) with a reason based on staff attendance, mood, and team pulse.
+- resource_allocation_suggestions: Array of strings suggesting where to focus attention (e.g., low stock items, upcoming leaves, at-risk students).
+- parent_communication_points: Array of strings for potential parent updates (e.g., upcoming assessments, school events).
+`;
             
             const response = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
@@ -2256,7 +2754,7 @@ const App: React.FC = () => {
             }
             return null;
         }
-    }, [reports, tasks, addToast, schoolSettings]);
+    }, [reports, tasks, addToast, schoolSettings, teacherCheckins, users, leaveRequests, inventory, assessments, atRiskStudents, teamPulse]);
 
     const handleAcceptTaskSuggestion = useCallback(async (suggestion: SuggestedTask, assigneeId: string) => {
         if (!userProfile) return;
@@ -2940,8 +3438,81 @@ const App: React.FC = () => {
         }
         
         try {
-            // AI Logic: Generate awards based on positive behavior records
-            const prompt = `Analyze positive behavior records: ${JSON.stringify(positiveRecords.slice(0, AI_AWARDS_ANALYSIS_RECORD_LIMIT))}. Generate ${AI_AWARDS_GENERATION_COUNT} awards. JSON: [{student_id, award_type, reason}]`;
+            // Extract attendance from class groups
+            const attendanceMap: Record<number, { present: number; total: number }> = {};
+            classGroups.forEach(group => {
+                group.members?.forEach(member => {
+                    const records = member.records || [];
+                    const presentCount = records.filter(r => r.status === 'Present' || r.status === 'Remote').length;
+                    const totalCount = records.length;
+                    if (totalCount > 0 && member.student_id) {
+                        if (!attendanceMap[member.student_id]) {
+                            attendanceMap[member.student_id] = { present: 0, total: 0 };
+                        }
+                        attendanceMap[member.student_id].present += presentCount;
+                        attendanceMap[member.student_id].total += totalCount;
+                    }
+                });
+            });
+            
+            // Build comprehensive student achievement data
+            const studentAchievementData = students.slice(0, 50).map(s => {
+                // Positive behavior
+                const positiveBehaviors = positiveRecords.filter(p => p.student_id === s.id);
+                
+                // Academic excellence or improvement
+                const studentScores = scoreEntries.filter(e => e.student_id === s.id);
+                const avgScore = studentScores.length > 0
+                    ? studentScores.reduce((sum, e) => sum + (e.total_score || 0), 0) / studentScores.length
+                    : null;
+                const highScores = studentScores.filter(e => (e.total_score || 0) >= 85).length;
+                
+                // Attendance
+                const attendance = attendanceMap[s.id];
+                const attendanceRate = attendance ? (attendance.present / attendance.total) * 100 : null;
+                
+                // Term report improvement trends
+                const termReports = studentTermReports
+                    .filter(tr => tr.student_id === s.id)
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .slice(-3); // Last 3 terms
+                
+                const improvementTrend = termReports.length >= 2
+                    ? termReports[termReports.length - 1].overall_average - termReports[0].overall_average
+                    : null;
+                
+                return {
+                    id: s.id,
+                    name: s.name,
+                    positiveBehaviorCount: positiveBehaviors.length,
+                    recentBehaviors: positiveBehaviors.slice(0, 3).map(p => p.behavior_type),
+                    academicPerformance: {
+                        avgScore: avgScore ? avgScore.toFixed(1) : null,
+                        highScoreCount: highScores,
+                        totalScores: studentScores.length
+                    },
+                    attendanceRate: attendanceRate ? attendanceRate.toFixed(0) : null,
+                    improvementTrend: improvementTrend ? improvementTrend.toFixed(1) : null,
+                    latestTermPosition: termReports.length > 0 ? termReports[termReports.length - 1].class_position : null
+                };
+            }).filter(s => 
+                // Filter to students with notable achievements
+                s.positiveBehaviorCount > 2 ||
+                (s.academicPerformance.avgScore !== null && parseFloat(s.academicPerformance.avgScore) >= 80) ||
+                (s.attendanceRate !== null && parseFloat(s.attendanceRate) >= 95) ||
+                (s.improvementTrend !== null && parseFloat(s.improvementTrend) > 10) ||
+                s.academicPerformance.highScoreCount >= 5
+            ).slice(0, AI_AWARDS_ANALYSIS_RECORD_LIMIT);
+            
+            if (studentAchievementData.length === 0) {
+                addToast('Not enough student achievement data to generate awards.', 'info');
+                return;
+            }
+            
+            const prompt = `Analyze student achievement data and generate awards for outstanding students. Consider: positive behaviors, academic excellence (high scores), perfect/excellent attendance (>95%), consistent on-time performance, and significant improvement trends. Return a JSON array of award objects with "student_id" (number), "award_type" (string: e.g., "Academic Excellence", "Perfect Attendance", "Most Improved", "Outstanding Behavior"), and "reason" (string, max 150 chars). Generate up to ${AI_AWARDS_GENERATION_COUNT} awards for the most deserving students.
+
+Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
+            
             const res = await aiClient.chat.completions.create({
                 model: schoolSettings?.ai_settings?.default_model || 'llama-3.1-8b-instant',
                 messages: [{ role: 'user', content: prompt }],
@@ -2971,7 +3542,7 @@ const App: React.FC = () => {
                 addToast('Failed to generate awards. Please try again.', 'error');
             }
         }
-    }, [userProfile, positiveRecords, addToast, session, fetchData, schoolSettings]);
+    }, [userProfile, positiveRecords, addToast, session, fetchData, schoolSettings, students, scoreEntries, studentTermReports, classGroups]);
 
     const handleGenerateStudentInsight = useCallback(async (studentId: number): Promise<any | null> => {
         const aiClient = getAIClient();
@@ -5643,6 +6214,20 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /><p className="ml-2">Loading profile...</p></div>;
     }
     
+    // Extract attendance records from class groups for AI Copilot (limit to recent records)
+    const allAttendanceRecords = useMemo(() => {
+        const records: AttendanceRecord[] = [];
+        classGroups.forEach(group => {
+            group.members?.forEach(member => {
+                if (member.records) {
+                    // Only include the last 30 records per member to avoid memory issues
+                    records.push(...member.records.slice(-30));
+                }
+            });
+        });
+        return records;
+    }, [classGroups]);
+    
     if (userType === 'student') {
         // Student specific layout
         return (
@@ -6172,6 +6757,12 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         announcements={announcements}
                         classes={allClasses}
                         livingPolicy={livingPolicy}
+                        scoreEntries={scoreEntries}
+                        attendanceRecords={allAttendanceRecords}
+                        inventory={inventory}
+                        leaveRequests={leaveRequests}
+                        teacherCheckins={teacherCheckins}
+                        lessonPlans={lessonPlans}
                         onAddTask={handleAddTask}
                         onAddAnnouncement={handleAddAnnouncement}
                         addToast={addToast}
