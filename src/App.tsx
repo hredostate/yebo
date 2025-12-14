@@ -2414,7 +2414,7 @@ Teacher Data: ${JSON.stringify(teacherData)}`;
                     return teacher ? { teacher, score: r.riskScore, reasons: r.reasons } : null;
                 }).filter((r): r is AtRiskTeacher => r !== null);
                 setAtRiskTeachers(mappedRisks);
-                addToast(`Identified ${mappedRisks.length} potential risk case(s).`, 'warning');
+                addToast(`Identified ${mappedRisks.length} potential risk ${mappedRisks.length === 1 ? 'case' : 'cases'}.`, 'warning');
             } else {
                 setAtRiskTeachers([]);
                 addToast('Analysis complete. No high-risk factors detected.', 'success');
@@ -6214,13 +6214,14 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /><p className="ml-2">Loading profile...</p></div>;
     }
     
-    // Extract attendance records from class groups for AI Copilot
+    // Extract attendance records from class groups for AI Copilot (limit to recent records)
     const allAttendanceRecords = useMemo(() => {
         const records: AttendanceRecord[] = [];
         classGroups.forEach(group => {
             group.members?.forEach(member => {
                 if (member.records) {
-                    records.push(...member.records);
+                    // Only include the last 30 records per member to avoid memory issues
+                    records.push(...member.records.slice(-30));
                 }
             });
         });
