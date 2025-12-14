@@ -164,7 +164,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   
   const [baseView] = (currentView || VIEWS.DASHBOARD).split('/');
   
-  console.log('[Sidebar] Current state - currentView:', currentView, 'baseView:', baseView);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Sidebar] Current state - currentView:', currentView, 'baseView:', baseView);
+  }
   
   const name = 'name' in userProfile ? userProfile.name : userProfile.full_name;
   const role = 'role' in userProfile ? userProfile.role : 'Student';
@@ -476,4 +478,4 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

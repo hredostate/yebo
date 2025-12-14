@@ -332,6 +332,7 @@ const App: React.FC = () => {
     
     const [booting, setBooting] = useState(true);
     const lastFetchedUserId = useRef<string | null>(null);
+    const isFetchingRef = useRef(false);
     const [dbError, setDbError] = useState<string | null>(null);
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -768,10 +769,21 @@ const App: React.FC = () => {
 
     const fetchData = useCallback(async (user: User, forceRefresh: boolean = false) => {
         if (!supabase) return;
+        
+        // Prevent duplicate concurrent fetches
+        if (isFetchingRef.current) {
+            console.log('[Auth] Fetch already in progress, skipping');
+            return;
+        }
+        
         // If refreshing, ignore the lastFetchedUserId check
-        if (!forceRefresh && lastFetchedUserId.current === user.id && userProfileRef.current) return;
+        if (!forceRefresh && lastFetchedUserId.current === user.id && userProfileRef.current) {
+            console.log('[Auth] User data already loaded, skipping fetch');
+            return;
+        }
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
+        isFetchingRef.current = true;
         setIsProfileLoading(true);
         setProfileLoadError(null);
 
@@ -786,6 +798,7 @@ const App: React.FC = () => {
             setProfileLoadError('Profile loading timed out. Please try again.');
             setIsProfileLoading(false);
             setBooting(false);
+            isFetchingRef.current = false;
         }, 30000);
 
         try {
@@ -827,6 +840,7 @@ const App: React.FC = () => {
                              setDbError("Account setup failed: Database permission denied. Please ask Admin to run the 'Fix Missing Data' script in Settings.");
                              if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                              setIsProfileLoading(false);
+                             isFetchingRef.current = false;
                              return;
                          }
                     }
@@ -979,6 +993,7 @@ const App: React.FC = () => {
                          } else {
                             setDbError(`Account Setup Error: ${createError?.message || 'Could not initialize student record.'}`);
                          }
+                         isFetchingRef.current = false;
                          return;
                     }
                     studentRecord = newStudent;
@@ -1010,6 +1025,7 @@ const App: React.FC = () => {
                 // Clear timeout and mark as loaded successfully
                 if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                 setIsProfileLoading(false);
+                isFetchingRef.current = false;
                 console.log('[Auth] Student profile loaded successfully');
                 setBooting(false);
                 
@@ -1035,6 +1051,7 @@ const App: React.FC = () => {
                 // Clear timeout
                 if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                 setIsProfileLoading(false);
+                isFetchingRef.current = false;
                 setBooting(false);
                 
                 // Handle Database Schema Errors
@@ -1217,6 +1234,7 @@ const App: React.FC = () => {
                         // Clear timeout and mark profile as loaded
                         if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                         setIsProfileLoading(false);
+                        isFetchingRef.current = false;
                         setBooting(false);
                         console.log('[Auth] Critical data loaded, checking for target view...');
                         
@@ -1356,6 +1374,7 @@ const App: React.FC = () => {
                         // Clear timeout
                         if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                         setIsProfileLoading(false);
+                        isFetchingRef.current = false;
                         setBooting(false);
                         
                         // Do NOT logout if it's a schema error, so the Setup screen can show
@@ -1390,6 +1409,8 @@ const App: React.FC = () => {
                  handleLogout();
             }
             setBooting(false);
+        } finally {
+            isFetchingRef.current = false;
         }
     }, [addToast, handleLogout]); 
     // --- Auth Logic & Data Fetching ---
