@@ -890,6 +890,8 @@ export interface StudentTermReport {
     teacher_comment?: string;
     principal_comment?: string;
     is_published: boolean;
+    public_token?: string | null;
+    token_expires_at?: string | null;
     created_at: string;
     term?: Term;
     public_token?: string;
@@ -1519,12 +1521,62 @@ export interface CommunicationLogData {
 // Kudi SMS Integration Types
 // ============================================
 
+export type NotificationChannel = 'sms' | 'whatsapp' | 'both';
+
+export type NotificationType = 
+    'homework_reminder' | 
+    'homework_missing' | 
+    'notes_incomplete' | 
+    'lesson_published' | 
+    'payment_receipt' | 
+    'attendance_present' | 
+    'absentee_alert' | 
+    'late_arrival' | 
+    'subject_absentee' | 
+    'subject_late' | 
+    'report_card_ready' | 
+    'emergency_broadcast' | 
+    'general';
+
+export interface NotificationChannelConfig {
+    payment_receipt: NotificationChannel;
+    homework_missing: NotificationChannel;
+    homework_reminder: NotificationChannel;
+    notes_incomplete: NotificationChannel;
+    lesson_published: NotificationChannel;
+    attendance_present: NotificationChannel;
+    absentee_alert: NotificationChannel;
+    late_arrival: NotificationChannel;
+    subject_absentee: NotificationChannel;
+    subject_late: NotificationChannel;
+    report_card_ready: NotificationChannel;
+    emergency_broadcast: NotificationChannel;
+}
+
+export interface WhatsAppTemplateCodes {
+    payment_receipt?: string;
+    homework_missing?: string;
+    homework_reminder?: string;
+    notes_incomplete?: string;
+    lesson_published?: string;
+    attendance_present?: string;
+    absentee_alert?: string;
+    late_arrival?: string;
+    subject_absentee?: string;
+    subject_late?: string;
+    report_card_ready?: string;
+    emergency_broadcast?: string;
+}
+
 export interface KudiSmsSettings {
     id: number;
     school_id: number;
     campus_id: number | null;
     token: string;
     sender_id: string;
+    enable_fallback: boolean;
+    notification_channels: NotificationChannelConfig;
+    whatsapp_template_codes: WhatsAppTemplateCodes;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -1555,11 +1607,14 @@ export interface SmsMessageLog {
     id: number;
     school_id: number;
     recipient_phone: string;
-    message_type: 'personalised' | 'auto_compose';
+    message_type: 'personalised' | 'auto_compose' | 'whatsapp';
     message_content: string;
     kudi_response?: Record<string, any>;
     status: 'pending' | 'sent' | 'failed';
     error_message?: string;
+    channel?: 'sms' | 'whatsapp';
+    fallback_used?: boolean;
+    cost_units?: number;
     created_at: string;
     updated_at: string;
 }
@@ -1743,7 +1798,7 @@ export interface SmsNotification {
     recipient_phone: string;
     template_name?: string;
     message_content?: string;
-    notification_type: string;
+    notification_type: NotificationType;
     reference_id?: number;
     status: 'pending' | 'sent' | 'failed';
     error_message?: string;
