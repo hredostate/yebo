@@ -286,15 +286,18 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
             const headers = lines[0].split(',').map(h => h.trim());
             
+            // Create case-insensitive header map for efficient lookups
+            const headerMap = new Map(headers.map((h, i) => [h.toLowerCase(), i]));
+            
             // Identify score column indices with case-insensitive matching
             const componentIndices: Record<string, number> = {};
             components.forEach(c => {
-                const idx = headers.findIndex(h => h.toLowerCase() === c.name.toLowerCase());
-                if (idx !== -1) componentIndices[c.name] = idx;
+                const idx = headerMap.get(c.name.toLowerCase());
+                if (idx !== undefined) componentIndices[c.name] = idx;
             });
             
-            const studentIdIndex = headers.findIndex(h => h.toLowerCase() === 'student_id');
-            const commentIndex = headers.findIndex(h => h.toLowerCase() === 'remark');
+            const studentIdIndex = headerMap.get('student_id') ?? -1;
+            const commentIndex = headerMap.get('remark') ?? -1;
 
             if (studentIdIndex === -1) throw new Error("Missing 'student_id' column in CSV.");
 
