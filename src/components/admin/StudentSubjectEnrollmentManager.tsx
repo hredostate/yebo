@@ -289,6 +289,15 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       return;
     }
 
+    // Validate that the student exists
+    const studentExists = students.some(s => s.id === studentId);
+    if (!studentExists) {
+      console.warn(`Skipping enrollment toggle for non-existent student ID: ${studentId}`);
+      addToast('Student no longer exists. Please refresh the page.', 'error');
+      await onRefreshData();
+      return;
+    }
+
     try {
       setIsSaving(true);
       const currentEnrollment = studentSubjectEnrollments.find(sse =>
@@ -328,9 +337,15 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
       await onRefreshData();
       addToast(`Enrollment ${newEnrollmentStatus ? 'enabled' : 'disabled'} successfully`, 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling enrollment:', error);
-      addToast('Failed to update enrollment', 'error');
+      // If foreign key error, trigger data refresh
+      if (error.message && (error.message.includes('foreign key constraint') || error.message.includes('violates'))) {
+        addToast('Data may be stale. Refreshing...', 'warning');
+        await onRefreshData();
+      } else {
+        addToast('Failed to update enrollment', 'error');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -345,7 +360,30 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
     try {
       setIsSaving(true);
-      const updates = filteredStudents.map(student => ({
+      
+      // Get current valid student IDs
+      const validStudentIds = new Set(students.map(s => s.id));
+      
+      // Filter out students that no longer exist
+      const validFilteredStudents = filteredStudents.filter(student => {
+        if (!validStudentIds.has(student.id)) {
+          console.warn(`Skipping bulk enrollment for non-existent student ID: ${student.id}`);
+          return false;
+        }
+        return true;
+      });
+      
+      if (validFilteredStudents.length === 0) {
+        addToast('No valid students to enroll. Please refresh the page.', 'error');
+        await onRefreshData();
+        return;
+      }
+      
+      if (validFilteredStudents.length < filteredStudents.length) {
+        addToast(`${filteredStudents.length - validFilteredStudents.length} student(s) were skipped because they no longer exist.`, 'info');
+      }
+      
+      const updates = validFilteredStudents.map(student => ({
         school_id: schoolId,
         student_id: student.id,
         subject_id: subjectId,
@@ -364,10 +402,16 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       if (error) throw error;
 
       await onRefreshData();
-      addToast(`All students ${enroll ? 'enrolled' : 'unenrolled'} successfully`, 'success');
-    } catch (error) {
+      addToast(`All valid students ${enroll ? 'enrolled' : 'unenrolled'} successfully`, 'success');
+    } catch (error: any) {
       console.error('Error bulk toggling enrollment:', error);
-      addToast('Failed to update enrollments', 'error');
+      // If foreign key error, trigger data refresh
+      if (error.message && (error.message.includes('foreign key constraint') || error.message.includes('violates'))) {
+        addToast('Data may be stale. Refreshing...', 'warning');
+        await onRefreshData();
+      } else {
+        addToast('Failed to update enrollments', 'error');
+      }
     } finally {
       setIsSaving(false);
     }
