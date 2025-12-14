@@ -22,13 +22,13 @@ const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '', text }) 
         {/* Container for logo and spinning ring */}
         <div className="relative flex items-center justify-center">
           {/* Pulsing glow effect behind logo */}
-          <div className="absolute inset-0 bg-blue-500/20 dark:bg-blue-400/30 rounded-full blur-xl animate-pulse" />
+          <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/20 rounded-full blur-xl animate-pulse" />
           
           {/* Spinning gradient ring */}
           <div 
             className="absolute inset-[-8px] rounded-full animate-spin"
             style={{
-              background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)',
+              background: 'linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8, #3b82f6)',
               // WebkitMaskComposite uses 'xor' for Safari compatibility, while standard maskComposite uses 'exclude'
               WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
               WebkitMaskComposite: 'xor',

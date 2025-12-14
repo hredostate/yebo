@@ -53,8 +53,8 @@ html {
 }
 
 body {
-  /* Vibrant background to make glassmorphism pop */
-  @apply bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 bg-fixed;
+  /* Clean background for professional appearance */
+  @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 bg-fixed;
 }
 
 /* Custom Scrollbar for a more modern feel */
