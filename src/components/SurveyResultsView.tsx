@@ -165,7 +165,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
             if (!aiClient) throw new Error("AI client not ready.");
             
             // NEW: Fetch additional context for respondents if data is available
-            const respondentIds = [...new Set(detailedResults.map((r: any) => r.student_id).filter(Boolean))];
+            const respondentIds: number[] = [...new Set(detailedResults.map((r: any) => Number(r.student_id)).filter(id => !isNaN(id)))];
             
             let respondentProfiles: any[] = [];
             if (respondentIds.length > 0 && scoreEntries.length > 0) {
@@ -173,7 +173,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
                 const respondentScores = scoreEntries.filter(s => respondentIds.includes(s.student_id));
                 const respondentAttendance = attendanceRecords.filter(a => respondentIds.includes(a.student_id));
                 const respondentBehavior = reports.filter(r => 
-                    r.involved_students?.some((id: number) => respondentIds.includes(id))
+                    r.involved_students?.some(id => respondentIds.includes(id))
                 );
                 
                 // Calculate correlations

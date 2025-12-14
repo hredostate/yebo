@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { SurveyWithQuestions, SurveyQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption } from '../types';
+import type { SurveyWithQuestions, SurveyQuestion, AudienceRule, RoleDetails, BaseDataObject, RoleTitle, MultipleChoiceOption, ScoreEntry, AttendanceRecord, ReportRecord } from '../types';
 import { SurveyQuestionType } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon } from './common/icons';
@@ -14,9 +14,9 @@ interface SurveyManagerProps {
     allClasses: BaseDataObject[];
     allArms: BaseDataObject[];
     allRoles: RoleDetails[];
-    scoreEntries?: any[];
-    attendanceRecords?: any[];
-    reports?: any[];
+    scoreEntries?: ScoreEntry[];
+    attendanceRecords?: AttendanceRecord[];
+    reports?: ReportRecord[];
 }
 
 const AddAudienceRule: React.FC<{
