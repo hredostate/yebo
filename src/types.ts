@@ -1485,20 +1485,6 @@ export interface BankProvider {
     bank_name: string;
 }
 
-export interface TermiiSettings {
-    id: number;
-    school_id: number;
-    campus_id: number | null;
-    api_key: string;
-    device_id: string | null;
-    base_url: string;
-    environment: 'test' | 'live';
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-    campus?: { name: string };
-}
-
 // Form data interfaces for handler parameters
 export interface StudentFormData {
     name: string;
@@ -1525,85 +1511,6 @@ export interface CommunicationLogData {
     method: string;
     notes: string;
     communication_type?: string;
-}
-
-// ============================================
-// Termii WhatsApp Integration Types
-// ============================================
-
-export interface TermiiSettings {
-    id: number;
-    school_id: number;
-    api_key: string;
-    device_id?: string;
-    base_url: string;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface WhatsAppMessageLog {
-    id: number;
-    school_id: number;
-    recipient_phone: string;
-    template_id?: string;
-    message_type: 'template' | 'template_media' | 'conversational';
-    message_content?: Record<string, any>;
-    media_url?: string;
-    termii_message_id?: string;
-    status: 'pending' | 'sent' | 'delivered' | 'failed';
-    error_message?: string;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface TermiiTemplateMessage {
-    api_key: string;
-    device_id: string;
-    template_id: string;
-    phone_number: string;
-    data: Record<string, string>; // Template variable replacements
-}
-
-export interface TermiiTemplateMediaMessage {
-    api_key: string;
-    device_id: string;
-    template_id: string;
-    phone_number: string;
-    data: Record<string, string>;
-    media: {
-        url: string;
-        caption?: string;
-    };
-}
-
-export interface TermiiConversationalMessage {
-    api_key: string;
-    to: string;
-    from: string;
-    sms: string;
-    type: string;
-    channel: 'whatsapp';
-}
-
-export interface TermiiSenderId {
-    sender_id: string;
-    status: string;
-    company: string;
-    usecase: string;
-    country: string;
-    created_at: string;
-}
-
-export interface TermiiPhonebookContact {
-    id: number;
-    pid: number;
-    phone_number: string;
-    email_address: string;
-    first_name: string;
-    last_name: string;
-    company: string;
-    created_at: string;
 }
 
 // ============================================
@@ -1648,6 +1555,8 @@ export interface KudiSmsMessageLog {
     cost?: number;
     balance?: string;
     created_at: string;
+    updated_at: string;
+}
     updated_at: string;
 }
 

@@ -158,11 +158,11 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         `Best regards,\n` +
         `School Administration`;
 
-      const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+      const { error: sendError } = await supabase.functions.invoke('send-sms', {
         body: {
-          phone_number: reportDetails.student.parent_phone_number_1,
-          message_type: 'conversational',
-          message: message,
+          to: [reportDetails.student.parent_phone_number_1],
+          body: message,
+          reference: `report-card-${reportDetails.student.id}`,
         }
       });
 
