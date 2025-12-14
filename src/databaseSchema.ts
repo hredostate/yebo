@@ -1678,7 +1678,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_notifications (
     notification_type TEXT,
     reference_id INTEGER,
     status TEXT DEFAULT 'pending',
-    termii_message_id TEXT,
+    kudisms_message_id TEXT,
     error_message TEXT,
     sent_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     sent_at TIMESTAMP WITH TIME ZONE,
