@@ -1740,7 +1740,7 @@ export interface WhatsAppNotification {
     notification_type: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published';
     reference_id?: number;
     status: 'pending' | 'sent' | 'delivered' | 'failed';
-    termii_message_id?: string;
+    kudisms_message_id?: string;
     error_message?: string;
     sent_by?: string;
     sent_at?: string;

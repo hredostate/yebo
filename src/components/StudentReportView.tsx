@@ -158,11 +158,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         `Best regards,\n` +
         `School Administration`;
 
-      const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+      const { error: sendError } = await supabase.functions.invoke('kudisms-send-whatsapp', {
         body: {
-          phone_number: reportDetails.student.parent_phone_number_1,
-          message_type: 'conversational',
-          message: message,
+          school_id: reportDetails.student.school_id,
+          recipient: reportDetails.student.parent_phone_number_1,
+          template_code: 'report_card_notification', // This should be configured in Kudi SMS settings
+          parameters: `${studentName},${termName},${sessionLabel}`,
         }
       });
 

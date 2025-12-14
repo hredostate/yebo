@@ -77,11 +77,12 @@ const EmergencyBroadcast: React.FC<EmergencyBroadcastProps> = ({ onSendBroadcast
         try {
           const whatsappMessage = `🚨 *URGENT SCHOOL ALERT* 🚨\n\n*${title}*\n\n${message}\n\n_This is an official emergency broadcast from the school. Please acknowledge receipt._`;
 
-          const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+          const { error: sendError } = await supabase.functions.invoke('kudisms-send-whatsapp', {
             body: {
-              phone_number: phoneNumber,
-              message_type: 'conversational',
-              message: whatsappMessage,
+              school_id: schoolId,
+              recipient: phoneNumber,
+              template_code: 'emergency_broadcast', // This should be configured in Kudi SMS settings
+              parameters: `${title},${message}`,
             }
           });
 

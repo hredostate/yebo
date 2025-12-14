@@ -160,11 +160,12 @@ const FeeReminderBulkSend: React.FC = () => {
           `Best regards,\n` +
           `School Finance Office`;
 
-        const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+        const { error: sendError } = await supabase.functions.invoke('kudisms-send-whatsapp', {
           body: {
-            phone_number: student.parent_phone_number_1,
-            message_type: 'conversational',
-            message: message,
+            school_id: schoolId,
+            recipient: student.parent_phone_number_1,
+            template_code: 'fee_reminder', // This should be configured in Kudi SMS settings
+            parameters: `${student.name},${outstandingBalance.toFixed(2)},${dueDate}`,
           }
         });
 
