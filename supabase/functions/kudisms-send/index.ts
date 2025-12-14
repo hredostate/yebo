@@ -152,7 +152,7 @@ serve(async (req) => {
     };
 
     // Send SMS via Kudi SMS API
-    console.log('Sending SMS via Kudi SMS:', { phone: formattedPhone, sender: effectiveSenderId });
+    console.log('Sending SMS via Kudi SMS:', { sender: effectiveSenderId });
     
     const kudiResponse = await fetch(`${kudiSmsBaseUrl}/personalisedsms`, {
       method: 'POST',
@@ -165,9 +165,9 @@ serve(async (req) => {
     const kudiResult = await kudiResponse.json();
     console.log('Kudi SMS response:', kudiResult);
 
-    const isSuccess = kudiResponse.ok && kudiResult.error_code === '000';
+    const isSuccess = kudiResponse.ok && kudiResult && kudiResult.error_code === '000';
     const status = isSuccess ? 'sent' : 'failed';
-    const errorMessage = !isSuccess ? (kudiResult.msg || kudiResult.status_msg || 'Failed to send message') : null;
+    const errorMessage = !isSuccess ? (kudiResult?.msg || kudiResult?.status_msg || 'Failed to send message') : null;
 
     // Log to database
     const logEntry = {

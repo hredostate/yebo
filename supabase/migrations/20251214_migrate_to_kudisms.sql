@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS public.sms_notifications (
 -- Enable RLS on kudisms_settings
 ALTER TABLE public.kudisms_settings ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Only Admin and Super Admin can view/edit Kudi SMS settings
+-- RLS Policy: Admin can manage, Accountant and Principal can view
 DROP POLICY IF EXISTS "Admins can manage kudisms settings" ON public.kudisms_settings;
 CREATE POLICY "Admins can manage kudisms settings" ON public.kudisms_settings
 FOR ALL
@@ -72,6 +72,17 @@ USING (
         SELECT school_id FROM public.user_profiles
         WHERE id = auth.uid()
         AND role = 'Admin'
+    )
+);
+
+DROP POLICY IF EXISTS "Accountants and Principals can view kudisms settings" ON public.kudisms_settings;
+CREATE POLICY "Accountants and Principals can view kudisms settings" ON public.kudisms_settings
+FOR SELECT
+USING (
+    school_id IN (
+        SELECT school_id FROM public.user_profiles
+        WHERE id = auth.uid()
+        AND (role = 'Accountant' OR role = 'Principal')
     )
 );
 
