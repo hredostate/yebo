@@ -160,10 +160,9 @@ const FeeReminderBulkSend: React.FC = () => {
           `Best regards,\n` +
           `School Finance Office`;
 
-        const { error: sendError } = await supabase.functions.invoke('termii-send-whatsapp', {
+        const { error: sendError } = await supabase.functions.invoke('kudisms-send', {
           body: {
             phone_number: student.parent_phone_number_1,
-            message_type: 'conversational',
             message: message,
           }
         });

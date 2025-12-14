@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { bulkSendWhatsAppNotifications } from '../services/whatsappService';
+import { bulkSendSmsNotifications } from '../services/smsService';
 import type { Student } from '../types';
 import Spinner from './common/Spinner';
 import { BellIcon, CheckCircleIcon, XCircleIcon } from './common/icons';
@@ -45,7 +45,7 @@ const BulkNotifyButton: React.FC<BulkNotifyButtonProps> = ({
         }
 
         const confirmed = window.confirm(
-            `Send WhatsApp notifications to ${eligibleStudents.length} parent(s)?`
+            `Send SMS notifications to ${eligibleStudents.length} parent(s)?`
         );
 
         if (!confirmed) return;
@@ -76,7 +76,7 @@ const BulkNotifyButton: React.FC<BulkNotifyButtonProps> = ({
 
             for (let i = 0; i < notifications.length; i += batchSize) {
                 const batch = notifications.slice(i, i + batchSize);
-                const batchResult = await bulkSendWhatsAppNotifications(batch);
+                const batchResult = await bulkSendSmsNotifications(batch);
                 
                 totalSent += batchResult.sent;
                 totalFailed += batchResult.failed;
