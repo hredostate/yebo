@@ -4,6 +4,7 @@ import type { AcademicTeachingAssignment, Student, AcademicClassStudent, ScoreEn
 import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
+import { parseCsv } from '../utils/feesCsvUtils';
 
 interface TeacherScoreEntryViewProps {
     assignmentId: number;
@@ -281,46 +282,69 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
         setIsUploading(true);
         try {
             const text = await file.text();
-            const lines = text.split(/\r\n|\n/).filter(line => line.trim());
-            if (lines.length < 2) throw new Error("CSV file is empty or missing headers.");
+            
+            // Parse CSV using the shared utility
+            const rows = parseCsv(text);
+            
+            if (rows.length === 0) {
+                throw new Error("CSV file is empty or missing data rows.");
+            }
 
-            const headers = lines[0].split(',').map(h => h.trim());
+            // Get headers from the first row
+            const headers = Object.keys(rows[0]);
             
             // Create case-insensitive header map for efficient lookups
-            const headerMap = new Map(headers.map((h, i) => [h.toLowerCase(), i]));
+            const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
             
-            // Identify score column indices with case-insensitive matching
-            const componentIndices: Record<string, number> = {};
+            // Find student_id column (case-insensitive)
+            const studentIdCol = headerMap.get('student_id') || headerMap.get('studentid') || headerMap.get('student id');
+            
+            if (!studentIdCol) {
+                throw new Error("Missing 'student_id' column in CSV.");
+            }
+            
+            // Find remark/comment column (case-insensitive)
+            const commentCol = headerMap.get('remark') || 
+                              headerMap.get('comment') || 
+                              headerMap.get('remarks') || 
+                              headerMap.get('comments');
+            
+            // Identify which component columns exist in the CSV (case-insensitive matching)
+            const componentColumns = new Map<string, string>(); // componentName -> csvColumnName
             components.forEach(c => {
-                const idx = headerMap.get(c.name.toLowerCase());
-                if (idx !== undefined) componentIndices[c.name] = idx;
+                const matchingCol = headerMap.get(c.name.toLowerCase());
+                if (matchingCol) {
+                    componentColumns.set(c.name, matchingCol);
+                }
             });
             
-            const studentIdIndex = headerMap.get('student_id') ?? -1;
-            const commentIndex = headerMap.get('remark') ?? -1;
-
-            if (studentIdIndex === -1) throw new Error("Missing 'student_id' column in CSV.");
+            if (componentColumns.size === 0) {
+                throw new Error("No matching score component columns found in CSV. Make sure column names match component names.");
+            }
 
             let updatedCount = 0;
+            let skippedRows = 0;
 
-            // Helper to handle CSV line parsing
-            for (let i = 1; i < lines.length; i++) {
-                // Use a simple split that respects quotes if possible, or simple split fallback
-                // For robustness, regex match for CSV: values.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)
-                const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
-                
-                if (!values || values.length < headers.length) continue;
-
-                const studentIdStr = values[studentIdIndex]?.replace(/"/g, '').trim();
+            // Process each row
+            for (const row of rows) {
+                const studentIdStr = String(row[studentIdCol] || '').trim();
                 const studentId = Number(studentIdStr);
 
-                if (!studentId || !enrolledStudents.some(s => s.id === studentId)) continue;
+                if (!studentId || isNaN(studentId)) {
+                    skippedRows++;
+                    continue;
+                }
+                
+                if (!enrolledStudents.some(s => s.id === studentId)) {
+                    skippedRows++;
+                    continue;
+                }
 
                 const newScores = { ...localScores[studentId] };
                 
-                // Update scores
-                Object.entries(componentIndices).forEach(([compName, idx]) => {
-                    const valStr = values[idx]?.trim();
+                // Update scores for matched components only
+                componentColumns.forEach((csvCol, compName) => {
+                    const valStr = String(row[csvCol] || '').trim();
                     if (valStr !== '' && valStr !== undefined) {
                         const numVal = Number(valStr);
                         if (!isNaN(numVal)) {
@@ -335,17 +359,25 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
                 setLocalScores(prev => ({ ...prev, [studentId]: newScores }));
 
-                // Update comment
-                if (commentIndex !== -1) {
-                    const commentVal = values[commentIndex]?.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-                    if (commentVal !== undefined) {
-                         setLocalComments(prev => ({ ...prev, [studentId]: commentVal }));
+                // Update comment if column exists
+                if (commentCol) {
+                    const commentVal = String(row[commentCol] || '').trim();
+                    if (commentVal !== undefined && commentVal !== '') {
+                        setLocalComments(prev => ({ ...prev, [studentId]: commentVal }));
                     }
                 }
+                
                 updatedCount++;
             }
             
-            addToast(`Processed ${updatedCount} rows. Review and click 'Save Draft'.`, 'success');
+            const matchMessage = componentColumns.size < components.length 
+                ? ` (${componentColumns.size} of ${components.length} components matched)`
+                : '';
+            
+            addToast(
+                `Processed ${updatedCount} rows${matchMessage}. Review and click 'Save Draft'.`,
+                'success'
+            );
 
         } catch (error: any) {
             console.error(error);

@@ -5,6 +5,7 @@ import Spinner from './common/Spinner';
 import type { CreatedCredential } from '../types';
 import { exportToCsv } from '../utils/export';
 import { validateStudentData, csvRowToIndex, type ValidationError } from '../utils/validation';
+import { parseCsv } from '../utils/feesCsvUtils';
 
 interface DataUploaderProps {
   onBulkAddStudents: (students: any[]) => Promise<{ success: boolean; message: string; credentials?: CreatedCredential[] }>;
@@ -169,25 +170,13 @@ const DataUploader: React.FC<DataUploaderProps> = ({ onBulkAddStudents, addToast
 
         try {
             const text = await file.text();
-            const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) {
+            
+            // Parse CSV using the shared utility
+            const studentsData = parseCsv(text);
+            
+            if (studentsData.length === 0) {
                 throw new Error("CSV file must have a header row and at least one data row.");
             }
-            
-            const headers = lines[0].split(',').map(h => h.trim());
-            const studentsData = lines.slice(1).map(line => {
-                // Improved CSV splitting to handle quoted strings (e.g., "Doe, John")
-                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                return headers.reduce((obj, header, index) => {
-                    let value = values[index]?.trim() || '';
-                    // Remove surrounding quotes if present
-                    if (value.startsWith('"') && value.endsWith('"')) {
-                        value = value.slice(1, -1);
-                    }
-                    (obj as any)[header] = value;
-                    return obj;
-                }, {});
-            });
 
             // Validate the data before upload
             const validation = validateStudentData(studentsData);
