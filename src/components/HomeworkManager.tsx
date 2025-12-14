@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { Homework, AcademicTeachingAssignment, AcademicClass, UserProfile } from '../types';
+import type { Homework, AcademicTeachingAssignment, AcademicClass, UserProfile, HomeworkSubmission, Student } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
-import { PlusCircleIcon, TrashIcon, EditIcon, EyeIcon } from './common/icons';
+import { PlusCircleIcon, TrashIcon, EditIcon, EyeIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from './common/icons';
+import NotifyParentButton from './NotifyParentButton';
+import BulkNotifyButton from './BulkNotifyButton';
 
 interface HomeworkManagerProps {
     userProfile: UserProfile;
@@ -19,6 +21,9 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingHomework, setEditingHomework] = useState<Homework | null>(null);
+    const [expandedHomeworkId, setExpandedHomeworkId] = useState<number | null>(null);
+    const [submissions, setSubmissions] = useState<Record<number, (HomeworkSubmission & { student?: Student })[]>>({});
+    const [students, setStudents] = useState<Record<number, Student[]>>({});
     const [formData, setFormData] = useState<Partial<Homework>>({
         title: '',
         description: '',
@@ -51,10 +56,91 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
             if (error) throw error;
             setHomework(data || []);
+            
+            // Load submission counts for all homework in parallel
+            if (data && data.length > 0) {
+                await Promise.all(data.map(hw => loadSubmissionsForHomework(hw.id)));
+            }
         } catch (error) {
             console.error('Error loading homework:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadSubmissionsForHomework = async (homeworkId: number) => {
+        try {
+            const { data: submissionsData, error: submissionsError } = await supabase
+                .from('homework_submissions')
+                .select('*, student:students(*)')
+                .eq('homework_id', homeworkId);
+
+            if (submissionsError) throw submissionsError;
+            
+            setSubmissions(prev => ({
+                ...prev,
+                [homeworkId]: submissionsData || []
+            }));
+        } catch (error) {
+            console.error('Error loading submissions:', error);
+        }
+    };
+
+    const getEnrolledStudentIds = async (academicClassId: number): Promise<number[]> => {
+        const { data: classStudents, error } = await supabase
+            .from('academic_class_students')
+            .select('student_id')
+            .eq('academic_class_id', academicClassId);
+
+        if (error) throw error;
+        return classStudents?.map(cs => cs.student_id) || [];
+    };
+
+    const loadStudentsForClass = async (homeworkId: number, academicClassId: number) => {
+        try {
+            const studentIds = await getEnrolledStudentIds(academicClassId);
+            
+            if (studentIds.length > 0) {
+                const { data: studentsData, error: studentsDataError } = await supabase
+                    .from('students')
+                    .select('*')
+                    .in('id', studentIds)
+                    .order('name');
+
+                if (studentsDataError) throw studentsDataError;
+
+                setStudents(prev => ({
+                    ...prev,
+                    [homeworkId]: studentsData || []
+                }));
+            }
+        } catch (error) {
+            console.error('Error loading students:', error);
+        }
+    };
+
+    const createPendingSubmissions = async (homeworkId: number, academicClassId: number) => {
+        try {
+            const studentIds = await getEnrolledStudentIds(academicClassId);
+            
+            if (studentIds.length > 0) {
+                // Create pending submissions for all students
+                const pendingSubmissions = studentIds.map(studentId => ({
+                    homework_id: homeworkId,
+                    student_id: studentId,
+                    submission_status: 'pending' as const
+                }));
+
+                const { error: insertError } = await supabase
+                    .from('homework_submissions')
+                    .insert(pendingSubmissions);
+
+                if (insertError && insertError.code !== '23505') { // Ignore duplicate key errors
+                    throw insertError;
+                }
+            }
+        } catch (error) {
+            console.error('Error creating pending submissions:', error);
         }
     };
 
@@ -80,15 +166,22 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
                 if (error) throw error;
             } else {
                 // Create new
-                const { error } = await supabase
+                const { data: newHomework, error } = await supabase
                     .from('homework')
                     .insert({
                         ...formData,
                         school_id: userProfile.school_id,
                         created_by: userProfile.id
-                    });
+                    })
+                    .select()
+                    .single();
 
                 if (error) throw error;
+
+                // Auto-create pending submissions for all students in the class
+                if (newHomework && formData.academic_class_id) {
+                    await createPendingSubmissions(newHomework.id, formData.academic_class_id);
+                }
             }
 
             setShowForm(false);
@@ -127,6 +220,129 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
             console.error('Error deleting homework:', error);
             alert('Failed to delete homework');
         }
+    };
+
+    const toggleExpanded = async (hw: Homework) => {
+        if (expandedHomeworkId === hw.id) {
+            setExpandedHomeworkId(null);
+        } else {
+            setExpandedHomeworkId(hw.id);
+            // Load students and submissions if not already loaded
+            if (!students[hw.id]) {
+                await loadStudentsForClass(hw.id, hw.academic_class_id);
+            }
+            if (!submissions[hw.id]) {
+                await loadSubmissionsForHomework(hw.id);
+            }
+        }
+    };
+
+    const markSubmission = async (homeworkId: number, studentId: number, status: 'submitted' | 'late' | 'missing') => {
+        try {
+            const existing = submissions[homeworkId]?.find(s => s.student_id === studentId);
+
+            if (existing) {
+                const { error } = await supabase
+                    .from('homework_submissions')
+                    .update({
+                        submission_status: status,
+                        submitted_at: (status === 'submitted' || status === 'late') ? new Date().toISOString() : null
+                    })
+                    .eq('id', existing.id);
+
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('homework_submissions')
+                    .insert({
+                        homework_id: homeworkId,
+                        student_id: studentId,
+                        submission_status: status,
+                        submitted_at: (status === 'submitted' || status === 'late') ? new Date().toISOString() : null
+                    });
+
+                if (error) throw error;
+            }
+
+            await loadSubmissionsForHomework(homeworkId);
+        } catch (error) {
+            console.error('Error marking submission:', error);
+        }
+    };
+
+    const markAllAsSubmitted = async (homeworkId: number) => {
+        if (!confirm('Mark all students as submitted?')) return;
+
+        const classStudents = students[homeworkId] || [];
+        const submittedAt = new Date().toISOString();
+        
+        try {
+            // Update all submissions in parallel for better performance
+            await Promise.all(
+                classStudents.map(student => {
+                    const existing = submissions[homeworkId]?.find(s => s.student_id === student.id);
+                    
+                    if (existing) {
+                        return supabase
+                            .from('homework_submissions')
+                            .update({
+                                submission_status: 'submitted',
+                                submitted_at: submittedAt
+                            })
+                            .eq('id', existing.id);
+                    } else {
+                        return supabase
+                            .from('homework_submissions')
+                            .insert({
+                                homework_id: homeworkId,
+                                student_id: student.id,
+                                submission_status: 'submitted',
+                                submitted_at: submittedAt
+                            });
+                    }
+                })
+            );
+            
+            await loadSubmissionsForHomework(homeworkId);
+        } catch (error) {
+            console.error('Error marking all as submitted:', error);
+            alert('Failed to mark all submissions');
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'submitted':
+                return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+            case 'late':
+                return <ClockIcon className="h-5 w-5 text-yellow-500" />;
+            case 'missing':
+                return <XCircleIcon className="h-5 w-5 text-red-500" />;
+            default:
+                return <ClockIcon className="h-5 w-5 text-slate-400" />;
+        }
+    };
+
+    const getSubmissionForStudent = (homeworkId: number, studentId: number) => {
+        return submissions[homeworkId]?.find(s => s.student_id === studentId);
+    };
+
+    const getSubmissionStats = (homeworkId: number) => {
+        const hwSubmissions = submissions[homeworkId] || [];
+        return {
+            submitted: hwSubmissions.filter(s => s.submission_status === 'submitted').length,
+            late: hwSubmissions.filter(s => s.submission_status === 'late').length,
+            missing: hwSubmissions.filter(s => s.submission_status === 'missing').length,
+            pending: hwSubmissions.filter(s => s.submission_status === 'pending').length
+        };
+    };
+
+    const getMissingStudents = (homeworkId: number) => {
+        const classStudents = students[homeworkId] || [];
+        return classStudents.filter(student => {
+            const submission = getSubmissionForStudent(homeworkId, student.id);
+            return submission?.submission_status === 'missing' || !submission;
+        });
     };
 
     const inputClass = "w-full p-2 border rounded-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none";
@@ -280,44 +496,181 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
                         No homework assigned yet. Click "New Homework" to get started.
                     </div>
                 ) : (
-                    homework.map(hw => (
-                        <div
-                            key={hw.id}
-                            className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-slate-800 dark:text-white">
-                                        {hw.title}
-                                    </h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                        {hw.academic_class?.name} • Due: {new Date(hw.due_date).toLocaleDateString()}
-                                    </p>
-                                    {hw.description && (
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                                            {hw.description}
+                    homework.map(hw => {
+                        const stats = getSubmissionStats(hw.id);
+                        const isExpanded = expandedHomeworkId === hw.id;
+                        const classStudents = students[hw.id] || [];
+                        const missingStudents = getMissingStudents(hw.id);
+                        const teachingAssignment = teachingAssignments.find(ta => ta.id === hw.teaching_assignment_id);
+
+                        return (
+                            <div
+                                key={hw.id}
+                                className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-slate-800 dark:text-white">
+                                            {hw.title}
+                                        </h3>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                            {hw.academic_class?.name} • Due: {new Date(hw.due_date).toLocaleDateString()}
                                         </p>
-                                    )}
+                                        {hw.description && (
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                                                {hw.description}
+                                            </p>
+                                        )}
+                                        
+                                        {/* Summary Statistics */}
+                                        <div className="flex gap-4 text-xs mt-3">
+                                            <div className="flex items-center gap-1">
+                                                <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                                <span className="text-slate-700 dark:text-slate-200">
+                                                    Submitted: {stats.submitted}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <ClockIcon className="h-4 w-4 text-yellow-500" />
+                                                <span className="text-slate-700 dark:text-slate-200">
+                                                    Late: {stats.late}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <XCircleIcon className="h-4 w-4 text-red-500" />
+                                                <span className="text-slate-700 dark:text-slate-200">
+                                                    Missing: {stats.missing}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <ClockIcon className="h-4 w-4 text-slate-400" />
+                                                <span className="text-slate-700 dark:text-slate-200">
+                                                    Pending: {stats.pending}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => toggleExpanded(hw)}
+                                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                                            title="Track submissions"
+                                        >
+                                            <EyeIcon className={`h-5 w-5 ${isExpanded ? 'text-blue-600' : 'text-blue-500'}`} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(hw.id)}
+                                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                                            title="Delete"
+                                        >
+                                            <TrashIcon className="h-5 w-5 text-red-500" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => onNavigate('HOMEWORK_COMPLIANCE', { homeworkId: hw.id })}
-                                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
-                                        title="View submissions"
-                                    >
-                                        <EyeIcon className="h-5 w-5 text-blue-500" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(hw.id)}
-                                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
-                                        title="Delete"
-                                    >
-                                        <TrashIcon className="h-5 w-5 text-red-500" />
-                                    </button>
-                                </div>
+
+                                {/* Inline Compliance Grid */}
+                                {isExpanded && (
+                                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                        {/* Bulk Actions */}
+                                        <div className="flex gap-2 mb-4">
+                                            <button
+                                                onClick={() => markAllAsSubmitted(hw.id)}
+                                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg font-medium"
+                                            >
+                                                Mark All as Submitted
+                                            </button>
+                                            {missingStudents.length > 0 && (
+                                                <BulkNotifyButton
+                                                    students={missingStudents}
+                                                    templateName="homework_missing"
+                                                    notificationType="homework_missing"
+                                                    getVariables={(student) => ({
+                                                        subject: teachingAssignment?.subject_name || '',
+                                                        homework_title: hw.title,
+                                                        due_date: new Date(hw.due_date).toLocaleDateString()
+                                                    })}
+                                                    referenceId={hw.id}
+                                                    schoolId={userProfile.school_id}
+                                                    userId={userProfile.id}
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Student Rows */}
+                                        <div className="space-y-2">
+                                            {classStudents.length === 0 ? (
+                                                <div className="text-center py-4 text-slate-500 dark:text-slate-400 text-sm">
+                                                    No students enrolled in this class
+                                                </div>
+                                            ) : (
+                                                classStudents.map(student => {
+                                                    const submission = getSubmissionForStudent(hw.id, student.id);
+                                                    const status = submission?.submission_status || 'pending';
+
+                                                    return (
+                                                        <div
+                                                            key={student.id}
+                                                            className="bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    {getStatusIcon(status)}
+                                                                    <span className="font-medium text-slate-800 dark:text-white">
+                                                                        {student.name}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex gap-1">
+                                                                        <button
+                                                                            onClick={() => markSubmission(hw.id, student.id, 'submitted')}
+                                                                            className="px-2 py-1 text-xs rounded bg-green-500 hover:bg-green-600 text-white"
+                                                                        >
+                                                                            ✓ Submitted
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => markSubmission(hw.id, student.id, 'late')}
+                                                                            className="px-2 py-1 text-xs rounded bg-yellow-500 hover:bg-yellow-600 text-white"
+                                                                        >
+                                                                            ⏰ Late
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => markSubmission(hw.id, student.id, 'missing')}
+                                                                            className="px-2 py-1 text-xs rounded bg-red-500 hover:bg-red-600 text-white"
+                                                                        >
+                                                                            ✗ Missing
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {status === 'missing' && student.parent_phone_number_1 && (
+                                                                        <NotifyParentButton
+                                                                            studentId={student.id}
+                                                                            studentName={student.name}
+                                                                            parentPhone={student.parent_phone_number_1}
+                                                                            templateName="homework_missing"
+                                                                            notificationType="homework_missing"
+                                                                            variables={{
+                                                                                subject: teachingAssignment?.subject_name || '',
+                                                                                homework_title: hw.title,
+                                                                                due_date: new Date(hw.due_date).toLocaleDateString()
+                                                                            }}
+                                                                            referenceId={hw.id}
+                                                                            schoolId={userProfile.school_id}
+                                                                            userId={userProfile.id}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>
