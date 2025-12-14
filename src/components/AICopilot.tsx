@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OpenAI from 'openai';
 import { getAIClient, getCurrentModel } from '../services/aiClient';
-import type { UserProfile, Student, ReportRecord, Task, RoleDetails, Announcement, AssistantMessage, RoleTitle, BaseDataObject, LivingPolicySnippet, NavigationContext } from '../types';
+import type { UserProfile, Student, ReportRecord, Task, RoleDetails, Announcement, AssistantMessage, RoleTitle, BaseDataObject, LivingPolicySnippet, NavigationContext, ScoreEntry, AttendanceRecord, InventoryItem, LeaveRequest, TeacherCheckin, LessonPlan } from '../types';
 import { TaskPriority } from '../types';
 import { WandIcon, CloseIcon, PaperAirplaneIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -35,6 +35,12 @@ interface AICopilotProps {
   announcements: Announcement[];
   classes: BaseDataObject[];
   livingPolicy: LivingPolicySnippet[];
+  scoreEntries: ScoreEntry[];
+  attendanceRecords: AttendanceRecord[];
+  inventory: InventoryItem[];
+  leaveRequests: LeaveRequest[];
+  teacherCheckins: TeacherCheckin[];
+  lessonPlans: LessonPlan[];
   onAddTask: (taskData: any) => Promise<boolean>;
   onAddAnnouncement: (title: string, content: string) => Promise<void>;
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -231,6 +237,19 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
         if (!aiClient) throw new Error("AI Client not available");
         
         const livingPolicyContext = props.livingPolicy.map(p => `- ${p.content}`).join('\n');
+        
+        // Calculate summary statistics for context
+        const totalStudents = props.students.length;
+        const avgScore = props.scoreEntries.length > 0
+            ? (props.scoreEntries.reduce((sum, e) => sum + (e.score || 0), 0) / props.scoreEntries.length).toFixed(1)
+            : 'N/A';
+        const attendanceRate = props.attendanceRecords.length > 0
+            ? ((props.attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Remote').length / props.attendanceRecords.length) * 100).toFixed(0)
+            : 'N/A';
+        const lowStockCount = props.inventory.filter(i => i.quantity < (i.reorder_level || 10)).length;
+        const pendingLeaveCount = props.leaveRequests.filter(lr => lr.status === 'Pending').length;
+        const todayCheckins = props.teacherCheckins.filter(c => c.checkin_date === new Date().toISOString().split('T')[0]);
+        const overdueLessonPlans = props.lessonPlans.filter(lp => lp.submission_status === 'Missed' || lp.submission_status === 'Late').length;
 
         const systemInstruction = `
             ${PRINCIPAL_PERSONA_PROMPT}
@@ -243,7 +262,7 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
             - For reports, extract the student name and the report details.
             - For tasks, extract the title and description.
             
-            - Answer questions based on the context provided (recent reports, staff list, etc.) and the Living Policy knowledge base.
+            - Answer questions based on the context provided (recent reports, staff list, academic performance, attendance, inventory, etc.) and the Living Policy knowledge base.
             - If a user asks you to do something that matches an available tool, use the tool.
             - Keep your answers role-appropriate for the user you are talking to.
             - If you don't know the answer or it's not in your context, say so clearly. Do not invent information.
@@ -254,8 +273,17 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
             - Living Policy Knowledge Base:
             ${livingPolicyContext || 'No policy information available.'}
             
-            - Available staff: ${props.users.map(u => `${u.name} (${u.role})`).join(', ')}.
+            - Available staff: ${props.users.slice(0, 20).map(u => `${u.name} (${u.role})`).join(', ')}${props.users.length > 20 ? ` and ${props.users.length - 20} more` : ''}.
             - Recent reports summary: ${props.reports.slice(0, 3).map(r => r.analysis?.summary).filter(Boolean).join('; ')}.
+            
+            SCHOOL STATISTICS (for answering questions):
+            - Total Students: ${totalStudents}
+            - Average Academic Score: ${avgScore}
+            - Student Attendance Rate: ${attendanceRate}%
+            - Low Stock Items: ${lowStockCount}
+            - Pending Leave Requests: ${pendingLeaveCount}
+            - Staff Checked In Today: ${todayCheckins.length}
+            - Overdue Lesson Plans: ${overdueLessonPlans}
         `;
         
         const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
