@@ -360,6 +360,11 @@ export const SmsTemplatesTab: React.FC<{
     const [editContent, setEditContent] = useState('');
     const [saving, setSaving] = useState(false);
 
+    // Constants for SMS message length limits
+    const MAX_SMS_PAGES = 6;
+    const GSM7_CHAR_LIMIT = 160;
+    const UNICODE_CHAR_LIMIT = 70;
+
     const openEditModal = (template: SmsTemplate) => {
         setEditingTemplate(template);
         setEditContent(template.message_content);
@@ -388,12 +393,13 @@ export const SmsTemplatesTab: React.FC<{
 
     const getCharacterCount = () => {
         const hasUnicode = /[^\x00-\x7F]/.test(editContent);
-        const charLimit = hasUnicode ? 70 : 160;
+        const charLimit = hasUnicode ? UNICODE_CHAR_LIMIT : GSM7_CHAR_LIMIT;
         const pages = Math.ceil(editContent.length / charLimit);
         return { length: editContent.length, charLimit, pages };
     };
 
     const charCount = getCharacterCount();
+    const exceedsMaxPages = charCount.pages > MAX_SMS_PAGES;
 
     return (
         <div className="space-y-4">
@@ -492,14 +498,14 @@ export const SmsTemplatesTab: React.FC<{
                                 <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                                     <div
                                         className={`h-2 rounded-full ${
-                                            charCount.pages > 6 ? 'bg-red-500' : 'bg-blue-500'
+                                            exceedsMaxPages ? 'bg-red-500' : 'bg-blue-500'
                                         }`}
-                                        style={{ width: `${Math.min((charCount.length / (charCount.charLimit * 6)) * 100, 100)}%` }}
+                                        style={{ width: `${Math.min((charCount.length / (charCount.charLimit * MAX_SMS_PAGES)) * 100, 100)}%` }}
                                     />
                                 </div>
-                                {charCount.pages > 6 && (
+                                {exceedsMaxPages && (
                                     <p className="text-xs text-red-600 dark:text-red-400">
-                                        Warning: Message exceeds 6 SMS pages (maximum allowed)
+                                        Warning: Message exceeds {MAX_SMS_PAGES} SMS pages (maximum allowed)
                                     </p>
                                 )}
                             </div>
@@ -516,7 +522,7 @@ export const SmsTemplatesTab: React.FC<{
                                 </button>
                                 <button
                                     onClick={handleSaveTemplate}
-                                    disabled={saving || charCount.pages > 6}
+                                    disabled={saving || exceedsMaxPages}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
                                 >
                                     {saving ? <Spinner size="sm" /> : 'Save'}
