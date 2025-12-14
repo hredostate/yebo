@@ -1,6 +1,6 @@
-// @ts-ignore
+// @ts-ignore - Deno imports use URLs
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-// @ts-ignore
+// @ts-ignore - Deno imports use URLs
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 declare const Deno: any;
@@ -9,6 +9,9 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Kudi SMS success response code
+const KUDI_SUCCESS_CODE = '000';
 
 interface WhatsAppRequest {
   phone_number: string;
@@ -43,6 +46,30 @@ function formatPhoneNumber(phoneNumber: string): string {
  * Kudi SMS WhatsApp Send Function
  * 
  * Sends WhatsApp messages via Kudi SMS API and logs them to the database.
+ * 
+ * @param {Request} req - HTTP request with JSON body containing:
+ *   - phone_number: Recipient phone number (will be formatted to 234XXXXXXXXXX)
+ *   - template_code: WhatsApp template code from Kudi SMS dashboard
+ *   - parameters: Array of parameter values for the template
+ *   - school_id: School ID to fetch Kudi SMS settings
+ *   - button_parameters: (Optional) Button parameters for WhatsApp template
+ *   - header_parameters: (Optional) Header parameters for WhatsApp template
+ * 
+ * @returns {Response} JSON response with:
+ *   - success: Boolean indicating if message was sent successfully
+ *   - message: Status message
+ *   - balance: Current Kudi SMS balance (if available)
+ *   - cost: Cost of the message (if available)
+ *   - error: Error message (if failed)
+ * 
+ * @example
+ * POST /kudisms-whatsapp-send
+ * {
+ *   "phone_number": "08012345678",
+ *   "template_code": "student_report_ready",
+ *   "parameters": ["John Doe", "First Term", "JSS 1", "https://example.com/report"],
+ *   "school_id": 1
+ * }
  */
 serve(async (req) => {
   // Handle CORS preflight
@@ -116,8 +143,22 @@ serve(async (req) => {
     // Format phone number
     const formattedPhone = formatPhoneNumber(phone_number);
 
+    // Validate and sanitize parameters
+    if (!Array.isArray(parameters)) {
+      throw new Error('parameters must be an array');
+    }
+    
+    // Sanitize parameters to prevent injection
+    const sanitizedParameters = parameters.map(param => {
+      if (typeof param !== 'string') {
+        return String(param);
+      }
+      // Remove any potential injection characters
+      return param.replace(/[<>]/g, '');
+    });
+
     // Convert parameters array to comma-separated string
-    const parametersString = parameters.join(',');
+    const parametersString = sanitizedParameters.join(',');
 
     console.log('Sending WhatsApp via Kudi SMS:', { 
       sender: kudiSenderId, 
@@ -151,12 +192,22 @@ serve(async (req) => {
       body: whatsappParams.toString(),
     });
 
-    const kudiResult = await kudiResponse.json();
+    let kudiResult: any;
+    try {
+      kudiResult = await kudiResponse.json();
+    } catch (jsonError) {
+      console.error('Failed to parse Kudi SMS response as JSON:', jsonError);
+      // Try to get text response for debugging
+      const textResponse = await kudiResponse.text();
+      console.error('Kudi SMS raw response:', textResponse);
+      throw new Error(`Invalid JSON response from Kudi SMS API: ${textResponse.substring(0, 100)}`);
+    }
+    
     console.log('Kudi SMS WhatsApp response:', kudiResult);
 
-    // Parse response
+    // Parse response - check for success indicators
     const isSuccess = kudiResponse.ok && kudiResult && (
-      kudiResult.error_code === '000' || 
+      kudiResult.error_code === KUDI_SUCCESS_CODE || 
       kudiResult.status === 'success' ||
       kudiResult.status_msg?.toLowerCase().includes('success')
     );
