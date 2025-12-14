@@ -473,6 +473,20 @@ const App: React.FC = () => {
         return teacherCheckins.find(c => c.teacher_id === userProfile.id && c.checkin_date === today);
     }, [userProfile, teacherCheckins]);
 
+    // Extract attendance records from class groups for AI Copilot (limit to recent records)
+    const allAttendanceRecords = useMemo(() => {
+        const records: AttendanceRecord[] = [];
+        classGroups.forEach(group => {
+            group.members?.forEach(member => {
+                if (member.records) {
+                    // Only include the last 30 records per member to avoid memory issues
+                    records.push(...member.records.slice(-30));
+                }
+            });
+        });
+        return records;
+    }, [classGroups]);
+
     const updateState = <T extends {id: number | string}>(setter: React.Dispatch<React.SetStateAction<T[]>>, item: T) => setter(prev => prev.map(i => i.id === item.id ? item : i));
     const addItem = <T extends {}>(setter: React.Dispatch<React.SetStateAction<T[]>>, item: T) => setter(prev => [item, ...prev]);
     const deleteItem = <T extends {id: number | string}>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: number | string) => setter(prev => prev.filter(i => i.id !== id));
@@ -6320,20 +6334,6 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     if (!userProfile) {
         return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /><p className="ml-2">Loading profile...</p></div>;
     }
-    
-    // Extract attendance records from class groups for AI Copilot (limit to recent records)
-    const allAttendanceRecords = useMemo(() => {
-        const records: AttendanceRecord[] = [];
-        classGroups.forEach(group => {
-            group.members?.forEach(member => {
-                if (member.records) {
-                    // Only include the last 30 records per member to avoid memory issues
-                    records.push(...member.records.slice(-30));
-                }
-            });
-        });
-        return records;
-    }, [classGroups]);
     
     if (userType === 'student') {
         // Student specific layout
