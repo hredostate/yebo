@@ -4232,7 +4232,12 @@ const App: React.FC = () => {
             
             // Filter out scores for students that no longer exist
             const validScores = scores.filter(score => {
-                if (score.student_id && !validStudentIds.has(score.student_id)) {
+                // student_id is required - skip if missing
+                if (score.student_id == null) {
+                    console.warn('Skipping score with missing student_id');
+                    return false;
+                }
+                if (!validStudentIds.has(score.student_id)) {
                     console.warn(`Skipping score for non-existent student ID: ${score.student_id}`);
                     return false;
                 }

@@ -21,15 +21,15 @@ END $$;
 
 -- Delete orphaned student_subject_enrollments
 DELETE FROM student_subject_enrollments
-WHERE student_id NOT IN (SELECT id FROM students);
+WHERE NOT EXISTS (SELECT 1 FROM students WHERE students.id = student_subject_enrollments.student_id);
 
 -- Delete orphaned academic_class_students
 DELETE FROM academic_class_students
-WHERE student_id NOT IN (SELECT id FROM students);
+WHERE NOT EXISTS (SELECT 1 FROM students WHERE students.id = academic_class_students.student_id);
 
 -- Delete orphaned score_entries
 DELETE FROM score_entries
-WHERE student_id NOT IN (SELECT id FROM students);
+WHERE NOT EXISTS (SELECT 1 FROM students WHERE students.id = score_entries.student_id);
 
 -- Add a database trigger to prevent future orphaned records
 -- This is a safety net in case ON DELETE CASCADE fails
@@ -48,6 +48,20 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS check_student_exists_on_enrollment ON student_subject_enrollments;
 CREATE TRIGGER check_student_exists_on_enrollment
     BEFORE INSERT OR UPDATE ON student_subject_enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_orphaned_student_records();
+
+-- Apply trigger to academic_class_students
+DROP TRIGGER IF EXISTS check_student_exists_on_class_enrollment ON academic_class_students;
+CREATE TRIGGER check_student_exists_on_class_enrollment
+    BEFORE INSERT OR UPDATE ON academic_class_students
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_orphaned_student_records();
+
+-- Apply trigger to score_entries
+DROP TRIGGER IF EXISTS check_student_exists_on_score_entry ON score_entries;
+CREATE TRIGGER check_student_exists_on_score_entry
+    BEFORE INSERT OR UPDATE ON score_entries
     FOR EACH ROW
     EXECUTE FUNCTION prevent_orphaned_student_records();
 
