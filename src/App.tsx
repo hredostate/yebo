@@ -6332,7 +6332,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     }
     
     if (!userProfile) {
-        return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /><p className="ml-2">Loading profile...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><Spinner size="lg" text="Loading profile..." /></div>;
     }
     
     if (userType === 'student') {
