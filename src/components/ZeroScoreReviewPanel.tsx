@@ -36,8 +36,8 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                 .from('zero_score_entries')
                 .select(`
                     *,
-                    students(name),
-                    academic_classes(name),
+                    student:students(name),
+                    academic_class:academic_classes(name),
                     teacher:user_profiles!teacher_user_id(name)
                 `)
                 .eq('term_id', termId)
@@ -205,8 +205,8 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const uniqueClasses = useMemo(() => {
         const classMap = new Map();
         zeroScores.forEach(z => {
-            if (z.academic_classes && !classMap.has(z.academic_class_id)) {
-                classMap.set(z.academic_class_id, z.academic_classes.name);
+            if (z.academic_class?.name && !classMap.has(z.academic_class_id)) {
+                classMap.set(z.academic_class_id, z.academic_class.name);
             }
         });
         return Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
@@ -453,13 +453,13 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                                             {new Date(entry.entry_date).toLocaleDateString()}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
-                                            {entry.students?.name || 'Unknown'}
+                                            {entry.student?.name || 'Unknown'}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
                                             {entry.subject_name}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
-                                            {entry.academic_classes?.name || 'N/A'}
+                                            {entry.academic_class?.name || 'N/A'}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-900 dark:text-white font-semibold">
                                             {entry.total_score}
@@ -497,7 +497,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                                                         onClick={() => setShowConfirmModal({
                                                             type: 'unenroll',
                                                             entryId: entry.id,
-                                                            studentName: entry.students?.name || 'Unknown',
+                                                            studentName: entry.student?.name || 'Unknown',
                                                             subject: entry.subject_name
                                                         })}
                                                         disabled={processingIds.has(entry.id)}
@@ -510,7 +510,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                                                         onClick={() => setShowConfirmModal({
                                                             type: 'delete',
                                                             entryId: entry.id,
-                                                            studentName: entry.students?.name || 'Unknown',
+                                                            studentName: entry.student?.name || 'Unknown',
                                                             subject: entry.subject_name
                                                         })}
                                                         disabled={processingIds.has(entry.id)}
