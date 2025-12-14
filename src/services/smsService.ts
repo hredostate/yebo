@@ -361,24 +361,64 @@ export async function getSmsTemplates(schoolId: number): Promise<SmsTemplate[]> 
 export async function initializeDefaultTemplates(schoolId: number): Promise<void> {
     const defaultTemplates = [
         {
+            template_name: 'fee_reminder',
+            message_content: 'Dear Parent,\n\n{{student_name}} has an outstanding fee of ₦{{amount}} due on {{due_date}} for {{term}}.\n\nPlease make payment to avoid late fees.\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'amount', 'due_date', 'term']
+        },
+        {
+            template_name: 'payment_receipt',
+            message_content: 'Dear Parent,\n\nPayment received for {{student_name}}.\n\nAmount: ₦{{amount}}\nReference: {{reference}}\nDate: {{date}}\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'amount', 'reference', 'date']
+        },
+        {
+            template_name: 'attendance_present',
+            message_content: 'Dear Parent,\n\n{{student_name}} has arrived at school.\n\nDate: {{date}}\nTime: {{time}}\nClass: {{class_name}}\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'date', 'time', 'class_name']
+        },
+        {
+            template_name: 'absentee_alert',
+            message_content: 'Dear Parent,\n\n{{student_name}} is marked absent from {{class_name}} on {{date}}.\n\nPlease contact the school if this is an error.\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'date', 'class_name']
+        },
+        {
+            template_name: 'late_arrival',
+            message_content: 'Dear Parent,\n\n{{student_name}} arrived late to {{class_name}} on {{date}} at {{time}}.\n\nPlease ensure punctuality.\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'date', 'time', 'class_name']
+        },
+        {
+            template_name: 'report_card_ready',
+            message_content: 'Dear Parent,\n\n{{student_name}}\'s report card for {{term}} is now available for {{class_name}}.\n\nDownload: {{download_link}}\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'term', 'class_name', 'download_link']
+        },
+        {
+            template_name: 'exam_schedule',
+            message_content: 'Dear Parent,\n\n{{student_name}} has an upcoming exam.\n\nSubject: {{subject}}\nDate: {{exam_date}}\nTime: {{time}}\n\nPlease ensure your child is prepared.\n\nThank you.\n\n- UPSS',
+            variables: ['student_name', 'subject', 'exam_date', 'time']
+        },
+        {
+            template_name: 'event_announcement',
+            message_content: 'Dear Parent,\n\nSchool Event: {{event_name}}\n\nDate: {{event_date}}\n\n{{message}}\n\nThank you.\n\n- UPSS',
+            variables: ['event_name', 'event_date', 'message']
+        },
+        {
+            template_name: 'emergency_alert',
+            message_content: 'Dear Parent,\n\nURGENT NOTICE:\n\n{{message}}\n\nDate: {{date}}\nTime: {{time}}\n\nThank you.\n\n- UPSS',
+            variables: ['message', 'date', 'time']
+        },
+        {
             template_name: 'homework_reminder',
-            message_content: 'Dear Parent,\n\nThis is a reminder that {{student_name}} has homework due on {{due_date}} for {{subject}}.\n\nHomework: {{homework_title}}\n\nPlease ensure it is submitted on time.\n\nThank you.',
+            message_content: 'Dear Parent,\n\n{{student_name}} has homework due on {{due_date}} for {{subject}}.\n\nHomework: {{homework_title}}\n\nPlease ensure it is submitted on time.\n\nThank you.\n\n- UPSS',
             variables: ['student_name', 'due_date', 'subject', 'homework_title']
         },
         {
             template_name: 'homework_missing',
-            message_content: 'Dear Parent,\n\n{{student_name}} has not submitted homework for {{subject}}. The homework "{{homework_title}}" was due on {{due_date}}.\n\nPlease follow up with your child.\n\nThank you.',
+            message_content: 'Dear Parent,\n\n{{student_name}} has not submitted homework for {{subject}}.\n\nHomework: {{homework_title}}\nDue Date: {{due_date}}\n\nPlease follow up with your child.\n\nThank you.\n\n- UPSS',
             variables: ['student_name', 'subject', 'homework_title', 'due_date']
         },
         {
-            template_name: 'notes_incomplete',
-            message_content: 'Dear Parent,\n\nDuring today\'s notes check for {{subject}}, {{student_name}}\'s notes were found to be {{status}}.\n\nTopic: {{topic}}\n\nPlease ensure your child keeps up with class notes.\n\nThank you.',
-            variables: ['student_name', 'subject', 'status', 'topic']
-        },
-        {
-            template_name: 'lesson_published',
-            message_content: 'Dear Parent,\n\nA new lesson plan has been published for {{student_name}}\'s {{subject}} class.\n\nWeek: {{week_date}}\nTopic: {{lesson_title}}\n\nLearning materials are now available in the student portal.\n\nThank you.',
-            variables: ['student_name', 'subject', 'week_date', 'lesson_title']
+            template_name: 'general_announcement',
+            message_content: 'Dear Parent,\n\n{{message}}\n\nThank you.\n\n- UPSS',
+            variables: ['message']
         }
     ];
 
