@@ -192,6 +192,38 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
     setCurrentPage(1);
   }, [searchTerm, enrollmentFilter, selectedAcademicClassId, selectedTermId]);
 
+  // Helper function to generate enrollment lookup key
+  const getEnrollmentKey = (studentId: number, subjectId: number) => 
+    `${studentId}:${subjectId}`;
+
+  // Create a lookup map for O(1) enrollment checks
+  const enrollmentMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (!selectedAcademicClassId || !selectedTermId) return map;
+    
+    // Pre-filter enrollments for the selected class and term
+    const relevantEnrollments = studentSubjectEnrollments.filter(sse =>
+      sse.academic_class_id === selectedAcademicClassId &&
+      sse.term_id === selectedTermId
+    );
+    
+    // Build lookup map with composite key
+    for (const sse of relevantEnrollments) {
+      const key = getEnrollmentKey(sse.student_id, sse.subject_id);
+      map.set(key, sse.is_enrolled);
+    }
+    
+    return map;
+  }, [studentSubjectEnrollments, selectedAcademicClassId, selectedTermId]);
+
+  // Check if a student is enrolled in a subject - O(1) lookup
+  const isEnrolled = useCallback((studentId: number, subjectId: number) => {
+    if (!selectedAcademicClassId || !selectedTermId) return false;
+    
+    const key = getEnrollmentKey(studentId, subjectId);
+    return enrollmentMap.get(key) ?? false;
+  }, [enrollmentMap, selectedAcademicClassId, selectedTermId]);
+
   // Filter students based on search
   const filteredStudents = useMemo(() => {
     let filtered = enrolledStudents;
@@ -246,38 +278,6 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   }, [filteredStudents, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredStudents.length / pageSize);
-
-  // Helper function to generate enrollment lookup key
-  const getEnrollmentKey = (studentId: number, subjectId: number) => 
-    `${studentId}:${subjectId}`;
-
-  // Create a lookup map for O(1) enrollment checks
-  const enrollmentMap = useMemo(() => {
-    const map = new Map<string, boolean>();
-    if (!selectedAcademicClassId || !selectedTermId) return map;
-    
-    // Pre-filter enrollments for the selected class and term
-    const relevantEnrollments = studentSubjectEnrollments.filter(sse =>
-      sse.academic_class_id === selectedAcademicClassId &&
-      sse.term_id === selectedTermId
-    );
-    
-    // Build lookup map with composite key
-    for (const sse of relevantEnrollments) {
-      const key = getEnrollmentKey(sse.student_id, sse.subject_id);
-      map.set(key, sse.is_enrolled);
-    }
-    
-    return map;
-  }, [studentSubjectEnrollments, selectedAcademicClassId, selectedTermId]);
-
-  // Check if a student is enrolled in a subject - O(1) lookup
-  const isEnrolled = useCallback((studentId: number, subjectId: number) => {
-    if (!selectedAcademicClassId || !selectedTermId) return false;
-    
-    const key = getEnrollmentKey(studentId, subjectId);
-    return enrollmentMap.get(key) ?? false;
-  }, [enrollmentMap, selectedAcademicClassId, selectedTermId]);
 
   // Toggle enrollment for a student-subject combination
   const toggleEnrollment = async (studentId: number, subjectId: number) => {
