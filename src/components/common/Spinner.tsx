@@ -15,9 +15,6 @@ const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '', text }) 
     lg: 'h-20 w-20',
   };
 
-  // Only show text for large spinners (e.g. page loads)
-  const showText = size === 'lg';
-
   // For large spinners, show professional loading animation
   if (size === 'lg') {
     return (
@@ -32,6 +29,7 @@ const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '', text }) 
             className="absolute inset-[-8px] rounded-full animate-spin"
             style={{
               background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)',
+              // WebkitMaskComposite uses 'xor' for Safari compatibility, while standard maskComposite uses 'exclude'
               WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
               WebkitMaskComposite: 'xor',
               mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
