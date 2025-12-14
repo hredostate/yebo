@@ -286,15 +286,15 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
             const headers = lines[0].split(',').map(h => h.trim());
             
-            // Identify score column indices
+            // Identify score column indices with case-insensitive matching
             const componentIndices: Record<string, number> = {};
             components.forEach(c => {
-                const idx = headers.indexOf(c.name);
+                const idx = headers.findIndex(h => h.toLowerCase() === c.name.toLowerCase());
                 if (idx !== -1) componentIndices[c.name] = idx;
             });
             
-            const studentIdIndex = headers.indexOf('student_id');
-            const commentIndex = headers.indexOf('remark'); // Changed from 'teacher_comment' to 'remark'
+            const studentIdIndex = headers.findIndex(h => h.toLowerCase() === 'student_id');
+            const commentIndex = headers.findIndex(h => h.toLowerCase() === 'remark');
 
             if (studentIdIndex === -1) throw new Error("Missing 'student_id' column in CSV.");
 
