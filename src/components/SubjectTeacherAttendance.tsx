@@ -2,9 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import type { AttendanceRecord, ClassGroupMember } from '../types';
 import { AttendanceStatus } from '../types';
-import { ClockIcon, DownloadIcon } from './common/icons';
+import { ClockIcon, DownloadIcon, BellIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { exportToCsv } from '../utils/export';
+import { bulkSendSmsNotifications } from '../services/smsService';
+import { supabase } from '../services/supabaseClient';
 
 interface Props {
     members: ClassGroupMember[];
@@ -15,6 +17,7 @@ const SubjectTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) =>
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [isBulkSaving, setIsBulkSaving] = useState(false);
+    const [isNotifying, setIsNotifying] = useState(false);
 
     const dayOfWeekForAttendance = new Date(attendanceDate + 'T12:00:00').getDay();
     
@@ -153,6 +156,101 @@ const SubjectTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) =>
         setSelectedMemberIds(new Set());
     };
 
+    const handleBulkNotify = async (statuses: AttendanceStatus[]) => {
+        setIsNotifying(true);
+        try {
+            // Get current user for sent_by
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert('Not authenticated');
+                return;
+            }
+
+            // Get user profile for school_id
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('school_id')
+                .eq('id', user.id)
+                .single();
+
+            if (!profile) {
+                alert('User profile not found');
+                return;
+            }
+
+            // Collect students with selected statuses from today's schedule
+            const studentsToNotify = scheduledToday
+                .map(({ member, schedule }) => {
+                    const record = (member.records || []).find(r => r.session_date === attendanceDate && r.schedule_id === schedule!.id);
+                    return { member, record, schedule };
+                })
+                .filter(({ record }) => record && statuses.includes(record.status));
+
+            if (studentsToNotify.length === 0) {
+                alert(`No students with status: ${statuses.join(' or ')}`);
+                return;
+            }
+
+            // Get student details including phone numbers
+            const studentIds = studentsToNotify.map(({ member }) => member.student_id);
+            const { data: students } = await supabase
+                .from('students')
+                .select('id, name, parent_phone_number_1, parent_phone_number_2')
+                .in('id', studentIds);
+
+            if (!students || students.length === 0) {
+                alert('No student details found');
+                return;
+            }
+
+            // Prepare notifications
+            const notifications = students
+                .filter(s => s.parent_phone_number_1 || s.parent_phone_number_2)
+                .flatMap(student => {
+                    const item = studentsToNotify.find(({ member }) => member.student_id === student.id);
+                    
+                    if (!item || !item.record) return [];
+
+                    const templateName = 
+                        item.record.status === AttendanceStatus.Absent ? 'subject_absentee' :
+                        'subject_late';
+
+                    const notificationType =
+                        item.record.status === AttendanceStatus.Absent ? 'subject_absentee' :
+                        'subject_late';
+
+                    const variables = {
+                        student_name: student.name,
+                        date: new Date(attendanceDate).toLocaleDateString(),
+                        subject: '',  // Would need to get this from context
+                        class_name: ''  // Would need to get this from context
+                    };
+
+                    const phones = [student.parent_phone_number_1, student.parent_phone_number_2].filter(Boolean);
+
+                    return phones.map(phone => ({
+                        schoolId: profile.school_id,
+                        studentId: student.id,
+                        recipientPhone: phone!,
+                        templateName,
+                        variables,
+                        notificationType: notificationType as any,
+                        sentBy: user.id
+                    }));
+                });
+
+            // Send notifications
+            const result = await bulkSendSmsNotifications(notifications);
+            
+            alert(`Notifications sent: ${result.sent} successful, ${result.failed} failed`);
+        } catch (error: any) {
+            console.error('Error sending notifications:', error);
+            alert('Failed to send notifications: ' + error.message);
+        } finally {
+            setIsNotifying(false);
+        }
+    };
+
     const isAllSelected = scheduledToday.length > 0 && selectedMemberIds.size === scheduledToday.length;
 
     return (
@@ -166,12 +264,22 @@ const SubjectTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) =>
                         className="p-2 border rounded-md bg-transparent"
                     />
                 </div>
-                 <button 
-                    onClick={handleExportReport}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                    <DownloadIcon className="w-4 h-4" /> Export History
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleExportReport}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <DownloadIcon className="w-4 h-4" /> Export History
+                    </button>
+                    <button 
+                        onClick={() => handleBulkNotify([AttendanceStatus.Absent, AttendanceStatus.Late])}
+                        disabled={isNotifying}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                        title="Notify all parents of absent and late students for this class"
+                    >
+                        {isNotifying ? <Spinner size="sm" /> : <><BellIcon className="w-4 h-4" /> Notify Absent/Late</>}
+                    </button>
+                </div>
             </div>
             
              {scheduledToday.length > 0 ? (

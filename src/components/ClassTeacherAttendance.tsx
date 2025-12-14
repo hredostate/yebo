@@ -3,11 +3,13 @@ import React, { useState, useMemo } from 'react';
 import type { AttendanceRecord, ClassGroupMember } from '../types';
 import { AttendanceStatus } from '../types';
 import Spinner from './common/Spinner';
-import { MicIcon, DownloadIcon } from './common/icons';
+import { MicIcon, DownloadIcon, BellIcon } from './common/icons';
 import { getAIClient } from '../services/aiClient';
 import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import { exportToCsv } from '../utils/export';
+import { bulkSendSmsNotifications } from '../services/smsService';
+import { supabase } from '../services/supabaseClient';
 
 interface Props {
     members: ClassGroupMember[];
@@ -22,6 +24,7 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) => {
     const [isProcessingVoice, setIsProcessingVoice] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [voiceConfirmation, setVoiceConfirmation] = useState<{ studentId: number, status: AttendanceStatus, studentName: string }[] | null>(null);
+    const [isNotifying, setIsNotifying] = useState(false);
 
     const isPastDeadline = () => {
         const now = new Date();
@@ -265,6 +268,102 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) => {
         setSelectedMemberIds(new Set()); // Clear selection after action
     };
 
+    const handleBulkNotify = async (statuses: AttendanceStatus[]) => {
+        setIsNotifying(true);
+        try {
+            // Get current user for sent_by
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert('Not authenticated');
+                return;
+            }
+
+            // Get user profile for school_id
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('school_id')
+                .eq('id', user.id)
+                .single();
+
+            if (!profile) {
+                alert('User profile not found');
+                return;
+            }
+
+            // Collect students with selected statuses
+            const studentsToNotify = members.filter(member => {
+                const record = (member.records || []).find(r => r.session_date === attendanceDate && r.schedule_id === null);
+                return record && statuses.includes(record.status);
+            });
+
+            if (studentsToNotify.length === 0) {
+                alert(`No students with status: ${statuses.join(' or ')}`);
+                return;
+            }
+
+            // Get student details including phone numbers
+            const studentIds = studentsToNotify.map(m => m.student_id);
+            const { data: students } = await supabase
+                .from('students')
+                .select('id, name, parent_phone_number_1, parent_phone_number_2')
+                .in('id', studentIds);
+
+            if (!students || students.length === 0) {
+                alert('No student details found');
+                return;
+            }
+
+            // Prepare notifications
+            const notifications = students
+                .filter(s => s.parent_phone_number_1 || s.parent_phone_number_2)
+                .flatMap(student => {
+                    const member = studentsToNotify.find(m => m.student_id === student.id);
+                    const record = (member?.records || []).find(r => r.session_date === attendanceDate && r.schedule_id === null);
+                    
+                    if (!record) return [];
+
+                    const templateName = 
+                        record.status === AttendanceStatus.Present ? 'attendance_present' :
+                        record.status === AttendanceStatus.Absent ? 'absentee_alert' :
+                        'late_arrival';
+
+                    const notificationType =
+                        record.status === AttendanceStatus.Present ? 'attendance_present' :
+                        record.status === AttendanceStatus.Absent ? 'absentee_alert' :
+                        'late_arrival';
+
+                    const variables = {
+                        student_name: student.name,
+                        date: new Date(attendanceDate).toLocaleDateString(),
+                        time: new Date().toLocaleTimeString(),
+                        class_name: ''  // Would need to get this from context
+                    };
+
+                    const phones = [student.parent_phone_number_1, student.parent_phone_number_2].filter(Boolean);
+
+                    return phones.map(phone => ({
+                        schoolId: profile.school_id,
+                        studentId: student.id,
+                        recipientPhone: phone!,
+                        templateName,
+                        variables,
+                        notificationType: notificationType as any,
+                        sentBy: user.id
+                    }));
+                });
+
+            // Send notifications
+            const result = await bulkSendSmsNotifications(notifications);
+            
+            alert(`Notifications sent: ${result.sent} successful, ${result.failed} failed`);
+        } catch (error: any) {
+            console.error('Error sending notifications:', error);
+            alert('Failed to send notifications: ' + error.message);
+        } finally {
+            setIsNotifying(false);
+        }
+    };
+
     const isAllSelected = members.length > 0 && selectedMemberIds.size === members.length;
     
     return (
@@ -283,12 +382,22 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord }) => {
                         </div>
                     )}
                 </div>
-                <button 
-                    onClick={handleExportReport}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                    <DownloadIcon className="w-4 h-4" /> Export Report
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleExportReport}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <DownloadIcon className="w-4 h-4" /> Export Report
+                    </button>
+                    <button 
+                        onClick={() => handleBulkNotify([AttendanceStatus.Absent, AttendanceStatus.Late])}
+                        disabled={isNotifying}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                        title="Notify all parents of absent and late students"
+                    >
+                        {isNotifying ? <Spinner size="sm" /> : <><BellIcon className="w-4 h-4" /> Notify Absent/Late</>}
+                    </button>
+                </div>
             </div>
 
             {isWeekend ? (
