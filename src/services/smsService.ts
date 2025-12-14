@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabaseClient';
-import type { SmsTemplate, SmsNotification } from '../types';
+import type { SmsTemplate, SmsNotification, NotificationType } from '../types';
 
 interface SendSmsParams {
     schoolId: number;
@@ -13,7 +13,7 @@ interface SendSmsParams {
     templateName: string;
     variables?: Record<string, string>;
     referenceId?: number;
-    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published' | 'payment_receipt' | 'general';
+    notificationType: NotificationType;
     sentBy: string;
 }
 

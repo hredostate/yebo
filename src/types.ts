@@ -892,6 +892,8 @@ export interface StudentTermReport {
     is_published: boolean;
     created_at: string;
     term?: Term;
+    public_token?: string;
+    token_expires_at?: string;
 }
 
 export interface StudentTermReportSubject {
@@ -1527,6 +1529,9 @@ export interface KudiSmsSettings {
     created_at: string;
     updated_at: string;
     campus?: { name: string };
+    enable_fallback?: boolean;
+    notification_channels?: Record<string, 'sms' | 'whatsapp' | 'both'>;
+    whatsapp_template_codes?: Record<string, string>;
 }
 
 export interface KudiSmsResponse {
@@ -1738,7 +1743,7 @@ export interface SmsNotification {
     recipient_phone: string;
     template_name?: string;
     message_content?: string;
-    notification_type: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published' | 'payment_receipt' | 'general';
+    notification_type: string;
     reference_id?: number;
     status: 'pending' | 'sent' | 'failed';
     error_message?: string;
@@ -1747,6 +1752,23 @@ export interface SmsNotification {
     created_at: string;
     student?: Student;
 }
+
+// Notification Types for Messaging System
+export type NotificationType = 
+    | 'payment_receipt' 
+    | 'homework_missing' 
+    | 'homework_reminder' 
+    | 'notes_incomplete' 
+    | 'lesson_published' 
+    | 'attendance_present' 
+    | 'absentee_alert' 
+    | 'late_arrival' 
+    | 'subject_absentee' 
+    | 'subject_late' 
+    | 'report_card_ready' 
+    | 'emergency_broadcast'
+    | 'general';
+
 
 // Statistics Dashboard Types
 export interface StudentRanking {

@@ -8,7 +8,19 @@ interface NotifyParentButtonProps {
     studentName: string;
     parentPhone: string;
     templateName: string;
-    notificationType: 'homework_reminder' | 'homework_missing' | 'notes_incomplete' | 'lesson_published';
+    notificationType: 
+        | 'homework_reminder' 
+        | 'homework_missing' 
+        | 'notes_incomplete' 
+        | 'lesson_published'
+        | 'attendance_present'
+        | 'absentee_alert'
+        | 'late_arrival'
+        | 'subject_absentee'
+        | 'subject_late'
+        | 'report_card_ready'
+        | 'payment_receipt'
+        | 'emergency_broadcast';
     variables: Record<string, string>;
     referenceId?: number;
     schoolId: number;

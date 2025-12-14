@@ -1,11 +1,15 @@
 /**
  * Kudi SMS Integration Service
  * Handles all interactions with the Kudi SMS API for messaging
+ * Supports both SMS and WhatsApp with per-notification channel preferences
  */
 
+import { supabase } from './supabaseClient';
 import type {
     KudiSmsResponse,
-    KudiSmsRecipient
+    KudiSmsRecipient,
+    KudiSmsSettings,
+    NotificationType
 } from '../types';
 
 const KUDI_SMS_BASE_URL = 'https://my.kudisms.net/api';
@@ -221,3 +225,295 @@ export function validateMessageLength(message: string): {
         pages
     };
 }
+
+// ============================================
+// Multi-Channel Messaging Functions
+// ============================================
+
+interface SendNotificationParams {
+    schoolId: number;
+    recipientPhone: string;
+    templateName: string;
+    variables: Record<string, string>;
+    studentId?: number;
+    campusId?: number;
+}
+
+interface SendResult {
+    success: boolean;
+    channel: 'sms' | 'whatsapp';
+    fallback?: boolean;
+    message?: string;
+    error?: string;
+}
+
+/**
+ * Get Kudi SMS settings for a school/campus
+ */
+export async function getKudiSmsSettings(
+    schoolId: number,
+    campusId?: number
+): Promise<KudiSmsSettings | null> {
+    let query = supabase
+        .from('kudisms_settings')
+        .select('*')
+        .eq('school_id', schoolId)
+        .eq('is_active', true);
+
+    if (campusId) {
+        query = query.eq('campus_id', campusId);
+    } else {
+        query = query.is('campus_id', null);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error || !data) {
+        console.error('Error fetching Kudi SMS settings:', error);
+        return null;
+    }
+
+    return data;
+}
+
+/**
+ * Send SMS message via Kudi SMS
+ */
+export async function sendSms(params: SendNotificationParams): Promise<SendResult> {
+    const { schoolId, recipientPhone, templateName, variables } = params;
+
+    try {
+        // Get template
+        const { data: template, error: templateError } = await supabase
+            .from('sms_templates')
+            .select('*')
+            .eq('school_id', schoolId)
+            .eq('template_name', templateName)
+            .eq('is_active', true)
+            .single();
+
+        if (templateError || !template) {
+            return {
+                success: false,
+                channel: 'sms',
+                error: 'Template not found'
+            };
+        }
+
+        // Replace variables in message
+        let message = template.message_content;
+        Object.entries(variables).forEach(([key, value]) => {
+            message = message.replace(new RegExp(`{{${key}}}`, 'g'), value);
+        });
+
+        // Send via Kudi SMS edge function
+        const { data: result, error: sendError } = await supabase.functions.invoke(
+            'kudisms-send',
+            {
+                body: {
+                    phone_number: recipientPhone,
+                    message: message,
+                    school_id: schoolId
+                }
+            }
+        );
+
+        if (sendError || !result?.success) {
+            return {
+                success: false,
+                channel: 'sms',
+                error: sendError?.message || result?.error || 'Failed to send SMS'
+            };
+        }
+
+        return {
+            success: true,
+            channel: 'sms',
+            message: 'SMS sent successfully'
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            channel: 'sms',
+            error: error.message || 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Send WhatsApp message via Kudi SMS
+ */
+export async function sendWhatsAppMessage(
+    params: SendNotificationParams & { templateCode?: string }
+): Promise<SendResult> {
+    const { schoolId, recipientPhone, templateCode, variables, campusId } = params;
+
+    try {
+        // Get settings to find WhatsApp template code
+        const settings = await getKudiSmsSettings(schoolId, campusId);
+        
+        if (!settings || !settings.whatsapp_template_codes) {
+            return {
+                success: false,
+                channel: 'whatsapp',
+                error: 'WhatsApp templates not configured'
+            };
+        }
+
+        const finalTemplateCode = templateCode || settings.whatsapp_template_codes[params.templateName];
+        
+        if (!finalTemplateCode) {
+            return {
+                success: false,
+                channel: 'whatsapp',
+                error: 'WhatsApp template code not found'
+            };
+        }
+
+        // For WhatsApp, we need to use the Kudi SMS WhatsApp API
+        // Variables should be passed as an array of values
+        const variableValues = Object.values(variables);
+
+        const { data: result, error: sendError } = await supabase.functions.invoke(
+            'kudisms-whatsapp-send',
+            {
+                body: {
+                    phone_number: recipientPhone,
+                    template_code: finalTemplateCode,
+                    parameters: variableValues,
+                    school_id: schoolId
+                }
+            }
+        );
+
+        if (sendError || !result?.success) {
+            return {
+                success: false,
+                channel: 'whatsapp',
+                error: sendError?.message || result?.error || 'Failed to send WhatsApp'
+            };
+        }
+
+        return {
+            success: true,
+            channel: 'whatsapp',
+            message: 'WhatsApp message sent successfully'
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            channel: 'whatsapp',
+            error: error.message || 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Send notification using the preferred channel for the notification type
+ */
+export async function sendNotificationWithChannel(
+    type: NotificationType,
+    params: SendNotificationParams
+): Promise<SendResult> {
+    const { schoolId, campusId } = params;
+
+    try {
+        // 1. Get settings for school
+        const settings = await getKudiSmsSettings(schoolId, campusId);
+        
+        if (!settings) {
+            return {
+                success: false,
+                channel: 'sms',
+                error: 'Kudi SMS not configured'
+            };
+        }
+
+        // 2. Get channel preference for this notification type
+        const channel = settings.notification_channels?.[type] || 'sms';
+
+        // 3. Try preferred channel
+        if (channel === 'whatsapp' || channel === 'both') {
+            const result = await sendWhatsAppMessage(params);
+            
+            if (result.success) {
+                return result;
+            }
+
+            // Fallback to SMS if enabled and WhatsApp failed
+            if (channel === 'both' || settings.enable_fallback) {
+                const smsResult = await sendSms(params);
+                return {
+                    ...smsResult,
+                    fallback: true
+                };
+            }
+
+            return result;
+        }
+
+        // 4. SMS only
+        return await sendSms(params);
+    } catch (error: any) {
+        return {
+            success: false,
+            channel: 'sms',
+            error: error.message || 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Get SMS balance from Kudi SMS
+ */
+export async function getKudiSmsBalance(schoolId: number): Promise<{ 
+    success: boolean; 
+    balance?: string; 
+    currency?: string;
+    error?: string;
+}> {
+    try {
+        const { data, error } = await supabase.functions.invoke('kudisms-balance', {
+            body: { school_id: schoolId }
+        });
+
+        if (error || !data?.success) {
+            return {
+                success: false,
+                error: error?.message || data?.error || 'Failed to get balance'
+            };
+        }
+
+        return {
+            success: true,
+            balance: data.balance,
+            currency: data.currency || '₦'
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            error: error.message || 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Test sending a message (for the test panel)
+ */
+export async function testSendMessage(params: {
+    schoolId: number;
+    recipientPhone: string;
+    messageType: 'sms' | 'whatsapp';
+    templateName: string;
+    variables: Record<string, string>;
+    campusId?: number;
+}): Promise<SendResult> {
+    const { messageType, ...restParams } = params;
+
+    if (messageType === 'whatsapp') {
+        return await sendWhatsAppMessage(restParams);
+    } else {
+        return await sendSms(restParams);
+    }
+}
+
