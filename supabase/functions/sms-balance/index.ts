@@ -83,11 +83,14 @@ serve(async (req) => {
         balanceRaw = parseFloat(balanceStr);
         
         if (isNaN(balanceRaw)) {
+          console.warn(`Invalid balance format in message log: ${lastMessage.balance}`);
+          console.warn('Balance will be displayed as 0. Please check message log data quality.');
           balanceRaw = 0;
         }
       }
     } catch (parseError) {
       console.error('Error parsing balance:', parseError);
+      console.error('Balance data:', lastMessage.balance);
       balanceRaw = 0;
     }
     

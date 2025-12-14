@@ -17,10 +17,16 @@ CREATE TABLE IF NOT EXISTS public.kudisms_settings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create unique index that handles NULL campus_id properly
--- For school-wide settings, campus_id should be NULL and there should be only one per school
-CREATE UNIQUE INDEX kudisms_settings_school_campus_unique 
-ON public.kudisms_settings (school_id, COALESCE(campus_id, -1));
+-- Create partial unique indexes for proper NULL handling
+-- School-wide settings (campus_id IS NULL) - one per school
+CREATE UNIQUE INDEX kudisms_settings_school_wide_unique 
+ON public.kudisms_settings (school_id) 
+WHERE campus_id IS NULL;
+
+-- Campus-specific settings - one per school-campus combination
+CREATE UNIQUE INDEX kudisms_settings_campus_specific_unique 
+ON public.kudisms_settings (school_id, campus_id) 
+WHERE campus_id IS NOT NULL;
 
 -- Create kudisms_message_logs table
 CREATE TABLE IF NOT EXISTS public.kudisms_message_logs (
