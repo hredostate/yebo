@@ -451,11 +451,15 @@ const ClassGroupManager: React.FC<ClassGroupManagerProps> = ({
                                     <ClassTeacherAttendance 
                                         members={selectedGroup.members || []}
                                         onSaveRecord={onSaveRecord}
+                                        schoolId={currentUser.school_id}
+                                        userId={currentUser.id}
                                     />
                                 ) : (
                                     <SubjectTeacherAttendance 
                                         members={selectedGroup.members || []}
                                         onSaveRecord={onSaveRecord}
+                                        schoolId={currentUser.school_id}
+                                        userId={currentUser.id}
                                     />
                                 )}
                             </div>
