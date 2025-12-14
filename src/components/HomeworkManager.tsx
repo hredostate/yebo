@@ -57,11 +57,9 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
             if (error) throw error;
             setHomework(data || []);
             
-            // Load submission counts for all homework
+            // Load submission counts for all homework in parallel
             if (data && data.length > 0) {
-                for (const hw of data) {
-                    await loadSubmissionsForHomework(hw.id);
-                }
+                await Promise.all(data.map(hw => loadSubmissionsForHomework(hw.id)));
             }
         } catch (error) {
             console.error('Error loading homework:', error);
@@ -88,17 +86,19 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
         }
     };
 
+    const getEnrolledStudentIds = async (academicClassId: number): Promise<number[]> => {
+        const { data: classStudents, error } = await supabase
+            .from('academic_class_students')
+            .select('student_id')
+            .eq('academic_class_id', academicClassId);
+
+        if (error) throw error;
+        return classStudents?.map(cs => cs.student_id) || [];
+    };
+
     const loadStudentsForClass = async (homeworkId: number, academicClassId: number) => {
         try {
-            // Load students enrolled in this class
-            const { data: classStudents, error: studentsError } = await supabase
-                .from('academic_class_students')
-                .select('student_id')
-                .eq('academic_class_id', academicClassId);
-
-            if (studentsError) throw studentsError;
-
-            const studentIds = classStudents?.map(cs => cs.student_id) || [];
+            const studentIds = await getEnrolledStudentIds(academicClassId);
             
             if (studentIds.length > 0) {
                 const { data: studentsData, error: studentsDataError } = await supabase
@@ -121,15 +121,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
     const createPendingSubmissions = async (homeworkId: number, academicClassId: number) => {
         try {
-            // Get students enrolled in this class
-            const { data: classStudents, error: studentsError } = await supabase
-                .from('academic_class_students')
-                .select('student_id')
-                .eq('academic_class_id', academicClassId);
-
-            if (studentsError) throw studentsError;
-
-            const studentIds = classStudents?.map(cs => cs.student_id) || [];
+            const studentIds = await getEnrolledStudentIds(academicClassId);
             
             if (studentIds.length > 0) {
                 // Create pending submissions for all students
@@ -282,11 +274,35 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
         if (!confirm('Mark all students as submitted?')) return;
 
         const classStudents = students[homeworkId] || [];
+        const submittedAt = new Date().toISOString();
         
         try {
-            for (const student of classStudents) {
-                await markSubmission(homeworkId, student.id, 'submitted');
-            }
+            // Update all submissions in parallel for better performance
+            await Promise.all(
+                classStudents.map(student => {
+                    const existing = submissions[homeworkId]?.find(s => s.student_id === student.id);
+                    
+                    if (existing) {
+                        return supabase
+                            .from('homework_submissions')
+                            .update({
+                                submission_status: 'submitted',
+                                submitted_at: submittedAt
+                            })
+                            .eq('id', existing.id);
+                    } else {
+                        return supabase
+                            .from('homework_submissions')
+                            .insert({
+                                homework_id: homeworkId,
+                                student_id: student.id,
+                                submission_status: 'submitted',
+                                submitted_at: submittedAt
+                            });
+                    }
+                })
+            );
+            
             await loadSubmissionsForHomework(homeworkId);
         } catch (error) {
             console.error('Error marking all as submitted:', error);
