@@ -455,13 +455,14 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   const { student, term, summary, attendance, comments, subjects, classReportConfig } = reportDetails;
 
   // Dynamic Styles from Config
-  const themeColor = classReportConfig?.colorTheme || '#1E3A8A'; 
+  const themeColor = classReportConfig?.colorTheme || '#1E3A8A';
   const containerStyle = { borderColor: themeColor };
-  const showPhoto = classReportConfig?.showPhoto !== false; 
-  const showPosition = classReportConfig?.showPosition !== false; 
+  const showPhoto = classReportConfig?.showPhoto !== false;
+  const showPosition = classReportConfig?.showPosition !== false;
   const showGraph = classReportConfig?.showGraph || false;
   const layout = classReportConfig?.layout || 'classic';
   const orientation = classReportConfig?.orientation || 'portrait';
+  const admissionNumber = (reportDetails as any)?.student?.admissionNumber || 'N/A';
   
   // Overrides
   const schoolName = classReportConfig?.schoolNameOverride || reportDetails.schoolConfig.display_name || 'University Preparatory Secondary School';
@@ -624,73 +625,177 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   // --- LAYOUT COMPONENTS ---
 
   const HeaderSection = () => (
-        <div className="p-6 md:p-8 border-b border-gray-200" style={layout === 'pastel' ? { backgroundColor: themeColor + '10' } : {}}>
-            <div className="flex flex-col md:flex-row items-center gap-6">
-                {logoUrl ? (
-                    <img src={logoUrl} alt="School Logo" className="w-24 h-24 object-contain" />
-                ) : (
-                    <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center">
-                        <ShieldIcon className="w-12 h-12 text-slate-400" />
-                    </div>
-                )}
-                
-                <div className="text-center md:text-left flex-grow">
-                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900 uppercase tracking-wide">{schoolName}</h1>
-                    <p className="text-slate-600 mt-1 italic">{reportDetails.schoolConfig.motto}</p>
-                    <p className="text-sm text-slate-500 mt-1">{reportDetails.schoolConfig.address}</p>
-                    <div className={`mt-3 inline-block px-4 py-1 rounded-full font-semibold border ${layout === 'pastel' ? 'border-transparent' : 'border-slate-200'}`} style={layout === 'pastel' ? { backgroundColor: themeColor, color: 'white' } : { backgroundColor: '#f1f5f9', color: '#1e293b' }}>
-                        {term.sessionLabel} ACADEMIC SESSION - {term.termLabel.toUpperCase()}
-                    </div>
-                </div>
+        <div
+          className="relative overflow-hidden"
+          style={{
+            background: `linear-gradient(120deg, ${themeColor}, ${themeColor}dd 45%, #0f172a)`
+          }}
+        >
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, white, transparent 25%), radial-gradient(circle at 80% 0%, white, transparent 20%), radial-gradient(circle at 50% 80%, white, transparent 25%)' }}></div>
+            <div className="relative p-6 md:p-8 text-white flex flex-col gap-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                    <div className="flex items-center gap-4 flex-1">
+                        {logoUrl ? (
+                            <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-white/10 backdrop-blur border border-white/30 flex items-center justify-center overflow-hidden">
+                                <img src={logoUrl} alt="School Logo" className="w-18 h-18 md:w-20 md:h-20 object-contain" />
+                            </div>
+                        ) : (
+                            <div className="w-20 h-20 md:w-24 md:h-24 bg-white/10 rounded-2xl flex items-center justify-center border border-white/30">
+                                <ShieldIcon className="w-12 h-12 text-white" />
+                            </div>
+                        )}
 
-                {showPhoto && (
-                    <div className="w-24 h-32 bg-slate-100 border border-slate-300 flex items-center justify-center text-xs text-slate-400">
-                        [PHOTO]
+                        <div className="space-y-1">
+                            <p className="uppercase tracking-[0.25em] text-xs font-semibold opacity-80">Official Report Card</p>
+                            <h1 className="text-2xl md:text-3xl font-black leading-tight drop-shadow-sm">{schoolName}</h1>
+                            <p className="text-sm md:text-base text-white/80 italic">{reportDetails.schoolConfig.motto}</p>
+                            <p className="text-xs md:text-sm text-white/70">{reportDetails.schoolConfig.address}</p>
+                            <div className="mt-3 flex flex-wrap gap-3">
+                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 border border-white/20">
+                                    {term.sessionLabel} • {term.termLabel}
+                                </span>
+                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/20">
+                                    {student.className}
+                                </span>
+                                {!isPublished && (
+                                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-200 text-amber-900 border border-yellow-300">Unpublished Preview</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                    {showPhoto && (
+                        <div className="w-full md:w-32">
+                            <div className="ml-auto w-28 h-36 md:w-32 md:h-40 rounded-2xl border-2 border-dashed border-white/50 bg-white/10 backdrop-blur flex items-center justify-center text-[10px] uppercase tracking-wide text-white/70">
+                                Student Photo
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
   );
 
   const StudentInfoGrid = () => (
-      <div className="bg-slate-50 p-4 border-b border-gray-200 text-sm" style={layout === 'pastel' ? { backgroundColor: 'white' } : {}}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4">
-            <div><span className="text-slate-500 font-semibold">Name:</span> <span className="font-bold block md:inline md:ml-1">{student.fullName}</span></div>
-            <div><span className="text-slate-500 font-semibold">Class:</span> <span className="font-bold block md:inline md:ml-1">{student.className}</span></div>
-            <div><span className="text-slate-500 font-semibold">Admission No:</span> <span className="font-bold block md:inline md:ml-1">{'N/A'}</span></div>
-            <div><span className="text-slate-500 font-semibold">Attendance:</span> <span className="font-bold block md:inline md:ml-1">{attendance.rate.toFixed(1)}% ({attendance.present}/{attendance.total})</span></div>
+      <div className="px-6 md:px-8 -mt-8 relative z-10">
+        <div className="grid md:grid-cols-[2fr,1.1fr] gap-4">
+            <div className="bg-white shadow-xl rounded-2xl border border-slate-200 p-4 md:p-5">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Student</p>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-snug">{student.fullName}</h2>
+                        <p className="text-sm text-slate-600">{student.className} • {term.termLabel} ({term.sessionLabel})</p>
+                    </div>
+                    <div className="text-right text-xs space-y-1">
+                        <div className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-semibold inline-flex items-center gap-1">
+                            <span className="text-[10px]">ID</span>
+                            <span>{admissionNumber}</span>
+                        </div>
+                        <div className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold inline-flex items-center gap-1">
+                            <span>Attendance</span>
+                            <span>{attendance.rate.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 text-sm text-slate-700">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-semibold">🏫</span>
+                        <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Campus / Class</p>
+                            <p className="font-bold">{student.className}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-semibold">📅</span>
+                        <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Term</p>
+                            <p className="font-bold">{term.termLabel}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-semibold">🎯</span>
+                        <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Goal</p>
+                            <p className="font-bold">Personal excellence</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="bg-white shadow-xl rounded-2xl border border-slate-200 p-4 md:p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-3 font-semibold">Quick Metrics</p>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                        <p className="text-[11px] uppercase text-slate-500 font-semibold">Total Score</p>
+                        <p className="text-2xl font-black text-slate-900">{summary.average * subjects.length}</p>
+                    </div>
+                    <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                        <p className="text-[11px] uppercase text-slate-500 font-semibold">Average</p>
+                        <p className="text-2xl font-black text-slate-900">{Number(summary.average).toFixed(2)}%</p>
+                    </div>
+                    <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                        <p className="text-[11px] uppercase text-slate-500 font-semibold">GPA</p>
+                        <p className="text-2xl font-black text-slate-900">{summary.gpaAverage ? Number(summary.gpaAverage).toFixed(2) : 'N/A'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                        <p className="text-[11px] uppercase text-slate-500 font-semibold">Attendance</p>
+                        <p className="text-2xl font-black text-slate-900">{attendance.present}/{attendance.total}</p>
+                        <p className="text-[11px] text-slate-500">Present / Total</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
   );
 
   const SummaryCards = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
-        <div className={`p-3 rounded-lg border text-center ${layout === 'pastel' ? 'bg-blue-50 border-blue-100' : 'bg-blue-50 border-blue-100'}`}>
-            <p className="text-xs text-blue-600 uppercase font-bold">Total Score</p>
-            <p className="text-xl font-bold text-slate-800">{summary.average * subjects.length}</p>
-        </div>
-        <div className={`p-3 rounded-lg border text-center ${layout === 'pastel' ? 'bg-purple-50 border-purple-100' : 'bg-purple-50 border-purple-100'}`}>
-            <p className="text-xs text-purple-600 uppercase font-bold">Average</p>
-            <p className="text-xl font-bold text-slate-800">{Number(summary.average).toFixed(2)}%</p>
-        </div>
-            <div className={`p-3 rounded-lg border text-center ${layout === 'pastel' ? 'bg-green-50 border-green-100' : 'bg-green-50 border-green-100'}`}>
-            <p className="text-xs text-green-600 uppercase font-bold">GPA</p>
-            <p className="text-xl font-bold text-slate-800">{summary.gpaAverage ? Number(summary.gpaAverage).toFixed(2) : 'N/A'}</p>
-        </div>
-        {showPosition && (
-            <>
-            <div className={`p-3 rounded-lg border text-center ${layout === 'pastel' ? 'bg-amber-50 border-amber-100' : 'bg-amber-50 border-amber-100'}`}>
-                <p className="text-xs text-amber-600 uppercase font-bold">Pos. (Arm)</p>
-                <p className="text-xl font-bold text-slate-800">{summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
+    <div className="px-6 md:px-8 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 rounded-2xl border border-slate-200 shadow bg-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeColor + '22', color: themeColor }}>
+                📊
             </div>
-            {summary.positionInGradeLevel && (
-                <div className={`p-3 rounded-lg border text-center ${layout === 'pastel' ? 'bg-orange-50 border-orange-100' : 'bg-orange-50 border-orange-100'}`}>
-                    <p className="text-xs text-orange-600 uppercase font-bold">Pos. (Grade)</p>
-                    <p className="text-xl font-bold text-slate-800">{getOrdinal(summary.positionInGradeLevel)}</p>
+            <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Performance Index</p>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-black text-slate-900">{Number(summary.average).toFixed(1)}%</p>
+                    <span className="text-xs text-slate-500">across {subjects.length} subjects</span>
                 </div>
-            )}
-            </>
-        )}
+            </div>
+        </div>
+        <div className="p-4 rounded-2xl border border-slate-200 shadow bg-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22c55e22', color: '#16a34a' }}>
+                🏆
+            </div>
+            <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Standing</p>
+                <div className="flex items-center gap-3">
+                    <p className="text-2xl font-black text-slate-900">{showPosition && summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
+                    {summary.positionInGradeLevel && (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">Grade: {getOrdinal(summary.positionInGradeLevel)}</span>
+                    )}
+                </div>
+                <p className="text-xs text-slate-500">Class size: {summary.gradeLevelSize || 'N/A'}</p>
+            </div>
+        </div>
+        <div className="p-4 rounded-2xl border border-slate-200 shadow bg-white flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#38bdf822', color: '#0284c7' }}>
+                        ⏱️
+                    </div>
+                    <div>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Attendance Velocity</p>
+                        <p className="text-xl font-black text-slate-900">{attendance.rate.toFixed(1)}%</p>
+                    </div>
+                </div>
+                <span className="text-[11px] px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">{attendance.present} / {attendance.total}</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div className="h-2 rounded-full" style={{ width: `${Math.min(attendance.rate, 100)}%`, backgroundColor: themeColor }}></div>
+            </div>
+            <p className="text-xs text-slate-500">Lates: {attendance.late} • Excused: {attendance.excused} • Unexcused: {attendance.unexcused}</p>
+        </div>
+      </div>
     </div>
   );
 
@@ -991,31 +1096,43 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             {/* --- CLASSIC, MODERN & PASTEL LAYOUTS SHARE STRUCTURE --- */}
             {(layout === 'classic' || layout === 'modern' || layout === 'pastel') && (
                 <>
-                    <HeaderSection />
-                    <StudentInfoGrid />
-                    <SummaryCards />
-                    {showGraph && (
-                        <div className="px-6 pb-4">
-                            <PerformanceChart 
-                                data={subjects.map(s => ({ name: s.subjectName, score: s.totalScore }))} 
-                                themeColor={themeColor} 
-                            />
-                        </div>
-                    )}
-                    <div className="px-6 pb-4">
-                        <AttendanceSummary attendance={attendance} />
-                    </div>
-                    <div className="px-6 pb-6">
-                        <h3 className="text-lg font-bold text-slate-800 mb-3 border-b pb-1" style={{ borderColor: themeColor }}>Academic Performance</h3>
-                        <table className={commonTableClasses}>
-                            {renderTableHeader()}
-                            {renderTableBody()}
-                        </table>
-                    </div>
-                    <SignatoriesSection />
-                    <Footer />
-                </>
-            )}
+                      <HeaderSection />
+                      <StudentInfoGrid />
+                      <SummaryCards />
+                      {showGraph && (
+                          <div className="px-6 pb-4">
+                              <PerformanceChart
+                                  data={subjects.map(s => ({ name: s.subjectName, score: s.totalScore }))}
+                                  themeColor={themeColor}
+                              />
+                          </div>
+                      )}
+                      <div className="px-6 pb-4">
+                          <AttendanceSummary attendance={attendance} />
+                      </div>
+                      <div className="px-6 pb-8">
+                          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                              <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200" style={{ backgroundColor: themeColor + '0D' }}>
+                                  <div>
+                                      <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Scholastic Record</p>
+                                      <h3 className="text-lg md:text-xl font-black text-slate-900">Academic Performance</h3>
+                                  </div>
+                                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                      {subjects.length} Subjects
+                                  </span>
+                              </div>
+                              <div className="overflow-x-auto">
+                                  <table className={`${commonTableClasses} min-w-full`}>
+                                      {renderTableHeader()}
+                                      {renderTableBody()}
+                                  </table>
+                              </div>
+                          </div>
+                      </div>
+                      <SignatoriesSection />
+                      <Footer />
+                  </>
+              )}
 
             {/* --- COMPACT LAYOUT --- */}
             {layout === 'compact' && (
