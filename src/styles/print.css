@@ -274,6 +274,16 @@
   /* Additional background colors for print */
   .bg-slate-50 { background-color: #f8fafc !important; }
   .bg-slate-100 { background-color: #f1f5f9 !important; }
+  .bg-slate-900 { background-color: #0f172a !important; }
+  .bg-indigo-50 { background-color: #eef2ff !important; }
+  .bg-indigo-100 { background-color: #e0e7ff !important; }
+  .bg-amber-50 { background-color: #fffbeb !important; }
+  .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.1) !important; }
+  .bg-sky-500\/10 { background-color: rgba(14, 165, 233, 0.1) !important; }
+  .bg-indigo-500\/10 { background-color: rgba(99, 102, 241, 0.1) !important; }
+  .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.1) !important; }
+  .bg-slate-50\/60 { background-color: rgba(248, 250, 252, 0.6) !important; }
+  .bg-white\/80 { background-color: rgba(255, 255, 255, 0.8) !important; }
   .bg-orange-600 { background-color: #ea580c !important; }
   .bg-green-600 { background-color: #16a34a !important; }
   .bg-red-700 { background-color: #b91c1c !important; }
@@ -281,7 +291,15 @@
   /* Text colors - extended */
   .text-slate-500 { color: #64748b !important; }
   .text-slate-700 { color: #334155 !important; }
+  .text-slate-800 { color: #1e293b !important; }
+  .text-slate-900 { color: #0f172a !important; }
   .text-orange-600 { color: #ea580c !important; }
+  .text-indigo-600 { color: #4f46e5 !important; }
+  .text-emerald-600 { color: #059669 !important; }
+  .text-emerald-200 { color: #a7f3d0 !important; }
+  .text-sky-100 { color: #e0f2fe !important; }
+  .text-indigo-100 { color: #e0e7ff !important; }
+  .text-amber-100 { color: #fef3c7 !important; }
   .text-green-600 { color: #16a34a !important; }
   .text-blue-600 { color: #2563eb !important; }
   .text-red-700 { color: #b91c1c !important; }
