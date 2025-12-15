@@ -12,8 +12,11 @@ import Spinner from './Spinner';
  */
 const LoadingFallback: React.FC = () => {
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl">
-      <Spinner size="lg" />
+    <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+      <div className="app-panel px-8 py-10 flex flex-col items-center gap-4 text-center max-w-xl mx-auto">
+        <Spinner size="lg" text="Loading the experience" />
+        <p className="text-sm text-slate-600 dark:text-slate-300">We’re syncing the latest data and design system so everything feels cohesive.</p>
+      </div>
     </div>
   );
 };

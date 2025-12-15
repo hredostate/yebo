@@ -6398,20 +6398,20 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     if (userType === 'student') {
         // Student specific layout
         return (
-             <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200`}>
-                <Sidebar 
-                    currentView={currentView} 
-                    onNavigate={setCurrentView} 
-                    userProfile={userProfile as StudentProfile} 
+             <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+                <Sidebar
+                    currentView={currentView}
+                    onNavigate={setCurrentView}
+                    userProfile={userProfile as StudentProfile}
                     userPermissions={[]} // Students have no permissions array
                     onLogout={handleLogout}
                     isSidebarOpen={isSidebarOpen}
                     setIsSidebarOpen={setIsSidebarOpen}
                 />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header 
-                        userProfile={userProfile as StudentProfile} 
-                        onLogout={handleLogout} 
+                    <Header
+                        userProfile={userProfile as StudentProfile}
+                        onLogout={handleLogout}
                         notifications={notifications}
                         onMarkNotificationsAsRead={() => { /* impl */ }}
                         onNavigate={setCurrentView}
@@ -6419,11 +6419,11 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         isDarkMode={isDarkMode}
                         toggleTheme={toggleTheme}
                     />
-                    <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
+                    <main className="app-surface">
                          <ErrorBoundary>
                              <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                                <AppRouter 
-                                    currentView={currentView} 
+                                <AppRouter
+                                    currentView={currentView}
                                     data={{
                                         userProfile,
                                         userType,
@@ -6658,20 +6658,20 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
 
     // Staff Layout
     return (
-        <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
-            <Sidebar 
-                currentView={currentView} 
-                onNavigate={setCurrentView} 
-                userProfile={userProfile as UserProfile} 
-                userPermissions={userPermissions} 
+        <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+            <Sidebar
+                currentView={currentView}
+                onNavigate={setCurrentView}
+                userProfile={userProfile as UserProfile}
+                userPermissions={userPermissions}
                 onLogout={handleLogout}
                 isSidebarOpen={isSidebarOpen}
                 setIsSidebarOpen={setIsSidebarOpen}
             />
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-                <Header 
-                    userProfile={userProfile as UserProfile} 
-                    onLogout={handleLogout} 
+                <Header
+                    userProfile={userProfile as UserProfile}
+                    onLogout={handleLogout}
                     notifications={notifications}
                     onMarkNotificationsAsRead={() => { /* impl */ }}
                     onNavigate={setCurrentView}
@@ -6679,11 +6679,11 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                     isDarkMode={isDarkMode}
                     toggleTheme={toggleTheme}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 relative">
+                <main className="app-surface">
                      <ErrorBoundary>
                         <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                            <AppRouter 
-                                currentView={currentView} 
+                            <AppRouter
+                                currentView={currentView}
                                 data={{
                                     userProfile,
                                     userType,

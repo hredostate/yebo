@@ -20,6 +20,24 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+:root {
+  /* Shared design tokens to keep the experience consistent across modules */
+  --surface: 255 255 255;
+  --surface-muted: 241 245 249;
+  --surface-dark: 13 25 44;
+  --brand: 79 70 229;
+  --brand-2: 56 189 248;
+  --card-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.32);
+}
+
+.dark {
+  --surface: 16 24 40;
+  --surface-muted: 9 15 26;
+  --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  --glass-border: rgba(148, 163, 184, 0.25);
+}
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -55,6 +73,48 @@ html {
 body {
   /* Clean background for professional appearance */
   @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 bg-fixed;
+  font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
+  background: radial-gradient(1200px circle at 20% 20%, rgba(99, 102, 241, 0.08), transparent 40%),
+              radial-gradient(1200px circle at 80% 0%, rgba(56, 189, 248, 0.08), transparent 40%),
+              linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.9));
+}
+
+/* Core application surface used by both staff and student layouts */
+.app-shell {
+  @apply relative min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300;
+  background: radial-gradient(1100px circle at 10% 10%, rgba(79, 70, 229, 0.12), transparent 45%),
+              radial-gradient(900px circle at 90% 15%, rgba(56, 189, 248, 0.12), transparent 40%),
+              linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.95));
+}
+
+.dark .app-shell {
+  background: radial-gradient(1200px circle at 10% 10%, rgba(129, 140, 248, 0.16), transparent 45%),
+              radial-gradient(800px circle at 90% 10%, rgba(14, 165, 233, 0.16), transparent 40%),
+              linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(9, 12, 26, 0.9));
+}
+
+.app-surface {
+  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6;
+  background: linear-gradient(180deg, rgba(var(--surface), 0.95), rgba(var(--surface-muted), 0.9));
+}
+
+.app-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(var(--brand), 0.04), transparent 35%),
+              linear-gradient(300deg, rgba(var(--brand-2), 0.04), transparent 30%);
+}
+
+.app-panel {
+  @apply relative overflow-hidden rounded-2xl border border-white/70 dark:border-slate-800/70 shadow-2xl backdrop-blur-xl;
+  background: rgba(var(--surface), 0.85);
+  box-shadow: var(--card-shadow);
+}
+
+.dark .app-panel {
+  background: rgba(var(--surface), 0.4);
 }
 
 /* Custom Scrollbar for a more modern feel */
