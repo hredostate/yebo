@@ -537,6 +537,81 @@ serve(async (req) => {
         });
     }
 
+    // Delete a staff account from auth.users (user_profiles will cascade delete)
+    if (action === 'delete_staff_account') {
+        console.log('delete_staff_account action called');
+        
+        const { userId } = body;
+        
+        if (!userId) {
+            console.error("Missing userId");
+            throw new Error("Missing 'userId' for staff account deletion.");
+        }
+
+        // The userId is the auth user UUID (user_profiles.id = auth.users.id)
+        console.log('Attempting to delete staff auth user ID:', userId);
+        
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        
+        if (deleteError) {
+            console.error("Delete staff user error:", deleteError);
+            throw new Error(`Failed to delete staff account: ${deleteError.message}`);
+        }
+
+        console.log('Staff account deleted successfully');
+        return new Response(JSON.stringify({ success: true, message: 'Staff account deleted successfully' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // Update staff user email in auth.users
+    if (action === 'update_staff_email') {
+        console.log('update_staff_email action called');
+        
+        const { userId, email } = body;
+        
+        if (!userId || !email) {
+            console.error("Missing userId or email");
+            throw new Error("Missing 'userId' or 'email' for staff email update.");
+        }
+
+        // Validate email format
+        if (!validateEmail(email)) {
+            throw new Error(`Invalid email format: "${email}"`);
+        }
+
+        console.log(`Updating staff user ${userId} email to: ${email}`);
+        
+        // Get current auth user to preserve metadata
+        const { data: authUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+        
+        if (getUserError || !authUser || !authUser.user) {
+            console.error("Failed to get auth user:", getUserError);
+            throw new Error(`Failed to get user: ${getUserError?.message || 'User not found'}`);
+        }
+
+        // Update email in auth.users
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            {
+                email: email,
+                email_confirm: true
+            }
+        );
+
+        if (updateError) {
+            console.error("Update staff email error:", updateError);
+            throw new Error(`Failed to update staff email: ${updateError.message}`);
+        }
+
+        console.log('Staff email updated successfully in auth.users');
+        return new Response(JSON.stringify({ success: true, message: 'Staff email updated successfully' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
     throw new Error(`Unknown action: ${action}`);
 
   } catch (error) {

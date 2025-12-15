@@ -4229,6 +4229,26 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleUpdateUser = useCallback(async (userId: string, userData: Partial<UserProfile>): Promise<boolean> => {
         try {
+            // If email is being updated, sync it to auth.users via edge function
+            if (userData.email) {
+                try {
+                    const { error: authError } = await supabase.functions.invoke('manage-users', {
+                        body: { action: 'update_staff_email', userId: userId, email: userData.email }
+                    });
+                    
+                    if (authError) {
+                        console.error(`Auth email update error for user ${userId}:`, authError);
+                        addToast(`Failed to update email in authentication system: ${authError.message}`, 'error');
+                        return false;
+                    }
+                } catch (authErr: any) {
+                    console.error(`Auth email update failed for user ${userId}:`, authErr);
+                    addToast(`Failed to update email: ${authErr.message}`, 'error');
+                    return false;
+                }
+            }
+            
+            // Update user_profiles table
             const { error } = await Offline.update('user_profiles', userData, { id: userId });
             if (error) {
                 addToast(error.message, 'error');
@@ -4255,28 +4275,19 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         try {
             const userToDelete = users.find(u => u.id === userId);
             
-            // DELETE THE AUTH USER FIRST via Edge Function
-            try {
-                const { error: authError } = await supabase.functions.invoke('manage-users', {
-                    body: { action: 'delete_account', studentId: userId }
-                });
-                
-                if (authError) {
-                    console.error(`Auth user deletion error for user ${userId}:`, authError);
-                    // Continue anyway - the auth user might already be deleted or not exist
-                }
-            } catch (authErr) {
-                console.error(`Auth deletion failed for user ${userId}:`, authErr);
-                // Continue with profile deletion
-            }
+            // DELETE THE AUTH USER via Edge Function
+            // This will cascade delete the user_profiles record due to FK constraint
+            const { error: authError } = await supabase.functions.invoke('manage-users', {
+                body: { action: 'delete_staff_account', userId: userId }
+            });
             
-            // Then delete the user_profiles record
-            const { error } = await Offline.del('user_profiles', { id: userId });
-            if (error) {
-                addToast(error.message, 'error');
+            if (authError) {
+                console.error(`Staff user deletion error for user ${userId}:`, authError);
+                addToast(`Failed to delete staff account: ${authError.message}`, 'error');
                 return false;
             }
             
+            // Update UI state - user_profiles record is already cascade deleted
             setUsers(prev => prev.filter(u => u.id !== userId));
             addToast('User deleted successfully.', 'success');
             
