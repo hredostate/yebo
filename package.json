@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "package": "npm run build && ./create-deployment-package.sh"
+    "package": "npm run build && ./create-deployment-package.sh",
+    "test": "npm run test:unit",
+    "test:unit": "tsc -p tsconfig.tests.json && node build-tests/tests/runtimeConfig.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",

@@ -1,4 +1,5 @@
 import { supa as supabase } from '../offline/client';
+import { getRuntimeFlags } from './runtimeConfig';
 
 export interface UserSession {
   id: string;
@@ -91,6 +92,11 @@ function getDeviceInfo(): DeviceInfo {
  * Get user's IP address (from a free API)
  */
 async function getIPAddress(): Promise<string | null> {
+  const { enableSessionIpLookup } = getRuntimeFlags();
+  if (!enableSessionIpLookup) {
+    return null;
+  }
+
   try {
     const response = await fetch('https://api.ipify.org?format=json');
     const data = await response.json();

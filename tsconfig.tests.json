@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "build-tests",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "target": "ES2020",
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "allowImportingTsExtensions": false
+  },
+  "include": [
+    "src/services/runtimeConfig.ts",
+    "src/hooks/useInitialView.ts",
+    "tests/**/*.ts"
+  ]
+}
