@@ -190,20 +190,21 @@ const PublicReportView: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 py-8 px-4">
-            <div className="max-w-4xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-100 py-10 px-4">
+            <div className="max-w-5xl mx-auto space-y-6">
                 {/* Header with actions - hidden when printing */}
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print:hidden">
-                    <div className="flex justify-between items-center">
+                <div className="bg-white/80 backdrop-blur rounded-xl shadow-lg p-6 border border-slate-200 print:hidden">
+                    <div className="flex flex-wrap justify-between gap-4 items-center">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-800">Student Report Card</h1>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Official academic record</p>
+                            <h1 className="text-2xl font-black text-slate-800 mt-1">Student Report Card</h1>
                             <p className="text-sm text-slate-600 mt-1">
-                                {reportData.student?.name} - {reportData.term?.name} {reportData.term?.session_label}
+                                {reportData.student?.name} • {reportData.term?.name} {reportData.term?.session_label}
                             </p>
                         </div>
                         <button
                             onClick={handlePrint}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg shadow-md hover:from-indigo-700 hover:to-blue-700 transition-all"
                         >
                             <DownloadIcon className="w-5 h-5" />
                             Print / Save PDF
@@ -212,119 +213,176 @@ const PublicReportView: React.FC = () => {
                 </div>
 
                 {/* Report Card */}
-                <div className="bg-white rounded-lg shadow-lg p-8 print:shadow-none">
+                <div className="report-card bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden print:shadow-none">
+                    <div className="h-1 w-full bg-gradient-to-r from-indigo-600 via-sky-500 to-emerald-400 print:bg-slate-800" />
+
                     {/* School Header */}
-                    <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
-                        <h1 className="text-3xl font-bold text-slate-800">UPSS</h1>
-                        <p className="text-sm text-slate-600 mt-2">Student Report Card</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            {reportData.term?.name} - {reportData.term?.session_label}
-                        </p>
+                    <div className="px-8 pt-8 pb-6 border-b border-slate-200 flex items-start justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-600 to-sky-500 text-white flex items-center justify-center font-black text-xl shadow-md">
+                                UP
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Uptodate Private Schools</p>
+                                <h1 className="text-3xl font-black text-slate-900">Student Report Card</h1>
+                                <p className="text-sm text-slate-600">
+                                    {reportData.term?.name} • {reportData.term?.session_label}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right text-xs text-slate-500 leading-5">
+                            <p className="font-semibold text-slate-700">Issued</p>
+                            <p>{new Date(reportData.created_at).toLocaleDateString()}</p>
+                            <p className="mt-2 text-emerald-600 font-semibold">Status: Published</p>
+                        </div>
                     </div>
 
                     {/* Student Info */}
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div>
-                            <p className="text-sm text-slate-600">Student Name:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.student?.name}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Admission Number:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.student?.admission_number || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Class:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.academic_class?.name || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Position in Class:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.position_in_class}</p>
+                    <div className="px-8 py-6 bg-slate-50/70 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-200">
+                        {[{
+                            label: 'Student Name',
+                            value: reportData.student?.name || '—',
+                        }, {
+                            label: 'Admission Number',
+                            value: reportData.student?.admission_number || 'N/A',
+                        }, {
+                            label: 'Class',
+                            value: reportData.academic_class?.name || 'N/A',
+                        }, {
+                            label: 'Position in Class',
+                            value: reportData.position_in_class ? `${reportData.position_in_class}${
+                                reportData.position_in_class === 1 ? 'st' : reportData.position_in_class === 2 ? 'nd' : reportData.position_in_class === 3 ? 'rd' : 'th'
+                            }` : '—',
+                        }].map((item) => (
+                            <div key={item.label} className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm">
+                                <p className="text-xs tracking-wide text-slate-500 uppercase">{item.label}</p>
+                                <p className="text-lg font-semibold text-slate-900 mt-1">{item.value}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Performance Summary */}
+                    <div className="px-8 py-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white">
+                        <div className="flex flex-wrap gap-4 items-center justify-between">
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.25em] text-slate-300">Performance snapshot</p>
+                                <p className="text-2xl font-black leading-tight">Overall Achievement</p>
+                                <p className="text-sm text-slate-200 mt-1">A modern, print-ready report for guardians</p>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto">
+                                {[{
+                                    label: 'Average Score',
+                                    value: `${reportData.average_score.toFixed(2)}%`,
+                                    accent: 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/40',
+                                }, {
+                                    label: 'Total Score',
+                                    value: reportData.total_score,
+                                    accent: 'bg-sky-500/10 text-sky-100 border border-sky-400/50',
+                                }, {
+                                    label: 'Class Position',
+                                    value: reportData.position_in_class || '—',
+                                    accent: 'bg-indigo-500/10 text-indigo-100 border border-indigo-400/50',
+                                }, {
+                                    label: 'Report Valid Until',
+                                    value: new Date(reportData.token_expires_at).toLocaleDateString(),
+                                    accent: 'bg-amber-500/10 text-amber-100 border border-amber-400/40',
+                                }].map((metric) => (
+                                    <div key={metric.label} className={`min-w-[140px] rounded-xl px-4 py-3 ${metric.accent}`}>
+                                        <p className="text-[11px] uppercase tracking-wide">{metric.label}</p>
+                                        <p className="text-xl font-bold leading-tight">{metric.value}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
                     {/* Subjects Table */}
                     {reportData.subjects && reportData.subjects.length > 0 && (
-                        <div className="mb-8">
-                            <h3 className="text-lg font-bold text-slate-800 mb-4">Subject Performance</h3>
-                            <table className="w-full border-collapse border border-slate-300">
-                                <thead>
-                                    <tr className="bg-slate-100">
-                                        <th className="border border-slate-300 px-4 py-2 text-left">Subject</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Score</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Grade</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Position</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-left">Remark</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reportData.subjects.map((subject) => (
-                                        <tr key={subject.id}>
-                                            <td className="border border-slate-300 px-4 py-2">{subject.subject_name}</td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center font-semibold">
-                                                {subject.score}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center font-semibold">
-                                                {subject.grade}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center">
-                                                {subject.position || '-'}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-sm">
-                                                {subject.teacher_comment || '-'}
-                                            </td>
+                        <div className="px-8 py-6 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Subjects</p>
+                                    <h3 className="text-xl font-bold text-slate-900">Academic Performance Breakdown</h3>
+                                </div>
+                                <div className="text-xs text-slate-500 text-right">
+                                    <p className="font-semibold text-slate-700">Grading Scale</p>
+                                    <p>A: 70-100 • B: 60-69 • C: 50-59 • D: 45-49 • F: 0-44</p>
+                                </div>
+                            </div>
+                            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                <table className="w-full border-collapse">
+                                    <thead className="bg-slate-100">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Subject</th>
+                                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">Score</th>
+                                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">Grade</th>
+                                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">Position</th>
+                                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Teacher Remark</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {reportData.subjects.map((subject, index) => (
+                                            <tr key={subject.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                                                <td className="px-4 py-3 text-slate-900 font-medium">{subject.subject_name}</td>
+                                                <td className="px-4 py-3 text-center text-slate-900 font-semibold">{subject.score}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-slate-900 text-white">
+                                                        {subject.grade}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-slate-800">{subject.position || '—'}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-700">{subject.teacher_comment || '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
 
-                    {/* Overall Performance */}
-                    <div className="grid grid-cols-2 gap-4 mb-8 p-4 bg-slate-50 rounded-lg">
-                        <div>
-                            <p className="text-sm text-slate-600">Total Score:</p>
-                            <p className="text-2xl font-bold text-slate-800">{reportData.total_score}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Average Score:</p>
-                            <p className="text-2xl font-bold text-slate-800">{reportData.average_score.toFixed(2)}%</p>
-                        </div>
-                    </div>
-
                     {/* Comments */}
                     {(reportData.teacher_comment || reportData.principal_comment) && (
-                        <div className="space-y-4 mb-8">
-                            {reportData.teacher_comment && (
-                                <div className="p-4 bg-blue-50 rounded-lg">
-                                    <p className="text-sm font-semibold text-slate-700 mb-1">Class Teacher's Comment:</p>
-                                    <p className="text-slate-800">{reportData.teacher_comment}</p>
-                                </div>
-                            )}
-                            {reportData.principal_comment && (
-                                <div className="p-4 bg-green-50 rounded-lg">
-                                    <p className="text-sm font-semibold text-slate-700 mb-1">Principal's Comment:</p>
-                                    <p className="text-slate-800">{reportData.principal_comment}</p>
-                                </div>
-                            )}
+                        <div className="px-8 py-6 space-y-4 border-t border-slate-200 bg-slate-50/60">
+                            <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Mentor feedback</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {reportData.teacher_comment && (
+                                    <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                        <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Class Teacher</p>
+                                        <p className="text-slate-900 font-semibold mt-1">Teacher's Reflection</p>
+                                        <p className="text-slate-700 mt-2 leading-relaxed">{reportData.teacher_comment}</p>
+                                    </div>
+                                )}
+                                {reportData.principal_comment && (
+                                    <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Principal</p>
+                                        <p className="text-slate-900 font-semibold mt-1">Principal's Note</p>
+                                        <p className="text-slate-700 mt-2 leading-relaxed">{reportData.principal_comment}</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {/* Footer */}
-                    <div className="text-center text-sm text-slate-500 mt-8 pt-4 border-t border-slate-200">
-                        <p>Generated by UPSS</p>
-                        <p className="mt-1">
-                            This report is valid until: {new Date(reportData.token_expires_at).toLocaleDateString()}
-                        </p>
+                    <div className="px-8 py-6 bg-white border-t border-slate-200 text-sm text-slate-600 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <p className="font-semibold text-slate-800">Generated by UPSS</p>
+                            <p className="text-slate-500">This document remains valid until {new Date(reportData.token_expires_at).toLocaleDateString()}.</p>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-slate-500">
+                            <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                            <span>Digitally issued &amp; secured</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Info note - hidden when printing */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 print:hidden">
-                    <p className="font-semibold mb-1">📌 Note:</p>
+                <div className="mt-2 p-5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-900 print:hidden shadow-sm">
+                    <p className="font-semibold mb-1">📌 How to use this report</p>
                     <ul className="list-disc list-inside space-y-1">
-                        <li>This is a secure link that expires in 30 days from generation</li>
-                        <li>To save this report as PDF, click the "Print / Save PDF" button and choose "Save as PDF"</li>
-                        <li>For questions about this report, please contact the school directly</li>
+                        <li>This secure link expires in 30 days from generation.</li>
+                        <li>To save this report as PDF, click "Print / Save PDF" and choose "Save as PDF".</li>
+                        <li>Share responsibly—this report contains sensitive academic information.</li>
                     </ul>
                 </div>
             </div>
