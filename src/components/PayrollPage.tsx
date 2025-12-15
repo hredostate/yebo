@@ -2,8 +2,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { UserProfile, PayrollAdjustment, Campus } from '../types';
 import Spinner from './common/Spinner';
-import { SearchIcon, BanknotesIcon, CheckCircleIcon, XCircleIcon } from './common/icons';
+import { SearchIcon, BanknotesIcon, CheckCircleIcon, XCircleIcon, DownloadIcon } from './common/icons';
 import Pagination from './common/Pagination';
+import CsvExportModal, { type CsvColumn } from './CsvExportModal';
+import { exportToCsv } from '../utils/export';
 
 const NIGERIAN_BANKS = [
     { name: "Access Bank", code: "044" }, { name: "Guaranty Trust Bank", code: "058" },
@@ -39,6 +41,7 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
     const [currentPage, setCurrentPage] = useState(1);
     const [isBulkTransferring, setIsBulkTransferring] = useState(false);
     const [bulkTransferResult, setBulkTransferResult] = useState<BulkTransferResult | null>(null);
+    const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
     const ITEMS_PER_PAGE = 15;
 
     // Initialize state with user defaults
@@ -207,11 +210,99 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
         setIsBulkTransferring(false);
     };
 
+    // CSV Export Configuration
+    const csvColumns: CsvColumn[] = [
+        { key: 'staff_name', label: 'Staff Name', defaultChecked: true },
+        { key: 'role', label: 'Role', defaultChecked: true },
+        { key: 'campus', label: 'Campus', defaultChecked: true },
+        { key: 'base_pay', label: 'Base Pay', defaultChecked: true },
+        { key: 'commission', label: 'Commission', defaultChecked: true },
+        { key: 'adjustments_total', label: 'Adjustments Total', defaultChecked: true },
+        { key: 'net_amount', label: 'Net Amount', defaultChecked: true },
+        { key: 'bank_name', label: 'Bank Name', defaultChecked: false },
+        { key: 'account_number', label: 'Account Number', defaultChecked: false },
+        { key: 'email', label: 'Email', defaultChecked: false },
+        { key: 'phone_number', label: 'Phone Number', defaultChecked: false },
+    ];
+
+    // Handle CSV export
+    const handleCsvExport = (selectedColumns: string[]) => {
+        // Create a lookup map from csvColumns for efficient access
+        const columnLabels = csvColumns.reduce<Record<string, string>>((acc, col) => {
+            acc[col.key] = col.label;
+            return acc;
+        }, {});
+
+        // Prepare data for all filtered staff
+        const exportData = filteredStaff.map(user => {
+            const userAdjustments = adjustments.filter(a => a.user_id === user.id);
+            const totalAdjustments = userAdjustments.reduce((sum, adj) => {
+                return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
+            }, 0);
+            
+            const userPay = staffPay[user.id] as { base_pay: string; commission: string } | undefined;
+            const base = Number(userPay?.base_pay) || 0;
+            const commission = Number(userPay?.commission) || 0;
+            const net = base + commission + totalAdjustments;
+            const campusName = campuses.find(c => c.id === user.campus_id)?.name || 'Main';
+            const bankName = NIGERIAN_BANKS.find(b => b.code === user.bank_code)?.name || user.bank_name || '';
+
+            // Map of all possible column values
+            const columnValues: Record<string, any> = {
+                'staff_name': user.name,
+                'role': user.role,
+                'campus': campusName,
+                'base_pay': base,
+                'commission': commission,
+                'adjustments_total': totalAdjustments,
+                'net_amount': net,
+                'bank_name': bankName,
+                'account_number': user.account_number || '',
+                'email': user.email || '',
+                'phone_number': user.phone_number || '',
+            };
+
+            // Build row with only selected columns using human-readable labels
+            const row: Record<string, any> = {};
+            selectedColumns.forEach(col => {
+                const label = columnLabels[col];
+                if (label && columnValues[col] !== undefined) {
+                    row[label] = columnValues[col];
+                }
+            });
+
+            return row;
+        });
+
+        // Generate filename with current date
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `payroll-export-${date}.csv`;
+
+        // Export to CSV
+        exportToCsv(exportData, filename);
+        setIsCsvModalOpen(false);
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
+            {/* CSV Export Modal */}
+            <CsvExportModal
+                isOpen={isCsvModalOpen}
+                onClose={() => setIsCsvModalOpen(false)}
+                onExport={handleCsvExport}
+                columns={csvColumns}
+            />
+
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Run Payroll</h1>
                 <div className="flex gap-2">
+                    <button 
+                        onClick={() => setIsCsvModalOpen(true)} 
+                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                        <DownloadIcon className="w-5 h-5" />
+                        Download CSV
+                    </button>
                     {hasPaystackConfig && (
                         <button 
                             onClick={handleBulkTransfer} 
