@@ -76,8 +76,8 @@ const ArmComparisonChart: React.FC<ArmComparisonChartProps> = ({ arms, title = '
                         </div>
                         <div className="text-sm space-y-1 text-slate-600 dark:text-slate-400">
                             <div>Students: {arm.student_count}</div>
-                            <div>Average: {arm.average_score != null ? `${arm.average_score.toFixed(2)}%` : 'N/A'}</div>
-                            <div>Pass Rate: {arm.pass_rate != null ? `${arm.pass_rate.toFixed(1)}%` : 'N/A'}</div>
+                            <div>Average: {arm.average_score !== null ? `${arm.average_score.toFixed(2)}%` : 'N/A'}</div>
+                            <div>Pass Rate: {arm.pass_rate !== null ? `${arm.pass_rate.toFixed(1)}%` : 'N/A'}</div>
                         </div>
                     </div>
                 ))}
