@@ -1087,7 +1087,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
                                                         {entry.exam_score != null ? entry.exam_score.toFixed(1) : '-'}
                                                     </td>
-                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">{entry.total_score.toFixed(1)}</td>
+                                                    <td className="p-3 border border-slate-200 dark:border-slate-600 text-center font-semibold">
+                                                        {entry.total_score != null ? entry.total_score.toFixed(1) : '-'}
+                                                    </td>
                                                     <td className="p-3 border border-slate-200 dark:border-slate-600 text-center">
                                                         <span className="inline-flex px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-bold">
                                                             {entry.grade_label}
