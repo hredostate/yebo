@@ -20,9 +20,9 @@ const ArmComparisonChart: React.FC<ArmComparisonChartProps> = ({ arms, title = '
 
     const chartData = arms.map((arm) => ({
         name: arm.arm_name,
-        'Average Score': arm.average_score,
-        'Highest Score': arm.highest_score,
-        'Pass Rate': arm.pass_rate,
+        'Average Score': arm.average_score ?? 0,
+        'Highest Score': arm.highest_score ?? 0,
+        'Pass Rate': arm.pass_rate ?? 0,
         students: arm.student_count,
     }));
 
@@ -50,6 +50,7 @@ const ArmComparisonChart: React.FC<ArmComparisonChartProps> = ({ arms, title = '
                             color: '#fff'
                         }}
                         formatter={(value: any, name: string) => {
+                            if (value === null || value === undefined) return ['N/A', name];
                             if (name === 'Pass Rate') return [`${value.toFixed(1)}%`, name];
                             return [value.toFixed(2), name];
                         }}
@@ -75,8 +76,8 @@ const ArmComparisonChart: React.FC<ArmComparisonChartProps> = ({ arms, title = '
                         </div>
                         <div className="text-sm space-y-1 text-slate-600 dark:text-slate-400">
                             <div>Students: {arm.student_count}</div>
-                            <div>Average: {arm.average_score.toFixed(2)}%</div>
-                            <div>Pass Rate: {arm.pass_rate.toFixed(1)}%</div>
+                            <div>Average: {arm.average_score !== null ? `${arm.average_score.toFixed(2)}%` : 'N/A'}</div>
+                            <div>Pass Rate: {arm.pass_rate !== null ? `${arm.pass_rate.toFixed(1)}%` : 'N/A'}</div>
                         </div>
                     </div>
                 ))}

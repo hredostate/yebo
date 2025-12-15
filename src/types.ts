@@ -1850,13 +1850,13 @@ export interface ArmStatistics {
     arm_name: string;
     academic_class_id: number;
     student_count: number;
-    average_score: number;
-    highest_score: number;
+    average_score: number | null;
+    highest_score: number | null;
     highest_scorer?: string;
     lowest_score: number;
     lowest_scorer?: string;
     pass_count: number;
-    pass_rate: number;
+    pass_rate: number | null;
     grade_distribution: GradeDistribution[];
 }
 
