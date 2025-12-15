@@ -4232,13 +4232,21 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             // If email is being updated, sync it to auth.users via edge function
             if (userData.email) {
                 try {
-                    const { error: authError } = await supabase.functions.invoke('manage-users', {
+                    const { data, error: authError } = await supabase.functions.invoke('manage-users', {
                         body: { action: 'update_staff_email', userId: userId, email: userData.email }
                     });
                     
+                    // Check for invocation error
                     if (authError) {
                         console.error(`Auth email update error for user ${userId}:`, authError);
                         addToast(`Failed to update email in authentication system: ${authError.message}`, 'error');
+                        return false;
+                    }
+                    
+                    // Check for response error
+                    if (data?.error) {
+                        console.error(`Auth email update response error for user ${userId}:`, data.error);
+                        addToast(`Failed to update email: ${data.error}`, 'error');
                         return false;
                     }
                 } catch (authErr: any) {
@@ -4277,13 +4285,21 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             
             // DELETE THE AUTH USER via Edge Function
             // This will cascade delete the user_profiles record due to FK constraint
-            const { error: authError } = await supabase.functions.invoke('manage-users', {
+            const { data, error: authError } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'delete_staff_account', userId: userId }
             });
             
+            // Check for invocation error
             if (authError) {
                 console.error(`Staff user deletion error for user ${userId}:`, authError);
                 addToast(`Failed to delete staff account: ${authError.message}`, 'error');
+                return false;
+            }
+            
+            // Check for response error
+            if (data?.error) {
+                console.error(`Staff user deletion response error for user ${userId}:`, data.error);
+                addToast(`Failed to delete staff account: ${data.error}`, 'error');
                 return false;
             }
             

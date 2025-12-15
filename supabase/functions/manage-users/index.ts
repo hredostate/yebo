@@ -577,7 +577,7 @@ serve(async (req) => {
         }
 
         // Validate email format
-        if (!validateEmail(email)) {
+        if (!email || !validateEmail(email)) {
             throw new Error(`Invalid email format: "${email}"`);
         }
 
