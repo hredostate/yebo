@@ -189,143 +189,263 @@ const PublicReportView: React.FC = () => {
         );
     }
 
+    const subjectCount = reportData.subjects?.length || 0;
+    const bestSubject =
+        reportData.subjects && reportData.subjects.length > 0
+            ? reportData.subjects.reduce((top, current) => {
+                  const topScore = top?.score ?? -Infinity;
+                  return current.score > topScore ? current : top;
+              }, null as (typeof reportData.subjects[number] | null))
+            : null;
+
+    const formatDate = (value?: string) =>
+        value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+    const gradeLegend = [
+        { label: 'A · Excellent', range: '90 - 100', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+        { label: 'B · Very Good', range: '80 - 89', color: 'bg-sky-100 text-sky-800 border-sky-300' },
+        { label: 'C · Good', range: '70 - 79', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+        { label: 'D · Fair', range: '60 - 69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+        { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+    ];
+
     return (
-        <div className="min-h-screen bg-slate-50 py-8 px-4">
-            <div className="max-w-4xl mx-auto">
+        <div className="min-h-screen bg-slate-100 py-8 px-4">
+            <div className="max-w-5xl mx-auto">
                 {/* Header with actions - hidden when printing */}
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print:hidden">
-                    <div className="flex justify-between items-center">
+                <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 print:hidden border border-slate-100">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-800">Student Report Card</h1>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Official student report</p>
+                            <h1 className="text-2xl font-black text-slate-800">Report Card • {reportData.term?.session_label}</h1>
                             <p className="text-sm text-slate-600 mt-1">
-                                {reportData.student?.name} - {reportData.term?.name} {reportData.term?.session_label}
+                                {reportData.student?.name} · {reportData.term?.name}
                             </p>
                         </div>
-                        <button
-                            onClick={handlePrint}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            <DownloadIcon className="w-5 h-5" />
-                            Print / Save PDF
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 border border-emerald-200">
+                                Secure link · Expires {formatDate(reportData.token_expires_at)}
+                            </span>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-600 text-white rounded-lg shadow-lg shadow-blue-200 hover:shadow-xl transition-all"
+                            >
+                                <DownloadIcon className="w-5 h-5" />
+                                Print / Save PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Report Card */}
-                <div className="bg-white rounded-lg shadow-lg p-8 print:shadow-none">
-                    {/* School Header */}
-                    <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
-                        <h1 className="text-3xl font-bold text-slate-800">UPSS</h1>
-                        <p className="text-sm text-slate-600 mt-2">Student Report Card</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            {reportData.term?.name} - {reportData.term?.session_label}
-                        </p>
-                    </div>
-
-                    {/* Student Info */}
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div>
-                            <p className="text-sm text-slate-600">Student Name:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.student?.name}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Admission Number:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.student?.admission_number || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Class:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.academic_class?.name || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Position in Class:</p>
-                            <p className="text-lg font-semibold text-slate-800">{reportData.position_in_class}</p>
-                        </div>
-                    </div>
-
-                    {/* Subjects Table */}
-                    {reportData.subjects && reportData.subjects.length > 0 && (
-                        <div className="mb-8">
-                            <h3 className="text-lg font-bold text-slate-800 mb-4">Subject Performance</h3>
-                            <table className="w-full border-collapse border border-slate-300">
-                                <thead>
-                                    <tr className="bg-slate-100">
-                                        <th className="border border-slate-300 px-4 py-2 text-left">Subject</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Score</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Grade</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-center">Position</th>
-                                        <th className="border border-slate-300 px-4 py-2 text-left">Remark</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reportData.subjects.map((subject) => (
-                                        <tr key={subject.id}>
-                                            <td className="border border-slate-300 px-4 py-2">{subject.subject_name}</td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center font-semibold">
-                                                {subject.score}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center font-semibold">
-                                                {subject.grade}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-center">
-                                                {subject.position || '-'}
-                                            </td>
-                                            <td className="border border-slate-300 px-4 py-2 text-sm">
-                                                {subject.teacher_comment || '-'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Overall Performance */}
-                    <div className="grid grid-cols-2 gap-4 mb-8 p-4 bg-slate-50 rounded-lg">
-                        <div>
-                            <p className="text-sm text-slate-600">Total Score:</p>
-                            <p className="text-2xl font-bold text-slate-800">{reportData.total_score}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Average Score:</p>
-                            <p className="text-2xl font-bold text-slate-800">{reportData.average_score.toFixed(2)}%</p>
-                        </div>
-                    </div>
-
-                    {/* Comments */}
-                    {(reportData.teacher_comment || reportData.principal_comment) && (
-                        <div className="space-y-4 mb-8">
-                            {reportData.teacher_comment && (
-                                <div className="p-4 bg-blue-50 rounded-lg">
-                                    <p className="text-sm font-semibold text-slate-700 mb-1">Class Teacher's Comment:</p>
-                                    <p className="text-slate-800">{reportData.teacher_comment}</p>
+                <div className="report-card bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+                    {/* Hero Header */}
+                    <div className="report-card-hero relative bg-gradient-to-r from-slate-900 via-indigo-800 to-blue-700 text-white px-8 py-10">
+                        <div
+                            className="absolute inset-0 opacity-20"
+                            style={{
+                                backgroundImage:
+                                    'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 0, rgba(255,255,255,0) 35%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.12) 0, rgba(255,255,255,0) 30%)'
+                            }}
+                        />
+                        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center text-2xl font-black shadow-inner border border-white/20">
+                                    UP
                                 </div>
-                            )}
-                            {reportData.principal_comment && (
-                                <div className="p-4 bg-green-50 rounded-lg">
-                                    <p className="text-sm font-semibold text-slate-700 mb-1">Principal's Comment:</p>
-                                    <p className="text-slate-800">{reportData.principal_comment}</p>
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-white/70">United Providence Secondary School</p>
+                                    <h1 className="text-3xl font-black leading-tight">Student Report Card</h1>
+                                    <p className="text-sm text-white/80 mt-1">
+                                        {reportData.term?.name} • {reportData.term?.session_label}
+                                    </p>
                                 </div>
-                            )}
+                            </div>
+                            <div className="flex flex-col gap-2 text-sm md:text-right">
+                                <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 font-semibold">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                                    Published & ready to print
+                                </span>
+                                <p className="text-white/80">Issued: {formatDate(reportData.created_at)}</p>
+                                <p className="text-white/80">Valid until: {formatDate(reportData.token_expires_at)}</p>
+                            </div>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Footer */}
-                    <div className="text-center text-sm text-slate-500 mt-8 pt-4 border-t border-slate-200">
-                        <p>Generated by UPSS</p>
-                        <p className="mt-1">
-                            This report is valid until: {new Date(reportData.token_expires_at).toLocaleDateString()}
-                        </p>
+                    <div className="px-8 py-10 md:px-10 md:py-12 space-y-10">
+                        {/* Student Info */}
+                        <div className="grid md:grid-cols-3 gap-6">
+                            <div className="col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-inner shadow-slate-100">
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Student</p>
+                                        <p className="text-xl font-bold text-slate-900">{reportData.student?.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Admission No.</p>
+                                        <p className="text-lg font-semibold text-slate-800">{reportData.student?.admission_number || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Class</p>
+                                        <p className="text-lg font-semibold text-slate-800">{reportData.academic_class?.name || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Position</p>
+                                        <p className="text-lg font-semibold text-slate-800">{reportData.position_in_class || '—'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-slate-900 text-white rounded-xl p-6 shadow-lg">
+                                <p className="text-xs uppercase tracking-[0.2em] text-white/70">Performance snapshot</p>
+                                <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+                                    <div className="report-card-stat rounded-lg bg-white/10 p-3 border border-white/10">
+                                        <p className="text-4xl font-black leading-tight">{reportData.average_score?.toFixed(1)}%</p>
+                                        <p className="text-xs text-white/80 mt-1">Average</p>
+                                    </div>
+                                    <div className="report-card-stat rounded-lg bg-white/10 p-3 border border-white/10">
+                                        <p className="text-4xl font-black leading-tight">{reportData.total_score}</p>
+                                        <p className="text-xs text-white/80 mt-1">Total Score</p>
+                                    </div>
+                                    <div className="report-card-stat rounded-lg bg-white/10 p-3 border border-white/10">
+                                        <p className="text-2xl font-black leading-tight">{subjectCount}</p>
+                                        <p className="text-xs text-white/80 mt-1">Subjects</p>
+                                    </div>
+                                    <div className="report-card-stat rounded-lg bg-white/10 p-3 border border-white/10">
+                                        <p className="text-xl font-black leading-tight">{bestSubject ? bestSubject.subject_name : '—'}</p>
+                                        <p className="text-xs text-white/80 mt-1">Top strength</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Subjects Table */}
+                        {reportData.subjects && reportData.subjects.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Academic breakdown</p>
+                                        <h3 className="text-xl font-bold text-slate-900">Subject performance</h3>
+                                    </div>
+                                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+                                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                                        Consistent reporting layout
+                                    </span>
+                                </div>
+                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                    <table className="min-w-full">
+                                        <thead className="bg-slate-900 text-white">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold">Score</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold">Grade</th>
+                                                <th className="px-4 py-3 text-center text-sm font-semibold">Position</th>
+                                                <th className="px-4 py-3 text-left text-sm font-semibold">Teacher remark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-slate-200">
+                                            {reportData.subjects.map((subject) => (
+                                                <tr key={subject.id} className="hover:bg-slate-50">
+                                                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{subject.subject_name}</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="inline-flex items-center justify-center w-14 rounded-full bg-slate-100 text-slate-900 font-semibold border border-slate-200">
+                                                            {subject.score}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-semibold bg-gradient-to-r from-indigo-50 to-blue-100 text-indigo-700 border border-indigo-200">
+                                                            {subject.grade}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center text-sm text-slate-700">{subject.position || '—'}</td>
+                                                    <td className="px-4 py-3 text-sm text-slate-700">{subject.teacher_comment || '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500 mb-2">Grade legend</p>
+                                        <div className="grid sm:grid-cols-2 gap-2">
+                                            {gradeLegend.map((grade) => (
+                                                <div key={grade.label} className={`text-sm font-semibold px-3 py-2 rounded-md border ${grade.color}`}>
+                                                    <div>{grade.label}</div>
+                                                    <p className="text-xs font-normal opacity-80">{grade.range}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg p-4">
+                                        <p className="text-xs uppercase tracking-[0.18em] text-emerald-600 mb-2">Highlights</p>
+                                        <ul className="space-y-2 text-sm text-emerald-900">
+                                            <li>✓ Holistic breakdown of subject strengths</li>
+                                            <li>✓ Clear teacher feedback to support growth</li>
+                                            <li>✓ Ready for printing and PDF export</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Comments */}
+                        {(reportData.teacher_comment || reportData.principal_comment) && (
+                            <div className="grid md:grid-cols-2 gap-6">
+                                {reportData.teacher_comment && (
+                                    <div className="relative bg-blue-50 border border-blue-200 rounded-xl p-6 overflow-hidden">
+                                        <div className="absolute -top-10 -right-6 text-7xl text-blue-100" aria-hidden>
+                                            “
+                                        </div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-blue-700 mb-2">Class teacher</p>
+                                        <p className="text-lg font-semibold text-slate-900">{reportData.teacher_comment}</p>
+                                    </div>
+                                )}
+                                {reportData.principal_comment && (
+                                    <div className="relative bg-emerald-50 border border-emerald-200 rounded-xl p-6 overflow-hidden">
+                                        <div className="absolute -top-10 -right-6 text-7xl text-emerald-100" aria-hidden>
+                                            “
+                                        </div>
+                                        <p className="text-xs uppercase tracking-[0.18em] text-emerald-700 mb-2">Principal</p>
+                                        <p className="text-lg font-semibold text-slate-900">{reportData.principal_comment}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="pt-6 border-t border-dashed border-slate-200 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                            <div className="space-y-2 text-sm text-slate-600">
+                                <p>
+                                    Issued for <span className="font-semibold text-slate-900">{reportData.student?.name}</span> · {reportData.academic_class?.name}
+                                </p>
+                                <p className="text-slate-500">For verification, contact the school administration.</p>
+                            </div>
+                            <div className="flex items-center gap-6 text-sm text-slate-700">
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="h-10 w-32 border-b border-slate-400" />
+                                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Class teacher</p>
+                                </div>
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="h-10 w-32 border-b border-slate-400" />
+                                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Principal</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Info note - hidden when printing */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 print:hidden">
-                    <p className="font-semibold mb-1">📌 Note:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                        <li>This is a secure link that expires in 30 days from generation</li>
-                        <li>To save this report as PDF, click the "Print / Save PDF" button and choose "Save as PDF"</li>
-                        <li>For questions about this report, please contact the school directly</li>
-                    </ul>
+                <div className="mt-6 p-5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 shadow-sm print:hidden">
+                    <div className="flex items-start gap-3">
+                        <div className="text-xl">📌</div>
+                        <div>
+                            <p className="font-semibold text-slate-900">Helpful tips</p>
+                            <ul className="list-disc list-inside space-y-1 text-slate-600 mt-1">
+                                <li>This secure link expires in 30 days from generation.</li>
+                                <li>Use the “Print / Save PDF” button above for the best layout.</li>
+                                <li>Contact the school directly if you have any questions.</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
