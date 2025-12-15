@@ -227,6 +227,21 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
 
     // Handle CSV export
     const handleCsvExport = (selectedColumns: string[]) => {
+        // Map of column keys to human-readable labels
+        const columnLabels: Record<string, string> = {
+            staff_name: 'Staff Name',
+            role: 'Role',
+            campus: 'Campus',
+            base_pay: 'Base Pay',
+            commission: 'Commission',
+            adjustments_total: 'Adjustments Total',
+            net_amount: 'Net Amount',
+            bank_name: 'Bank Name',
+            account_number: 'Account Number',
+            email: 'Email',
+            phone_number: 'Phone Number',
+        };
+
         // Prepare data for all filtered staff
         const exportData = filteredStaff.map(user => {
             const userAdjustments = adjustments.filter(a => a.user_id === user.id);
@@ -241,25 +256,28 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
             const campusName = campuses.find(c => c.id === user.campus_id)?.name || 'Main';
             const bankName = NIGERIAN_BANKS.find(b => b.code === user.bank_code)?.name || user.bank_name || '';
 
-            // Build row with all possible columns
+            // Build row with all possible columns using human-readable labels
             const row: Record<string, any> = {
-                staff_name: user.name,
-                role: user.role,
-                campus: campusName,
-                base_pay: base,
-                commission: commission,
-                adjustments_total: totalAdjustments,
-                net_amount: net,
-                bank_name: bankName,
-                account_number: user.account_number || '',
-                email: user.email || '',
-                phone_number: user.phone_number || '',
+                'Staff Name': user.name,
+                'Role': user.role,
+                'Campus': campusName,
+                'Base Pay': base,
+                'Commission': commission,
+                'Adjustments Total': totalAdjustments,
+                'Net Amount': net,
+                'Bank Name': bankName,
+                'Account Number': user.account_number || '',
+                'Email': user.email || '',
+                'Phone Number': user.phone_number || '',
             };
 
-            // Filter to only selected columns
+            // Filter to only selected columns with proper labels
             const filteredRow: Record<string, any> = {};
             selectedColumns.forEach(col => {
-                filteredRow[col] = row[col];
+                const label = columnLabels[col];
+                if (label && row[label] !== undefined) {
+                    filteredRow[label] = row[label];
+                }
             });
 
             return filteredRow;
