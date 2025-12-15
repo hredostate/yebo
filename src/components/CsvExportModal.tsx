@@ -24,6 +24,7 @@ const CsvExportModal: React.FC<CsvExportModalProps> = ({
     isExporting = false 
 }) => {
     const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
+    const [error, setError] = useState<string>('');
 
     // Initialize selected columns based on defaults when modal opens
     useEffect(() => {
@@ -32,6 +33,7 @@ const CsvExportModal: React.FC<CsvExportModalProps> = ({
                 columns.filter(col => col.defaultChecked).map(col => col.key)
             );
             setSelectedColumns(defaultSelected);
+            setError(''); // Clear any previous errors
         }
     }, [isOpen, columns]);
 
@@ -45,10 +47,12 @@ const CsvExportModal: React.FC<CsvExportModalProps> = ({
             newSelected.add(key);
         }
         setSelectedColumns(newSelected);
+        setError(''); // Clear error when user makes a selection
     };
 
     const handleSelectAll = () => {
         setSelectedColumns(new Set(columns.map(col => col.key)));
+        setError('');
     };
 
     const handleDeselectAll = () => {
@@ -58,7 +62,7 @@ const CsvExportModal: React.FC<CsvExportModalProps> = ({
     const handleExport = () => {
         const columnsArray = Array.from(selectedColumns);
         if (columnsArray.length === 0) {
-            alert('Please select at least one column to export.');
+            setError('Please select at least one column to export.');
             return;
         }
         onExport(columnsArray);
@@ -86,6 +90,13 @@ const CsvExportModal: React.FC<CsvExportModalProps> = ({
                     <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                         Select the columns you want to include in the export:
                     </p>
+
+                    {/* Error message */}
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+                            {error}
+                        </div>
+                    )}
 
                     {/* Select/Deselect All buttons */}
                     <div className="flex gap-2 mb-4">

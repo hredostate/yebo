@@ -227,20 +227,11 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
 
     // Handle CSV export
     const handleCsvExport = (selectedColumns: string[]) => {
-        // Map of column keys to human-readable labels
-        const columnLabels: Record<string, string> = {
-            staff_name: 'Staff Name',
-            role: 'Role',
-            campus: 'Campus',
-            base_pay: 'Base Pay',
-            commission: 'Commission',
-            adjustments_total: 'Adjustments Total',
-            net_amount: 'Net Amount',
-            bank_name: 'Bank Name',
-            account_number: 'Account Number',
-            email: 'Email',
-            phone_number: 'Phone Number',
-        };
+        // Create a lookup map from csvColumns for efficient access
+        const columnLabels = csvColumns.reduce<Record<string, string>>((acc, col) => {
+            acc[col.key] = col.label;
+            return acc;
+        }, {});
 
         // Prepare data for all filtered staff
         const exportData = filteredStaff.map(user => {
@@ -256,31 +247,31 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
             const campusName = campuses.find(c => c.id === user.campus_id)?.name || 'Main';
             const bankName = NIGERIAN_BANKS.find(b => b.code === user.bank_code)?.name || user.bank_name || '';
 
-            // Build row with all possible columns using human-readable labels
-            const row: Record<string, any> = {
-                'Staff Name': user.name,
-                'Role': user.role,
-                'Campus': campusName,
-                'Base Pay': base,
-                'Commission': commission,
-                'Adjustments Total': totalAdjustments,
-                'Net Amount': net,
-                'Bank Name': bankName,
-                'Account Number': user.account_number || '',
-                'Email': user.email || '',
-                'Phone Number': user.phone_number || '',
+            // Map of all possible column values
+            const columnValues: Record<string, any> = {
+                'staff_name': user.name,
+                'role': user.role,
+                'campus': campusName,
+                'base_pay': base,
+                'commission': commission,
+                'adjustments_total': totalAdjustments,
+                'net_amount': net,
+                'bank_name': bankName,
+                'account_number': user.account_number || '',
+                'email': user.email || '',
+                'phone_number': user.phone_number || '',
             };
 
-            // Filter to only selected columns with proper labels
-            const filteredRow: Record<string, any> = {};
+            // Build row with only selected columns using human-readable labels
+            const row: Record<string, any> = {};
             selectedColumns.forEach(col => {
                 const label = columnLabels[col];
-                if (label && row[label] !== undefined) {
-                    filteredRow[label] = row[label];
+                if (label && columnValues[col] !== undefined) {
+                    row[label] = columnValues[col];
                 }
             });
 
-            return filteredRow;
+            return row;
         });
 
         // Generate filename with current date
