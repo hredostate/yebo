@@ -2,16 +2,27 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { cache, uploadStore, conflictsStore } from './db';
 import { enqueue, drain, QueuedItem } from './queue';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient';
 
 export { cache };
 
 // Reuse the Supabase client from supabaseClient.ts to avoid multiple GoTrueClient instances
-// If supabaseClient is null (env vars missing), operations will fail gracefully
-if (!supabaseClient) {
-  throw new Error('Supabase client not initialized. Check environment variables.');
+// Lazy lookup keeps module import from throwing when env vars are missing so the app can surface the error gracefully
+function getSupabaseClient(): SupabaseClient {
+  try {
+    return supabaseClient || requireSupabaseClient();
+  } catch (error) {
+    const reason = (error as Error).message || supabaseError || 'Supabase client not initialized.';
+    throw new Error(reason);
+  }
 }
-export const supa: SupabaseClient = supabaseClient;
+
+export const supa: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseClient();
+    return (client as any)[prop as keyof SupabaseClient];
+  },
+});
 
 export interface Conflict {
   key: string; // e.g., 'attendance_records-123'

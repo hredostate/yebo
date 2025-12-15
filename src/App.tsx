@@ -18,6 +18,13 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 import { fetchAllStudents } from './utils/studentPagination';
 import { updateSessionHeartbeat, terminateCurrentSession } from './services/sessionManager';
 import { clearUserPersistedState } from './hooks/usePersistedState';
+import {
+    AUTH_ONLY_VIEWS,
+    getInitialTargetViewFromHash,
+    getWeekStartDateString,
+    isStudentAllowedView,
+    useInitialTargetView,
+} from './hooks/useInitialView';
 
 import LoginPage from './components/LoginPage';
 import Sidebar from './components/Sidebar';
@@ -109,57 +116,6 @@ const AppRouter = lazyWithRetry(() => import('./components/AppRouter'));
 const AbsenceRequestsView = lazyWithRetry(() => import('./components/AbsenceRequestsView'));
 const PolicyQueryView = lazyWithRetry(() => import('./components/PolicyQueryView'));
 const PolicyStatementsManager = lazyWithRetry(() => import('./components/PolicyStatementsManager'));
-
-// Auth-only views that authenticated users should not access
-const AUTH_ONLY_VIEWS = ['teacher-login', 'student-login', 'landing', 'public-ratings'];
-
-// Views that students are allowed to access
-const STUDENT_ALLOWED_VIEWS = [
-    'My Subjects',
-    'Rate My Teacher',
-    'Student Surveys',
-    'Student Reports',
-    'Student Dashboard',
-    'Student Profile Edit',
-    'My Strikes & Appeals',
-    'Student Lessons',
-    'Timetable',
-    'My Homework',
-    'Absence Requests',
-    'School Store'
-];
-
-// Helper: Check if a view is allowed for students
-const isStudentAllowedView = (view: string): boolean => {
-    return STUDENT_ALLOWED_VIEWS.includes(view) || 
-           view.startsWith('Student Report/') || 
-           view.startsWith('Take Quiz/');
-};
-
-// Helper: Parse initial target view from URL hash
-const getInitialTargetViewFromHash = (): string | null => {
-    try {
-        let hash = decodeURIComponent(window.location.hash.substring(1));
-        if (hash.startsWith('/')) hash = hash.substring(1);
-        // Ignore auth tokens and empty hashes
-        if (!hash || hash.includes('access_token=') || hash.includes('error=')) {
-            return null;
-        }
-        return hash;
-    } catch (e) {
-        console.warn("Failed to parse initial URL hash:", window.location.hash, e);
-        return null;
-    }
-};
-
-// Helper: Get Monday of the current week as a string
-const getWeekStartDateString = (date: Date): string => {
-    const d = new Date(date);
-    const day = d.getDay(); // Sunday - 0, Monday - 1
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
-    const monday = new Date(d.setDate(diff));
-    return monday.toISOString().split('T')[0];
-};
 
 interface ErrorBoundaryState {
     hasError: boolean;
@@ -341,7 +297,7 @@ const App: React.FC = () => {
     const [hash, setHash] = useState(window.location.hash);
     
     // Store the initial target view from URL hash to preserve it across auth redirects
-    const initialTargetView = useRef<string | null>(getInitialTargetViewFromHash());
+    const initialTargetView = useInitialTargetView();
     const hasHandledInitialNavigation = useRef(false);
 
     // Rate limit tracking
