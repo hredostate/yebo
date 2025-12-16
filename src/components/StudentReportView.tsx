@@ -960,7 +960,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
 
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 print:bg-white print:p-0 font-sans">
+    <div className="report-print-root min-h-screen bg-gray-100 p-4 md:p-8 print:bg-white print:p-0 font-sans">
       
       {/* Dynamic Print Style Injection */}
       <style>

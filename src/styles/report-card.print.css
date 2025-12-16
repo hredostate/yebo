@@ -1,4 +1,4 @@
-/* report-card.print.css */
+/* Print-specific overrides for report cards */
 @media print {
   @page { size: A4; margin: 10mm; }
 
@@ -14,7 +14,7 @@
     print-color-adjust: exact;
   }
 
-  /* Hide app chrome in print (adjust selectors to your app) */
+  /* Hide app chrome in print */
   nav, header, footer, aside,
   button, .no-print, [data-no-print="true"],
   [role="dialog"], [aria-modal="true"] {
@@ -49,12 +49,10 @@
 
   /* Print canvas */
   .report-print-root {
-    width: 190mm !important;       /* safe inner width */
+    width: 190mm !important;
     max-width: 190mm !important;
     margin: 0 auto !important;
     padding: 0 !important;
-
-    /* Avoid transform scaling that can crop */
     transform: none !important;
     zoom: 1 !important;
   }
