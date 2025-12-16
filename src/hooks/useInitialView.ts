@@ -10,6 +10,7 @@ export const STUDENT_ALLOWED_VIEWS = [
   'Student Surveys',
   'Student Reports',
   'Student Dashboard',
+  'Student Finances',
   'Student Profile Edit',
   'My Strikes & Appeals',
   'Student Lessons',

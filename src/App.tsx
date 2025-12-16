@@ -1021,9 +1021,9 @@ const App: React.FC = () => {
                     console.log('[Auth] Restoring student to initial target view:', targetView);
                     setCurrentView(targetView);
                 } else {
-                    setCurrentView(VIEWS.MY_SUBJECTS);
+                    setCurrentView(VIEWS.STUDENT_DASHBOARD);
                 }
-                return; 
+                return;
             } else {
                 console.error('[Auth] No profile found for user');
                 setUserProfile(null);
@@ -1559,10 +1559,10 @@ const App: React.FC = () => {
             // Try to restore from localStorage if available, otherwise go to Dashboard
             const lastView = localStorage.getItem('sg360_last_view');
             const canRestoreLastView = lastView && !AUTH_ONLY_VIEWS.includes(lastView);
-            const targetView = canRestoreLastView ? lastView : VIEWS.DASHBOARD;
+            const targetView = canRestoreLastView ? lastView : (userType === 'student' ? VIEWS.STUDENT_DASHBOARD : VIEWS.DASHBOARD);
             setCurrentView(targetView);
         }
-    }, [session, currentView]);
+    }, [session, currentView, userType]);
 
     // Mark initial navigation as handled after auth is complete
     // This prevents the initial target view from being reused on subsequent navigations
@@ -1625,7 +1625,7 @@ const App: React.FC = () => {
         // Redirect student if they're trying to access an unauthorized view
         if (userType === 'student' && !booting && userProfile && !isStudentAllowedView(currentView)) {
             console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
-            setCurrentView(VIEWS.MY_SUBJECTS);
+            setCurrentView(VIEWS.STUDENT_DASHBOARD);
         }
     }, [userType, currentView, booting, userProfile]);
 
