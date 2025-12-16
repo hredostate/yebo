@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment } from '../types';
+import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment, Subject } from '../types';
 import { EmploymentStatus } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
@@ -32,7 +32,7 @@ interface SuperAdminConsoleProps {
     roles: RoleDetails[];
     userRoleAssignments: { user_id: string; role_id: number }[];
     auditLogs: AuditLog[];
-    subjects: BaseDataObject[];
+    subjects: Subject[];
     classes: BaseDataObject[];
     arms: BaseDataObject[];
     classSubjects: ClassSubject[];
@@ -51,7 +51,7 @@ interface SuperAdminConsoleProps {
     onSaveGradingScheme: (scheme: Partial<GradingScheme>) => Promise<boolean>;
     onDeleteGradingScheme: (schemeId: number) => Promise<boolean>;
     onSetActiveGradingScheme: (schemeId: number) => Promise<boolean>;
-    onSaveSubject: (subject: Partial<BaseDataObject>) => Promise<boolean>;
+    onSaveSubject: (subject: Partial<Subject>) => Promise<boolean>;
     onDeleteSubject: (id: number) => Promise<boolean>;
     onSaveClass: (cls: Partial<BaseDataObject>) => Promise<boolean>;
     onDeleteClass: (id: number) => Promise<boolean>;

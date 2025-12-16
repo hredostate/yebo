@@ -1,19 +1,20 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supa as supabase } from '../offline/client';
-import type { TimetablePeriod, TimetableEntry, TimetableLocation, UserProfile, AcademicClass, BaseDataObject, Term, Campus } from '../types';
+import type { TimetablePeriod, TimetableEntry, TimetableLocation, UserProfile, AcademicClass, Subject, Term, Campus } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, EditIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { isActiveEmployee } from '../utils/userHelpers';
+import { applySchedulingRules, type TimetableCandidate } from '../services/timetableScheduler';
 
 interface TimetableViewProps {
     userProfile?: UserProfile;
     users?: UserProfile[];
     terms?: Term[];
     academicClasses?: AcademicClass[];
-    subjects?: BaseDataObject[];
+    subjects?: Subject[];
     campuses?: Campus[];
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
     studentViewClassId?: number; // For Student Portal Read-only View
@@ -227,7 +228,7 @@ interface EntryModalProps {
     day: string;
     period: TimetablePeriod;
     academicClasses: AcademicClass[];
-    subjects: BaseDataObject[];
+    subjects: Subject[];
     users: UserProfile[];
     locations: TimetableLocation[];
     initialData?: TimetableEntry | null;
@@ -245,50 +246,26 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, onDele
     const [conflict, setConflict] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isOpen) {
-            let currentConflict = null;
-            if (teacherId) {
-                // Check if this teacher is already booked in another class/slot at this time
-                const teacherBusy = existingEntries.find(e => 
-                    e.day_of_week === day && 
-                    e.period_id === period.id && 
-                    e.teacher_id === teacherId && 
-                    e.id !== initialData?.id
-                );
-                if (teacherBusy) {
-                    currentConflict = `Teacher is already assigned to ${teacherBusy.academic_class?.name} at this time.`;
-                }
-            }
-            
-            if (!currentConflict && classId) {
-                // Check if this class already has a lesson at this time
-                const classBusy = existingEntries.find(e => 
-                    e.day_of_week === day && 
-                    e.period_id === period.id && 
-                    e.academic_class_id === classId && 
-                    e.id !== initialData?.id
-                );
-                 if (classBusy) {
-                    currentConflict = `Class ${classBusy.academic_class?.name} already has ${classBusy.subject?.name} at this time.`;
-                }
-            }
-            
-            // Check if this location is already booked at this time
-            if (!currentConflict && locationId) {
-                const locationBusy = existingEntries.find(e => 
-                    e.day_of_week === day && 
-                    e.period_id === period.id && 
-                    e.location_id === locationId && 
-                    e.id !== initialData?.id
-                );
-                if (locationBusy) {
-                    const locationName = locations.find(l => l.id === locationId)?.name || 'Location';
-                    currentConflict = `${locationName} is already booked for ${locationBusy.academic_class?.name} at this time.`;
-                }
-            }
-            setConflict(currentConflict);
+        if (isOpen && classId && subjectId && teacherId) {
+            const validation = applySchedulingRules({
+                existingEntries,
+                candidateEntry: {
+                    id: initialData?.id,
+                    day_of_week: day,
+                    period_id: period.id,
+                    academic_class_id: Number(classId),
+                    subject_id: Number(subjectId),
+                    teacher_id: teacherId,
+                    room_number: room,
+                    location_id: locationId ? Number(locationId) : undefined,
+                },
+                subjects,
+            });
+            setConflict(validation.error || null);
+        } else {
+            setConflict(null);
         }
-    }, [classId, teacherId, locationId, day, period, existingEntries, initialData, isOpen, locations]);
+    }, [classId, teacherId, locationId, day, period, existingEntries, initialData, isOpen, subjects, subjectId, room]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -439,36 +416,64 @@ const TimetableGrid: React.FC<{
                                 <div className="text-slate-500">{period.start_time.slice(0,5)} - {period.end_time.slice(0,5)}</div>
                             </td>
                             {DAYS_OF_WEEK.map(day => {
-                                const entry = displayEntries.find(e => e.period_id === period.id && e.day_of_week === day);
+                                const slotEntries = displayEntries.filter(e => e.period_id === period.id && e.day_of_week === day);
                                 const isBreak = period.type === 'break';
-                                
+
                                 if (isBreak) {
                                     return <td key={day} className="p-1 border border-slate-200 dark:border-slate-700 bg-yellow-50/50 dark:bg-yellow-900/10 text-center text-xs text-yellow-700 dark:text-yellow-500 uppercase tracking-widest">Break</td>;
                                 }
 
+                                const hasEntries = slotEntries.length > 0;
+                                const cellClasses = `p-2 border border-slate-200 dark:border-slate-700 transition-colors h-32 align-top relative group ${readOnly ? '' : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'} ${hasEntries ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/30'}`;
+
                                 return (
-                                    <td 
-                                        key={day} 
-                                        onClick={() => !readOnly && onEditEntry(day, period, entry)}
-                                        className={`p-2 border border-slate-200 dark:border-slate-700 transition-colors h-24 align-top relative group ${readOnly ? '' : 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20'} ${entry ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/30'}`}
+                                    <td
+                                        key={day}
+                                        onClick={() => {
+                                            if (!readOnly && !hasEntries) {
+                                                onEditEntry(day, period, undefined);
+                                            }
+                                        }}
+                                        className={cellClasses}
                                     >
-                                        {entry ? (
-                                            <div className="h-full flex flex-col">
-                                                <div className="font-bold text-blue-700 dark:text-blue-400 line-clamp-2">
-                                                    {entry.subject?.name}
-                                                </div>
-                                                <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                                                    {viewMode === 'teacher' ? entry.academic_class?.name : entry.teacher?.name}
-                                                </div>
-                                                {entry.room_number && (
-                                                    <div className="text-[10px] text-slate-400 mt-auto flex items-center gap-1">
-                                                        <span className="bg-slate-100 dark:bg-slate-800 px-1 rounded">{entry.room_number}</span>
+                                        {hasEntries ? (
+                                            <div className="flex flex-col gap-2">
+                                                {slotEntries.map(entry => (
+                                                    <div key={entry.id} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                                        <div className="flex justify-between gap-2">
+                                                            <div className="space-y-1">
+                                                                <div className="font-bold text-blue-700 dark:text-blue-400 leading-snug line-clamp-2">{entry.subject?.name}</div>
+                                                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    {viewMode === 'teacher' ? entry.academic_class?.name : entry.teacher?.name}
+                                                                </div>
+                                                                {(entry.location?.name || entry.room_number) && (
+                                                                    <div className="text-[11px] text-slate-500 flex flex-wrap gap-1 items-center">
+                                                                        {entry.location?.name && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{entry.location.name}</span>}
+                                                                        {entry.room_number && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{entry.room_number}</span>}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {!readOnly && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); onEditEntry(day, period, entry); }}
+                                                                    className="text-slate-400 hover:text-blue-600"
+                                                                    aria-label="Edit entry"
+                                                                >
+                                                                    <EditIcon className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                )}
+                                                ))}
                                                 {!readOnly && (
-                                                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <EditIcon className="w-3 h-3 text-slate-400" />
-                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); onEditEntry(day, period, undefined); }}
+                                                        className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800"
+                                                    >
+                                                        <PlusCircleIcon className="w-4 h-4" /> Add subject to slot
+                                                    </button>
                                                 )}
                                             </div>
                                         ) : (
@@ -510,7 +515,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     const [selectedSlot, setSelectedSlot] = useState<{day: string, period: TimetablePeriod, entry?: TimetableEntry} | null>(null);
 
     // Determine Mode
-    const isStudent = !!studentViewClassId;
+    const isStudent = !!studentViewClassId || userProfile?.role === 'Student';
     const isAdmin = !isStudent && userProfile && ['Admin', 'Principal', 'Team Lead'].includes(userProfile.role);
     
     // Fetch Terms if missing (Student View scenario)
@@ -554,7 +559,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
             setIsLoading(true);
             const [pRes, eRes, lRes] = await Promise.all([
                 supabase.from('timetable_periods').select('*'),
-                selectedTermId ? supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId) : { data: [] },
+                selectedTermId ? supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId) : { data: [] },
                 supabase.from('timetable_locations').select('*, campus:campuses(name)')
             ]);
             
@@ -619,37 +624,54 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     const handleSaveEntry = async (entry: Partial<TimetableEntry>) => {
         if (!userProfile && !isStudent) return; // Guard for no profile unless student view (but student view is read only)
         if (isStudent) return; // Double check
-
-        // Basic conflict check before sending to DB, though DB constraint will catch it too
-        // handled in modal
-        
-        const payload = { ...entry, school_id: userProfile!.school_id, term_id: selectedTermId };
-        
-        let error;
-        if (entry.id) {
-            const res = await supabase.from('timetable_entries').update(payload).eq('id', entry.id);
-            error = res.error;
-        } else {
-            const res = await supabase.from('timetable_entries').insert(payload);
-            error = res.error;
+        if (!selectedTermId) {
+            addToast('Please select a term before scheduling.', 'error');
+            return;
         }
 
-        if (error) {
-            if (error.message.includes('unique_teacher_slot')) {
-                addToast('Double Booking Error: This teacher is already busy at this time.', 'error');
-            } else if (error.message.includes('unique_class_slot')) {
-                addToast('Double Booking Error: This class already has a lesson at this time.', 'error');
-            } else if (error.message.includes('unique_location_slot')) {
-                addToast('Double Booking Error: This location is already booked at this time.', 'error');
-            } else {
-                const userFriendlyMessage = mapSupabaseError(error);
-                addToast(`Error saving entry: ${userFriendlyMessage}`, 'error');
+        const candidate: TimetableCandidate = {
+            ...(entry as TimetableCandidate),
+            school_id: userProfile!.school_id,
+            term_id: selectedTermId!,
+        };
+
+        const decision = applySchedulingRules({
+            existingEntries: entries,
+            candidateEntry: candidate,
+            subjects: subjects as Subject[],
+        });
+
+        if (decision.error) {
+            addToast(decision.error, 'error');
+            return;
+        }
+
+        if (decision.entriesToDelete.length > 0) {
+            const { error: deleteError } = await supabase.from('timetable_entries').delete().in('id', decision.entriesToDelete);
+            if (deleteError) {
+                addToast(mapSupabaseError(deleteError), 'error');
+                return;
             }
-        } else {
-            addToast('Timetable updated', 'success');
-            const { data } = await supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId!);
-            if(data) setEntries(data);
         }
+
+        for (const item of decision.entriesToUpsert) {
+            const payload = { ...item, school_id: userProfile!.school_id, term_id: selectedTermId };
+            const response = item.id
+                ? await supabase.from('timetable_entries').update(payload).eq('id', item.id)
+                : await supabase.from('timetable_entries').insert(payload);
+
+            if (response.error) {
+                addToast(mapSupabaseError(response.error), 'error');
+                return;
+            }
+        }
+
+        addToast('Timetable updated', 'success');
+        const { data } = await supabase
+            .from('timetable_entries')
+            .select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)')
+            .eq('term_id', selectedTermId!);
+        if (data) setEntries(data);
     };
 
     const handleDeleteEntry = async (id: number) => {
@@ -657,7 +679,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
         if (error) {
             addToast('Failed to delete entry', 'error');
         } else {
-            const { data } = await supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId!);
+            const { data } = await supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId!);
             if(data) setEntries(data);
             addToast('Entry deleted', 'success');
         }

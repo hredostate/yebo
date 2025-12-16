@@ -515,6 +515,12 @@ export interface BaseDataObject {
     campus_id?: number | null;
 }
 
+export interface Subject extends BaseDataObject {
+    priority?: number | null;
+    is_solo?: boolean | null;
+    can_co_run?: boolean | null;
+}
+
 export interface ClassSubject {
     id: number;
     class_id: number;
@@ -894,8 +900,6 @@ export interface StudentTermReport {
     token_expires_at?: string | null;
     created_at: string;
     term?: Term;
-    public_token?: string;
-    token_expires_at?: string;
 }
 
 export interface StudentTermReportSubject {
@@ -1262,9 +1266,9 @@ export interface TimetableEntry {
     teacher_id: string;
     room_number?: string;
     location_id?: number | null;
-    
+
     academic_class?: { name: string };
-    subject?: { name: string };
+    subject?: { name: string; priority?: number | null; is_solo?: boolean | null; can_co_run?: boolean | null };
     teacher?: { name: string };
     location?: { name: string; capacity?: number | null };
 }
@@ -1574,16 +1578,13 @@ export interface KudiSmsSettings {
     campus_id: number | null;
     token: string;
     sender_id: string;
-    enable_fallback: boolean;
-    notification_channels: NotificationChannelConfig;
-    whatsapp_template_codes: WhatsAppTemplateCodes;
+    enable_fallback?: boolean;
+    notification_channels?: NotificationChannelConfig | Record<string, 'sms' | 'whatsapp' | 'both'>;
+    whatsapp_template_codes?: WhatsAppTemplateCodes | Record<string, string>;
     is_active: boolean;
     created_at: string;
     updated_at: string;
     campus?: { name: string };
-    enable_fallback?: boolean;
-    notification_channels?: Record<string, 'sms' | 'whatsapp' | 'both'>;
-    whatsapp_template_codes?: Record<string, string>;
 }
 
 export interface KudiSmsResponse {
@@ -1702,7 +1703,8 @@ export interface PublishedLessonPlan extends LessonPlan {
     published_at: string;
     published_by: string;
     publish_target: 'all' | 'class' | 'arm';
-    materials?: LearningMaterial[];
+    materials?: string;
+    material_items?: LearningMaterial[];
 }
 
 export interface Homework {
@@ -1809,20 +1811,7 @@ export interface SmsNotification {
 }
 
 // Notification Types for Messaging System
-export type NotificationType = 
-    | 'payment_receipt' 
-    | 'homework_missing' 
-    | 'homework_reminder' 
-    | 'notes_incomplete' 
-    | 'lesson_published' 
-    | 'attendance_present' 
-    | 'absentee_alert' 
-    | 'late_arrival' 
-    | 'subject_absentee' 
-    | 'subject_late' 
-    | 'report_card_ready' 
-    | 'emergency_broadcast'
-    | 'general';
+// (alias retained above for backward compatibility)
 
 
 // Statistics Dashboard Types
