@@ -90,7 +90,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
   if (template === 'modern') {
     return (
-      <div className="report-card modern bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 p-10 max-w-5xl mx-auto shadow-xl rounded-2xl border border-slate-200">
+      <div className="report-card report-print-root modern bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 p-10 max-w-5xl mx-auto shadow-xl rounded-2xl border border-slate-200">
         {/* Header */}
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur mb-8 shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-500/10 to-emerald-500/10" aria-hidden="true"></div>
@@ -360,7 +360,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
   // Classic template (default)
   return (
-    <div className="report-card classic bg-white text-black p-8 max-w-4xl mx-auto border-8 border-double border-gray-800">
+    <div className="report-card report-print-root classic bg-white text-black p-8 max-w-4xl mx-auto border-8 border-double border-gray-800">
       {/* Header */}
       <div className="text-center border-b-2 border-gray-800 pb-4 mb-6">
         {school.logo_url && (
