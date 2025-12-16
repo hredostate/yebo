@@ -314,8 +314,9 @@ const FeesCsvManager: React.FC<FeesCsvManagerProps> = ({
 
     try {
       const text = await file.text();
-      const data = parseCsv(text);
-      const headers = Object.keys(data[0] || {});
+      const parsed = parseCsv(text);
+      const data = parsed.rows;
+      const headers = parsed.headers;
 
       // Auto-detect mappings
       const mappings = autoDetectMapping(headers, importType);
