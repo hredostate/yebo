@@ -7,7 +7,7 @@ import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportTy
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
-import { textFromAI } from './utils/ai';
+import { logAiEvent, textFromAI } from './utils/ai';
 import { askUPSSGPT } from './services/upssGPT';
 import { base64ToBlob } from './utils/file';
 import { Offline, supa as supabase, cache } from './offline/client';
@@ -1727,7 +1727,10 @@ const App: React.FC = () => {
 
     const analyzeAtRiskStudents = useCallback(async (allStudents: Student[], allReports: ReportRecord[]) => {
         const aiClient = getAIClient();
-        if (!aiClient || allStudents.length === 0) return;
+        if (!aiClient || allStudents.length === 0) {
+            logAiEvent('at-risk-analysis', { status: 'unavailable', detail: 'missing-client-or-data' });
+            return;
+        }
         
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
@@ -1735,6 +1738,7 @@ const App: React.FC = () => {
             return;
         }
         
+        const start = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
         try {
             // Collect negative behavior reports
             const studentReportMap: Record<number, string[]> = {};
@@ -1820,13 +1824,15 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
                     return student ? { student, score: res.riskScore, reasons: res.reasons } : null;
                 }).filter((s): s is AtRiskStudent => s !== null);
                 setAtRiskStudents(atRiskData);
+                logAiEvent('at-risk-analysis', { status: 'success', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: results.length });
             }
-        } catch (e: any) { 
+        } catch (e: any) {
             console.error("At-risk student analysis failed:", e);
             if (isRateLimitError(e)) {
                 setAiCooldown(); // Use default cooldown
                 addToast('AI service is temporarily busy. Please try again in a few minutes.', 'warning');
             }
+            logAiEvent('at-risk-analysis', { status: 'error', error: e, durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start });
         }
     }, [addToast, schoolSettings, classGroups, scoreEntries, studentTermReports]);
 
@@ -1915,17 +1921,28 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
 
     const generateTaskSuggestions = useCallback(async (allReports: ReportRecord[]) => {
         const aiClient = getAIClient();
-        if (!aiClient) return;
-        
+        if (!aiClient) {
+            const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+            if (fallbackSuggestions.length > 0) {
+                setTaskSuggestions(fallbackSuggestions);
+                setAreFallbackSuggestions(true);
+                addToast('AI suggestions unavailable - showing recommended tasks instead.', 'warning');
+            }
+            logAiEvent('task-suggestions', { status: 'unavailable', detail: 'missing-client', suggestions: fallbackSuggestions.length });
+            return;
+        }
+
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
             console.log('AI in cooldown, using fallback task suggestions');
             const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
             setTaskSuggestions(fallbackSuggestions);
             setAreFallbackSuggestions(true);
+            logAiEvent('task-suggestions', { status: 'fallback', detail: 'cooldown', suggestions: fallbackSuggestions.length });
             return;
         }
-        
+
+        const start = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
         try {
             const urgentReports = allReports.filter(r => (r.analysis?.urgency === 'Critical' || r.analysis?.urgency === 'High') && !tasks.some(t => t.report_id === r.id));
             
@@ -1966,10 +1983,11 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
             const hasTaskableData = urgentReports.length > 0 || lowStockItems.length > 0 || 
                                    pendingLeaveRequests.length > 0 || overdueLessonPlans.length > 0 || atRiskCount > 0;
             
-            if (!hasTaskableData) { 
+            if (!hasTaskableData) {
                 setTaskSuggestions([]);
                 setAreFallbackSuggestions(false);
-                return; 
+                logAiEvent('task-suggestions', { status: 'fallback', detail: 'no-taskable-data', suggestions: 0 });
+                return;
             }
             
             const prompt = `Analyze the following school data and generate actionable task suggestions. Consider urgent reports, low inventory, pending leave requests, overdue lesson plans, and at-risk students. Return a JSON array of task objects with "reportId" (number or null), "title" (string, max 50 chars), "description" (string, max 150 chars), "priority" (string: 'Low', 'Medium', 'High', or 'Critical'), and "suggestedRole" (string: 'Admin', 'Principal', 'Counselor', 'Team Lead', 'Teacher', or 'Maintenance'). Prioritize high-impact tasks.
@@ -1983,14 +2001,20 @@ Context: ${JSON.stringify(contextData)}`;
             });
             const results = extractAndParseJson<Omit<SuggestedTask, 'id'>[]>(textFromAI(response));
             if (results && Array.isArray(results)) {
-                const suggestions: SuggestedTask[] = results.map((res, idx) => ({ 
-                    ...res, 
-                    id: `sugg-${res.reportId || 'auto'}-${Date.now()}-${idx}` 
+                const suggestions: SuggestedTask[] = results.map((res, idx) => ({
+                    ...res,
+                    id: `sugg-${res.reportId || 'auto'}-${Date.now()}-${idx}`
                 }));
                 setTaskSuggestions(suggestions);
                 setAreFallbackSuggestions(false);
+                logAiEvent('task-suggestions', { status: 'success', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: suggestions.length });
+            } else {
+                const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
+                setTaskSuggestions(fallbackSuggestions);
+                setAreFallbackSuggestions(true);
+                logAiEvent('task-suggestions', { status: 'fallback', detail: 'invalid-response', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             }
-        } catch (e: any) { 
+        } catch (e: any) {
             console.error("Task suggestion generation failed:", e);
             if (isRateLimitError(e)) {
                 setAiCooldown(); // Use default cooldown
@@ -2000,12 +2024,14 @@ Context: ${JSON.stringify(contextData)}`;
                 const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
                 setTaskSuggestions(fallbackSuggestions);
                 setAreFallbackSuggestions(true);
+                logAiEvent('task-suggestions', { status: 'fallback', detail: 'rate-limit', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             } else {
                 // For non-rate-limit errors, also provide fallback suggestions
                 console.warn('Using fallback suggestions due to error:', e.message);
                 const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
                 setTaskSuggestions(fallbackSuggestions);
                 setAreFallbackSuggestions(true);
+                logAiEvent('task-suggestions', { status: 'error', error: e, durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             }
         }
     }, [tasks, addToast, generateFallbackTaskSuggestions, userProfile, schoolSettings, inventory, leaveRequests, lessonPlans, atRiskStudents]);

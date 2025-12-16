@@ -24,3 +24,37 @@ export function textFromAI(resp: any): string {
 export function textFromGemini(resp: any): string {
   return textFromAI(resp);
 }
+
+type AiLogStatus = 'success' | 'error' | 'fallback' | 'unavailable';
+
+interface AiLogMetadata {
+  status?: AiLogStatus;
+  durationMs?: number;
+  error?: any;
+  detail?: string;
+  provider?: string;
+  model?: string;
+  suggestions?: number;
+}
+
+/**
+ * Lightweight telemetry helper for AI calls so we can correlate latency,
+ * failures, and fallback usage without wiring a full observability stack.
+ */
+export function logAiEvent(event: string, metadata: AiLogMetadata = {}): void {
+  const payload = {
+    event,
+    status: metadata.status || 'success',
+    durationMs: metadata.durationMs,
+    provider: metadata.provider,
+    model: metadata.model,
+    suggestions: metadata.suggestions,
+    detail: metadata.detail,
+  };
+
+  if (metadata.error) {
+    console.error('[AI]', payload, metadata.error);
+  } else {
+    console.debug('[AI]', payload);
+  }
+}
