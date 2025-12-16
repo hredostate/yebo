@@ -3,7 +3,7 @@ import type { AcademicTeachingAssignment, Student, AcademicClassStudent, ScoreEn
 import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
-import { parseCsv, findColumnByVariations } from '../utils/feesCsvUtils';
+import { parseCsv, findColumnByVariations, normalizeHeaderName, ParsedCsvResult } from '../utils/feesCsvUtils';
 import { supa as supabase } from '../offline/client';
 
 interface TeacherScoreEntryViewProps {
@@ -44,6 +44,17 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [freshEnrollments, setFreshEnrollments] = useState<StudentSubjectEnrollment[] | null>(null);
     const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
+    const [importSummary, setImportSummary] = useState<{
+        fileName: string;
+        processedRows: number;
+        appliedRows: number;
+        failedRows: number;
+        failures: { row: number; student?: string; reason: string }[];
+        unmapped: { column: string; reason: string }[];
+        matchedColumns: string[];
+        durationMs: number;
+        requestId: string;
+    } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const assignment = useMemo(() => 
@@ -310,46 +321,70 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
         document.body.removeChild(link);
     };
 
+    const buildHeaderLookup = (parsed: ParsedCsvResult) => {
+        const lookup = new Map<string, string>();
+        parsed.normalizedHeaders.forEach((norm, idx) => {
+            if (!lookup.has(norm)) {
+                lookup.set(norm, parsed.headers[idx]);
+            }
+        });
+        return lookup;
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsUploading(true);
+        setImportSummary(null);
         try {
             const text = await file.text();
-            
+            const requestId = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `import-${Date.now()}`;
+            const startedAt = performance.now();
+
             // Parse CSV using the shared utility
-            const rows = parseCsv(text);
-            
+            const parsed = parseCsv(text);
+            const rows = parsed.rows;
+
             if (rows.length === 0) {
                 throw new Error("CSV file is empty or missing data rows.");
             }
 
-            // Get headers from the first row
-            const headers = Object.keys(rows[0]);
-            
-            // Create case-insensitive header map for efficient lookups
-            const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
-            
+            // Create normalized header map for efficient lookups
+            const headerMap = buildHeaderLookup(parsed);
+
             // Find student_id column (case-insensitive)
             const studentIdCol = findColumnByVariations(headerMap, ['student_id', 'studentid', 'student id']);
-            
+
             if (!studentIdCol) {
+                const unmappedColumns = parsed.headers.map(column => ({ column, reason: 'Could not find required student_id column' }));
+                setImportSummary({
+                    fileName: file.name,
+                    processedRows: 0,
+                    appliedRows: 0,
+                    failedRows: 0,
+                    failures: [],
+                    unmapped: unmappedColumns,
+                    matchedColumns: [],
+                    durationMs: performance.now() - startedAt,
+                    requestId,
+                });
                 throw new Error("Missing 'student_id' column in CSV.");
             }
-            
+
             // Find remark/comment column (case-insensitive)
             const commentCol = findColumnByVariations(headerMap, ['remark', 'comment', 'remarks', 'comments']);
-            
+
             // Identify which component columns exist in the CSV (case-insensitive matching)
             const componentColumns = new Map<string, string>(); // componentName -> csvColumnName
             components.forEach(c => {
-                const matchingCol = headerMap.get(c.name.toLowerCase());
+                const normalizedComponentName = normalizeHeaderName(c.name);
+                const matchingCol = headerMap.get(normalizedComponentName);
                 if (matchingCol) {
                     componentColumns.set(c.name, matchingCol);
                 }
             });
-            
+
             if (componentColumns.size === 0) {
                 throw new Error(
                     `No matching component columns found in CSV. Expected components: ${components.map(c => c.name).join(', ')}`
@@ -358,58 +393,105 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
             let updatedCount = 0;
             let skippedRows = 0;
+            const failures: { row: number; student?: string; reason: string }[] = [];
+            const usedColumns = new Set<string>([studentIdCol, ...componentColumns.values()]);
+            if (commentCol) usedColumns.add(commentCol);
+            const duplicateReasons = new Set<string>();
+            const normalizedCounts = new Map<string, number>();
+            parsed.normalizedHeaders.forEach(norm => {
+                const next = (normalizedCounts.get(norm) || 0) + 1;
+                normalizedCounts.set(norm, next);
+                if (next > 1) duplicateReasons.add(norm);
+            });
 
             // Process each row
-            for (const row of rows) {
+            for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+                const row = rows[rowIndex];
                 const studentIdStr = String(row[studentIdCol] || '').trim();
                 const studentId = Number(studentIdStr);
 
                 if (!studentId || isNaN(studentId)) {
                     skippedRows++;
+                    failures.push({ row: rowIndex + 2, student: studentIdStr, reason: 'Invalid or missing student_id' });
                     continue;
                 }
-                
+
                 if (!enrolledStudents.some(s => s.id === studentId)) {
                     skippedRows++;
+                    failures.push({ row: rowIndex + 2, student: studentIdStr, reason: 'Student not enrolled in this class/term' });
                     continue;
                 }
 
                 const newScores = { ...localScores[studentId] };
-                
+                let hasRowError = false;
+
                 // Update scores for matched components only
                 componentColumns.forEach((csvCol, compName) => {
-                    const valStr = String(row[csvCol] || '').trim();
-                    if (valStr !== '' && valStr !== undefined) {
-                        const numVal = Number(valStr);
-                        if (!isNaN(numVal)) {
-                            // Validate max score
-                            const compDef = components.find(c => c.name === compName);
-                            if (compDef && numVal <= compDef.max_score && numVal >= 0) {
-                                newScores[compName] = numVal;
-                            }
-                        }
+                    const valStr = String(row[csvCol] ?? '').trim();
+                    if (valStr === '') {
+                        delete newScores[compName];
+                        return;
                     }
+
+                    const numVal = Number(valStr);
+                    const compDef = components.find(c => c.name === compName);
+                    if (isNaN(numVal)) {
+                        hasRowError = true;
+                        failures.push({ row: rowIndex + 2, student: studentIdStr, reason: `Invalid number for ${compName}` });
+                        return;
+                    }
+                    if (compDef && numVal > compDef.max_score) {
+                        hasRowError = true;
+                        failures.push({ row: rowIndex + 2, student: studentIdStr, reason: `${compName} exceeds max score (${compDef.max_score})` });
+                        return;
+                    }
+                    newScores[compName] = numVal;
                 });
+
+                if (hasRowError) {
+                    skippedRows++;
+                    continue;
+                }
 
                 setLocalScores(prev => ({ ...prev, [studentId]: newScores }));
 
                 // Update comment if column exists
-                if (commentCol) {
-                    const commentVal = String(row[commentCol] || '').trim();
-                    if (commentVal !== undefined && commentVal !== '') {
+                if (commentCol && row[commentCol] !== undefined) {
+                    const commentVal = String(row[commentCol] ?? '').trim();
+                    if (commentVal !== '') {
                         setLocalComments(prev => ({ ...prev, [studentId]: commentVal }));
                     }
                 }
-                
+
                 updatedCount++;
             }
-            
-            const matchMessage = componentColumns.size < components.length 
-                ? ` (${componentColumns.size} of ${components.length} components matched)`
-                : '';
-            
+
+            const unmappedColumns = parsed.headers
+                .filter(h => !usedColumns.has(h))
+                .map(column => ({
+                    column,
+                    reason: duplicateReasons.has(normalizeHeaderName(column))
+                        ? 'Duplicate header (ignored extra occurrences)'
+                        : 'No matching component or known field'
+                }));
+
+            const summary = {
+                fileName: file.name,
+                processedRows: rows.length,
+                appliedRows: updatedCount,
+                failedRows: skippedRows,
+                failures,
+                unmapped: unmappedColumns,
+                matchedColumns: Array.from(usedColumns),
+                durationMs: performance.now() - startedAt,
+                requestId,
+            };
+
+            setImportSummary(summary);
+            console.info('[ScoreImport] Completed', summary);
+
             addToast(
-                `Processed ${updatedCount} rows${matchMessage}. Review and click 'Save Draft'.`,
+                `Processed ${rows.length} rows. Updated ${updatedCount} students. ${skippedRows} rows skipped.`,
                 'success'
             );
 
@@ -470,6 +552,57 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                {importSummary && (
+                    <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
+                        <div className="flex flex-wrap justify-between gap-3 mb-3">
+                            <div>
+                                <h3 className="font-semibold text-slate-800 dark:text-white">Last Import Summary</h3>
+                                <p className="text-xs text-slate-500">File: {importSummary.fileName} • Request: {importSummary.requestId}</p>
+                            </div>
+                            <div className="text-xs text-slate-500">{importSummary.durationMs.toFixed(0)} ms</div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                                <p className="text-xs text-slate-500">Rows Processed</p>
+                                <p className="text-lg font-bold">{importSummary.processedRows}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                                <p className="text-xs text-slate-500">Rows Applied</p>
+                                <p className="text-lg font-bold text-green-600">{importSummary.appliedRows}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                                <p className="text-xs text-slate-500">Rows Skipped/Failed</p>
+                                <p className="text-lg font-bold text-orange-600">{importSummary.failedRows}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                                <p className="text-xs text-slate-500">Mapped Columns</p>
+                                <p className="text-lg font-bold">{importSummary.matchedColumns.length}</p>
+                            </div>
+                        </div>
+
+                        {importSummary.unmapped.length > 0 && (
+                            <div className="mt-3">
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Unmapped columns</h4>
+                                <ul className="list-disc list-inside text-xs text-slate-500 mt-1 space-y-1">
+                                    {importSummary.unmapped.map(item => (
+                                        <li key={item.column}><strong>{item.column}</strong>: {item.reason}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {importSummary.failures.length > 0 && (
+                            <div className="mt-3">
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Row issues</h4>
+                                <ul className="list-disc list-inside text-xs text-slate-500 mt-1 space-y-1 max-h-32 overflow-y-auto">
+                                    {importSummary.failures.map(f => (
+                                        <li key={`${f.row}-${f.student || 'unknown'}`}>Row {f.row}{f.student ? ` (Student ${f.student})` : ''}: {f.reason}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-slate-100 dark:bg-slate-800 uppercase text-xs font-semibold text-slate-600 dark:text-slate-300">

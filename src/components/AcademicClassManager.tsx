@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { AcademicClass, Term, AssessmentStructure, BaseDataObject, Student, AcademicClassStudent, GradingScheme, ReportCardConfig, SchoolConfig, AssessmentComponent } from '../types';
+import type { AcademicClass, Term, AssessmentStructure, BaseDataObject, Student, AcademicClassStudent, GradingScheme, ReportCardConfig, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, UsersIcon, CloseIcon, SearchIcon, CheckCircleIcon, EditIcon, ShieldIcon } from './common/icons';
 import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
 import { getCurrentUserId } from '../utils/userHelpers';
+import { filterAcademicClassesBySessionAndQuery } from '../utils/classFilters';
 
 const ResultSheetPreview: React.FC<{ structure: AssessmentStructure | null; config: ReportCardConfig | undefined; schoolConfig: SchoolConfig | null }> = ({ structure, config, schoolConfig }) => {
     const themeColor = config?.colorTheme || '#1E3A8A';
@@ -411,6 +412,13 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
     const [editingClass, setEditingClass] = useState<Partial<AcademicClass> | null>(null);
     const [enrollmentClass, setEnrollmentClass] = useState<AcademicClass | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    useEffect(() => {
+        const handle = setTimeout(() => setDebouncedSearch(searchTerm.trim().toLowerCase()), 300);
+        return () => clearTimeout(handle);
+    }, [searchTerm]);
 
     // Persistent Term Selection with user-specific key
     const userId = getCurrentUserId();
@@ -441,8 +449,8 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
         if (!selectedTermId) return [];
         const term = terms.find(t => t.id === selectedTermId);
         if (!term) return [];
-        return academicClasses.filter(ac => ac.session_label === term.session_label);
-    }, [selectedTermId, academicClasses, terms]);
+        return filterAcademicClassesBySessionAndQuery(academicClasses, term.session_label, debouncedSearch);
+    }, [selectedTermId, academicClasses, terms, debouncedSearch]);
 
     const handleEnrollmentSave = async (studentIds: number[]) => {
         if (enrollmentClass && selectedTermId) {
@@ -461,12 +469,33 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
                 )}
             </div>
 
-            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <label className="text-sm font-medium mr-2">Select Term:</label>
-                <select value={selectedTermId} onChange={e => setSelectedTermId(Number(e.target.value))} className="p-2 rounded border bg-white dark:bg-slate-700 dark:border-slate-600">
-                    <option value="">-- Select Term --</option>
-                    {terms.map(t => <option key={t.id} value={t.id}>{t.session_label} - {t.term_label}</option>)}
-                </select>
+            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                <div>
+                    <label className="text-sm font-medium mr-2">Select Term:</label>
+                    <select value={selectedTermId} onChange={e => setSelectedTermId(Number(e.target.value))} className="p-2 rounded border bg-white dark:bg-slate-700 dark:border-slate-600">
+                        <option value="">-- Select Term --</option>
+                        {terms.map(t => <option key={t.id} value={t.id}>{t.session_label} - {t.term_label}</option>)}
+                    </select>
+                </div>
+                <div className="relative w-full md:max-w-sm">
+                    <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="Search by class, arm, session, or code"
+                        className="w-full pl-9 pr-8 py-2 rounded border bg-white dark:bg-slate-700 dark:border-slate-600 text-sm"
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            aria-label="Clear search"
+                        >
+                            <CloseIcon className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {editingClass ? (
@@ -485,7 +514,7 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredClasses.length > 0 ? filteredClasses.map(ac => {
-                        const studentCount = selectedTermId 
+                        const studentCount = selectedTermId
                             ? academicClassStudents.filter(s => s.academic_class_id === ac.id && s.enrolled_term_id === Number(selectedTermId)).length
                             : 0;
 
@@ -527,7 +556,9 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
                             </div>
                         );
                     }) : (
-                        <div className="col-span-full text-center py-8 text-slate-500">No classes found for this session.</div>
+                        <div className="col-span-full text-center py-8 text-slate-500">
+                            No results. Try another term or adjust the search filter.
+                        </div>
                     )}
                 </div>
             )}

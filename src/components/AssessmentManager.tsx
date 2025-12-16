@@ -254,16 +254,17 @@ const ScoreManager: React.FC<AssessmentManagerProps & { assessment: Assessment }
             const text = await file.text();
             
             // Parse CSV using the shared utility
-            const rows = parseCsv(text);
-            
+            const parsed = parseCsv(text);
+            const rows = parsed.rows;
+
             if (rows.length === 0) {
                 addToast("CSV file is empty or invalid.", 'error');
                 return;
             }
 
             // Get headers from first row
-            const headers = Object.keys(rows[0]);
-            const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
+            const headers = parsed.headers;
+            const headerMap = new Map(parsed.normalizedHeaders.map((h, idx) => [h, headers[idx]]));
             
             // Find required columns (case-insensitive)
             const studentIdCol = findColumnByVariations(headerMap, ['student_id', 'studentid', 'student id']);

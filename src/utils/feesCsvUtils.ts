@@ -2,7 +2,7 @@
  * CSV utilities for fees and invoices export/import
  */
 
-import type { FeeItem, StudentInvoice, BaseDataObject, Term } from '../types';
+import type { FeeItem, StudentInvoice, BaseDataObject, Term } from '../types.js';
 
 // ============= FIELD DEFINITIONS =============
 
@@ -296,40 +296,137 @@ export function downloadCsv(csvContent: string, filename: string): void {
 // ============= CSV PARSING =============
 
 /**
- * Parse CSV text into array of objects
+ * Parsed CSV result with header metadata to avoid losing columns during import.
  */
-export function parseCsv(text: string): any[] {
-  const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+export interface ParsedCsvResult {
+  headers: string[];
+  rawHeaders: string[];
+  normalizedHeaders: string[];
+  delimiter: string;
+  rows: Record<string, string>[];
+  duplicateHeaders: string[];
+}
+
+/**
+ * Normalize a CSV header for matching (trim, collapse whitespace, remove BOM, case-insensitive)
+ */
+export function normalizeHeaderName(header: string): string {
+  const withoutBom = header.replace(/^\uFEFF/, '');
+  const trimmed = withoutBom.trim();
+  const withoutQuotes = trimmed.startsWith('"') && trimmed.endsWith('"')
+    ? trimmed.slice(1, -1).replace(/""/g, '"')
+    : trimmed;
+  return withoutQuotes.replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Detect the delimiter used in the CSV (comma, semicolon, tab, or pipe).
+ */
+function detectDelimiter(headerLine: string): string {
+  const delimiters = [',', ';', '\t', '|'];
+  let bestDelimiter = ',';
+  let bestCount = -1;
+
+  for (const delim of delimiters) {
+    const count = (headerLine.match(new RegExp(`\\${delim}`, 'g')) || []).length;
+    if (count > bestCount) {
+      bestDelimiter = delim;
+      bestCount = count;
+    }
+  }
+
+  return bestDelimiter;
+}
+
+/**
+ * Split a single CSV line while respecting quoted values and preserving empty columns.
+ */
+function splitCsvLine(line: string, delimiter: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++; // Skip escaped quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      values.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values;
+}
+
+/**
+ * Parse CSV text into array of objects with rich header metadata.
+ */
+export function parseCsv(text: string): ParsedCsvResult {
+  const sanitizedText = text.replace(/\r\n/g, '\n').replace(/^\uFEFF/, '');
+  const lines = sanitizedText.split('\n').filter(line => line.trim() !== '');
+
   if (lines.length < 2) {
     throw new Error('CSV file must have a header row and at least one data row.');
   }
 
-  // Parse headers - handle quoted strings properly
-  const headerValues = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-  const headers = headerValues.map(h => {
-    let value = h.trim();
-    if (value.startsWith('"') && value.endsWith('"')) {
-      value = value.slice(1, -1).replace(/""/g, '"');
+  const delimiter = detectDelimiter(lines[0]);
+  const headerCells = splitCsvLine(lines[0], delimiter);
+
+  const rawHeaders = headerCells.map(cell => {
+    const trimmed = cell.trim();
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return trimmed.slice(1, -1).replace(/""/g, '"');
     }
-    return value;
+    return trimmed;
   });
 
-  // Parse data rows
-  const data = lines.slice(1).map(line => {
-    // Split by comma but respect quoted strings
-    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-    return headers.reduce((obj, header, index) => {
-      let value = values[index]?.trim() || '';
-      // Remove surrounding quotes if present
-      if (value.startsWith('"') && value.endsWith('"')) {
-        value = value.slice(1, -1).replace(/""/g, '"');
+  const headerCounts = new Map<string, number>();
+  const headers: string[] = [];
+  const duplicateHeaders: string[] = [];
+
+  rawHeaders.forEach(header => {
+    const normalized = normalizeHeaderName(header);
+    const count = headerCounts.get(normalized) || 0;
+    headerCounts.set(normalized, count + 1);
+
+    if (count > 0) {
+      duplicateHeaders.push(header);
+      headers.push(`${header} (${count + 1})`);
+    } else {
+      headers.push(header);
+    }
+  });
+
+  const normalizedHeaders = headers.map(h => normalizeHeaderName(h));
+
+  const rows = lines.slice(1).map(line => {
+    const values = splitCsvLine(line, delimiter);
+    const row: Record<string, string> = {};
+
+    headers.forEach((header, index) => {
+      let value = values[index] ?? '';
+      let trimmed = value.trim();
+      if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+        trimmed = trimmed.slice(1, -1).replace(/""/g, '"');
       }
-      (obj as any)[header] = value;
-      return obj;
-    }, {});
+      row[header] = trimmed;
+    });
+
+    return row;
   });
 
-  return data;
+  return { headers, rawHeaders, normalizedHeaders, delimiter, rows, duplicateHeaders };
 }
 
 // ============= COLUMN MAPPING =============
@@ -425,11 +522,11 @@ export function matchCsvColumns(
 ): FlexibleColumnMatchResult {
   const matchedColumns: string[] = [];
   const unmatchedColumns: string[] = [];
-  
+
   // Create a case-insensitive map of expected columns
   const expectedMap = new Map<string, string>();
   expectedColumns.forEach(col => {
-    expectedMap.set(col.toLowerCase().trim(), col);
+    expectedMap.set(normalizeHeaderName(col), col);
   });
   
   // Match CSV headers to expected columns
@@ -462,8 +559,9 @@ export function parseFlexibleCsv(
   csvText: string,
   expectedColumns: string[]
 ): { data: Record<string, any>[]; matchResult: FlexibleColumnMatchResult } {
-  const data = parseCsv(csvText);
-  
+  const parsed = parseCsv(csvText);
+  const data = parsed.rows;
+
   if (data.length === 0) {
     return {
       data: [],
@@ -476,7 +574,7 @@ export function parseFlexibleCsv(
   }
   
   // Get headers from first row's keys
-  const csvHeaders = Object.keys(data[0]);
+  const csvHeaders = parsed.headers;
   const matchResult = matchCsvColumns(csvHeaders, expectedColumns);
   
   // Filter data to only include matched columns
@@ -508,7 +606,7 @@ export function findColumnByVariations(
   variations: string[]
 ): string | undefined {
   for (const variation of variations) {
-    const normalized = variation.toLowerCase().trim();
+    const normalized = normalizeHeaderName(variation);
     const match = headers.get(normalized);
     if (match) {
       return match;

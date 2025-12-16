@@ -172,8 +172,9 @@ const DataUploader: React.FC<DataUploaderProps> = ({ onBulkAddStudents, addToast
             const text = await file.text();
             
             // Parse CSV using the shared utility
-            const studentsData = parseCsv(text);
-            
+            const parsedCsv = parseCsv(text);
+            const studentsData = parsedCsv.rows;
+
             if (studentsData.length === 0) {
                 throw new Error("CSV file must have a header row and at least one data row.");
             }
