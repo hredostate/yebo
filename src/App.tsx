@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -377,7 +377,7 @@ const App: React.FC = () => {
     const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
-    const [allSubjects, setAllSubjects] = useState<BaseDataObject[]>([]);
+    const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
     const [allClasses, setAllClasses] = useState<BaseDataObject[]>([]);
     const [allArms, setAllArms] = useState<BaseDataObject[]>([]);
     const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
@@ -5598,17 +5598,24 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, addToast]);
 
     // --- Subject/Class/Arm Handlers ---
-    const handleSaveSubject = useCallback(async (subject: Partial<BaseDataObject>): Promise<boolean> => {
+    const handleSaveSubject = useCallback(async (subject: Partial<Subject>): Promise<boolean> => {
         if (!userProfile) return false;
         try {
+            const payload: Partial<Subject> = {
+                ...subject,
+                priority: subject.priority ?? 1,
+                is_solo: !!subject.is_solo,
+                // Solo subjects cannot co-run; default to false if not provided
+                can_co_run: subject.is_solo ? false : !!subject.can_co_run
+            };
             if (subject.id) {
-                const { error } = await Offline.update('subjects', subject, { id: subject.id });
+                const { error } = await Offline.update('subjects', payload, { id: subject.id });
                 if (error) { addToast(error.message, 'error'); return false; }
-                setAllSubjects(prev => prev.map(s => s.id === subject.id ? { ...s, ...subject } : s));
+                setAllSubjects(prev => prev.map(s => s.id === subject.id ? { ...s, ...payload } : s));
             } else {
-                const { data, error } = await Offline.insert('subjects', { ...subject, school_id: userProfile.school_id });
+                const { data, error } = await Offline.insert('subjects', { ...payload, school_id: userProfile.school_id });
                 if (error || !data) { addToast(error?.message || 'Failed to create subject', 'error'); return false; }
-                setAllSubjects(prev => [...prev, data as BaseDataObject]);
+                setAllSubjects(prev => [...prev, data as Subject]);
             }
             addToast('Subject saved.', 'success');
             return true;
