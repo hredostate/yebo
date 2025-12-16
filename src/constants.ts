@@ -75,6 +75,7 @@ export const VIEWS = {
   DASHBOARD: 'Dashboard',
   STUDENT_PORTAL: 'Student Portal',
   STUDENT_DASHBOARD: 'Student Dashboard',
+  STUDENT_FINANCES: 'Student Finances',
   MY_SUBJECTS: 'My Subjects',
   RATE_MY_TEACHER: 'Rate My Teacher',
   STUDENT_REPORTS: 'Student Reports',

@@ -409,6 +409,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                      </a>
                 </li>
 
+                {/* Finances Section */}
+                <li className="pt-4">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">💳 Finances</p>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_FINANCES)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_FINANCES ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <BanknotesIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                        <span>Wallet & Payments</span>
+                     </a>
+                </li>
+
                 {/* Engagement Section */}
                 <li className="pt-4">
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">⭐ Engagement</p>

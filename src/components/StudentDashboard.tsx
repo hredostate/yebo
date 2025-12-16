@@ -3,19 +3,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { StudentProfile, StudentDashboardStats, AbsenceRequest, StudentStrike } from '../types';
 import Spinner from './common/Spinner';
-import { 
-  UserCircleIcon, 
-  BookOpenIcon, 
-  CalendarIcon, 
+import {
+  UserCircleIcon,
+  BookOpenIcon,
+  CalendarIcon,
   ClipboardListIcon,
   ShieldIcon,
   ChartBarIcon,
   StarIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon,
   PencilIcon,
-  GiftIcon
+  GiftIcon,
+  BanknotesIcon
 } from './common/icons';
 import { VIEWS } from '../constants';
 
@@ -133,254 +133,184 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     }
   };
 
+  const statCards = [
+    { label: 'Attendance', value: `${stats.attendancePercentage}%`, icon: <ChartBarIcon className="w-6 h-6 text-blue-500" /> },
+    { label: 'Pending Tasks', value: stats.pendingAssignments, icon: <ClipboardListIcon className="w-6 h-6 text-orange-500" /> },
+    { label: 'Reward Points', value: stats.rewardPoints, icon: <StarIcon className="w-6 h-6 text-yellow-500" /> },
+    { label: 'Active Strikes', value: stats.totalStrikes, icon: <ShieldIcon className="w-6 h-6 text-red-500" /> }
+  ];
+
+  const primaryActions = [
+    { label: 'My Subjects', view: VIEWS.MY_SUBJECTS, icon: <BookOpenIcon className="w-5 h-5 text-purple-500" /> },
+    { label: 'Lesson Plans', view: VIEWS.STUDENT_LESSON_PORTAL, icon: <BookOpenIcon className="w-5 h-5 text-blue-500" /> },
+    { label: 'Homework', view: VIEWS.STUDENT_HOMEWORK, icon: <PencilIcon className="w-5 h-5 text-orange-500" /> },
+    { label: 'Timetable', view: VIEWS.TIMETABLE, icon: <ClockIcon className="w-5 h-5 text-indigo-500" /> },
+    { label: 'Report Cards', view: VIEWS.STUDENT_REPORTS, icon: <ChartBarIcon className="w-5 h-5 text-green-500" /> },
+    { label: 'Wallet & Fees', view: VIEWS.STUDENT_FINANCES, icon: <BanknotesIcon className="w-5 h-5 text-emerald-600" /> }
+  ];
+
+  const engagementActions = [
+    { label: 'Rate Teachers', view: VIEWS.RATE_MY_TEACHER, icon: <StarIcon className="w-5 h-5 text-yellow-500" /> },
+    { label: 'Surveys & Quizzes', view: VIEWS.STUDENT_SURVEYS, icon: <ClipboardListIcon className="w-5 h-5 text-blue-500" /> },
+    { label: 'Reward Store', view: VIEWS.STOREFRONT, icon: <GiftIcon className="w-5 h-5 text-purple-500" /> }
+  ];
+
   return (
-    <div className="space-y-6 p-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            Welcome, {studentProfile.full_name}
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
-            {studentProfile.class_name} {studentProfile.arm_name && `- ${studentProfile.arm_name}`}
+          <p className="text-xs font-semibold uppercase text-indigo-500">Student Dashboard</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Welcome, {studentProfile.full_name}</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
+            {studentProfile.class_name} {studentProfile.arm_name && `• ${studentProfile.arm_name}`}
           </p>
         </div>
-      </div>
-
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Attendance */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Attendance</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                {stats.attendancePercentage}%
-              </p>
-            </div>
-            <ChartBarIcon className="h-10 w-10 text-blue-500" />
-          </div>
-        </div>
-
-        {/* Pending Assignments */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Pending Tasks</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                {stats.pendingAssignments}
-              </p>
-            </div>
-            <ClipboardListIcon className="h-10 w-10 text-orange-500" />
-          </div>
-        </div>
-
-        {/* Reward Points */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Reward Points</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                {stats.rewardPoints}
-              </p>
-            </div>
-            <StarIcon className="h-10 w-10 text-yellow-500" />
-          </div>
-        </div>
-
-        {/* Strikes */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Active Strikes</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                {stats.totalStrikes}
-              </p>
-            </div>
-            <ShieldIcon className="h-10 w-10 text-red-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions - Comprehensive Feature Cards */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">📚 Academic & Learning</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => onNavigate(VIEWS.MY_SUBJECTS)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            onClick={() => onNavigate(VIEWS.STUDENT_FINANCES)}
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-sm font-semibold shadow-sm"
           >
-            <BookOpenIcon className="h-8 w-8 text-purple-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">My Subjects</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <BookOpenIcon className="h-8 w-8 text-blue-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Lesson Plans</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_REPORTS)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <ChartBarIcon className="h-8 w-8 text-green-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Report Cards</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_HOMEWORK)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <PencilIcon className="h-8 w-8 text-orange-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">My Homework</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.TIMETABLE)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <ClockIcon className="h-8 w-8 text-indigo-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Timetable</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Engagement Features */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">⭐ Engagement & Feedback</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => onNavigate(VIEWS.RATE_MY_TEACHER)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <StarIcon className="h-8 w-8 text-yellow-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Rate Teachers</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_SURVEYS)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <ClipboardListIcon className="h-8 w-8 text-blue-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Surveys & Quizzes</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Personal Management */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">👤 Personal & Admin</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <UserCircleIcon className="h-8 w-8 text-blue-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Edit Profile</span>
+            View wallet
           </button>
           <button
             onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200"
           >
-            <CalendarIcon className="h-8 w-8 text-green-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Absence Requests</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <ShieldIcon className="h-8 w-8 text-red-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Strikes & Appeals</span>
-          </button>
-          <button
-            onClick={() => onNavigate(VIEWS.STOREFRONT)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            <GiftIcon className="h-8 w-8 text-purple-500" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Reward Store</span>
+            Request absence
           </button>
         </div>
       </div>
 
-      {/* Recent Absence Requests */}
-      {recentAbsenceRequests.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Recent Absence Requests</h2>
-            <button
-              onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              View All
-            </button>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {statCards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500">{card.label}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</p>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700">{card.icon}</div>
           </div>
-          <div className="space-y-3">
-            {recentAbsenceRequests.slice(0, 3).map((request) => (
-              <div 
-                key={request.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50"
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    {request.reason.substring(0, 60)}{request.reason.length > 60 ? '...' : ''}
-                  </p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getAbsenceStatusColor(request.status)}`}>
-                  {request.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </section>
 
-      {/* Active Strikes */}
-      {strikes.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Active Strikes</h2>
-            <button
-              onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              View All & Appeal
-            </button>
-          </div>
-          <div className="space-y-3">
-            {strikes.slice(0, 3).map((strike) => (
-              <div 
-                key={strike.id}
-                className="flex items-start justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(strike.severity)}`}>
-                      {strike.severity}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      {new Date(strike.issued_date).toLocaleDateString()}
-                    </span>
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="space-y-4 xl:col-span-2">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Today&apos;s focus</h2>
+              <span className="text-xs font-semibold text-indigo-500">Quick actions</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {primaryActions.map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => onNavigate(action.view)}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-left hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="p-2 rounded-lg bg-white dark:bg-slate-900">{action.icon}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{action.label}</p>
+                      <p className="text-xs text-slate-500">Open</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {strike.reason}
-                  </p>
-                  {strike.notes && (
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      {strike.notes.substring(0, 80)}{strike.notes.length > 80 ? '...' : ''}
-                    </p>
-                  )}
-                </div>
-                {strike.appeal && strike.appeal.length > 0 && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">
-                    Appeal {strike.appeal[0].status}
-                  </span>
-                )}
+                  <CheckCircleIcon className="w-5 h-5 text-indigo-400" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Engagement</h3>
+                <span className="text-xs text-slate-500">Stay involved</span>
               </div>
-            ))}
+              <div className="space-y-2">
+                {engagementActions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => onNavigate(action.view)}
+                    className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors"
+                  >
+                    <span className="p-2 rounded-lg bg-white dark:bg-slate-900">{action.icon}</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Personal & admin</h3>
+                <span className="text-xs text-slate-500">Profile & requests</span>
+              </div>
+              <div className="space-y-2">
+                <button onClick={() => onNavigate(VIEWS.STUDENT_PROFILE_EDIT)} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                  <span className="p-2 rounded-lg bg-white dark:bg-slate-900"><UserCircleIcon className="w-5 h-5 text-blue-500" /></span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">Edit profile</span>
+                </button>
+                <button onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                  <span className="p-2 rounded-lg bg-white dark:bg-slate-900"><CalendarIcon className="w-5 h-5 text-green-500" /></span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">Absence requests</span>
+                </button>
+                <button onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                  <span className="p-2 rounded-lg bg-white dark:bg-slate-900"><ShieldIcon className="w-5 h-5 text-red-500" /></span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">Strikes & appeals</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+
+        <div className="space-y-4">
+          {recentAbsenceRequests.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent requests</h3>
+                <button onClick={() => onNavigate(VIEWS.ABSENCE_REQUESTS)} className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">See all</button>
+              </div>
+              <div className="space-y-3">
+                {recentAbsenceRequests.slice(0, 3).map((request) => (
+                  <div key={request.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}</p>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getAbsenceStatusColor(request.status)}`}>{request.status}</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{request.reason.substring(0, 60)}{request.reason.length > 60 ? '...' : ''}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {strikes.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Conduct alerts</h3>
+                <button onClick={() => onNavigate(VIEWS.STUDENT_STRIKES)} className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Appeal</button>
+              </div>
+              <div className="space-y-3">
+                {strikes.slice(0, 3).map((strike) => (
+                  <div key={strike.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(strike.severity)}`}>{strike.severity}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{new Date(strike.issued_date).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{strike.reason}</p>
+                    {strike.notes && (
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{strike.notes.substring(0, 80)}{strike.notes.length > 80 ? '...' : ''}</p>
+                    )}
+                    {strike.appeal && strike.appeal.length > 0 && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-300 mt-1">Appeal {strike.appeal[0].status}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 };

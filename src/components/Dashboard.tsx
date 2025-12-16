@@ -132,6 +132,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         const isAllPowerful = permissions.has('*');
         return ALL_WIDGETS.filter(w => isAllPowerful || permissions.has(w.requiredPermission));
     }, [props.userPermissions]);
+
+    const openTasks = props.tasks.filter(task => (task as any).status !== 'Completed').length;
+    const summaryStats = [
+        { label: 'Open tasks', value: openTasks, hint: 'Across your assignments' },
+        { label: 'Active alerts', value: props.alerts.length, hint: 'Items needing attention' },
+        { label: 'Announcements', value: props.announcements.length, hint: 'Latest staff updates' },
+    ];
     
     const handleSaveConfig = async (newConfig: string[]) => {
         setWidgetConfig(newConfig);
@@ -207,7 +214,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block shadow-lg shadow-indigo-500/50"></span>
                     {title}
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {widgetsInThisSection.map(widgetId => (
                          <div key={widgetId} className="glass-panel rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.01] flex flex-col h-full">
                             {renderWidget(widgetId)}
@@ -237,30 +244,45 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 </div>
             </div>
 
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {summaryStats.map((stat) => (
+                    <div key={stat.label} className="glass-panel rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase text-slate-500">{stat.label}</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                            <p className="text-xs text-slate-500 mt-1">{stat.hint}</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-200 text-sm font-bold">
+                            ✓
+                        </div>
+                    </div>
+                ))}
+            </section>
+
             {/* Check-in is always visible at the top */}
-            <div className="mb-8 glass-panel rounded-2xl">
-                <CheckinWidget 
-                    todaysCheckin={todaysCheckin}
-                    onCheckinOut={handleCheckinOut}
-                    isLoading={false} 
-                    userProfile={userProfile}
-                    campuses={campuses}
-                    addToast={addToast}
-                />
-            </div>
-            
-            {/* AI Task Suggestions Widget - only show if user has permission */}
-            {hasPermission('view-ai-task-suggestions') && taskSuggestions.length > 0 && (
-                <div className="mb-8 glass-panel rounded-2xl p-1">
-                     <TaskSuggestionsWidget 
-                        taskSuggestions={taskSuggestions}
-                        areFallbackSuggestions={areFallbackSuggestions}
-                        onAcceptSuggestion={onAcceptTaskSuggestion}
-                        onDismissSuggestion={onDismissTaskSuggestion}
-                        users={users}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8">
+                <div className="glass-panel rounded-2xl xl:col-span-2">
+                    <CheckinWidget
+                        todaysCheckin={todaysCheckin}
+                        onCheckinOut={handleCheckinOut}
+                        isLoading={false}
+                        userProfile={userProfile}
+                        campuses={campuses}
+                        addToast={addToast}
                     />
                 </div>
-            )}
+                {hasPermission('view-ai-task-suggestions') && taskSuggestions.length > 0 && (
+                    <div className="glass-panel rounded-2xl p-1">
+                        <TaskSuggestionsWidget
+                            taskSuggestions={taskSuggestions}
+                            areFallbackSuggestions={areFallbackSuggestions}
+                            onAcceptSuggestion={onAcceptTaskSuggestion}
+                            onDismissSuggestion={onDismissTaskSuggestion}
+                            users={users}
+                        />
+                    </div>
+                )}
+            </div>
 
             {/* Render Grouped Sections */}
             {renderSection("My Daily Actions", categories["My Daily Actions"])}

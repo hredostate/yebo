@@ -58,6 +58,7 @@ import QuizTakerView from './QuizTakerView';
 import StudentDashboard from './StudentDashboard';
 import StudentProfileEdit from './StudentProfileEdit';
 import StudentStrikeAppeals from './StudentStrikeAppeals';
+import StudentFinancialOverview from './StudentFinancialOverview';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 
@@ -169,6 +170,14 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
                         <StudentHomeworkView studentProfile={data.userProfile} />
                     </Suspense>
+                );
+            case VIEWS.STUDENT_FINANCES:
+                return (
+                    <StudentFinancialOverview
+                        studentProfile={data.userProfile}
+                        addToast={actions.addToast}
+                        onNavigate={actions.setCurrentView}
+                    />
                 );
             case VIEWS.STUDENT_LESSON_PORTAL:
                 return (
