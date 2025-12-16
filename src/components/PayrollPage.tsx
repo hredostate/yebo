@@ -44,6 +44,11 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
     const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
     const ITEMS_PER_PAGE = 15;
 
+    const pendingAdjustments = useMemo(
+        () => adjustments.filter(adj => !adj.payroll_run_id),
+        [adjustments]
+    );
+
     // Initialize state with user defaults
     useEffect(() => {
         const initialPay: Record<string, { base_pay: string, commission: string }> = {};
@@ -99,7 +104,7 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
         return filteredStaff
             .filter(u => u.account_number && u.bank_code)
             .map(user => {
-                const userAdjustments = adjustments.filter(a => a.user_id === user.id);
+                const userAdjustments = pendingAdjustments.filter(a => a.user_id === user.id);
                 const totalAdjustments = userAdjustments.reduce((sum, adj) => {
                     return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
                 }, 0);
@@ -118,7 +123,7 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
                 };
             })
             .filter(t => t.amount > 0);
-    }, [filteredStaff, adjustments, staffPay]);
+    }, [filteredStaff, pendingAdjustments, staffPay]);
 
     // Handle bulk transfer via Paystack
     const handleBulkTransfer = async () => {
@@ -235,7 +240,7 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
 
         // Prepare data for all filtered staff
         const exportData = filteredStaff.map(user => {
-            const userAdjustments = adjustments.filter(a => a.user_id === user.id);
+            const userAdjustments = pendingAdjustments.filter(a => a.user_id === user.id);
             const totalAdjustments = userAdjustments.reduce((sum, adj) => {
                 return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
             }, 0);
@@ -408,7 +413,7 @@ const PayrollPage: React.FC<PayrollPageProps> = ({ staffForPayroll, adjustments,
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {paginatedStaff.map(user => {
-                                const userAdjustments = adjustments.filter(a => a.user_id === user.id);
+                                const userAdjustments = pendingAdjustments.filter(a => a.user_id === user.id);
                                 const totalAdjustments = userAdjustments.reduce((sum, adj) => {
                                     return adj.adjustment_type === 'addition' ? sum + adj.amount : sum - adj.amount;
                                 }, 0);
