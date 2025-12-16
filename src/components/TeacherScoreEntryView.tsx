@@ -4,6 +4,7 @@ import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { parseCsv, findColumnByVariations } from '../utils/feesCsvUtils';
+import { supa as supabase } from '../offline/client';
 
 interface TeacherScoreEntryViewProps {
     assignmentId: number;
@@ -41,14 +42,49 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
     const [localComments, setLocalComments] = useState<Record<number, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [freshEnrollments, setFreshEnrollments] = useState<StudentSubjectEnrollment[] | null>(null);
+    const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const assignment = useMemo(() => 
         academicAssignments.find(a => a.id === assignmentId), 
     [academicAssignments, assignmentId]);
 
+    // Fetch fresh enrollment data on component mount
+    useEffect(() => {
+        const fetchFreshEnrollments = async () => {
+            if (!assignment) return;
+            
+            setIsLoadingEnrollments(true);
+            try {
+                const { data, error } = await supabase
+                    .from('student_subject_enrollments')
+                    .select('*')
+                    .eq('academic_class_id', assignment.academic_class_id)
+                    .eq('term_id', assignment.term_id);
+                
+                if (error) {
+                    console.error('[TeacherScoreEntryView] Failed to fetch fresh enrollments:', error);
+                    addToast('Could not refresh enrollment data. Using cached data.', 'info');
+                } else if (data) {
+                    setFreshEnrollments(data);
+                }
+            } catch (error) {
+                console.error('[TeacherScoreEntryView] Error fetching fresh enrollments:', error);
+                addToast('Could not refresh enrollment data. Using cached data.', 'info');
+            } finally {
+                setIsLoadingEnrollments(false);
+            }
+        };
+        
+        fetchFreshEnrollments();
+    }, [assignment, addToast]);
+
     const enrolledStudents = useMemo(() => {
         if (!assignment) return [];
+        
+        // Use fresh enrollments if available, otherwise fall back to prop data
+        const enrollmentsToUse = freshEnrollments !== null ? freshEnrollments : studentSubjectEnrollments;
         
         return students.filter(s => {
             // First check if student is in the academic class
@@ -68,7 +104,7 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             }
             
             // Check for enrollment records for this subject in this class
-            const enrollmentRecords = studentSubjectEnrollments.filter(sse =>
+            const enrollmentRecords = enrollmentsToUse.filter(sse =>
                 sse.academic_class_id === assignment.academic_class_id &&
                 sse.subject_id === subject.id &&
                 sse.term_id === assignment.term_id
@@ -82,7 +118,7 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
                 sse.student_id === s.id && sse.is_enrolled === true
             );
         }).sort((a, b) => a.name.localeCompare(b.name));
-    }, [assignment, academicClassStudents, students, allSubjects, studentSubjectEnrollments]);
+    }, [assignment, academicClassStudents, students, allSubjects, studentSubjectEnrollments, freshEnrollments]);
 
     const components = useMemo<AssessmentComponent[]>(() => {
         if (assignment?.academic_class?.assessment_structure?.components) {
@@ -391,6 +427,12 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
 
     return (
         <div className="space-y-6 animate-fade-in">
+            {isLoadingEnrollments && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-2">
+                    <Spinner size="sm" />
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Refreshing enrollment data...</span>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Score Entry</h1>
