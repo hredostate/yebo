@@ -1,5 +1,6 @@
 /* Import print styles */
 @import './styles/print.css';
+@import './styles/report-card.print.css';
 
 @tailwind base;
 @tailwind components;
