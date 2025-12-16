@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import type { AttendanceRecord, ClassGroupMember } from '../types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import type { AttendanceRecord, AttendanceOverride, ClassGroupMember, Term } from '../types';
 import { AttendanceStatus } from '../types';
 import Spinner from './common/Spinner';
 import { MicIcon, DownloadIcon, BellIcon } from './common/icons';
@@ -10,14 +10,449 @@ import { exportToCsv } from '../utils/export';
 import { bulkSendSmsNotifications } from '../services/smsService';
 import { supabase } from '../services/supabaseClient';
 
+interface OverrideRow {
+    studentId: number;
+    studentName?: string;
+    computedPresent: number;
+    computedTotal: number;
+    overridePresent?: number;
+    overrideTotal?: number;
+    comment?: string;
+    overrideId?: number;
+    updatedAt?: string | null;
+    updatedBy?: string | null;
+    enabled: boolean;
+}
+
+interface ManualOverrideProps {
+    members: ClassGroupMember[];
+    groupId: number;
+    groupName: string;
+    teacherId?: string | null;
+    canOverride: boolean;
+    schoolId: number;
+    userId: string;
+}
+
+const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
+    members,
+    groupId,
+    groupName,
+    teacherId,
+    canOverride,
+    schoolId,
+    userId,
+}) => {
+    const [terms, setTerms] = useState<Term[]>([]);
+    const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
+    const [rows, setRows] = useState<Record<number, OverrideRow>>({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const selectedTerm = terms.find(t => t.id === selectedTermId) || null;
+    const memberLookup = useMemo(() => {
+        const lookup = new Map<number, ClassGroupMember>();
+        members.forEach(m => lookup.set(m.id, m));
+        return lookup;
+    }, [members]);
+
+    const loadAttendanceForTerm = useCallback(async (termId: number) => {
+        if (!termId) return;
+        const memberIds = members.map(m => m.id);
+        if (memberIds.length === 0) {
+            setRows({});
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const { data: termData, error: termError } = await supabase
+                .from('terms')
+                .select('id, term_label, session_label, start_date, end_date')
+                .eq('id', termId)
+                .maybeSingle();
+
+            if (termError) throw termError;
+            if (!termData) throw new Error('Term not found');
+
+            const { data: overrideData, error: overrideError } = await supabase
+                .from('attendance_overrides')
+                .select('*')
+                .eq('class_group_id', groupId)
+                .eq('term_id', termId);
+
+            if (overrideError) throw overrideError;
+
+            let attendanceQuery = supabase
+                .from('attendance_records')
+                .select('member_id, status, session_date')
+                .in('member_id', memberIds);
+
+            if (termData.start_date) {
+                attendanceQuery = attendanceQuery.gte('session_date', termData.start_date);
+            }
+            if (termData.end_date) {
+                attendanceQuery = attendanceQuery.lte('session_date', termData.end_date);
+            }
+
+            const { data: attendanceData, error: attendanceError } = await attendanceQuery;
+            if (attendanceError) throw attendanceError;
+
+            const computedByStudent = new Map<number, { present: number; total: number }>();
+
+            (attendanceData || []).forEach(record => {
+                const member = memberLookup.get(record.member_id);
+                if (!member) return;
+
+                const studentId = (member as any).student_id as number | undefined;
+                if (!studentId) return;
+
+                const current = computedByStudent.get(studentId) || { present: 0, total: 0 };
+                const status = (record.status || '').toLowerCase();
+                const isPresent = status === 'present' || status === 'p';
+
+                current.total += 1;
+                if (isPresent) current.present += 1;
+                computedByStudent.set(studentId, current);
+            });
+
+            const overridesByStudent = new Map<number, AttendanceOverride>();
+            (overrideData || []).forEach(ovr => overridesByStudent.set(ovr.student_id, ovr as AttendanceOverride));
+
+            const nextRows: Record<number, OverrideRow> = {};
+            members.forEach(member => {
+                const studentId = (member as any).student_id as number | undefined;
+                if (!studentId) return;
+                const computed = computedByStudent.get(studentId) || { present: 0, total: 0 };
+                const override = overridesByStudent.get(studentId);
+
+                nextRows[studentId] = {
+                    studentId,
+                    studentName: member.student_name,
+                    computedPresent: computed.present,
+                    computedTotal: computed.total,
+                    overridePresent: override?.days_present,
+                    overrideTotal: override?.total_days,
+                    comment: override?.comment || '',
+                    overrideId: override?.id,
+                    updatedAt: override?.updated_at,
+                    updatedBy: override?.updated_by,
+                    enabled: !!override,
+                };
+            });
+
+            setRows(nextRows);
+        } catch (err: any) {
+            console.error('Error loading attendance overrides', err);
+            setError(err.message || 'Failed to load attendance data');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [groupId, memberLookup, members]);
+
+    useEffect(() => {
+        const fetchTerms = async () => {
+            const { data, error: termError } = await supabase
+                .from('terms')
+                .select('*')
+                .eq('school_id', schoolId)
+                .order('start_date', { ascending: false });
+
+            if (termError) {
+                console.error(termError);
+                return;
+            }
+
+            setTerms(data || []);
+            const active = (data || []).find(t => t.is_active) || (data || [])[0] || null;
+            if (active) setSelectedTermId(active.id);
+        };
+
+        fetchTerms();
+    }, [schoolId]);
+
+    useEffect(() => {
+        if (selectedTermId) {
+            loadAttendanceForTerm(selectedTermId);
+        }
+    }, [selectedTermId, loadAttendanceForTerm]);
+
+    const updateRow = (studentId: number, changes: Partial<OverrideRow>) => {
+        setRows(prev => {
+            const existing = prev[studentId] || { studentId, computedPresent: 0, computedTotal: 0, enabled: false };
+            const next: OverrideRow = { ...existing, ...changes };
+
+            // Auto-fill override values when enabling with no existing data
+            if (changes.enabled && changes.enabled === true && !existing.overrideTotal) {
+                next.overrideTotal = existing.computedTotal;
+                next.overridePresent = existing.computedPresent;
+            }
+
+            return { ...prev, [studentId]: next };
+        });
+    };
+
+    const handleSaveOverrides = async () => {
+        if (!selectedTermId) return;
+        setIsSaving(true);
+        setError(null);
+
+        const rowsToSave = Object.values(rows).filter(r => r.enabled);
+
+        for (const row of rowsToSave) {
+            if (row.overrideTotal === undefined || row.overridePresent === undefined) {
+                setError('Please enter total days and days present for all enabled overrides.');
+                setIsSaving(false);
+                return;
+            }
+            if (row.overridePresent > row.overrideTotal) {
+                setError('Days present cannot exceed total school days.');
+                setIsSaving(false);
+                return;
+            }
+        }
+
+        try {
+            const payload = rowsToSave.map(row => ({
+                student_id: row.studentId,
+                class_group_id: groupId,
+                term_id: selectedTermId,
+                session_label: selectedTerm?.session_label || null,
+                total_days: row.overrideTotal ?? 0,
+                days_present: row.overridePresent ?? 0,
+                comment: row.comment || null,
+                created_by: userId,
+                updated_by: userId,
+            }));
+
+            const { error: upsertError } = await supabase
+                .from('attendance_overrides')
+                .upsert(payload, { onConflict: 'student_id,class_group_id,term_id' });
+
+            if (upsertError) throw upsertError;
+
+            await loadAttendanceForTerm(selectedTermId);
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Failed to save overrides');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRemoveOverride = async (studentId: number, overrideId?: number) => {
+        if (!overrideId || !selectedTermId) {
+            updateRow(studentId, { enabled: false, overrideId: undefined });
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            await supabase.from('attendance_overrides').delete().eq('id', overrideId);
+            await loadAttendanceForTerm(selectedTermId);
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Failed to remove override');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const rowsArray = useMemo(() => {
+        return members
+            .map(member => {
+                const studentId = (member as any).student_id as number | undefined;
+                if (!studentId) return null;
+                const row = rows[studentId];
+                return row ? row : null;
+            })
+            .filter(Boolean) as OverrideRow[];
+    }, [members, rows]);
+
+    const hasPendingChanges = rowsArray.some(r => r.enabled);
+
+    return (
+        <div className="mt-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Manual Attendance Overrides</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                        Use this panel to set term-level attendance totals for <strong>{groupName}</strong> that appear on the result sheet.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                    <select
+                        value={selectedTermId ?? ''}
+                        onChange={e => setSelectedTermId(Number(e.target.value))}
+                        className="px-3 py-2 border rounded-md bg-white dark:bg-slate-900"
+                    >
+                        <option value="" disabled>Select term</option>
+                        {terms.map(term => (
+                            <option key={term.id} value={term.id}>
+                                {term.term_label} • {term.session_label}
+                            </option>
+                        ))}
+                    </select>
+                    <span className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200">
+                        Teacher: {teacherId ? 'Assigned' : 'Unassigned'}
+                    </span>
+                </div>
+            </div>
+
+            {error && (
+                <div className="p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-800">
+                    {error}
+                </div>
+            )}
+
+            <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
+                <div>
+                    {selectedTerm ? (
+                        <>
+                            Term window: {selectedTerm.start_date ? new Date(selectedTerm.start_date).toLocaleDateString() : 'N/A'} – {selectedTerm.end_date ? new Date(selectedTerm.end_date).toLocaleDateString() : 'N/A'}
+                        </>
+                    ) : (
+                        'Select a term to view computed attendance'
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => selectedTermId && loadAttendanceForTerm(selectedTermId)}
+                        className="text-sm px-3 py-1 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                        Refresh
+                    </button>
+                    <button
+                        onClick={handleSaveOverrides}
+                        disabled={!canOverride || !hasPendingChanges || isSaving}
+                        className={`text-sm px-3 py-1 rounded-md font-semibold ${!canOverride ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:opacity-60`}
+                        title={!canOverride ? 'Only the assigned class teacher or admins can set overrides' : 'Save overrides for this term'}
+                    >
+                        {isSaving ? <Spinner size="sm" /> : 'Save Overrides'}
+                    </button>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 dark:border-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200">
+                        <tr>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Student</th>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Computed</th>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Override</th>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Final</th>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Comment</th>
+                            <th className="p-2 text-left border-b border-slate-200 dark:border-slate-700">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={6} className="p-4 text-center"><Spinner size="sm" /></td>
+                            </tr>
+                        ) : rowsArray.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="p-4 text-center text-slate-500">No students found for this class.</td>
+                            </tr>
+                        ) : (
+                            rowsArray.map(row => {
+                                const finalTotal = row.enabled ? (row.overrideTotal ?? 0) : row.computedTotal;
+                                const finalPresent = row.enabled ? (row.overridePresent ?? 0) : row.computedPresent;
+                                const finalRate = finalTotal > 0 ? Math.round((finalPresent / finalTotal) * 1000) / 10 : 0;
+
+                                return (
+                                    <tr key={row.studentId} className="border-b border-slate-100 dark:border-slate-800">
+                                        <td className="p-2 font-semibold text-slate-800 dark:text-slate-100">{row.studentName}</td>
+                                        <td className="p-2 text-slate-700 dark:text-slate-200">
+                                            <div className="text-xs">Present: <strong>{row.computedPresent}</strong></div>
+                                            <div className="text-xs">Total: <strong>{row.computedTotal}</strong></div>
+                                        </td>
+                                        <td className="p-2 space-y-1">
+                                            <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={row.enabled}
+                                                    onChange={e => updateRow(row.studentId, { enabled: e.target.checked })}
+                                                    disabled={!canOverride}
+                                                />
+                                                Enable manual override
+                                            </label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={row.overrideTotal ?? ''}
+                                                    disabled={!row.enabled || !canOverride}
+                                                    onChange={e => updateRow(row.studentId, { overrideTotal: Number(e.target.value) })}
+                                                    placeholder="Total days"
+                                                    className="w-24 px-2 py-1 border rounded"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={row.overridePresent ?? ''}
+                                                    disabled={!row.enabled || !canOverride}
+                                                    onChange={e => updateRow(row.studentId, { overridePresent: Number(e.target.value) })}
+                                                    placeholder="Present"
+                                                    className="w-20 px-2 py-1 border rounded"
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="p-2 text-slate-700 dark:text-slate-200">
+                                            <div className="text-xs">{finalPresent}/{finalTotal} days</div>
+                                            <div className="text-xs font-semibold">{finalRate.toFixed(1)}%</div>
+                                            {row.overrideId && (
+                                                <div className="text-[10px] text-slate-500">Updated {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : ''}</div>
+                                            )}
+                                        </td>
+                                        <td className="p-2">
+                                            <textarea
+                                                value={row.comment || ''}
+                                                onChange={e => updateRow(row.studentId, { comment: e.target.value })}
+                                                disabled={!row.enabled || !canOverride}
+                                                placeholder="Optional comment"
+                                                className="w-full px-2 py-1 border rounded resize-none"
+                                                rows={2}
+                                            />
+                                        </td>
+                                        <td className="p-2 space-y-1">
+                                            <button
+                                                onClick={() => handleRemoveOverride(row.studentId, row.overrideId)}
+                                                disabled={!row.overrideId || !canOverride || isSaving}
+                                                className="text-xs px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                                            >
+                                                Remove override
+                                            </button>
+                                            {row.overrideId && row.updatedBy && (
+                                                <div className="text-[10px] text-slate-500">By {row.updatedBy}</div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 interface Props {
     members: ClassGroupMember[];
     onSaveRecord: (record: Partial<AttendanceRecord> & { member_id: number; session_date: string; id?: number }) => Promise<boolean>;
     schoolId: number;
     userId: string;
+    groupId: number;
+    groupName: string;
+    teacherId?: string | null;
+    canOverride: boolean;
 }
 
-const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, schoolId, userId }) => {
+const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, schoolId, userId, groupId, groupName, teacherId, canOverride }) => {
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [isBulkSaving, setIsBulkSaving] = useState(false);
@@ -657,6 +1092,16 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, school
                     </div>
                 </>
             )}
+
+            <ManualAttendanceOverridePanel
+                members={sortedMembers}
+                groupId={groupId}
+                groupName={groupName}
+                teacherId={teacherId}
+                canOverride={canOverride}
+                schoolId={schoolId}
+                userId={userId}
+            />
         </div>
     );
 };

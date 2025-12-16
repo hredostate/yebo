@@ -670,6 +670,21 @@ export interface AttendanceRecord {
     updated_at: string;
 }
 
+export interface AttendanceOverride {
+    id: number;
+    student_id: number;
+    class_group_id: number;
+    term_id: number;
+    session_label?: string | null;
+    total_days: number;
+    days_present: number;
+    comment?: string | null;
+    created_by?: string | null;
+    updated_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface UPSSGPTResponse {
     answer: string;
     alerts: string[];
@@ -876,6 +891,23 @@ export interface StudentTermReportDetails {
         unexcused: number;
         total: number;
         rate: number; // Percentage
+        source?: 'computed' | 'override';
+        overrideApplied?: boolean;
+        computed?: {
+            present: number;
+            absent: number;
+            late: number;
+            excused: number;
+            unexcused: number;
+            total: number;
+            rate: number;
+        } | null;
+        overrideMeta?: {
+            class_group_id?: number | null;
+            comment?: string | null;
+            updated_by?: string | null;
+            updated_at?: string | null;
+        } | null;
     };
     comments: {
         teacher: string;

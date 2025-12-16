@@ -448,11 +448,15 @@ const ClassGroupManager: React.FC<ClassGroupManagerProps> = ({
 
                             <div className="p-6 flex-grow">
                                 {selectedGroup.group_type === 'class_teacher' ? (
-                                    <ClassTeacherAttendance 
+                                    <ClassTeacherAttendance
                                         members={selectedGroup.members || []}
                                         onSaveRecord={onSaveRecord}
                                         schoolId={currentUser.school_id}
                                         userId={currentUser.id}
+                                        groupId={selectedGroup.id}
+                                        groupName={selectedGroup.name}
+                                        teacherId={selectedGroup.teaching_entity?.teacher_user_id}
+                                        canOverride={isAdmin || selectedGroup.teaching_entity?.teacher_user_id === currentUser.id}
                                     />
                                 ) : (
                                     <SubjectTeacherAttendance 

@@ -69,7 +69,7 @@ export const getAttendanceProgressColorPrint = (rate: number): string => {
     return 'bg-red-600';
 };
 
-export interface AttendanceData {
+export interface AttendanceSnapshot {
     present: number;
     absent: number;
     late: number;
@@ -77,4 +77,16 @@ export interface AttendanceData {
     unexcused: number;
     total: number;
     rate: number;
+}
+
+export interface AttendanceData extends AttendanceSnapshot {
+    source?: 'computed' | 'override';
+    overrideApplied?: boolean;
+    computed?: AttendanceSnapshot;
+    overrideMeta?: {
+        class_group_id?: number | null;
+        comment?: string | null;
+        updated_by?: string | null;
+        updated_at?: string | null;
+    } | null;
 }

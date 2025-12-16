@@ -15,7 +15,7 @@ import {
   FilterIcon,
   ChevronDownIcon
 } from '../common/icons';
-import { parseCsv, findColumnByVariations } from '../../utils/feesCsvUtils';
+import { parseCsv, findColumnByVariations, normalizeHeaderName } from '../../utils/feesCsvUtils';
 
 
 interface StudentSubjectEnrollmentManagerProps {
@@ -73,17 +73,31 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   // Get the current term (most recent active term)
   useEffect(() => {
     if (terms.length > 0 && !selectedTermId) {
-      const sortedTerms = [...terms].sort((a, b) => 
+      const sortedTerms = [...terms].sort((a, b) =>
         new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
       );
       setSelectedTermId(sortedTerms[0]?.id || null);
     }
   }, [terms, selectedTermId]);
 
+  // Clear class selection when switching to a term that doesn't match the current class session
+  useEffect(() => {
+    if (!selectedAcademicClassId || !selectedTermId) return;
+    const selectedClass = academicClasses.find(ac => ac.id === selectedAcademicClassId);
+    const term = terms.find(t => t.id === selectedTermId);
+    if (selectedClass && term && selectedClass.session_label !== term.session_label) {
+      setSelectedAcademicClassId(null);
+    }
+  }, [selectedAcademicClassId, selectedTermId, academicClasses, terms]);
+
   // Get active academic classes for selected term
   const activeAcademicClasses = useMemo(() => {
-    return academicClasses.filter(ac => ac.is_active);
-  }, [academicClasses]);
+    const selectedTerm = terms.find(t => t.id === selectedTermId);
+    return academicClasses.filter(ac => {
+      const matchesSession = selectedTerm ? ac.session_label === selectedTerm.session_label : true;
+      return ac.is_active && matchesSession;
+    });
+  }, [academicClasses, terms, selectedTermId]);
 
   // Get students to show for the selected academic class and term
   // Only show students enrolled in the selected academic class for the selected term
@@ -300,40 +314,23 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
     try {
       setIsSaving(true);
-      const currentEnrollment = studentSubjectEnrollments.find(sse =>
-        sse.student_id === studentId &&
-        sse.subject_id === subjectId &&
-        sse.academic_class_id === selectedAcademicClassId &&
-        sse.term_id === selectedTermId
-      );
-
       const newEnrollmentStatus = !isEnrolled(studentId, subjectId);
+      const payload = {
+        school_id: schoolId,
+        student_id: studentId,
+        subject_id: subjectId,
+        academic_class_id: selectedAcademicClassId,
+        term_id: selectedTermId,
+        is_enrolled: newEnrollmentStatus
+      };
 
-      if (currentEnrollment) {
-        // Update existing record - timestamp updated automatically by database
-        const { error } = await supabase
-          .from('student_subject_enrollments')
-          .update({ 
-            is_enrolled: newEnrollmentStatus
-          })
-          .eq('id', currentEnrollment.id);
+      const { error } = await supabase
+        .from('student_subject_enrollments')
+        .upsert([payload], {
+          onConflict: 'student_id,subject_id,academic_class_id,term_id'
+        });
 
-        if (error) throw error;
-      } else {
-        // Create new record
-        const { error } = await supabase
-          .from('student_subject_enrollments')
-          .insert({
-            school_id: schoolId,
-            student_id: studentId,
-            subject_id: subjectId,
-            academic_class_id: selectedAcademicClassId,
-            term_id: selectedTermId,
-            is_enrolled: newEnrollmentStatus
-          });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       await onRefreshData();
       addToast(`Enrollment ${newEnrollmentStatus ? 'enabled' : 'disabled'} successfully`, 'success');
@@ -355,6 +352,10 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
   const bulkToggleSubject = async (subjectId: number, enroll: boolean) => {
     if (!selectedAcademicClassId || !selectedTermId) {
       addToast('Please select an academic class and term', 'error');
+      return;
+    }
+
+    if (!enroll && !window.confirm('Are you sure you want to remove this subject for all students in the selected class and term?')) {
       return;
     }
 
@@ -442,6 +443,16 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       return;
     }
 
+    if (!enroll && !window.confirm('Remove the selected students from these subjects?')) {
+      return;
+    }
+
+    const subjects = subjectId ? classSubjects.filter(s => s.id === subjectId) : classSubjects;
+    if (subjectId && subjects.length === 0) {
+      addToast('Selected subject is not available for this class.', 'error');
+      return;
+    }
+
     try {
       setIsSaving(true);
       const updates: Array<{
@@ -453,8 +464,6 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
         is_enrolled: boolean;
       }> = [];
 
-      const subjects = subjectId ? [classSubjects.find(s => s.id === subjectId)!] : classSubjects;
-      
       selectedStudents.forEach(studentId => {
         subjects.forEach(subject => {
           updates.push({
@@ -597,21 +606,22 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       const text = await file.text();
       
       // Parse CSV using the shared utility
-      const rows = parseCsv(text);
-      
+      const parsed = parseCsv(text);
+      const rows = parsed.rows;
+
       if (rows.length === 0) {
         addToast('CSV file is empty or invalid', 'error');
         return;
       }
 
       // Get headers from the first row
-      const headers = Object.keys(rows[0]);
+      const headers = parsed.headers;
       
       // Fixed columns that should always be present
       const requiredColumns = ['Student ID', 'Student Name', 'Admission Number'];
       
       // Check for required columns (case-insensitive)
-      const headerMap = new Map(headers.map(h => [h.toLowerCase(), h]));
+      const headerMap = new Map(parsed.normalizedHeaders.map((h, idx) => [h, headers[idx]]));
       const studentIdCol = findColumnByVariations(headerMap, ['Student ID', 'student_id', 'studentid', 'student id']);
       
       if (!studentIdCol) {
@@ -620,9 +630,9 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       }
 
       // Find all subject columns (those not in the required columns list)
-      const requiredLower = requiredColumns.map(c => c.toLowerCase());
-      const subjectColumns = headers.filter(h => 
-        !requiredLower.includes(h.toLowerCase())
+      const requiredLower = requiredColumns.map(c => normalizeHeaderName(c));
+      const subjectColumns = headers.filter(h =>
+        !requiredLower.includes(normalizeHeaderName(h))
       );
 
       // Map subject column names to subject IDs (case-insensitive matching)
@@ -631,8 +641,8 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       
       subjectColumns.forEach(columnName => {
         // Try to match the column name to a subject in classSubjects (case-insensitive)
-        const subject = classSubjects.find(s => 
-          s.name.toLowerCase() === columnName.toLowerCase().trim()
+        const subject = classSubjects.find(s =>
+          normalizeHeaderName(s.name) === normalizeHeaderName(columnName)
         );
         if (subject) {
           subjectMap.set(columnName, { id: subject.id, columnName });
@@ -750,6 +760,9 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
       {/* Filters */}
       <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-6 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Step 1: Select session/term → Step 2: Pick the academic class/arm → Step 3: Enroll students into subjects.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">

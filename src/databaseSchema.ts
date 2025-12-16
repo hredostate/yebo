@@ -281,6 +281,18 @@ DECLARE
     v_unexcused_count INTEGER;
     v_total_count INTEGER;
     v_attendance_rate NUMERIC;
+    v_present_computed INTEGER;
+    v_absent_computed INTEGER;
+    v_late_computed INTEGER;
+    v_excused_computed INTEGER;
+    v_unexcused_computed INTEGER;
+    v_total_computed INTEGER;
+    v_attendance_rate_computed NUMERIC;
+    v_class_group_id INTEGER;
+    v_override public.attendance_overrides%ROWTYPE;
+    v_computed_attendance JSONB;
+    v_attendance_source TEXT;
+    v_override_found BOOLEAN := false;
 BEGIN
     -- 1. Student Info
     SELECT jsonb_build_object('id', s.id, 'fullName', s.name, 'className', c.name)
@@ -322,32 +334,92 @@ BEGIN
     FROM public.score_entries se
     WHERE se.student_id = p_student_id AND se.term_id = p_term_id;
 
-    -- 6. Calculate real attendance from attendance_records
+    -- 6. Identify the student's class group for this term (class teacher groups take precedence)
+    SELECT cgm.group_id
+    INTO v_class_group_id
+    FROM public.class_group_members cgm
+    JOIN public.class_groups cg ON cg.id = cgm.group_id
+    LEFT JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
+    WHERE cgm.student_id = p_student_id
+      AND cg.group_type = 'class_teacher'
+      AND (ta.term_id = p_term_id OR ta.term_id IS NULL)
+    ORDER BY (ta.term_id = p_term_id) DESC, cg.id
+    LIMIT 1;
+
+    -- 7. Calculate real attendance from attendance_records
     -- Join through class_group_members to connect students with attendance records
-    SELECT 
+    SELECT
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('present', 'p')), 0),
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('absent', 'a', 'unexcused')), 0),
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('late', 'tardy', 'l', 't')), 0),
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('excused', 'e', 'excused absence')), 0),
         COALESCE(COUNT(*), 0)
-    INTO v_present_count, v_unexcused_count, v_late_count, v_excused_count, v_total_count
+    INTO v_present_computed, v_unexcused_computed, v_late_computed, v_excused_computed, v_total_computed
     FROM public.attendance_records ar
     INNER JOIN public.class_group_members cgm ON ar.member_id = cgm.id
     WHERE cgm.student_id = p_student_id
       AND ar.session_date IS NOT NULL
       AND (v_term_start IS NULL OR ar.session_date >= v_term_start)
       AND (v_term_end IS NULL OR ar.session_date <= v_term_end);
-    
+
     -- Calculate total absences (excused + unexcused)
-    v_absent_count := v_excused_count + v_unexcused_count;
-    
+    v_absent_computed := v_excused_computed + v_unexcused_computed;
+
     -- Calculate attendance rate
+    IF v_total_computed > 0 THEN
+        v_attendance_rate_computed := ROUND((v_present_computed::NUMERIC / v_total_computed::NUMERIC) * 100, 2);
+    ELSE
+        v_attendance_rate_computed := 0;
+    END IF;
+
+    v_computed_attendance := jsonb_build_object(
+        'present', v_present_computed,
+        'absent', v_absent_computed,
+        'late', v_late_computed,
+        'excused', v_excused_computed,
+        'unexcused', v_unexcused_computed,
+        'total', v_total_computed,
+        'rate', v_attendance_rate_computed
+    );
+
+    -- 8. Apply overrides when present for this class/term/student
+    IF v_class_group_id IS NOT NULL THEN
+        SELECT * INTO v_override
+        FROM public.attendance_overrides ao
+        WHERE ao.student_id = p_student_id
+          AND ao.term_id = p_term_id
+          AND ao.class_group_id = v_class_group_id
+        ORDER BY ao.updated_at DESC
+        LIMIT 1;
+        IF FOUND THEN
+            v_override_found := true;
+        END IF;
+    END IF;
+
+    IF v_override_found THEN
+        v_present_count := COALESCE(v_override.days_present, 0);
+        v_total_count := COALESCE(v_override.total_days, 0);
+        v_absent_count := GREATEST(COALESCE(v_override.total_days, 0) - COALESCE(v_override.days_present, 0), 0);
+        v_late_count := 0;
+        v_excused_count := 0;
+        v_unexcused_count := v_absent_count;
+        v_attendance_source := 'override';
+    ELSE
+        v_present_count := v_present_computed;
+        v_absent_count := v_absent_computed;
+        v_late_count := v_late_computed;
+        v_excused_count := v_excused_computed;
+        v_unexcused_count := v_unexcused_computed;
+        v_total_count := v_total_computed;
+        v_attendance_source := 'computed';
+    END IF;
+
     IF v_total_count > 0 THEN
         v_attendance_rate := ROUND((v_present_count::NUMERIC / v_total_count::NUMERIC) * 100, 2);
     ELSE
         v_attendance_rate := 0;
     END IF;
-    
+
     -- Build attendance object with detailed metrics
     v_attendance := jsonb_build_object(
         'present', v_present_count,
@@ -356,7 +428,16 @@ BEGIN
         'excused', v_excused_count,
         'unexcused', v_unexcused_count,
         'total', v_total_count,
-        'rate', v_attendance_rate
+        'rate', v_attendance_rate,
+        'source', v_attendance_source,
+        'overrideApplied', (v_attendance_source = 'override'),
+        'computed', v_computed_attendance,
+        'overrideMeta', CASE WHEN v_attendance_source = 'override' THEN jsonb_build_object(
+            'class_group_id', v_override.class_group_id,
+            'comment', v_override.comment,
+            'updated_by', v_override.updated_by,
+            'updated_at', v_override.updated_at
+        ) ELSE NULL END
     );
 
     RETURN jsonb_build_object(
@@ -839,6 +920,23 @@ CREATE TABLE IF NOT EXISTS public.attendance_records (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS public.attendance_overrides (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
+    class_group_id INTEGER REFERENCES public.class_groups(id) ON DELETE CASCADE,
+    term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
+    session_label TEXT,
+    total_days INTEGER DEFAULT 0,
+    days_present INTEGER DEFAULT 0,
+    comment TEXT,
+    created_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(student_id, class_group_id, term_id),
+    CHECK (days_present <= total_days)
+);
+CREATE INDEX IF NOT EXISTS attendance_overrides_term_idx ON public.attendance_overrides(term_id, class_group_id);
 -- Teaching Entities (Legacy support / alternative to teaching_assignments)
 CREATE TABLE IF NOT EXISTS public.teaching_entities (
     id SERIAL PRIMARY KEY,
@@ -1470,7 +1568,7 @@ BEGIN
         END IF;
         
         -- Write Policy (Check existence)
-        IF t IN ('reports', 'tasks', 'announcements', 'teacher_checkins', 'inventory_items', 'attendance_records', 'leave_requests', 'score_entries', 'orders', 'order_items', 'order_notes', 'team_feedback', 'report_comments', 'lesson_plans', 'quiz_responses', 'student_intervention_plans', 'sip_logs', 'student_invoices', 'payments', 'student_profiles', 'students', 'timetable_entries', 'timetable_periods', 'holidays', 'teacher_shifts', 'student_subject_choices', 'class_subjects', 'schools', 'roles', 'user_role_assignments', 'class_groups', 'class_group_members', 'attendance_schedules') THEN
+        IF t IN ('reports', 'tasks', 'announcements', 'teacher_checkins', 'inventory_items', 'attendance_records', 'attendance_overrides', 'leave_requests', 'score_entries', 'orders', 'order_items', 'order_notes', 'team_feedback', 'report_comments', 'lesson_plans', 'quiz_responses', 'student_intervention_plans', 'sip_logs', 'student_invoices', 'payments', 'student_profiles', 'students', 'timetable_entries', 'timetable_periods', 'holidays', 'teacher_shifts', 'student_subject_choices', 'class_subjects', 'schools', 'roles', 'user_role_assignments', 'class_groups', 'class_group_members', 'attendance_schedules') THEN
              IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = t AND policyname = format('Auth write %s', t)) THEN
                  EXECUTE format('CREATE POLICY "Auth write %I" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)', t, t);
              END IF;
@@ -1496,7 +1594,95 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'school_config' AND policyname = 'Public view config') THEN
         CREATE POLICY "Public view config" ON public.school_config FOR SELECT USING (true);
     END IF;
-    
+
+    -- Attendance overrides: ensure controlled access for class teachers and admins
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'Auth read attendance_overrides') THEN
+        DROP POLICY "Auth read attendance_overrides" ON public.attendance_overrides;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'Auth write attendance_overrides') THEN
+        DROP POLICY "Auth write attendance_overrides" ON public.attendance_overrides;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_select') THEN
+        DROP POLICY "attendance_overrides_select" ON public.attendance_overrides;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_insert') THEN
+        DROP POLICY "attendance_overrides_manage_insert" ON public.attendance_overrides;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_update') THEN
+        DROP POLICY "attendance_overrides_manage_update" ON public.attendance_overrides;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_delete') THEN
+        DROP POLICY "attendance_overrides_manage_delete" ON public.attendance_overrides;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_select') THEN
+        CREATE POLICY "attendance_overrides_select" ON public.attendance_overrides
+            FOR SELECT TO authenticated USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_insert') THEN
+        CREATE POLICY "attendance_overrides_manage_insert" ON public.attendance_overrides
+            FOR INSERT TO authenticated
+            WITH CHECK (
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles up
+                    WHERE up.id = auth.uid() AND up.role IN ('Admin', 'Principal', 'School Owner')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.class_groups cg
+                    JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
+                    WHERE cg.id = attendance_overrides.class_group_id
+                      AND ta.teacher_user_id = auth.uid()
+                )
+            );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_update') THEN
+        CREATE POLICY "attendance_overrides_manage_update" ON public.attendance_overrides
+            FOR UPDATE TO authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles up
+                    WHERE up.id = auth.uid() AND up.role IN ('Admin', 'Principal', 'School Owner')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.class_groups cg
+                    JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
+                    WHERE cg.id = attendance_overrides.class_group_id
+                      AND ta.teacher_user_id = auth.uid()
+                )
+            )
+            WITH CHECK (
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles up
+                    WHERE up.id = auth.uid() AND up.role IN ('Admin', 'Principal', 'School Owner')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.class_groups cg
+                    JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
+                    WHERE cg.id = attendance_overrides.class_group_id
+                      AND ta.teacher_user_id = auth.uid()
+                )
+            );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'attendance_overrides' AND policyname = 'attendance_overrides_manage_delete') THEN
+        CREATE POLICY "attendance_overrides_manage_delete" ON public.attendance_overrides
+            FOR DELETE TO authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles up
+                    WHERE up.id = auth.uid() AND up.role IN ('Admin', 'Principal', 'School Owner')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.class_groups cg
+                    JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
+                    WHERE cg.id = attendance_overrides.class_group_id
+                      AND ta.teacher_user_id = auth.uid()
+                )
+            );
+    END IF;
+
     -- Teacher checkins: Users can only see their own records, unless they are Admin/Principal/Team Lead
     -- First drop the generic read policy if it exists
     IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'teacher_checkins' AND policyname = 'Auth read teacher_checkins') THEN
