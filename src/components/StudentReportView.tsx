@@ -56,7 +56,8 @@ const PerformanceChart: React.FC<{ data: { name: string, score: number }[], them
 const AttendanceSummary: React.FC<{ attendance: AttendanceData }> = ({ attendance }) => {
     const { present, absent, late, excused, unexcused, total, rate } = attendance;
     const status = getAttendanceStatus(rate);
-    
+    const computedSummary = attendance.computed;
+
     // Show a message if no attendance data
     if (total === 0) {
         return (
@@ -70,7 +71,13 @@ const AttendanceSummary: React.FC<{ attendance: AttendanceData }> = ({ attendanc
     return (
         <div className="mt-6 mb-6 border rounded-lg p-4 bg-slate-50 page-break-inside-avoid">
             <h4 className="text-center font-bold mb-4 text-slate-700 uppercase text-sm">ATTENDANCE SUMMARY</h4>
-            
+
+            {attendance.overrideApplied && (
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                    Manual override applied for this term. Computed attendance was {computedSummary?.present ?? 0}/{computedSummary?.total ?? 0} days.
+                </div>
+            )}
+
             {/* Attendance Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                 <div className="bg-white border border-slate-200 rounded-lg p-3 text-center">
