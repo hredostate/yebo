@@ -59,14 +59,14 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             try {
                 const { data, error } = await supabase
                     .from('student_subject_enrollments')
-                    .select('*')
+                    .select('id, school_id, student_id, subject_id, academic_class_id, term_id, is_enrolled, created_at, updated_at')
                     .eq('academic_class_id', assignment.academic_class_id)
                     .eq('term_id', assignment.term_id);
                 
                 if (error) {
                     console.error('[TeacherScoreEntryView] Failed to fetch fresh enrollments:', error);
                     addToast('Could not refresh enrollment data. Using cached data.', 'info');
-                } else if (data) {
+                } else {
                     setFreshEnrollments(data);
                 }
             } catch (error) {
