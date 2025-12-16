@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { UserProfile, Notification, StudentProfile } from '../types';
 import NotificationsPopover from './NotificationsPopover';
@@ -52,10 +51,10 @@ const useDeviceCounter = (userProfile: UserProfile | StudentProfile) => {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const fetchDeviceCount = async () => {
       if (!userProfile?.id) return;
-      
+
       setLoading(true);
       try {
         const count = await getActiveSessionCount(userProfile.id);
@@ -100,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
   const { isOnline, queueLength, isSyncing, handleSync } = useOfflineStatus();
   const { deviceCount, loading: deviceLoading } = useDeviceCounter(userProfile);
   const unreadCount = notifications.filter(n => !n.is_read).length;
-  
+
   // Determine color based on device count
   const getDeviceCountColor = () => {
     if (deviceCount === 0) return 'text-slate-500 dark:text-slate-400';
@@ -110,9 +109,9 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
   };
 
   return (
-    <header className="flex-shrink-0 flex items-center justify-between h-16 sm:h-16 px-4 sm:px-6 border-b border-white/40 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-sm z-30 transition-all duration-300">
+    <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 min-h-[64px] px-4 sm:px-6 py-3 border-b border-white/40 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl shadow-sm z-30 transition-all duration-300">
       <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-        <button 
+        <button
             onClick={onToggleSidebar}
             className="touch-target -ml-2 text-slate-600 dark:text-slate-300 rounded-lg md:hidden hover:bg-white/50 dark:hover:bg-slate-800 transition-colors active:bg-slate-200 dark:active:bg-slate-700"
             aria-label="Open sidebar"
@@ -126,14 +125,14 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
         </div>
       </div>
 
-      <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+      <div className="flex items-center flex-wrap gap-2 sm:gap-3 flex-shrink-0 justify-end">
         <button onClick={toggleTheme} className="touch-target rounded-full text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 transition-colors">
             {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
         </button>
-        
+
         {/* Device Counter */}
         {!deviceLoading && deviceCount > 0 && (
-          <div 
+          <div
             className="hidden sm:flex items-center gap-2 rounded-full bg-white/50 dark:bg-slate-800/50 px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 shadow-sm transition-colors hover:bg-white dark:hover:bg-slate-800 cursor-help"
             title={`You are logged in on ${deviceCount} of 2 allowed devices`}
           >
@@ -145,14 +144,14 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
             </span>
           </div>
         )}
-        
+
         {(!isOnline || queueLength > 0) && (
           <div className="hidden sm:flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200 shadow-sm">
             <span className={`w-2 h-2 rounded-full ${!isOnline ? 'bg-red-500' : 'bg-amber-500'} animate-pulse`}></span>
             {!isOnline ? `Offline • ${queueLength} pending` : `${queueLength} pending`}
           </div>
         )}
-        
+
         {isOnline && queueLength > 0 && (
           <button
             onClick={handleSync}
@@ -162,10 +161,10 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
             {isSyncing ? <Spinner size="sm" /> : 'Sync now'}
           </button>
         )}
-        
-        <div className="border-l border-slate-300 dark:border-slate-600 h-6 mx-2"></div>
-        
-        <NotificationsPopover 
+
+        <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1 sm:mx-2" />
+
+        <NotificationsPopover
           notifications={notifications}
           unreadCount={unreadCount}
           onMarkAsRead={onMarkNotificationsAsRead}

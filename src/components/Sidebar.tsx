@@ -172,6 +172,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   const role = 'role' in userProfile ? userProfile.role : 'Student';
   const avatarUrl = 'avatar_url' in userProfile ? userProfile.avatar_url : undefined;
 
+  useEffect(() => {
+    const shouldLockScroll = () => window.innerWidth < 1024 && isSidebarOpen;
+
+    if (shouldLockScroll()) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSidebarOpen]);
+
   // Persist expanded groups to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...expandedGroups]));
@@ -234,24 +248,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
     <>
       {/* Mobile backdrop overlay */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden touch-action-none"
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-30 md:hidden touch-action-none transition-opacity duration-200"
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
-      
-      <aside 
+
+      <aside
         className={`
-          w-80 sm:w-72 flex-shrink-0 
-          fixed md:relative inset-y-0 left-0 z-40 
-          transform transition-transform duration-300 ease-out
+          w-[82vw] max-w-xs sm:max-w-sm md:w-72 lg:w-80 flex-shrink-0
+          fixed md:sticky md:top-0 inset-y-0 left-0 z-40
+          transform transition-transform duration-200 ease-out will-change-transform
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0
-        `} 
+        `}
         aria-label="Sidebar"
       >
-        <div className="h-full px-4 sm:px-4 py-6 glass-panel border-r-0 rounded-r-2xl md:rounded-none md:rounded-r-2xl flex flex-col">
+        <div className="h-full px-4 sm:px-4 py-6 glass-panel border-r-0 rounded-r-2xl md:rounded-none md:rounded-r-2xl flex flex-col shadow-2xl md:shadow-none overflow-hidden">
           
           {/* Brand Header */}
           <div className="flex items-center justify-between mb-6 pl-1">

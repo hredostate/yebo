@@ -261,6 +261,8 @@ const App: React.FC = () => {
 
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
+    const getIsDesktopLayout = () => window.matchMedia('(min-width: 1024px)').matches;
+
     const [currentView, setCurrentView] = useState(() => {
         try {
             let hash = decodeURIComponent(window.location.hash.substring(1));
@@ -285,7 +287,7 @@ const App: React.FC = () => {
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); // Manually control task modal from App level for Copilot access
     const [isCreateStudentAccountModalOpen, setIsCreateStudentAccountModalOpen] = useState(false);
     const [isKeyboardShortcutsModalOpen, setIsKeyboardShortcutsModalOpen] = useState(false);
-    
+
     const [booting, setBooting] = useState(true);
     const lastFetchedUserId = useRef<string | null>(null);
     const isFetchingRef = useRef(false);
@@ -293,8 +295,31 @@ const App: React.FC = () => {
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(false);
     const profileLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isDesktopLayout, setIsDesktopLayout] = useState(() => getIsDesktopLayout());
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => getIsDesktopLayout());
     const [hash, setHash] = useState(window.location.hash);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(min-width: 1024px)');
+
+        const handleLayoutChange = (event: MediaQueryListEvent) => {
+            setIsDesktopLayout(event.matches);
+        };
+
+        setIsDesktopLayout(mediaQuery.matches);
+        mediaQuery.addEventListener('change', handleLayoutChange);
+
+        return () => mediaQuery.removeEventListener('change', handleLayoutChange);
+    }, []);
+
+    useEffect(() => {
+        // Keep the sidebar pinned open on desktop, default to drawer on mobile/tablet
+        if (isDesktopLayout) {
+            setIsSidebarOpen(true);
+        } else {
+            setIsSidebarOpen(false);
+        }
+    }, [isDesktopLayout]);
     
     // Store the initial target view from URL hash to preserve it across auth redirects
     const initialTargetView = useInitialTargetView();
@@ -6636,11 +6661,12 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                     toggleTheme={toggleTheme}
                 />
                 <main className="app-surface">
-                     <ErrorBoundary>
-                        <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                            <AppRouter
-                                currentView={currentView}
-                                data={{
+                    <div className="page-wrapper">
+                        <ErrorBoundary>
+                            <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                                <AppRouter
+                                    currentView={currentView}
+                                    data={{
                                     userProfile,
                                     userType,
                                     users,
@@ -6871,7 +6897,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                      </ErrorBoundary>
                      
                      {/* AI Copilot */}
-                     <AICopilot 
+                     <AICopilot
                         userProfile={userProfile as UserProfile}
                         users={users}
                         students={students}
@@ -6892,6 +6918,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         addToast={addToast}
                         onNavigate={handleAINavigation}
                      />
+                    </div>
                 </main>
             </div>
             <Toast toasts={toasts} removeToast={removeToast} />
