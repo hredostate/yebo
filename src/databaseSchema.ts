@@ -583,6 +583,24 @@ CREATE TABLE IF NOT EXISTS public.subjects (
     school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
     name TEXT NOT NULL UNIQUE
 );
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='priority') THEN
+        ALTER TABLE public.subjects ADD COLUMN priority INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='is_solo') THEN
+        ALTER TABLE public.subjects ADD COLUMN is_solo BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subjects' AND column_name='can_co_run') THEN
+        ALTER TABLE public.subjects ADD COLUMN can_co_run BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'subjects' AND constraint_name = 'subjects_solo_corun_check'
+    ) THEN
+        ALTER TABLE public.subjects
+        ADD CONSTRAINT subjects_solo_corun_check CHECK (NOT (is_solo AND can_co_run));
+    END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS public.classes (
     id SERIAL PRIMARY KEY,
     school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
@@ -1112,11 +1130,11 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_teacher_slot') THEN
         ALTER TABLE public.timetable_entries ADD CONSTRAINT unique_teacher_slot UNIQUE (term_id, day_of_week, period_id, teacher_id);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_class_slot') THEN
-        ALTER TABLE public.timetable_entries ADD CONSTRAINT unique_class_slot UNIQUE (term_id, day_of_week, period_id, academic_class_id);
-    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_location_slot') THEN
         ALTER TABLE public.timetable_entries ADD CONSTRAINT unique_location_slot UNIQUE (term_id, day_of_week, period_id, location_id);
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_class_slot') THEN
+        ALTER TABLE public.timetable_entries DROP CONSTRAINT unique_class_slot;
     END IF;
 END $$;
 

@@ -61,6 +61,7 @@ import StudentStrikeAppeals from './StudentStrikeAppeals';
 import StudentFinancialOverview from './StudentFinancialOverview';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
+import { resolveTimetableAccess } from '../utils/timetableAccess';
 
 // Lazy load heavy components and those used dynamically elsewhere to fix build warnings and reduce chunk size
 const TimetableView = lazy(() => import('./TimetableView'));
@@ -186,15 +187,14 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     </Suspense>
                 );
             case VIEWS.TIMETABLE:
+                const { studentViewClassId } = resolveTimetableAccess('student', data.userProfile);
                 return (
                     <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
                         <TimetableView
-                            userProfile={data.userProfile}
-                            users={data.users}
-                            terms={data.terms}
+                            addToast={actions.addToast}
                             academicClasses={data.academicClasses}
                             subjects={data.allSubjects}
-                            addToast={actions.addToast}
+                            studentViewClassId={studentViewClassId || undefined}
                         />
                     </Suspense>
                 );
