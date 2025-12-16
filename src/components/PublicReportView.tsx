@@ -210,7 +210,7 @@ const PublicReportView: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-100 py-8 px-4">
+        <div className="report-print-root min-h-screen bg-slate-100 py-8 px-4">
             <div className="max-w-5xl mx-auto">
                 {/* Header with actions - hidden when printing */}
                 <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 print:hidden border border-slate-100">
