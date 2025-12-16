@@ -95,7 +95,7 @@ body {
 }
 
 .app-surface {
-  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6;
+  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8 isolate;
   background: linear-gradient(180deg, rgba(var(--surface), 0.95), rgba(var(--surface-muted), 0.9));
 }
 
@@ -207,9 +207,13 @@ body {
   .touch-target {
     @apply min-h-touch min-w-touch p-3;
   }
-  
+
   .touch-target-lg {
     @apply min-h-touch-lg min-w-touch-lg p-4;
+  }
+
+  .page-wrapper {
+    @apply mx-auto w-full max-w-6xl sm:max-w-7xl px-2 sm:px-4 lg:px-8 space-y-4 sm:space-y-6;
   }
 
   /* Horizontal scroll wrapper for tables on mobile */
