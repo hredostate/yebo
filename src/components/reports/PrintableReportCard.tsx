@@ -92,7 +92,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     return (
       <div className="report-card report-print-root modern bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 p-10 max-w-5xl mx-auto shadow-xl rounded-2xl border border-slate-200">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur mb-8 shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur mb-8 shadow-sm print-break-avoid">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-500/10 to-emerald-500/10" aria-hidden="true"></div>
           <div className="relative px-8 py-6 text-center">
             <div className="flex items-center justify-center gap-4">
@@ -117,7 +117,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
 
         {/* Student Info */}
-        <div className="grid grid-cols-12 gap-6 mb-8">
+        <div className="grid grid-cols-12 gap-6 mb-8 print-break-avoid">
           <div className="col-span-12 md:col-span-4">
             <div className="h-full bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col items-center text-center">
               <div className="w-32 h-32 rounded-2xl border-2 border-blue-100 bg-blue-50 flex items-center justify-center overflow-hidden mb-3 shadow-inner">
@@ -362,7 +362,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   return (
     <div className="report-card report-print-root classic bg-white text-black p-8 max-w-4xl mx-auto border-8 border-double border-gray-800">
       {/* Header */}
-      <div className="text-center border-b-2 border-gray-800 pb-4 mb-6">
+      <div className="text-center border-b-2 border-gray-800 pb-4 mb-6 print-break-avoid">
         {school.logo_url && (
           <img src={school.logo_url} alt="School Logo" className="w-20 h-20 mx-auto mb-3 object-contain" />
         )}
@@ -375,7 +375,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       </div>
 
       {/* Student Info */}
-      <div className="flex gap-4 mb-6 border border-gray-300 p-4">
+      <div className="flex gap-4 mb-6 border border-gray-300 p-4 print-break-avoid">
         {student.photo_url && (
           <div className="flex-shrink-0">
             <img

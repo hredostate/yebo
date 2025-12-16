@@ -48,7 +48,8 @@
   /* Report card specific styles */
   .report-card {
     page-break-after: always;
-    page-break-inside: avoid;
+    page-break-inside: auto;
+    break-inside: auto;
     width: 100%;
     max-width: none;
     margin: 0;
@@ -72,8 +73,16 @@
   .report-card table,
   .report-card .student-info,
   .report-card .remarks,
-  .report-card .signatures {
+  .report-card .signatures,
+  .report-card .print-break-avoid {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Allow manual breakpoints for very long cards */
+  .report-card .print-page-break {
+    page-break-before: always;
+    break-before: page;
   }
 
   /* Table styles for print */
