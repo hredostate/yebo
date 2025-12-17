@@ -103,7 +103,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     // Filter reports based on viewer type
     const visibleReports = useMemo(() => {
         // First, filter to only show reports involving this student
-        const studentInvolvedReports = reports.filter(r => r.involved_students.includes(student.id));
+        const studentInvolvedReports = (reports || []).filter(r => r.involved_students.includes(student.id));
         
         // If viewer is a student, further filter to only show student-visible report types
         if (isStudentViewer) {
@@ -114,11 +114,11 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         return studentInvolvedReports;
     }, [reports, student.id, isStudentViewer]);
     
-    const studentReports = studentTermReports.filter(r => r.student_id === student.id);
+    const studentReports = (studentTermReports || []).filter(r => r.student_id === student.id);
     
     // Calculate Strikes (Filter out archived reports)
     const infractionReports = useMemo(() => {
-        return reports.filter(r => 
+        return (reports || []).filter(r => 
             r.report_type === ReportType.Infraction && 
             r.involved_students.includes(student.id) &&
             !r.archived
@@ -549,7 +549,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             case 'Positive Behavior':
                  return (
                     <div className="space-y-4">
-                        {positiveRecords.length > 0 ? positiveRecords.map(record => (
+                        {(positiveRecords || []).length > 0 ? (positiveRecords || []).map(record => (
                             <div key={record.id} className="p-4 bg-green-500/10 border border-green-200/60 dark:border-green-700/60 rounded-lg">
                                 <p className="text-sm text-green-800 dark:text-green-300">"{record.description}"</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-right">
@@ -562,7 +562,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             case 'Spotlight Awards':
                 return (
                     <div className="space-y-4">
-                        {awards.length > 0 ? awards.map(award => (
+                        {(awards || []).length > 0 ? (awards || []).map(award => (
                             <div key={award.id} className="p-4 bg-amber-500/10 border border-amber-200/60 dark:border-amber-700/60 rounded-lg">
                                 <p className="font-semibold text-amber-800 dark:text-amber-300">{award.award_type}</p>
                                 <p className="italic text-slate-700 dark:text-slate-200 mt-1">"{award.reason}"</p>
@@ -590,19 +590,19 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                             <div className="p-3 bg-green-500/10 rounded-lg">
                                 <h4 className="font-semibold text-green-800 dark:text-green-300">Potential Strengths</h4>
                                 <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300 mt-1">
-                                    {insight.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                                    {(insight?.strengths || []).map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
                             <div className="p-3 bg-yellow-500/10 rounded-lg">
                                 <h4 className="font-semibold text-yellow-800 dark:text-yellow-300">Areas for Growth</h4>
                                 <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300 mt-1">
-                                    {insight.growthAreas.map((s, i) => <li key={i}>{s}</li>)}
+                                    {(insight?.growthAreas || []).map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
                              <div className="p-3 bg-blue-500/10 rounded-lg">
                                 <h4 className="font-semibold text-blue-800 dark:text-blue-300">Suggested Next Steps</h4>
                                 <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300 mt-1">
-                                    {insight.nextSteps.map((s, i) => <li key={i}>{s}</li>)}
+                                    {(insight?.nextSteps || []).map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
                         </div>
@@ -687,7 +687,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                             </div>
                             <div className="bg-green-500/10 p-4 rounded-lg text-center">
                                  <h4 className="font-semibold text-green-700 dark:text-green-300 mb-1">Recognitions</h4>
-                                 <p className="text-4xl font-bold text-green-600 dark:text-green-400">{positiveRecords.length}</p>
+                                 <p className="text-4xl font-bold text-green-600 dark:text-green-400">{(positiveRecords || []).length}</p>
                             </div>
                             <div className="bg-amber-500/10 p-4 rounded-lg text-center col-span-2 md:col-span-1">
                                  <h4 className="font-semibold text-amber-700 dark:text-amber-300 mb-1">Reward Points ⭐</h4>

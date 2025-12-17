@@ -1283,10 +1283,10 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                     </div>
                 </div>
             )}
-
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

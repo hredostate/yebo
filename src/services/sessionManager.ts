@@ -1,6 +1,37 @@
 import { supa as supabase } from '../offline/client';
 import { getRuntimeFlags } from './runtimeConfig';
 
+/**
+ * Helper function to retry async operations with exponential backoff
+ * @param fn The async operation to retry
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @param baseDelay Initial delay in milliseconds before the first retry (default: 1000ms)
+ * @returns The result of the operation or null on failure after all retries
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T | null> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      if (isLastAttempt) {
+        console.error(`Operation failed after ${maxRetries} attempts:`, error);
+        return null;
+      }
+      
+      // Calculate delay with exponential backoff, capped at 30 seconds
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 30000);
+      console.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+}
+
 export interface UserSession {
   id: string;
   user_id: string;
@@ -216,19 +247,19 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
     // Clean up expired sessions first
     await cleanupExpiredSessions(userId);
     
-    const { count, error } = await supabase
-      .from('user_sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('last_active', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // Last 5 minutes
+    const result = await retryWithBackoff(async () => {
+      const { count, error } = await supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .gte('last_active', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // Last 5 minutes
+      
+      if (error) throw error;
+      return count || 0;
+    });
     
-    if (error) {
-      console.error('Failed to get session count:', error);
-      return 0;
-    }
-    
-    return count || 0;
+    return result !== null ? result : 0;
   } catch (error) {
     console.error('Error getting session count:', error);
     return 0;
@@ -245,20 +276,20 @@ export async function getActiveSessions(userId: string): Promise<UserSession[]> 
     // Clean up expired sessions first
     await cleanupExpiredSessions(userId);
     
-    const { data, error } = await supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('last_active', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-      .order('last_active', { ascending: false });
+    const result = await retryWithBackoff(async () => {
+      const { data, error } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .gte('last_active', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .order('last_active', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    });
     
-    if (error) {
-      console.error('Failed to get active sessions:', error);
-      return [];
-    }
-    
-    return data || [];
+    return result !== null ? result : [];
   } catch (error) {
     console.error('Error getting active sessions:', error);
     return [];
@@ -275,7 +306,7 @@ async function cleanupExpiredSessions(userId: string): Promise<void> {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
-    await retryWithBackoff(async () => {
+    const result = await retryWithBackoff(async () => {
       const { error } = await supabase
         .from('user_sessions')
         .update({ is_active: false })
@@ -283,12 +314,13 @@ async function cleanupExpiredSessions(userId: string): Promise<void> {
         .eq('is_active', true)
         .lt('last_active', fiveMinutesAgo);
       
-      if (error) {
-        throw error;
-      }
-      
+      if (error) throw error;
       return true;
-    }, 3, 1000);
+    });
+    
+    if (!result) {
+      console.warn('Failed to cleanup expired sessions after retries');
+    }
   } catch (error) {
     // Silently fail - cleanup failures shouldn't be logged as errors
     // Failed cleanup will be retried on next session query

@@ -21,6 +21,12 @@ function initializeSupabase() {
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
+      global: {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      },
     });
   } catch (e: any) {
     supabaseError = `Failed to initialize Supabase client: ${e.message}`;

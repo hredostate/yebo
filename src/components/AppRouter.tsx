@@ -1,5 +1,5 @@
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, memo } from 'react';
 import { VIEWS } from '../constants';
 import type { PayrollAdjustment, StudentTermReport } from '../types';
 import Dashboard from './Dashboard';
@@ -1036,5 +1036,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
     }
 };
 
-// Memoize AppRouter to prevent unnecessary re-renders when props haven't changed
-export default React.memo(AppRouter);
+// Note: AppRouter is wrapped with memo to reduce re-renders during navigation.
+// While the 'data' and 'actions' props are complex objects, this still helps
+// prevent re-renders when navigating between views where the same object references are reused.
+export default memo(AppRouter);
