@@ -201,7 +201,7 @@ export const useAppLogic = () => {
                 supabase.from('arms').select('*').order('name'),
                 supabase.from('subjects').select('*').order('name'),
                 supabase.from('teaching_assignments').select('*, teacher:user_profiles(name), subject:subjects(name), academic_class:academic_classes(name)').limit(5000),
-                supabase.from('academic_classes').select('*, assessment_structure:assessment_structures(*)'),
+                supabase.from('academic_classes').select('*, assessment_structure:assessment_structures(*), campus:campuses(id, name)'),
                 supabase.from('terms').select('*').order('start_date', { ascending: false }),
                 supabase.from('school_config').select('*').maybeSingle(),
                 supabase.from('inventory_items').select('*'),

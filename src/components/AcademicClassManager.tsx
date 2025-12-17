@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { AcademicClass, Term, AssessmentStructure, BaseDataObject, Student, AcademicClassStudent, GradingScheme, ReportCardConfig, SchoolConfig } from '../types';
+import type { AcademicClass, Term, AssessmentStructure, BaseDataObject, Student, AcademicClassStudent, GradingScheme, ReportCardConfig, SchoolConfig, Campus } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, UsersIcon, CloseIcon, SearchIcon, CheckCircleIcon, EditIcon, ShieldIcon } from './common/icons';
 import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
@@ -393,6 +393,7 @@ interface AcademicClassManagerProps {
     onUpdateEnrollment: (classId: number, termId: number, studentIds: number[]) => Promise<boolean>;
     gradingSchemes: GradingScheme[];
     schoolConfig: SchoolConfig | null;
+    campuses: Campus[];
 }
 
 const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({ 
@@ -407,7 +408,8 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
     academicClassStudents = [], 
     onUpdateEnrollment, 
     gradingSchemes = [], 
-    schoolConfig 
+    schoolConfig,
+    campuses = [] 
 }) => {
     const [editingClass, setEditingClass] = useState<Partial<AcademicClass> | null>(null);
     const [enrollmentClass, setEnrollmentClass] = useState<AcademicClass | null>(null);
@@ -535,6 +537,12 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
                                     <p className="text-xs text-slate-500">{ac.session_label}</p>
                                     <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                                     <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{studentCount} Students</p>
+                                    {ac.campus && (
+                                        <>
+                                            <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
+                                            <p className="text-xs font-medium text-green-600 dark:text-green-400">{ac.campus.name}</p>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="mt-2">
                                     <p className="text-xs text-slate-500">Layout: {ac.report_config?.layout || 'classic'} ({ac.report_config?.orientation || 'portrait'})</p>
@@ -673,6 +681,14 @@ const AcademicClassForm: React.FC<{
                              <select name="grading_scheme_id" value={localAc.grading_scheme_id || ''} onChange={e => setLocalAc(prev => ({ ...prev, grading_scheme_id: Number(e.target.value) || null }))} className={inputClass}>
                                 <option value="">Use School Default</option>
                                 {(gradingSchemes || []).map(s => <option key={s.id} value={s.id}>{s.scheme_name}</option>)}
+                             </select>
+                        </div>
+                        
+                        <div className="sm:col-span-2">
+                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Campus</label>
+                             <select name="campus_id" value={localAc.campus_id || ''} onChange={e => setLocalAc(prev => ({ ...prev, campus_id: e.target.value ? Number(e.target.value) : null }))} className={inputClass}>
+                                <option value="">No Campus Assigned</option>
+                                {(campuses || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                              </select>
                         </div>
                     </div>

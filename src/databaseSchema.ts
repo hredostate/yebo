@@ -23,6 +23,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='academic_classes' AND column_name='max_subjects') THEN
         ALTER TABLE public.academic_classes ADD COLUMN max_subjects INTEGER DEFAULT NULL;
     END IF;
+    
+    -- Add campus_id column to academic_classes for campus assignment at class level
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='academic_classes' AND column_name='campus_id') THEN
+        ALTER TABLE public.academic_classes ADD COLUMN campus_id INTEGER REFERENCES public.campuses(id);
+        CREATE INDEX IF NOT EXISTS idx_academic_classes_campus ON public.academic_classes(campus_id);
+    END IF;
 
     -- Add compulsory flag to class_subjects
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='class_subjects' AND column_name='is_compulsory') THEN
