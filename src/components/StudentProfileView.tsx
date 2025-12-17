@@ -148,7 +148,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                         .from('user_profiles')
                         .select('email')
                         .eq('id', student.user_id)
-                        .single();
+                        .maybeSingle();
                     
                     if (!error && data?.email) {
                         setUserEmail(data.email);

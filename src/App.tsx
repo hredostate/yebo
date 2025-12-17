@@ -345,7 +345,7 @@ const App: React.FC = () => {
         };
     }, []);
 
-    // Session heartbeat - update last_active every 30 seconds
+    // Session heartbeat - update last_active every 60 seconds (increased from 30s to reduce load)
     useEffect(() => {
         if (!session || !userProfile) return;
         
@@ -355,7 +355,7 @@ const App: React.FC = () => {
         // Set up interval for heartbeat
         const heartbeatInterval = setInterval(() => {
             updateSessionHeartbeat();
-        }, 30000); // 30 seconds
+        }, 60000); // 60 seconds (increased from 30s to reduce connection load)
         
         return () => {
             clearInterval(heartbeatInterval);

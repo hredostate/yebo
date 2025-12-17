@@ -1425,6 +1425,138 @@ export interface StudentInvoice {
     line_items?: { description: string, amount: number }[];
 }
 
+export enum LedgerInvoiceStatus {
+    Draft = 'DRAFT',
+    Issued = 'ISSUED',
+    PartiallyPaid = 'PARTIALLY_PAID',
+    Paid = 'PAID',
+    Void = 'VOID'
+}
+
+export enum LedgerPaymentMethod {
+    Offline = 'OFFLINE',
+    Paystack = 'PAYSTACK',
+    Transfer = 'TRANSFER',
+    Cash = 'CASH',
+    POS = 'POS'
+}
+
+export enum LedgerPaymentStatus {
+    Pending = 'PENDING',
+    Success = 'SUCCESS',
+    Failed = 'FAILED',
+    Reversed = 'REVERSED'
+}
+
+export enum LedgerAdjustmentType {
+    Discount = 'DISCOUNT',
+    Waiver = 'WAIVER',
+    Scholarship = 'SCHOLARSHIP',
+    Surcharge = 'SURCHARGE',
+    Correction = 'CORRECTION'
+}
+
+export interface FeeStructure {
+    id: number;
+    session_id: number;
+    term_id: number;
+    class_group_id?: number | null;
+    title: string;
+    currency: string;
+    created_at?: string;
+}
+
+export interface StudentInvoiceLine {
+    id?: number;
+    invoice_id: number;
+    fee_item_code: string;
+    description?: string;
+    qty: number;
+    unit_amount: number;
+    line_total?: number;
+    ordering?: number;
+}
+
+export interface LedgerStudentInvoice {
+    id: number;
+    student_id: number;
+    session_id: number;
+    term_id: number;
+    invoice_no: string;
+    status: LedgerInvoiceStatus;
+    issued_at?: string | null;
+    due_at?: string | null;
+    created_by?: string | null;
+    created_at?: string;
+    meta?: Record<string, any>;
+    lines?: StudentInvoiceLine[];
+}
+
+export interface LedgerPayment {
+    id: number;
+    student_id: number;
+    session_id: number;
+    term_id: number;
+    payment_ref: string;
+    method: LedgerPaymentMethod;
+    amount: number;
+    paid_at: string;
+    status: LedgerPaymentStatus;
+    recorded_by?: string | null;
+    receipt_no?: string | null;
+    allocations?: StudentPaymentAllocation[];
+}
+
+export interface StudentPaymentAllocation {
+    id?: number;
+    payment_id: number;
+    invoice_id: number;
+    allocated_amount: number;
+}
+
+export interface StudentAdjustment {
+    id?: number;
+    student_id: number;
+    session_id: number;
+    term_id: number;
+    type: LedgerAdjustmentType;
+    reason: string;
+    amount: number;
+    applied_to_invoice_id?: number | null;
+    external_ref?: string | null;
+    created_by?: string | null;
+    created_at?: string;
+}
+
+export interface StudentBalanceSummary {
+    student_id: number;
+    session_id: number;
+    term_id: number;
+    total_invoiced: number;
+    total_surcharges: number;
+    total_reliefs: number;
+    total_paid: number;
+    balance: number;
+    last_payment_date?: string | null;
+}
+
+export interface ReceiptAllocationLine {
+    invoice_no: string;
+    amount: number;
+}
+
+export interface PaymentReceiptPayload {
+    receipt_no: string;
+    student_name: string;
+    student_id: number;
+    payment_ref: string;
+    amount: number;
+    method: LedgerPaymentMethod;
+    paid_at: string;
+    allocations: ReceiptAllocationLine[];
+    balance_after: number;
+}
+
 export enum InvoiceStatus {
     Unpaid = 'Unpaid',
     PartiallyPaid = 'Partially Paid',
