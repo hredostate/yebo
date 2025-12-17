@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -372,6 +372,7 @@ const App: React.FC = () => {
     const [positiveRecords, setPositiveRecords] = useState<PositiveBehaviorRecord[]>([]);
     const [studentAwards, setStudentAwards] = useState<StudentAward[]>([]);
     const [staffAwards, setStaffAwards] = useState<StaffAward[]>([]);
+    const [staffCertifications, setStaffCertifications] = useState<StaffCertification[]>([]);
     const [interventionPlans, setInterventionPlans] = useState<StudentInterventionPlan[]>([]);
     const [sipLogs, setSipLogs] = useState<SIPLog[]>([]);
     const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
@@ -1177,6 +1178,7 @@ const App: React.FC = () => {
                             supabase.from('assessment_structures').select('*'),
                             supabase.from('teaching_entities').select('*, teacher:user_profiles!user_id(name), class:classes(name), arm:arms(name), subject:subjects(name))'),
                             fetchOrders(),
+                            supabase.from('staff_certifications').select('*, uploader:user_profiles!uploaded_by(name)').order('uploaded_at', { ascending: false }),
                         ];
                         
                         // Load critical data first (Phase 1)
@@ -1326,6 +1328,7 @@ const App: React.FC = () => {
                             setAssessmentStructures(getData(49));
                             setTeachingEntities(getData(50));
                             setOrders(getData(51));
+                            setStaffCertifications(getData(52));
 
                             const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
                                 ...scheme,
@@ -4743,6 +4746,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         addToast(`Broadcast sent: ${title}`, 'success');
     }, [addToast]);
 
+    const sanitizeFileName = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, '_');
+
     const handleUpdateAvatar = useCallback(async (file: File) => {
         if (!userProfile) return null;
         const filePath = `avatars/${userProfile.id}/${Date.now()}_${file.name}`;
@@ -4755,6 +4760,111 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         await handleUpdateProfile({ avatar_url: data.publicUrl });
         return data.publicUrl;
     }, [userProfile, handleUpdateProfile, addToast]);
+
+    const handleUploadCertification = useCallback(async (file: File, metadata: { certification_type?: string; certification_number?: string; expiry_date?: string; staff_id?: string } = {}) => {
+        if (!userProfile || userType !== 'staff') return false;
+        const currentUser = userProfile as UserProfile;
+        const staffId = metadata.staff_id || currentUser.id;
+        const privilegedRoles: RoleTitle[] = ['Admin', 'Principal', 'Team Lead'];
+        const canManage = staffId === currentUser.id || privilegedRoles.includes(currentUser.role);
+
+        if (!canManage) {
+            addToast('You do not have permission to upload this certification.', 'error');
+            return false;
+        }
+
+        const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+
+        if (!allowedTypes.includes(file.type)) {
+            addToast('Only PDF, JPG, or PNG files are allowed.', 'error');
+            return false;
+        }
+
+        if (file.size > maxSize) {
+            addToast('File is too large. Maximum size is 10MB.', 'error');
+            return false;
+        }
+
+        const sanitized = sanitizeFileName(file.name);
+        const filePath = `staff/${staffId}/certifications/${Date.now()}_${sanitized}`;
+
+        const { error: uploadError } = await supabase.storage.from('staff-certifications').upload(filePath, file, { contentType: file.type });
+        if (uploadError) {
+            addToast(`Upload failed: ${uploadError.message}`, 'error');
+            return false;
+        }
+
+        const insertPayload = {
+            staff_id: staffId,
+            file_path: filePath,
+            file_name: sanitized,
+            mime_type: file.type,
+            size: file.size,
+            uploaded_by: currentUser.id,
+            certification_type: metadata.certification_type || null,
+            certification_number: metadata.certification_number || null,
+            expiry_date: metadata.expiry_date || null,
+        };
+
+        const { data, error } = await supabase
+            .from('staff_certifications')
+            .insert(insertPayload)
+            .select('*, uploader:user_profiles!uploaded_by(name)')
+            .single();
+
+        if (error) {
+            addToast(`Failed to save certification record: ${error.message}`, 'error');
+            return false;
+        }
+
+        if (data) {
+            setStaffCertifications(prev => [data as StaffCertification, ...prev]);
+        }
+
+        addToast('Certification uploaded securely.', 'success');
+        return true;
+    }, [userProfile, userType, addToast]);
+
+    const handleDeleteCertification = useCallback(async (certificationId: number) => {
+        if (!userProfile || userType !== 'staff') return false;
+        const currentUser = userProfile as UserProfile;
+        const target = staffCertifications.find(c => c.id === certificationId);
+        if (!target) {
+            addToast('Certification not found.', 'error');
+            return false;
+        }
+
+        const privilegedRoles: RoleTitle[] = ['Admin', 'Principal', 'Team Lead'];
+        const canManage = target.staff_id === currentUser.id || privilegedRoles.includes(currentUser.role);
+        if (!canManage) {
+            addToast('You do not have permission to delete this certification.', 'error');
+            return false;
+        }
+
+        if (target.file_path) {
+            await supabase.storage.from('staff-certifications').remove([target.file_path]);
+        }
+
+        const { error } = await supabase.from('staff_certifications').delete().eq('id', certificationId);
+        if (error) {
+            addToast(`Failed to delete certification: ${error.message}`, 'error');
+            return false;
+        }
+
+        setStaffCertifications(prev => prev.filter(c => c.id !== certificationId));
+        addToast('Certification deleted.', 'success');
+        return true;
+    }, [userProfile, userType, staffCertifications, addToast]);
+
+    const handleGetCertificationUrl = useCallback(async (certification: StaffCertification) => {
+        const { data, error } = await supabase.storage.from('staff-certifications').createSignedUrl(certification.file_path, 3600);
+        if (error) {
+            addToast(`Unable to generate download link: ${error.message}`, 'error');
+            return null;
+        }
+        return data?.signedUrl || null;
+    }, [addToast]);
 
     const handleResetPassword = useCallback(async () => {
         if (!userProfile) return;
@@ -6527,6 +6637,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         socialAccounts,
                                         checkinAnomalies,
                                         weeklyRatings,
+                                        staffCertifications,
                                         studentTermReports,
                                         studentTermReportSubjects,
                                         auditLogs,
@@ -6615,6 +6726,9 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleResetPassword,
                                         handleUpdateEmail,
                                         handleUpdatePassword,
+                                        handleUploadCertification,
+                                        handleDeleteCertification,
+                                        handleGetCertificationUrl,
                                         handleUpdateSchoolSettings,
                                         handleUpdateSchoolConfig,
                                         handleGenerateStaffAwards,
@@ -6788,6 +6902,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     socialAccounts,
                                     checkinAnomalies,
                                     weeklyRatings,
+                                    staffCertifications,
                                     studentTermReports,
                                     studentTermReportSubjects,
                                     auditLogs,
@@ -6876,6 +6991,9 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleResetPassword,
                                     handleUpdateEmail,
                                     handleUpdatePassword,
+                                    handleUploadCertification,
+                                    handleDeleteCertification,
+                                    handleGetCertificationUrl,
                                     handleUpdateSchoolSettings,
                                     handleUpdateSchoolConfig,
                                     handleGenerateStaffAwards,

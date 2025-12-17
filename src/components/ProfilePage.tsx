@@ -2,7 +2,7 @@
 
 
 import React, { useState, useRef, useMemo } from 'react';
-import type { UserProfile, Order } from '../types';
+import type { UserProfile, Order, StaffCertification } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, ShoppingCartIcon } from './common/icons';
 
@@ -32,10 +32,14 @@ interface ProfilePageProps {
   onResetPassword: () => Promise<void>;
   onUpdateEmail: (newEmail: string) => Promise<void>;
   onUpdatePassword: (password: string) => Promise<void>;
+  certifications: StaffCertification[];
+  onUploadCertification: (file: File, metadata?: { certification_type?: string; certification_number?: string; expiry_date?: string }) => Promise<boolean>;
+  onDeleteCertification: (id: number) => Promise<boolean>;
+  onGetCertificationUrl: (certification: StaffCertification) => Promise<string | null>;
   orders?: Order[]; // Optional to maintain backward compatibility if passed from App
 }
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ userProfile, onUpdateProfile, onUpdateAvatar, onResetPassword, onUpdateEmail, onUpdatePassword, orders = [] }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ userProfile, onUpdateProfile, onUpdateAvatar, onResetPassword, onUpdateEmail, onUpdatePassword, certifications, onUploadCertification, onDeleteCertification, onGetCertificationUrl, orders = [] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -55,9 +59,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userProfile, onUpdateProfile,
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isUploadingCert, setIsUploadingCert] = useState(false);
+  const [certForm, setCertForm] = useState({ certification_type: '', certification_number: '', expiry_date: '' });
+  const [activeLinkRequest, setActiveLinkRequest] = useState<number | null>(null);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const certFileInputRef = useRef<HTMLInputElement>(null);
   
   const getInitials = (userName: string) => (userName || '').split(' ').map(n => n[0]).join('').toUpperCase();
 
@@ -126,6 +134,46 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userProfile, onUpdateProfile,
       setIsPasswordModalOpen(false);
       setNewPassword('');
   }
+
+  const myCertifications = useMemo(
+      () => certifications.filter(cert => cert.staff_id === userProfile.id),
+      [certifications, userProfile.id]
+  );
+
+  const canDeleteCertification = (cert: StaffCertification) =>
+      cert.staff_id === userProfile.id || ['Admin', 'Principal', 'Team Lead'].includes(userProfile.role);
+
+  const handleCertificationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setCertForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCertificationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploadingCert(true);
+      const success = await onUploadCertification(file, {
+          certification_type: certForm.certification_type || undefined,
+          certification_number: certForm.certification_number || undefined,
+          expiry_date: certForm.expiry_date || undefined,
+      });
+      setIsUploadingCert(false);
+      e.target.value = '';
+
+      if (success) {
+          setCertForm({ certification_type: '', certification_number: '', expiry_date: '' });
+      }
+  };
+
+  const handleViewCertification = async (cert: StaffCertification) => {
+      setActiveLinkRequest(cert.id);
+      const url = await onGetCertificationUrl(cert);
+      setActiveLinkRequest(null);
+      if (url) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+      }
+  };
   
   const myOrders = useMemo(() => {
       return orders.filter(o => o.user_id === userProfile.id).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -247,7 +295,106 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ userProfile, onUpdateProfile,
                     </div>
                     {isEditing && <p className="text-xs text-amber-600 mt-2 italic flex items-center gap-1"><LockClosedIcon className="w-3 h-3"/> Base Pay and Commission are managed by the Administrator.</p>}
                 </div>
-                
+
+                <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <h3 className="font-semibold text-slate-700 dark:text-slate-200">Teacher Certification</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Upload TRCN, NCE, B.Ed, or other Nigerian teaching credentials. Files stay private and use signed links.</p>
+                        </div>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${myCertifications.length ? 'bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
+                            {myCertifications.length ? 'Uploaded' : 'Missing'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Certification Type</label>
+                            <input
+                                type="text"
+                                name="certification_type"
+                                value={certForm.certification_type}
+                                onChange={handleCertificationInputChange}
+                                placeholder="e.g. TRCN, NCE"
+                                className="w-full p-2 bg-transparent border-b border-slate-300 dark:border-slate-600 focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Certificate Number</label>
+                            <input
+                                type="text"
+                                name="certification_number"
+                                value={certForm.certification_number}
+                                onChange={handleCertificationInputChange}
+                                placeholder="Optional"
+                                className="w-full p-2 bg-transparent border-b border-slate-300 dark:border-slate-600 focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Expiry Date</label>
+                            <input
+                                type="date"
+                                name="expiry_date"
+                                value={certForm.expiry_date}
+                                onChange={handleCertificationInputChange}
+                                className="w-full p-2 bg-transparent border-b border-slate-300 dark:border-slate-600 focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 items-center mt-4">
+                        <input ref={certFileInputRef} type="file" className="hidden" accept="application/pdf,image/png,image/jpeg" onChange={handleCertificationUpload} />
+                        <button
+                            type="button"
+                            onClick={() => certFileInputRef.current?.click()}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+                            disabled={isUploadingCert}
+                        >
+                            {isUploadingCert && <Spinner size="sm" />}
+                            Upload Certification
+                        </button>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">PDF/JPG/PNG, max 10MB. Filenames are sanitized automatically.</p>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                        {myCertifications.length === 0 && (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">No certifications uploaded yet.</p>
+                        )}
+
+                        {myCertifications.map(cert => (
+                            <div key={cert.id} className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div>
+                                    <p className="font-semibold text-slate-800 dark:text-white">{cert.certification_type || 'Certification'}</p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 flex flex-wrap gap-2 mt-1">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-slate-700/60 text-xs font-semibold">{cert.file_name}</span>
+                                        {cert.certification_number && <span className="text-xs">Number: {cert.certification_number}</span>}
+                                        {cert.expiry_date && <span className="text-xs">Expires: {new Date(cert.expiry_date).toLocaleDateString()}</span>}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Uploaded {new Date(cert.uploaded_at).toLocaleString()} {cert.uploader?.name ? `by ${cert.uploader.name}` : ''}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleViewCertification(cert)}
+                                        className="px-3 py-2 rounded-lg bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100 hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
+                                    >
+                                        {activeLinkRequest === cert.id ? <Spinner size="sm" /> : 'View'}
+                                    </button>
+                                    {canDeleteCertification(cert) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onDeleteCertification(cert.id)}
+                                            className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 {isEditing && (
                     <div className="flex justify-end space-x-2">
                         <button onClick={handleCancel} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg">Cancel</button>

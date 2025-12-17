@@ -36,6 +36,21 @@ export interface UserProfile {
     created_at: string;
 }
 
+export interface StaffCertification {
+    id: number;
+    staff_id: string;
+    file_path: string;
+    file_name: string;
+    mime_type?: string | null;
+    size?: number | null;
+    uploaded_at: string;
+    uploaded_by?: string | null;
+    certification_type?: string | null;
+    certification_number?: string | null;
+    expiry_date?: string | null;
+    uploader?: { name: string } | null;
+}
+
 export interface StudentProfile {
     id: string; // Auth ID
     student_record_id: number; // Link to Student table
@@ -61,6 +76,12 @@ export interface Student {
     date_of_birth?: string;
     parent_phone_number_1?: string;
     parent_phone_number_2?: string;
+    father_name?: string;
+    father_phone?: string;
+    father_email?: string;
+    mother_name?: string;
+    mother_phone?: string;
+    mother_email?: string;
     address?: string;
     email?: string;
     status?: StudentStatus;

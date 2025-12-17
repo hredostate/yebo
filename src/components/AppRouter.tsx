@@ -682,13 +682,17 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
         case VIEWS.EMERGENCY_BROADCAST:
              return <EmergencyBroadcast onSendBroadcast={actions.handleSendEmergencyBroadcast} />;
         case VIEWS.PROFILE:
-             return <ProfilePage 
-                userProfile={data.userProfile} 
-                onUpdateProfile={actions.handleUpdateProfile} 
+             return <ProfilePage
+                userProfile={data.userProfile}
+                onUpdateProfile={actions.handleUpdateProfile}
                 onUpdateAvatar={actions.handleUpdateAvatar}
                 onResetPassword={actions.handleResetPassword}
                 onUpdateEmail={actions.handleUpdateEmail}
                 onUpdatePassword={actions.handleUpdatePassword}
+                certifications={data.staffCertifications || []}
+                onUploadCertification={actions.handleUploadCertification}
+                onDeleteCertification={actions.handleDeleteCertification}
+                onGetCertificationUrl={actions.handleGetCertificationUrl}
                 orders={data.orders}
              />;
         case VIEWS.SETTINGS:
