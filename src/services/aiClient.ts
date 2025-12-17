@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { getGroqConfig } from './runtimeConfig';
+import { isRateLimitError } from '../utils/ai';
 
 let groqClient: OpenAI | null = null;
 let aiClientError: string | null = null;
@@ -74,13 +75,8 @@ export async function safeAIRequest<T>(
     } catch (error: any) {
       lastError = error;
       
-      // Check if it's a rate limit error
-      const isRateLimit = error?.status === 429 || 
-                         error?.response?.status === 429 ||
-                         error?.code === 429 ||
-                         error?.message?.toLowerCase().includes('rate limit');
-      
-      if (isRateLimit) {
+      // Check if it's a rate limit error using the utility function
+      if (isRateLimitError(error)) {
         // Call the rate limit callback if provided
         if (options?.onRateLimited) {
           options.onRateLimited(error);
