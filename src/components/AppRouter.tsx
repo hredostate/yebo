@@ -495,12 +495,15 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 isPageView={true}
              />;
         case VIEWS.USER_MANAGEMENT:
-             return <UserManagement 
-                users={data.users} 
-                roles={data.roles} 
+             return <UserManagement
+                users={data.users}
+                roles={data.roles}
                 campuses={data.campuses}
-                onInviteUser={actions.handleInviteUser} 
+                onInviteUser={actions.handleInviteUser}
+                onUpdateUser={actions.handleUpdateUser}
+                onDeleteUser={actions.handleDeleteUser}
                 onDeactivateUser={actions.handleDeactivateUser}
+                onUpdateEmploymentStatus={actions.handleUpdateEmploymentStatus}
                 onUpdateUserCampus={actions.handleUpdateUserCampus}
              />;
         case VIEWS.ROLE_MANAGEMENT:
