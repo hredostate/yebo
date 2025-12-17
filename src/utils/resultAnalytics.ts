@@ -14,6 +14,24 @@ export interface CohortRanking {
     total: number;
 }
 
+export interface LevelRanking {
+    studentId: number;
+    rankInArm: number;
+    totalInArm: number;
+    rankInLevel: number;
+    totalInLevel: number;
+}
+
+export interface SubjectRanking {
+    studentId: number;
+    subjectName: string;
+    rankInArm: number;
+    totalInArm: number;
+    rankInLevel: number;
+    totalInLevel: number;
+    score: number;
+}
+
 export interface ResultStatistics {
     enrolled: number;
     withResults: number;
@@ -77,6 +95,159 @@ export const rankCohort = (
         rank: ranks[idx],
         total: filtered.length,
     }));
+};
+
+/**
+ * Rank students at both arm and level (grade level across all arms)
+ * This provides dual ranking: position in class arm AND position in full grade level
+ */
+export const rankLevel = (
+    reports: StudentTermReport[],
+    scope: ResultScope,
+    students: Student[],
+    classes: AcademicClass[],
+    level: string, // e.g., "SS1", "JSS2"
+): LevelRanking[] => {
+    const filterByScope = (report: StudentTermReport, includeArmFilter: boolean) => {
+        const student = students.find(s => s.id === report.student_id);
+        if (!isActiveStudent(student)) return false;
+        if (scope.campusId != null && student?.campus_id != null && student.campus_id !== scope.campusId) return false;
+
+        const academicClass = classes.find(c => c.id === report.academic_class_id);
+        if (!academicClass) return false;
+        if (academicClass.level !== level) return false;
+        if (scope.sessionLabel && academicClass.session_label && academicClass.session_label !== scope.sessionLabel) return false;
+        if (includeArmFilter && scope.armName && academicClass.arm && academicClass.arm !== scope.armName) return false;
+        return true;
+    };
+
+    // Get all reports for the level (across all arms)
+    const levelReports = reports.filter(r => r.term_id === scope.termId).filter(r => filterByScope(r, false));
+    
+    if (levelReports.length === 0) return [];
+
+    // Calculate level-wide rankings
+    const levelRanks = denseRank(levelReports, r => r.average_score);
+    const levelRankMap = new Map<number, { rank: number; total: number }>();
+    levelReports.forEach((report, idx) => {
+        levelRankMap.set(report.student_id, { rank: levelRanks[idx], total: levelReports.length });
+    });
+
+    // Group reports by arm and calculate arm-specific rankings
+    const armGroups = new Map<string, StudentTermReport[]>();
+    levelReports.forEach(report => {
+        const academicClass = classes.find(c => c.id === report.academic_class_id);
+        const armName = academicClass?.arm || 'Unknown';
+        if (!armGroups.has(armName)) {
+            armGroups.set(armName, []);
+        }
+        armGroups.get(armName)!.push(report);
+    });
+
+    const results: LevelRanking[] = [];
+    armGroups.forEach((armReports, armName) => {
+        const armRanks = denseRank(armReports, r => r.average_score);
+        armReports.forEach((report, idx) => {
+            const levelRank = levelRankMap.get(report.student_id);
+            if (levelRank) {
+                results.push({
+                    studentId: report.student_id,
+                    rankInArm: armRanks[idx],
+                    totalInArm: armReports.length,
+                    rankInLevel: levelRank.rank,
+                    totalInLevel: levelRank.total,
+                });
+            }
+        });
+    });
+
+    return results;
+};
+
+/**
+ * Rank students by subject at both arm and level
+ */
+export const rankSubjects = (
+    scoreEntries: ScoreEntry[],
+    scope: ResultScope,
+    students: Student[],
+    classes: AcademicClass[],
+    level: string,
+): SubjectRanking[] => {
+    const filterByScope = (entry: ScoreEntry, includeArmFilter: boolean) => {
+        const student = students.find(s => s.id === entry.student_id);
+        if (!isActiveStudent(student)) return false;
+        if (scope.campusId != null && student?.campus_id != null && student.campus_id !== scope.campusId) return false;
+
+        const academicClass = classes.find(c => c.id === entry.academic_class_id);
+        if (!academicClass) return false;
+        if (academicClass.level !== level) return false;
+        if (scope.sessionLabel && academicClass.session_label && academicClass.session_label !== scope.sessionLabel) return false;
+        if (includeArmFilter && scope.armName && academicClass.arm && academicClass.arm !== scope.armName) return false;
+        return true;
+    };
+
+    // Get all score entries for the level
+    const levelEntries = scoreEntries.filter(e => e.term_id === scope.termId).filter(e => filterByScope(e, false));
+    
+    if (levelEntries.length === 0) return [];
+
+    // Group by subject
+    const subjectGroups = new Map<string, ScoreEntry[]>();
+    levelEntries.forEach(entry => {
+        const subjectName = entry.subject_name;
+        if (!subjectGroups.has(subjectName)) {
+            subjectGroups.set(subjectName, []);
+        }
+        subjectGroups.get(subjectName)!.push(entry);
+    });
+
+    const results: SubjectRanking[] = [];
+
+    subjectGroups.forEach((subjectEntries, subjectName) => {
+        // Calculate level-wide rankings for this subject
+        const levelRanks = denseRank(subjectEntries, e => e.total_score);
+        const levelRankMap = new Map<number, { rank: number; total: number; score: number }>();
+        subjectEntries.forEach((entry, idx) => {
+            levelRankMap.set(entry.student_id, { 
+                rank: levelRanks[idx], 
+                total: subjectEntries.length,
+                score: entry.total_score
+            });
+        });
+
+        // Group by arm
+        const armGroups = new Map<string, ScoreEntry[]>();
+        subjectEntries.forEach(entry => {
+            const academicClass = classes.find(c => c.id === entry.academic_class_id);
+            const armName = academicClass?.arm || 'Unknown';
+            if (!armGroups.has(armName)) {
+                armGroups.set(armName, []);
+            }
+            armGroups.get(armName)!.push(entry);
+        });
+
+        // Calculate arm-specific rankings
+        armGroups.forEach((armEntries, armName) => {
+            const armRanks = denseRank(armEntries, e => e.total_score);
+            armEntries.forEach((entry, idx) => {
+                const levelRank = levelRankMap.get(entry.student_id);
+                if (levelRank) {
+                    results.push({
+                        studentId: entry.student_id,
+                        subjectName,
+                        rankInArm: armRanks[idx],
+                        totalInArm: armEntries.length,
+                        rankInLevel: levelRank.rank,
+                        totalInLevel: levelRank.total,
+                        score: levelRank.score,
+                    });
+                }
+            });
+        });
+    });
+
+    return results;
 };
 
 export const calculateCampusPercentile = (

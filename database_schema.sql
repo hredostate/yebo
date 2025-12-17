@@ -1806,6 +1806,8 @@ DECLARE
     v_override_found BOOLEAN := false;
     v_cohort_rank INTEGER;
     v_cohort_size INTEGER;
+    v_level_rank INTEGER;
+    v_level_size INTEGER;
     v_campus_percentile NUMERIC;
 BEGIN
     -- 1. Student Info scoped with campus/class/arm for cohort filters
@@ -1838,7 +1840,7 @@ BEGIN
     FROM public.student_term_reports
     WHERE student_id = p_student_id AND term_id = p_term_id;
 
-    -- 5. Cohort-level ranking (campus + session + term + class + arm)
+    -- 5. Cohort-level ranking (campus + session + term + class + arm) and Level-wide ranking
     WITH cohort AS (
         SELECT
             str.student_id,
@@ -1849,6 +1851,13 @@ BEGIN
             COUNT(*) OVER (
                 PARTITION BY s.campus_id, t.session_label, str.term_id, str.academic_class_id, ac.arm
             ) AS cohort_size,
+            DENSE_RANK() OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id, ac.level
+                ORDER BY COALESCE(str.average_score, 0) DESC
+            ) AS level_rank,
+            COUNT(*) OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id, ac.level
+            ) AS level_size,
             DENSE_RANK() OVER (
                 PARTITION BY s.campus_id, t.session_label, str.term_id
                 ORDER BY COALESCE(str.average_score, 0) DESC
@@ -1866,8 +1875,10 @@ BEGIN
     SELECT
         c.cohort_rank,
         c.cohort_size,
+        c.level_rank,
+        c.level_size,
         CASE WHEN c.campus_total > 0 THEN ROUND(((c.campus_total - c.campus_rank)::NUMERIC / c.campus_total::NUMERIC) * 100, 2) ELSE NULL END
-    INTO v_cohort_rank, v_cohort_size, v_campus_percentile
+    INTO v_cohort_rank, v_cohort_size, v_level_rank, v_level_size, v_campus_percentile
     FROM cohort c
     WHERE c.student_id = p_student_id
     LIMIT 1;
@@ -2006,6 +2017,8 @@ BEGIN
             'average', v_report_row.average_score,
             'positionInArm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
             'cohortSize', v_cohort_size,
+            'positionInLevel', v_level_rank,
+            'levelSize', v_level_size,
             'campusPercentile', v_campus_percentile,
             'gpaAverage', 0
         ),
