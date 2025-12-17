@@ -15,7 +15,9 @@ import StatisticsCard from './StatisticsCard';
 import GradeDistributionChart from './GradeDistributionChart';
 import ArmComparisonChart from './ArmComparisonChart';
 import StudentRankingTable from './StudentRankingTable';
-import { aggregateResultStatistics, findIntegrityIssues, rankCohort, type ResultScope } from '../utils/resultAnalytics';
+import { aggregateResultStatistics, findIntegrityIssues, rankCohort, rankLevel, rankSubjects, type ResultScope } from '../utils/resultAnalytics';
+import { exportToCsv } from '../utils/export';
+import { DownloadIcon } from './common/icons';
 
 interface LevelStatisticsDashboardProps {
     termId: number;
@@ -301,6 +303,111 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         });
     }, [viewMode, selectedArmId, classesForLevel, studentTermReports, academicClassStudents, students, scoreEntries, academicClasses]);
 
+    // Subject-wise statistics
+    const subjectStatistics = useMemo(() => {
+        if (!selectedLevel || scoreEntries.length === 0) return [];
+
+        const scope = buildScopeForClass(classesForLevel[0]?.id);
+        
+        // Group score entries by subject
+        const subjectGroups = new Map<string, ScoreEntry[]>();
+        scoreEntries.forEach(entry => {
+            if (entry.term_id !== termId) return;
+            
+            const student = students.find(s => s.id === entry.student_id);
+            if (!student || !isActiveStudent(student)) return;
+            
+            const academicClass = academicClasses.find(c => c.id === entry.academic_class_id);
+            if (!academicClass || academicClass.level !== selectedLevel) return;
+            
+            if (scope.sessionLabel && academicClass.session_label !== scope.sessionLabel) return;
+            if (viewMode === 'per-arm' && selectedArmId) {
+                if (academicClass.id !== selectedArmId) return;
+            }
+
+            if (!subjectGroups.has(entry.subject_name)) {
+                subjectGroups.set(entry.subject_name, []);
+            }
+            subjectGroups.get(entry.subject_name)!.push(entry);
+        });
+
+        const stats: Array<{
+            subject: string;
+            averageScore: number;
+            highestScore: number;
+            lowestScore: number;
+            studentCount: number;
+            passRate: number;
+        }> = [];
+
+        subjectGroups.forEach((entries, subject) => {
+            if (entries.length === 0) return;
+            
+            const scores = entries.map(e => e.total_score);
+            const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            const highestScore = Math.max(...scores);
+            const lowestScore = Math.min(...scores);
+            const passCount = scores.filter(s => s >= 50).length;
+            const passRate = (passCount / scores.length) * 100;
+
+            stats.push({
+                subject,
+                averageScore,
+                highestScore,
+                lowestScore,
+                studentCount: entries.length,
+                passRate
+            });
+        });
+
+        return stats.sort((a, b) => b.averageScore - a.averageScore);
+    }, [selectedLevel, viewMode, selectedArmId, scoreEntries, termId, students, academicClasses, classesForLevel]);
+
+    const isActiveStudent = (student: Student) => {
+        const inactiveStatuses = new Set(['Withdrawn', 'Graduated', 'Expelled', 'Inactive']);
+        return !inactiveStatuses.has(student.status || 'Active');
+    };
+
+    // CSV Export handlers
+    const handleExportStatistics = () => {
+        if (!levelStatistics || !selectedLevel) return;
+
+        const exportData = [
+            {
+                'Level': selectedLevel,
+                'Total Students': levelStatistics.total_students,
+                'Average Score': levelStatistics.overall_average.toFixed(2),
+                'Highest Score': levelStatistics.highest_score.toFixed(2),
+                'Highest Scorer': levelStatistics.highest_scorer || 'N/A',
+                'Lowest Score': levelStatistics.lowest_score.toFixed(2),
+                'Lowest Scorer': levelStatistics.lowest_scorer || 'N/A',
+                'Pass Count': levelStatistics.pass_count,
+                'Pass Rate (%)': levelStatistics.pass_rate.toFixed(2),
+            }
+        ];
+
+        exportToCsv(exportData, `level-statistics-${selectedLevel}-${Date.now()}.csv`);
+    };
+
+    const handleExportSubjectStatistics = () => {
+        if (subjectStatistics.length === 0) return;
+
+        const exportData = subjectStatistics.map(stat => ({
+            'Subject': stat.subject,
+            'Average Score': stat.averageScore.toFixed(2),
+            'Highest Score': stat.highestScore.toFixed(2),
+            'Lowest Score': stat.lowestScore.toFixed(2),
+            'Student Count': stat.studentCount,
+            'Pass Rate (%)': stat.passRate.toFixed(2)
+        }));
+
+        const filename = viewMode === 'per-arm' && selectedArmId
+            ? `subject-statistics-${academicClasses.find(c => c.id === selectedArmId)?.name || 'arm'}-${Date.now()}.csv`
+            : `subject-statistics-${selectedLevel}-${Date.now()}.csv`;
+
+        exportToCsv(exportData, filename);
+    };
+
     // Set default level on mount
     React.useEffect(() => {
         if (gradeLevels.length > 0 && !selectedLevel) {
@@ -444,6 +551,95 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
                             subtitle={`${currentStats.pass_count}/${viewMode === 'per-level' ? levelStatistics?.total_students : currentStats.student_count} passed`}
                         />
                     </div>
+
+                    {/* Export Buttons */}
+                    <div className="flex flex-wrap gap-3 justify-end">
+                        <button
+                            onClick={handleExportStatistics}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                        >
+                            <DownloadIcon className="w-4 h-4" />
+                            Export Level Statistics
+                        </button>
+                        {subjectStatistics.length > 0 && (
+                            <button
+                                onClick={handleExportSubjectStatistics}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                            >
+                                <DownloadIcon className="w-4 h-4" />
+                                Export Subject Statistics
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Subject-wise Statistics */}
+                    {subjectStatistics.length > 0 && (
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Subject-wise Performance</h3>
+                                <span className="text-sm text-slate-500 dark:text-slate-400">
+                                    {subjectStatistics.length} subject{subjectStatistics.length !== 1 ? 's' : ''}
+                                </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100 dark:bg-slate-700">
+                                        <tr>
+                                            <th className="p-3 text-left text-slate-700 dark:text-slate-200">Subject</th>
+                                            <th className="p-3 text-right text-slate-700 dark:text-slate-200">Avg Score</th>
+                                            <th className="p-3 text-right text-slate-700 dark:text-slate-200">Highest</th>
+                                            <th className="p-3 text-right text-slate-700 dark:text-slate-200">Lowest</th>
+                                            <th className="p-3 text-center text-slate-700 dark:text-slate-200">Students</th>
+                                            <th className="p-3 text-right text-slate-700 dark:text-slate-200">Pass Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        {subjectStatistics.map((stat, idx) => {
+                                            const isTopPerformer = idx < 3;
+                                            const isBottomPerformer = idx >= subjectStatistics.length - 3 && subjectStatistics.length > 5;
+                                            const rowClass = isTopPerformer 
+                                                ? 'bg-green-50 dark:bg-green-900/10' 
+                                                : isBottomPerformer 
+                                                    ? 'bg-red-50 dark:bg-red-900/10'
+                                                    : '';
+                                            
+                                            return (
+                                                <tr key={stat.subject} className={rowClass}>
+                                                    <td className="p-3 font-medium text-slate-900 dark:text-white">
+                                                        {isTopPerformer && <span className="mr-2">🏆</span>}
+                                                        {isBottomPerformer && <span className="mr-2">⚠️</span>}
+                                                        {stat.subject}
+                                                    </td>
+                                                    <td className="p-3 text-right font-semibold">
+                                                        {stat.averageScore.toFixed(2)}%
+                                                    </td>
+                                                    <td className="p-3 text-right text-green-600 dark:text-green-400">
+                                                        {stat.highestScore.toFixed(2)}%
+                                                    </td>
+                                                    <td className="p-3 text-right text-red-600 dark:text-red-400">
+                                                        {stat.lowestScore.toFixed(2)}%
+                                                    </td>
+                                                    <td className="p-3 text-center text-slate-600 dark:text-slate-400">
+                                                        {stat.studentCount}
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <span className={`inline-block px-2 py-1 rounded-md text-xs font-semibold ${
+                                                            stat.passRate >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                                            stat.passRate >= 60 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                            stat.passRate >= 40 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                                        }`}>
+                                                            {stat.passRate.toFixed(1)}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
