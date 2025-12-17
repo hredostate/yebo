@@ -56,7 +56,7 @@ BEGIN
         AND ta.user_id = member_id
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- ============================================================================
 -- RLS Policies for payroll_runs (v1 - legacy)
@@ -505,7 +505,6 @@ CREATE POLICY teams_select ON public.teams
         )
         -- User has admin/manage permissions
         OR public.user_has_permission(auth.uid(), 'manage-users')
-        OR public.user_has_permission(auth.uid(), '*')
     );
 
 -- Only admins can create teams
@@ -625,21 +624,37 @@ CREATE POLICY team_feedback_insert ON public.team_feedback
         )
     );
 
--- Only author or admin can update feedback
+-- Only author, team lead, or admin can update feedback
 DROP POLICY IF EXISTS team_feedback_update ON public.team_feedback;
 CREATE POLICY team_feedback_update ON public.team_feedback
     FOR UPDATE
     USING (
+        -- User is the author
         author_id = auth.uid() 
+        -- User is the team lead
+        OR EXISTS (
+            SELECT 1 FROM public.teams t
+            WHERE t.id = team_id 
+            AND t.lead_id = auth.uid()
+        )
+        -- User has admin permissions
         OR public.user_has_permission(auth.uid(), 'manage-users')
     );
 
--- Only author or admin can delete feedback
+-- Only author, team lead, or admin can delete feedback
 DROP POLICY IF EXISTS team_feedback_delete ON public.team_feedback;
 CREATE POLICY team_feedback_delete ON public.team_feedback
     FOR DELETE
     USING (
+        -- User is the author
         author_id = auth.uid() 
+        -- User is the team lead
+        OR EXISTS (
+            SELECT 1 FROM public.teams t
+            WHERE t.id = team_id 
+            AND t.lead_id = auth.uid()
+        )
+        -- User has admin permissions
         OR public.user_has_permission(auth.uid(), 'manage-users')
     );
 
