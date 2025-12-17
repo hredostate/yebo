@@ -103,6 +103,12 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const [samplePreviewIds, setSamplePreviewIds] = useState<Set<number>>(new Set());
   const reportContainerRef = useRef<HTMLDivElement>(null);
 
+  // Sharing state
+  const [showSharingModal, setShowSharingModal] = useState(false);
+  const [isSharingLinks, setIsSharingLinks] = useState(false);
+  const [shareExpiryHours, setShareExpiryHours] = useState(72);
+  const [shareResults, setShareResults] = useState<Array<{ studentName: string; link?: string; error?: string }>>([]);
+
   // Utility function to sanitize strings for safe HTML rendering and filenames
   const sanitizeString = (str: string): string => {
     return str
@@ -1109,6 +1115,104 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     }
   };
 
+  const handleShareReportLinks = async () => {
+    if (selectedStudentIds.size === 0) {
+      addToast('Please select at least one student', 'error');
+      return;
+    }
+
+    const selectedStudents = studentsWithDebt.filter(s => selectedStudentIds.has(s.id) && s.reportExists);
+    
+    if (selectedStudents.length === 0) {
+      addToast('No selected students have reports to share', 'error');
+      return;
+    }
+
+    setIsSharingLinks(true);
+    setShareResults([]);
+    const results: Array<{ studentName: string; link?: string; error?: string }> = [];
+
+    try {
+      const expiryDate = new Date();
+      expiryDate.setHours(expiryDate.getHours() + shareExpiryHours);
+
+      for (const student of selectedStudents) {
+        try {
+          // Get or create public token for this student's report
+          const { data: existingReport, error: fetchError } = await supabase
+            .from('student_term_reports')
+            .select('id, public_token, token_expires_at')
+            .eq('student_id', student.id)
+            .eq('term_id', termId)
+            .maybeSingle();
+
+          if (fetchError) throw fetchError;
+
+          let token = existingReport?.public_token;
+          
+          // Generate new token if doesn't exist or is expired
+          const tokenExpired = existingReport?.token_expires_at 
+            ? new Date(existingReport.token_expires_at) < new Date()
+            : true;
+            
+          if (!token || tokenExpired) {
+            token = `${student.id}-${termId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+            
+            const { error: updateError } = await supabase
+              .from('student_term_reports')
+              .update({
+                public_token: token,
+                token_expires_at: expiryDate.toISOString(),
+                is_published: true
+              })
+              .eq('student_id', student.id)
+              .eq('term_id', termId);
+
+            if (updateError) throw updateError;
+          }
+
+          const reportLink = `${window.location.origin}/report/${token}`;
+          results.push({
+            studentName: student.name,
+            link: reportLink
+          });
+
+        } catch (error: any) {
+          console.error(`Error generating link for ${student.name}:`, error);
+          results.push({
+            studentName: student.name,
+            error: error.message || 'Failed to generate link'
+          });
+        }
+      }
+
+      setShareResults(results);
+      const successCount = results.filter(r => r.link).length;
+      const failureCount = results.filter(r => r.error).length;
+      
+      if (successCount > 0) {
+        addToast(`Generated ${successCount} report link${successCount !== 1 ? 's' : ''}${failureCount > 0 ? ` (${failureCount} failed)` : ''}`, 'success');
+      } else {
+        addToast('Failed to generate report links', 'error');
+      }
+
+    } catch (error: any) {
+      console.error('Error sharing report links:', error);
+      addToast(`Error: ${error.message}`, 'error');
+    } finally {
+      setIsSharingLinks(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      addToast('Link copied to clipboard!', 'success');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      addToast('Failed to copy link', 'error');
+    });
+  };
+
   const filteredStudents = studentsWithDebt.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.admission_number?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1454,6 +1558,13 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                   </>
                 )}
               </button>
+              <button
+                onClick={() => setShowSharingModal(true)}
+                disabled={selectedStudentIds.size === 0 || isGenerating || isSharingLinks}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium flex items-center gap-2"
+              >
+                📧 Share Links
+              </button>
             </div>
           </div>
         </div>
@@ -1461,6 +1572,140 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
       {/* Hidden container for rendering reports */}
       <div ref={reportContainerRef} style={{ position: 'absolute', left: '-9999px' }} />
+
+      {/* Share Links Modal */}
+      {showSharingModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Share Report Card Links</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  Generate shareable links for selected students
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSharingModal(false)}
+                disabled={isSharingLinks}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                <CloseIcon className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 flex-1 overflow-auto">
+              {shareResults.length === 0 ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                      Link Expiry
+                    </label>
+                    <select
+                      value={shareExpiryHours}
+                      onChange={(e) => setShareExpiryHours(Number(e.target.value))}
+                      disabled={isSharingLinks}
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white disabled:opacity-50"
+                    >
+                      <option value={24}>24 hours</option>
+                      <option value={48}>48 hours (2 days)</option>
+                      <option value={72}>72 hours (3 days)</option>
+                      <option value={168}>1 week</option>
+                      <option value={336}>2 weeks</option>
+                      <option value={720}>30 days</option>
+                    </select>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>Note:</strong> Links will be generated for {selectedStudentIds.size} selected student{selectedStudentIds.size !== 1 ? 's' : ''} who have reports available. 
+                      You can copy and share these links via email, WhatsApp, or any other channel.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Generated Links ({shareResults.length})
+                    </h4>
+                  </div>
+                  
+                  {shareResults.map((result, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-slate-900 dark:text-white">
+                          {result.studentName}
+                        </span>
+                        {result.link ? (
+                          <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <AlertCircleIcon className="w-5 h-5 text-red-600" />
+                        )}
+                      </div>
+                      
+                      {result.link ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={result.link}
+                            readOnly
+                            className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-sm font-mono text-slate-700 dark:text-slate-300"
+                          />
+                          <button
+                            onClick={() => copyToClipboard(result.link!)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          Error: {result.error}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSharingModal(false);
+                  setShareResults([]);
+                }}
+                disabled={isSharingLinks}
+                className="px-6 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 font-medium"
+              >
+                {shareResults.length > 0 ? 'Close' : 'Cancel'}
+              </button>
+              
+              {shareResults.length === 0 && (
+                <button
+                  onClick={handleShareReportLinks}
+                  disabled={isSharingLinks}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium flex items-center gap-2"
+                >
+                  {isSharingLinks ? (
+                    <>
+                      <Spinner size="sm" />
+                      Generating Links...
+                    </>
+                  ) : (
+                    <>
+                      📧 Generate Links
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

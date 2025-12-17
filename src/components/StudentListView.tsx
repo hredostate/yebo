@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Student, UserProfile, BaseDataObject, TeachingAssignment, CreatedCredential } from '../types';
 import AddStudentModal from './AddStudentModal';
-import { PlusCircleIcon, DownloadIcon, TrashIcon } from './common/icons';
+import { PlusCircleIcon, DownloadIcon, TrashIcon, UploadCloudIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { VIEWS, STUDENT_STATUSES } from '../constants';
 import { exportToCsv } from '../utils/export';
@@ -10,6 +10,8 @@ import { exportToExcel, type ExcelColumn } from '../utils/excelExport';
 import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
 import { type ActivationLinkResult } from '../services/activationLinks';
+import { parseCsv } from '../utils/feesCsvUtils';
+import { supabase } from '../services/supabaseClient';
 
 interface StudentListViewProps {
   students: Student[];
@@ -33,6 +35,7 @@ interface StudentListViewProps {
     studentIds: number[],
     options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
   ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string }>;
+  addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 // Simple modal to show credentials after bulk generation
@@ -133,7 +136,7 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
 
 const StudentListView: React.FC<StudentListViewProps> = ({
     students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
-    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents
+    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents, addToast
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -167,6 +170,20 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [activationResults, setActivationResults] = useState<ActivationLinkResult[] | null>(null);
   const [activationExpiresAt, setActivationExpiresAt] = useState<string | null>(null);
   const [isGeneratingActivationLinks, setIsGeneratingActivationLinks] = useState(false);
+
+  // Export configuration state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set([
+    'name', 'admission_number', 'email', 'class', 'arm', 'status', 
+    'has_account', 'date_of_birth', 'guardian_phone', 'address'
+  ]));
+
+  // CSV Upload state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
 
@@ -474,6 +491,259 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       exportToCsv(dataToExport, `students_export_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
+  const availableFields = [
+    { key: 'name', label: 'Name', header: 'Name' },
+    { key: 'admission_number', label: 'Admission Number', header: 'Admission Number' },
+    { key: 'email', label: 'Email/Username', header: 'Email/Username' },
+    { key: 'class', label: 'Class', header: 'Class' },
+    { key: 'arm', label: 'Arm', header: 'Arm' },
+    { key: 'status', label: 'Status', header: 'Status' },
+    { key: 'has_account', label: 'Has Account', header: 'Has Account' },
+    { key: 'date_of_birth', label: 'Date of Birth', header: 'Date of Birth' },
+    { key: 'guardian_phone', label: 'Guardian Contact', header: 'Guardian Contact' },
+    { key: 'address', label: 'Address', header: 'Address' },
+    { key: 'parent_phone_number_1', label: 'Parent Phone 1', header: 'Parent Phone 1' },
+    { key: 'parent_phone_number_2', label: 'Parent Phone 2', header: 'Parent Phone 2' },
+    { key: 'father_name', label: 'Father Name', header: 'Father Name' },
+    { key: 'mother_name', label: 'Mother Name', header: 'Mother Name' },
+    { key: 'campus', label: 'Campus', header: 'Campus' },
+  ];
+
+  const toggleField = (key: string) => {
+    const newFields = new Set(selectedFields);
+    if (newFields.has(key)) {
+      newFields.delete(key);
+    } else {
+      newFields.add(key);
+    }
+    setSelectedFields(newFields);
+  };
+
+  const selectAllFields = () => {
+    setSelectedFields(new Set(availableFields.map(f => f.key)));
+  };
+
+  const deselectAllFields = () => {
+    setSelectedFields(new Set());
+  };
+
+  const handleExportWithOptions = (format: 'csv' | 'excel') => {
+    // Determine which students to export
+    const studentsToExport = exportSelectedOnly && selectedIds.size > 0
+      ? filteredStudents.filter(s => selectedIds.has(s.id))
+      : filteredStudents;
+
+    if (studentsToExport.length === 0) {
+      alert('No students to export. Please adjust your selection.');
+      return;
+    }
+
+    if (selectedFields.size === 0) {
+      alert('Please select at least one field to export.');
+      return;
+    }
+
+    const fieldMap: Record<string, (s: Student) => string> = {
+      name: (s) => s.name,
+      admission_number: (s) => s.admission_number || '',
+      email: (s) => s.email || '',
+      class: (s) => s.class?.name || '',
+      arm: (s) => s.arm?.name || '',
+      status: (s) => s.status || '',
+      has_account: (s) => s.user_id ? 'Yes' : 'No',
+      date_of_birth: (s) => s.date_of_birth || '',
+      guardian_phone: (s) => s.guardian_phone || '',
+      address: (s) => s.address || '',
+      parent_phone_number_1: (s) => s.parent_phone_number_1 || '',
+      parent_phone_number_2: (s) => s.parent_phone_number_2 || '',
+      father_name: (s) => s.father_name || '',
+      mother_name: (s) => s.mother_name || '',
+      campus: (s) => s.campus?.name || '',
+    };
+
+    if (format === 'csv') {
+      const dataToExport = studentsToExport.map(s => {
+        const row: Record<string, string> = {};
+        availableFields.forEach(field => {
+          if (selectedFields.has(field.key)) {
+            row[field.header] = fieldMap[field.key]?.(s) || '';
+          }
+        });
+        return row;
+      });
+      
+      const prefix = exportSelectedOnly ? 'selected_students' : 'students';
+      exportToCsv(dataToExport, `${prefix}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    } else {
+      // Excel export
+      const columns: ExcelColumn[] = availableFields
+        .filter(field => selectedFields.has(field.key))
+        .map(field => ({
+          key: field.key,
+          header: field.header,
+          width: field.key === 'address' ? 35 : field.key === 'email' ? 30 : field.key === 'name' ? 25 : field.key === 'guardian_phone' ? 20 : field.key === 'admission_number' ? 18 : field.key === 'status' ? 18 : field.key === 'date_of_birth' ? 15 : field.key === 'class' ? 15 : 12,
+          type: field.key === 'date_of_birth' ? 'date' : 'string'
+        }));
+
+      const dataToExport = studentsToExport.map(s => {
+        const row: Record<string, string> = {};
+        availableFields.forEach(field => {
+          if (selectedFields.has(field.key)) {
+            row[field.key] = fieldMap[field.key]?.(s) || '';
+          }
+        });
+        return row;
+      });
+
+      const prefix = exportSelectedOnly ? 'selected_students' : 'students';
+      exportToExcel(dataToExport, columns, {
+        filename: `${prefix}_export`,
+        sheetName: 'Students',
+        includeTimestamp: true
+      });
+    }
+
+    setShowExportModal(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+    }
+  };
+
+  const handleCsvUpload = async () => {
+    if (!uploadFile || !addToast) return;
+
+    try {
+      setIsUploading(true);
+      
+      const text = await uploadFile.text();
+      const parsedCsv = parseCsv(text);
+      
+      if (parsedCsv.rows.length === 0) {
+        addToast('CSV file is empty or invalid', 'error');
+        return;
+      }
+
+      // Process and validate student data
+      const studentsToImport: any[] = [];
+      const errors: string[] = [];
+
+      for (let i = 0; i < parsedCsv.rows.length; i++) {
+        const row = parsedCsv.rows[i];
+        const rowNum = i + 2; // +2 because: +1 for header, +1 for 0-based index
+
+        // Required fields
+        const name = row['Name'] || row['name'];
+        if (!name) {
+          errors.push(`Row ${rowNum}: Name is required`);
+          continue;
+        }
+
+        // Find class and arm by name if provided
+        let class_id = null;
+        let arm_id = null;
+        
+        const className = row['Class'] || row['class'];
+        if (className) {
+          const foundClass = allClasses.find(c => c.name.toLowerCase() === className.toLowerCase());
+          if (foundClass) {
+            class_id = foundClass.id;
+          } else {
+            errors.push(`Row ${rowNum}: Class "${className}" not found`);
+          }
+        }
+
+        const armName = row['Arm'] || row['arm'];
+        if (armName && class_id) {
+          const foundArm = allArms.find(a => a.name.toLowerCase() === armName.toLowerCase());
+          if (foundArm) {
+            arm_id = foundArm.id;
+          } else {
+            errors.push(`Row ${rowNum}: Arm "${armName}" not found`);
+          }
+        }
+
+        const studentData: any = {
+          name,
+          admission_number: row['Admission Number'] || row['admission_number'] || '',
+          email: row['Email/Username'] || row['Email'] || row['email'] || '',
+          date_of_birth: row['Date of Birth'] || row['date_of_birth'] || '',
+          address: row['Address'] || row['address'] || '',
+          status: row['Status'] || row['status'] || 'Active',
+          class_id,
+          arm_id,
+          parent_phone_number_1: row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
+          parent_phone_number_2: row['Parent Phone 2'] || row['parent_phone_number_2'] || '',
+          father_name: row['Father Name'] || row['father_name'] || '',
+          mother_name: row['Mother Name'] || row['mother_name'] || '',
+          // Guardian Contact can map to parent_phone_number_1 if that field is empty
+          guardian_phone: row['Guardian Contact'] || row['guardian_phone'] || row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
+        };
+
+        studentsToImport.push(studentData);
+      }
+
+      if (errors.length > 0 && studentsToImport.length === 0) {
+        addToast(`Upload failed: ${errors.join(', ')}`, 'error');
+        setIsUploading(false);
+        return;
+      }
+
+      // Import students
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const studentData of studentsToImport) {
+        try {
+          // Get the school_id from the first student in the list or from supabase user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            throw new Error('Not authenticated');
+          }
+
+          // Get school_id from user profile
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('school_id')
+            .eq('id', user.id)
+            .single();
+
+          if (!profile) {
+            throw new Error('User profile not found');
+          }
+
+          const success = await onAddStudent({ ...studentData, school_id: profile.school_id });
+          if (success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          console.error('Error adding student:', err);
+          failCount++;
+        }
+      }
+
+      if (errors.length > 0) {
+        addToast(`Partial upload: ${successCount} students added, ${failCount} failed, ${errors.length} validation errors`, 'info');
+      } else if (successCount > 0) {
+        addToast(`Successfully imported ${successCount} student${successCount !== 1 ? 's' : ''}!`, 'success');
+      }
+
+      setShowUploadModal(false);
+      setUploadFile(null);
+      
+    } catch (error: any) {
+      console.error('CSV upload error:', error);
+      addToast?.(`Upload failed: ${error.message}`, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleExportStudentsExcel = () => {
       const columns: ExcelColumn[] = [
           { key: 'name', header: 'Name', width: 25, type: 'string' },
@@ -553,14 +823,16 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                 <option value="">All Teachers</option>
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            <button onClick={handleExportStudentsExcel} className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1" title="Export to Excel">
+            <button onClick={() => setShowExportModal(true)} className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1" title="Export Students">
                 <DownloadIcon className="w-4 h-4" />
-                <span className="text-xs">XLSX</span>
+                <span className="text-xs">Export</span>
             </button>
-            <button onClick={handleExportStudents} className="px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 flex items-center gap-1" title="Export to CSV">
-                <DownloadIcon className="w-4 h-4" />
-                <span className="text-xs">CSV</span>
-            </button>
+            {canManageStudents && (
+              <button onClick={() => setShowUploadModal(true)} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1" title="Upload Students CSV">
+                  <UploadCloudIcon className="w-4 h-4" />
+                  <span className="text-xs">Upload</span>
+              </button>
+            )}
           </div>
         </div>
         
@@ -863,6 +1135,228 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       />
 
       {credentials && <CredentialsModal results={credentials} onClose={() => setCredentials(null)} />}
+
+      {/* Export Configuration Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+          <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-3xl m-4 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Export Students</h2>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-grow overflow-y-auto">
+              {/* Export Scope */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Export Scope</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <input
+                      type="radio"
+                      checked={!exportSelectedOnly}
+                      onChange={() => setExportSelectedOnly(false)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      Export all filtered students ({filteredStudents.length} students)
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <input
+                      type="radio"
+                      checked={exportSelectedOnly}
+                      onChange={() => setExportSelectedOnly(true)}
+                      disabled={selectedIds.size === 0}
+                      className="w-4 h-4 disabled:opacity-50"
+                    />
+                    <span className={`text-sm ${selectedIds.size === 0 ? 'text-slate-400 dark:text-slate-600' : 'text-slate-700 dark:text-slate-300'}`}>
+                      Export only selected students ({selectedIds.size} selected)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Field Selection */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Select Fields to Export</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={selectAllFields}
+                      className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-400">|</span>
+                    <button
+                      onClick={deselectAllFields}
+                      className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  {availableFields.map(field => (
+                    <label key={field.key} className="flex items-center gap-2 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFields.has(field.key)}
+                        onChange={() => toggleField(field.key)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{field.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  {selectedFields.size} field{selectedFields.size !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            </div>
+
+            {/* Export Buttons */}
+            <div className="flex-shrink-0 flex justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleExportWithOptions('csv')}
+                className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+              >
+                <DownloadIcon className="w-5 h-5" />
+                Export as CSV
+              </button>
+              <button
+                onClick={() => handleExportWithOptions('excel')}
+                className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <DownloadIcon className="w-5 h-5" />
+                Export as Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+          <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-2xl m-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Upload Students from CSV</h2>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                Upload a CSV file containing student information. The file should include columns for:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 mb-4">
+                <div>• Name (required)</div>
+                <div>• Admission Number</div>
+                <div>• Email/Username</div>
+                <div>• Class</div>
+                <div>• Arm</div>
+                <div>• Date of Birth</div>
+                <div>• Address</div>
+                <div>• Status</div>
+                <div>• Parent Phone 1</div>
+                <div>• Parent Phone 2</div>
+                <div>• Guardian Contact</div>
+                <div>• Father Name</div>
+                <div>• Mother Name</div>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ Note: Class and Arm names must match existing values in the system
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block">
+                <div className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  uploadFile 
+                    ? 'border-green-400 bg-green-50 dark:bg-green-900/20' 
+                    : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500'
+                }`}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <UploadCloudIcon className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+                  {uploadFile ? (
+                    <>
+                      <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+                        {uploadFile.name}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Click to change file
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        CSV files only
+                      </p>
+                    </>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCsvUpload}
+                disabled={!uploadFile || isUploading}
+                className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isUploading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloudIcon className="w-5 h-5" />
+                    Upload Students
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
