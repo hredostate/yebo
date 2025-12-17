@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "package": "npm run build && ./create-deployment-package.sh",
     "test": "npm run test:unit",
-    "test:unit": "tsc -p tsconfig.tests.json && node build-tests/tests/runtimeConfig.test.js && node build-tests/tests/timetableScheduler.test.js"
+    "test:unit": "tsc -p tsconfig.tests.json && node build-tests/tests/runtimeConfig.test.js && node build-tests/tests/timetableScheduler.test.js && node build-tests/tests/cacheInvalidation.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
