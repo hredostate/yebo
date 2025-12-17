@@ -341,6 +341,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onBulkDeleteAccounts={actions.handleBulkDeleteStudentAccounts}
                 onDeleteStudent={actions.handleDeleteStudent}
                 onBulkDeleteStudents={actions.handleBulkDeleteStudents}
+                onGenerateActivationLinks={actions.handleGenerateActivationLinks}
             />;
         case VIEWS.STUDENT_PROFILE:
             if (param1) {
