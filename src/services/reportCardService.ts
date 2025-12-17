@@ -74,7 +74,8 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
 
         if (needsNewToken) {
             // Generate new token with 30-day expiry
-            token = crypto.randomUUID();
+            // Use crypto.randomUUID() with fallback for compatibility
+            token = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `token-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 30);
 
