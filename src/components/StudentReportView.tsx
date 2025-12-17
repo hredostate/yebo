@@ -777,11 +777,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Standing</p>
                 <div className="flex items-center gap-3">
                     <p className="text-2xl font-black text-slate-900">{showPosition && summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
-                    {summary.positionInGradeLevel && (
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">Grade: {getOrdinal(summary.positionInGradeLevel)}</span>
-                    )}
                 </div>
-                <p className="text-xs text-slate-500">Class size: {summary.gradeLevelSize || 'N/A'}</p>
+                <p className="text-xs text-slate-500">Cohort size: {summary.cohortSize || 'N/A'} • Campus percentile: {summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : 'N/A'}</p>
             </div>
         </div>
         <div className="p-4 rounded-2xl border border-slate-200 shadow bg-white flex flex-col gap-2">
@@ -901,11 +898,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       };
     });
 
-    // Use gradeLevelSize as a fallback for classSize if available, otherwise use 1 to avoid division by zero
-    // Note: classSize is not available in StudentTermReportDetails. Using gradeLevelSize provides
-    // a reasonable approximation. If neither is available, we use 1 which will display position as "X of 1"
-    // This is acceptable since the actual class size is not exposed in the current data structure
-    const estimatedClassSize = summary.gradeLevelSize || 1;
+    // Use cohort size as the closest available class size value
+    const estimatedClassSize = summary.cohortSize || 1;
 
     return {
       report: reportData,
@@ -917,8 +911,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       term: termData,
       classPosition: summary.positionInArm,
       classSize: estimatedClassSize,
-      gradeLevelPosition: summary.positionInGradeLevel || undefined,
-      gradeLevelSize: summary.gradeLevelSize,
+      campusPercentile: summary.campusPercentile,
     };
   };
 
@@ -1164,7 +1157,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <div>Class: <strong>{student.className}</strong></div>
                         <div>Avg: <strong>{Number(summary.average).toFixed(2)}%</strong></div>
                         <div>Pos (Arm): <strong>{getOrdinal(summary.positionInArm)}</strong></div>
-                        {summary.positionInGradeLevel && <div>Pos (Grade): <strong>{getOrdinal(summary.positionInGradeLevel)}</strong></div>}
+                        {summary.campusPercentile != null && <div>Campus Percentile: <strong>{summary.campusPercentile.toFixed(0)}th</strong></div>}
                         <div>Att: <strong>{attendance.rate.toFixed(1)}% ({attendance.present}/{attendance.total})</strong></div>
                     </div>
                     
@@ -1252,8 +1245,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                             <p className="text-lg font-bold">{Number(summary.average).toFixed(2)}%</p>
                         </div>
                         <div>
-                            <p className="text-xs font-bold uppercase">Pos (Arm/Grade)</p>
-                            <p className="text-lg font-bold">{getOrdinal(summary.positionInArm)} / {summary.positionInGradeLevel ? getOrdinal(summary.positionInGradeLevel) : '-'}</p>
+                            <p className="text-xs font-bold uppercase">Pos (Arm)</p>
+                            <p className="text-lg font-bold">{getOrdinal(summary.positionInArm)} / {summary.cohortSize ?? '-'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold uppercase">Campus Percentile</p>
+                            <p className="text-lg font-bold">{summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : '-'}</p>
                         </div>
                         <div>
                             <p className="text-xs font-bold uppercase">GPA</p>

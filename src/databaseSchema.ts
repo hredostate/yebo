@@ -293,12 +293,23 @@ DECLARE
     v_computed_attendance JSONB;
     v_attendance_source TEXT;
     v_override_found BOOLEAN := false;
+    v_cohort_rank INTEGER;
+    v_cohort_size INTEGER;
+    v_campus_percentile NUMERIC;
 BEGIN
-    -- 1. Student Info
-    SELECT jsonb_build_object('id', s.id, 'fullName', s.name, 'className', c.name)
+    -- 1. Student Info scoped with campus/class/arm for cohort filters
+    SELECT jsonb_build_object(
+        'id', s.id,
+        'fullName', s.name,
+        'className', ac.name,
+        'classId', ac.id,
+        'armName', ac.arm,
+        'campusId', s.campus_id
+    )
     INTO v_student
     FROM public.students s
-    LEFT JOIN public.classes c ON s.class_id = c.id
+    LEFT JOIN public.academic_class_students acs ON acs.student_id = s.id AND acs.enrolled_term_id = p_term_id
+    LEFT JOIN public.academic_classes ac ON ac.id = acs.academic_class_id
     WHERE s.id = p_student_id;
 
     -- 2. Term Info with date range
@@ -316,25 +327,60 @@ BEGIN
     FROM public.student_term_reports
     WHERE student_id = p_student_id AND term_id = p_term_id;
 
-    -- 5. Subjects (from score_entries)
+    -- 5. Cohort-level ranking (campus + session + term + class + arm)
+    WITH cohort AS (
+        SELECT
+            str.student_id,
+            DENSE_RANK() OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id, str.academic_class_id, ac.arm
+                ORDER BY COALESCE(str.average_score, 0) DESC
+            ) AS cohort_rank,
+            COUNT(*) OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id, str.academic_class_id, ac.arm
+            ) AS cohort_size,
+            DENSE_RANK() OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id
+                ORDER BY COALESCE(str.average_score, 0) DESC
+            ) AS campus_rank,
+            COUNT(*) OVER (
+                PARTITION BY s.campus_id, t.session_label, str.term_id
+            ) AS campus_total
+        FROM public.student_term_reports str
+        JOIN public.students s ON str.student_id = s.id
+        JOIN public.terms t ON t.id = str.term_id
+        LEFT JOIN public.academic_classes ac ON ac.id = str.academic_class_id
+        WHERE str.term_id = p_term_id
+          AND COALESCE(s.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
+    )
+    SELECT
+        c.cohort_rank,
+        c.cohort_size,
+        CASE WHEN c.campus_total > 0 THEN ROUND(((c.campus_total - c.campus_rank)::NUMERIC / c.campus_total::NUMERIC) * 100, 2) ELSE NULL END
+    INTO v_cohort_rank, v_cohort_size, v_campus_percentile
+    FROM cohort c
+    WHERE c.student_id = p_student_id
+    LIMIT 1;
+
+    -- 6. Subjects (from score_entries) ranked within cohort scope
     SELECT jsonb_agg(jsonb_build_object(
         'subjectName', se.subject_name,
+        'componentScores', COALESCE(se.component_scores, '{}'::jsonb),
         'totalScore', se.total_score,
-        'gradeLabel', se.grade,
+        'gradeLabel', COALESCE(se.grade, se.grade_label),
         'remark', COALESCE(se.teacher_comment, '-'),
-        'subjectPosition', (
-            SELECT COUNT(*) + 1 
-            FROM public.score_entries se2 
-            WHERE se2.term_id = p_term_id 
-              AND se2.subject_name = se.subject_name 
-              AND se2.total_score > se.total_score
+        'subjectPosition', DENSE_RANK() OVER (
+            PARTITION BY s.campus_id, t.session_label, se.term_id, se.academic_class_id, ac.arm, se.subject_name
+            ORDER BY COALESCE(se.total_score, 0) DESC
         )
     ))
     INTO v_subjects
     FROM public.score_entries se
+    JOIN public.students s ON s.id = se.student_id
+    JOIN public.terms t ON t.id = se.term_id
+    LEFT JOIN public.academic_classes ac ON ac.id = se.academic_class_id
     WHERE se.student_id = p_student_id AND se.term_id = p_term_id;
 
-    -- 6. Identify the student's class group for this term (class teacher groups take precedence)
+    -- 7. Identify the student's class group for this term (class teacher groups take precedence)
     SELECT cgm.group_id
     INTO v_class_group_id
     FROM public.class_group_members cgm
@@ -346,7 +392,7 @@ BEGIN
     ORDER BY (ta.term_id = p_term_id) DESC, cg.id
     LIMIT 1;
 
-    -- 7. Calculate real attendance from attendance_records
+    -- 8. Calculate real attendance from attendance_records
     -- Join through class_group_members to connect students with attendance records
     SELECT
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('present', 'p')), 0),
@@ -382,7 +428,7 @@ BEGIN
         'rate', v_attendance_rate_computed
     );
 
-    -- 8. Apply overrides when present for this class/term/student
+    -- 9. Apply overrides when present for this class/term/student
     IF v_class_group_id IS NOT NULL THEN
         SELECT * INTO v_override
         FROM public.attendance_overrides ao
@@ -447,8 +493,9 @@ BEGIN
         'subjects', COALESCE(v_subjects, '[]'::jsonb),
         'summary', jsonb_build_object(
             'average', v_report_row.average_score,
-            'positionInArm', v_report_row.position_in_class,
-            'positionInGradeLevel', v_report_row.position_in_grade,
+            'positionInArm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
+            'cohortSize', v_cohort_size,
+            'campusPercentile', v_campus_percentile,
             'gpaAverage', 0
         ),
         'attendance', v_attendance,
@@ -2055,6 +2102,9 @@ CREATE INDEX IF NOT EXISTS idx_notes_compliance_check_id ON public.notes_complia
 CREATE INDEX IF NOT EXISTS idx_notes_compliance_student_id ON public.notes_compliance(student_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_notifications_student_id ON public.whatsapp_notifications(student_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_notifications_status ON public.whatsapp_notifications(status);
+CREATE INDEX IF NOT EXISTS idx_student_term_reports_scope ON public.student_term_reports(term_id, academic_class_id, student_id);
+CREATE INDEX IF NOT EXISTS idx_score_entries_scope ON public.score_entries(term_id, academic_class_id, student_id, subject_name);
+CREATE INDEX IF NOT EXISTS idx_students_campus_status ON public.students(campus_id, status);
 
 NOTIFY pgrst, 'reload config';
 `;

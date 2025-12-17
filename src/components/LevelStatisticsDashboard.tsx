@@ -1,19 +1,21 @@
 import React, { useState, useMemo } from 'react';
-import type { 
-    StudentTermReport, 
-    Student, 
-    AcademicClass, 
+import type {
+    StudentTermReport,
+    Student,
+    AcademicClass,
     AcademicClassStudent,
     LevelStatistics,
     ArmStatistics,
     GradeDistribution,
     StudentRanking,
-    GradingScheme
+    GradingScheme,
+    ScoreEntry
 } from '../types';
 import StatisticsCard from './StatisticsCard';
 import GradeDistributionChart from './GradeDistributionChart';
 import ArmComparisonChart from './ArmComparisonChart';
 import StudentRankingTable from './StudentRankingTable';
+import { aggregateResultStatistics, findIntegrityIssues, rankCohort, type ResultScope } from '../utils/resultAnalytics';
 
 interface LevelStatisticsDashboardProps {
     termId: number;
@@ -22,6 +24,7 @@ interface LevelStatisticsDashboardProps {
     academicClasses: AcademicClass[];
     academicClassStudents: AcademicClassStudent[];
     gradingScheme: GradingScheme | null;
+    scoreEntries?: ScoreEntry[];
 }
 
 type ViewMode = 'per-level' | 'per-arm';
@@ -32,7 +35,8 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
     students,
     academicClasses,
     academicClassStudents,
-    gradingScheme
+    gradingScheme,
+    scoreEntries = []
 }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('per-level');
     const [selectedLevel, setSelectedLevel] = useState<string>('');
@@ -65,17 +69,6 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             }
         }
         return 'N/A';
-    };
-
-    // Helper function to check if a score is passing
-    const isPassing = (score: number): boolean => {
-        if (!gradingScheme || !gradingScheme.rules) return score >= 50;
-        
-        // Find the grade for this score
-        const grade = getGradeFromScore(score);
-        
-        // Typically F is failing
-        return grade !== 'F' && grade !== 'N/A';
     };
 
     // Calculate grade distribution
@@ -113,20 +106,46 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         return result;
     };
 
+    const buildScopeForClass = (classId?: number | null): ResultScope => {
+        const academicClass = academicClasses.find(ac => ac.id === classId);
+        const enrolledIds = academicClassStudents
+            .filter(acs => (!classId || acs.academic_class_id === classId) && acs.enrolled_term_id === termId)
+            .map(acs => acs.student_id);
+
+        const campusId = students.find(s => enrolledIds.includes(s.id) && s.campus_id != null)?.campus_id ?? undefined;
+
+        return {
+            campusId,
+            termId,
+            sessionLabel: academicClass?.session_label,
+            academicClassId: classId ?? undefined,
+            armName: academicClass?.arm
+        };
+    };
+
+    const filterReportsForScope = (scope: ResultScope) => {
+        const inactiveStatuses = new Set(['Withdrawn', 'Graduated', 'Expelled', 'Inactive']);
+        return studentTermReports
+            .filter(r => r.term_id === scope.termId && (scope.academicClassId == null || r.academic_class_id === scope.academicClassId))
+            .filter(r => {
+                const student = students.find(s => s.id === r.student_id);
+                if (!student || inactiveStatuses.has(student.status || 'Active')) return false;
+                if (scope.campusId != null && student.campus_id != null && student.campus_id !== scope.campusId) return false;
+                const academicClass = academicClasses.find(c => c.id === r.academic_class_id);
+                if (scope.sessionLabel && academicClass?.session_label && academicClass.session_label !== scope.sessionLabel) return false;
+                if (scope.armName && academicClass?.arm && academicClass.arm !== scope.armName) return false;
+                return true;
+            });
+    };
+
     // Calculate arm statistics
     const calculateArmStatistics = (classId: number): ArmStatistics | null => {
         const academicClass = academicClasses.find(ac => ac.id === classId);
         if (!academicClass) return null;
 
-        // Get students in this class
-        const studentIds = academicClassStudents
-            .filter(acs => acs.academic_class_id === classId)
-            .map(acs => acs.student_id);
-
-        // Get reports for these students in this term
-        const reports = studentTermReports.filter(
-            r => r.term_id === termId && studentIds.includes(r.student_id)
-        );
+        const scope = buildScopeForClass(classId);
+        const reports = filterReportsForScope(scope);
+        const stats = aggregateResultStatistics(studentTermReports, academicClassStudents, students, scope, 50, academicClasses);
 
         if (reports.length === 0) {
             return {
@@ -143,7 +162,6 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         }
 
         const scores = reports.map(r => r.average_score);
-        const passCount = scores.filter(s => isPassing(s)).length;
 
         let highestReport = reports[0];
         let lowestReport = reports[0];
@@ -159,14 +177,14 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         return {
             arm_name: academicClass.arm,
             academic_class_id: classId,
-            student_count: reports.length,
-            average_score: scores.reduce((a, b) => a + b, 0) / scores.length,
+            student_count: stats.enrolled,
+            average_score: stats.averageScore,
             highest_score: highestReport.average_score,
             highest_scorer: highestStudent?.name,
             lowest_score: lowestReport.average_score,
             lowest_scorer: lowestStudent?.name,
-            pass_count: passCount,
-            pass_rate: (passCount / reports.length) * 100,
+            pass_count: stats.passCount,
+            pass_rate: stats.passRate,
             grade_distribution: calculateGradeDistribution(scores)
         };
     };
@@ -178,14 +196,8 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         const classes = classesForLevel;
         if (classes.length === 0) return null;
 
-        const classIds = classes.map(c => c.id);
-        const studentIds = academicClassStudents
-            .filter(acs => classIds.includes(acs.academic_class_id))
-            .map(acs => acs.student_id);
-
-        const reports = studentTermReports.filter(
-            r => r.term_id === termId && studentIds.includes(r.student_id)
-        );
+        const scopes = classes.map(c => buildScopeForClass(c.id));
+        const reports = scopes.flatMap(scope => filterReportsForScope(scope));
 
         if (reports.length === 0) {
             return {
@@ -202,11 +214,12 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         }
 
         const scores = reports.map(r => r.average_score);
-        const passCount = scores.filter(s => isPassing(s)).length;
+        const statsList = scopes.map(scope => aggregateResultStatistics(studentTermReports, academicClassStudents, students, scope, 50, academicClasses));
+        const passCount = statsList.reduce((acc, curr) => acc + curr.passCount, 0);
 
         let highestReport = reports[0];
         let lowestReport = reports[0];
-        
+
         reports.forEach(r => {
             if (r.average_score > highestReport.average_score) highestReport = r;
             if (r.average_score < lowestReport.average_score) lowestReport = r;
@@ -222,74 +235,71 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
 
         return {
             level: selectedLevel,
-            total_students: reports.length,
+            total_students: statsList.reduce((sum, stat) => sum + stat.enrolled, 0),
             overall_average: scores.reduce((a, b) => a + b, 0) / scores.length,
             highest_score: highestReport.average_score,
             highest_scorer: highestStudent?.name,
             lowest_score: lowestReport.average_score,
             lowest_scorer: lowestStudent?.name,
             pass_count: passCount,
-            pass_rate: (passCount / reports.length) * 100,
+            pass_rate: reports.length ? (passCount / reports.length) * 100 : 0,
             grade_distribution: calculateGradeDistribution(scores),
             arms: armStats
         };
-    }, [selectedLevel, classesForLevel, studentTermReports, students, academicClassStudents, termId]);
+    }, [selectedLevel, classesForLevel, studentTermReports, students, academicClassStudents, termId, academicClasses]);
 
     // Calculate rankings
     const rankings = useMemo((): StudentRanking[] => {
         if (!selectedLevel) return [];
+        const classIds = viewMode === 'per-arm' && selectedArmId
+            ? [selectedArmId]
+            : classesForLevel.map(c => c.id);
 
-        let reportsToRank: StudentTermReport[];
-        
-        if (viewMode === 'per-arm' && selectedArmId) {
-            // Get students in selected arm only
-            const studentIds = academicClassStudents
-                .filter(acs => acs.academic_class_id === selectedArmId)
-                .map(acs => acs.student_id);
-            
-            reportsToRank = studentTermReports.filter(
-                r => r.term_id === termId && studentIds.includes(r.student_id)
-            );
-        } else {
-            // Get all students in the level
-            const classIds = classesForLevel.map(c => c.id);
-            const studentIds = academicClassStudents
-                .filter(acs => classIds.includes(acs.academic_class_id))
-                .map(acs => acs.student_id);
-            
-            reportsToRank = studentTermReports.filter(
-                r => r.term_id === termId && studentIds.includes(r.student_id)
-            );
-        }
+        const allRankings: StudentRanking[] = [];
 
-        // Sort by average score (descending)
-        const sortedReports = [...reportsToRank].sort((a, b) => b.average_score - a.average_score);
+        classIds.forEach(classId => {
+            const scope = buildScopeForClass(classId);
+            const cohortRanks = rankCohort(studentTermReports, scope, students, academicClasses);
+            const scopedReports = filterReportsForScope(scope);
 
-        // Create rankings
-        return sortedReports.map((report, index) => {
-            const student = students.find(s => s.id === report.student_id);
-            const classStudent = academicClassStudents.find(
-                acs => acs.student_id === report.student_id
-            );
-            const academicClass = classStudent 
-                ? academicClasses.find(ac => ac.id === classStudent.academic_class_id)
-                : null;
+            cohortRanks.forEach(rank => {
+                const report = scopedReports.find(r => r.student_id === rank.studentId);
+                if (!report) return;
+                const student = students.find(s => s.id === rank.studentId);
+                const academicClass = academicClasses.find(ac => ac.id === (scope.academicClassId ?? report.academic_class_id));
 
-            return {
-                rank: index + 1,
-                student_id: report.student_id,
-                student_name: student?.name || 'Unknown',
-                admission_number: student?.admission_number,
-                class_name: academicClass?.level || 'Unknown',
-                arm_name: academicClass?.arm || 'Unknown',
-                average_score: report.average_score,
-                total_score: report.total_score,
-                grade_label: getGradeFromScore(report.average_score),
-                position_in_class: report.position_in_class,
-                position_change: undefined // TODO: Compare with previous term
-            };
+                allRankings.push({
+                    rank: rank.rank,
+                    student_id: rank.studentId,
+                    student_name: student?.name || 'Unknown',
+                    admission_number: student?.admission_number,
+                    class_name: academicClass?.level || 'Unknown',
+                    arm_name: academicClass?.arm || 'Unknown',
+                    average_score: report.average_score,
+                    total_score: report.total_score,
+                    grade_label: getGradeFromScore(report.average_score),
+                    position_in_class: rank.rank,
+                    position_change: undefined
+                });
+            });
         });
+
+        return allRankings.sort((a, b) => a.rank - b.rank);
     }, [selectedLevel, viewMode, selectedArmId, classesForLevel, studentTermReports, students, academicClassStudents, academicClasses, termId]);
+
+    const auditIssues = useMemo(() => {
+        const classIds = viewMode === 'per-arm' && selectedArmId
+            ? [selectedArmId]
+            : classesForLevel.map(c => c.id);
+
+        return classIds.flatMap(classId => {
+            const scope = buildScopeForClass(classId);
+            const scopeLabel = academicClasses.find(ac => ac.id === classId)?.name || `Class ${classId}`;
+
+            return findIntegrityIssues(studentTermReports, academicClassStudents, students, scoreEntries, scope, academicClasses)
+                .map(issue => ({ ...issue, scopeLabel }));
+        });
+    }, [viewMode, selectedArmId, classesForLevel, studentTermReports, academicClassStudents, students, scoreEntries, academicClasses]);
 
     // Set default level on mount
     React.useEffect(() => {
@@ -384,6 +394,23 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
                             </div>
                         )}
                     </>
+                )}
+            </div>
+
+            {/* Data Audit */}
+            <div className="p-4 rounded-xl border bg-white/60 dark:bg-slate-900/40">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Data Audit</h3>
+                    <span className="text-xs text-slate-500">{auditIssues.length} issue{auditIssues.length === 1 ? '' : 's'}</span>
+                </div>
+                {auditIssues.length === 0 ? (
+                    <p className="text-sm text-green-700 dark:text-green-300">No integrity issues detected for this selection.</p>
+                ) : (
+                    <ul className="list-disc list-inside space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                        {auditIssues.map((issue, idx) => (
+                            <li key={`${issue.type}-${idx}`}>{issue.scopeLabel}: {issue.message}</li>
+                        ))}
+                    </ul>
                 )}
             </div>
 
