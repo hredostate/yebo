@@ -884,6 +884,9 @@ export interface StudentTermReportDetails {
         id: number;
         fullName: string;
         className: string;
+        classId?: number | null;
+        armName?: string | null;
+        campusId?: number | null;
     };
     term: {
         sessionLabel: string;
@@ -900,8 +903,8 @@ export interface StudentTermReportDetails {
     summary: {
         average: number;
         positionInArm: number;
-        positionInGradeLevel: number | null;
-        gradeLevelSize?: number;
+        cohortSize?: number | null;
+        campusPercentile?: number | null;
         gpaAverage?: number | null;
     };
     attendance: {

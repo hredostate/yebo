@@ -56,6 +56,7 @@ interface ReportData {
     positionInArm?: number | string;
     totalStudentsInArm?: number | string;
     gpaAverage?: number | string;
+    campusPercentile?: number | null;
   };
   comments?: {
     teacher?: string;
@@ -474,6 +475,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const averageScore = subjects.length > 0 ? totalScore / subjects.length : 0;
     const gpa = summary?.gpaAverage || 'N/A';
     const position = summary?.positionInArm || 'N/A';
+    const campusPercentile = summary?.campusPercentile ?? null;
     const attendanceRate = attendance?.rate || 0;
     const attendancePresentTotal = `${attendance?.present || 0}/${attendance?.total || 0}`;
     const attendanceStatus = getAttendanceStatus(attendanceRate);
@@ -576,6 +578,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
             <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: ${borderRadius}; padding: 16px; text-align: center;">
               <p style="font-size: 10px; color: #d97706; font-weight: bold; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">POSITION</p>
               <p style="font-size: 24px; font-weight: bold; margin: 0; color: #1e293b;">${getOrdinal(typeof position === 'number' ? position : null)}</p>
+              ${campusPercentile != null ? `<p style="margin:4px 0 0 0; font-size: 12px; color: #b45309;">Campus Percentile: ${campusPercentile.toFixed ? campusPercentile.toFixed(0) : campusPercentile}th</p>` : ''}
             </div>
           </div>
 
