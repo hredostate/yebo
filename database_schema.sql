@@ -586,7 +586,14 @@ CREATE TABLE IF NOT EXISTS public.payroll_runs (
     transfer_code TEXT,
     created_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    meta JSONB
+    meta JSONB,
+    pay_period_start DATE,
+    pay_period_end DATE,
+    pay_date DATE,
+    reference_number TEXT,
+    payment_method TEXT,
+    finalized_at TIMESTAMP WITH TIME ZONE,
+    pay_period_label TEXT
 );
 CREATE TABLE IF NOT EXISTS public.payroll_items (
     id SERIAL PRIMARY KEY,
@@ -598,8 +605,50 @@ CREATE TABLE IF NOT EXISTS public.payroll_items (
     paystack_recipient_code TEXT,
     transfer_status TEXT,
     narration TEXT,
-    payslip_url TEXT
+    payslip_url TEXT,
+    payment_method TEXT,
+    status TEXT DEFAULT 'draft',
+    pay_date DATE,
+    reference_number TEXT,
+    employment_type TEXT,
+    department TEXT,
+    role_title TEXT,
+    total_employer_contributions NUMERIC DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS public.payroll_components (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,
+    code TEXT,
+    component_type TEXT NOT NULL CHECK (component_type IN ('earning', 'deduction', 'employer_contrib')),
+    taxable BOOLEAN DEFAULT TRUE,
+    pensionable BOOLEAN DEFAULT FALSE,
+    calculation_type TEXT DEFAULT 'fixed' NOT NULL CHECK (calculation_type IN ('fixed', 'formula')),
+    amount NUMERIC DEFAULT 0,
+    formula TEXT,
+    ordering INTEGER DEFAULT 100,
+    show_on_payslip BOOLEAN DEFAULT TRUE,
+    is_default BOOLEAN DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payroll_components_school_id ON public.payroll_components(school_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_components_type ON public.payroll_components(component_type);
+CREATE TABLE IF NOT EXISTS public.payroll_line_items (
+    id SERIAL PRIMARY KEY,
+    payroll_item_id INTEGER REFERENCES public.payroll_items(id) ON DELETE CASCADE NOT NULL,
+    component_id INTEGER REFERENCES public.payroll_components(id) ON DELETE SET NULL,
+    label TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('earning', 'deduction', 'employer_contrib')),
+    amount NUMERIC NOT NULL DEFAULT 0,
+    units NUMERIC,
+    rate NUMERIC,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payroll_line_items_item ON public.payroll_line_items(payroll_item_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_line_items_component ON public.payroll_line_items(component_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_line_items_category ON public.payroll_line_items(category);
 CREATE TABLE IF NOT EXISTS public.payroll_adjustments (
     id SERIAL PRIMARY KEY,
     school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,

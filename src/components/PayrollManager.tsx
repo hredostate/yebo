@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
-import type { PayrollRun, PayrollItem, UserProfile } from '../types';
+import JSZip from 'jszip';
+import type { PayrollRun, PayrollItem, UserProfile, PayrollLineItem } from '../types';
 import Spinner from './common/Spinner';
 import { ChevronDownIcon, SearchIcon } from './common/icons';
 
 interface PayrollManagerProps {
-    runs: (PayrollRun & { items: (PayrollItem & { user?: UserProfile })[] })[];
+    runs: (PayrollRun & { items: (PayrollItem & { user?: UserProfile; line_items?: PayrollLineItem[] })[] })[];
     handleGeneratePayslips: (runId: number) => Promise<void>;
 }
 
@@ -13,11 +14,76 @@ const PayrollManager: React.FC<PayrollManagerProps> = ({ runs, handleGeneratePay
     const [expandedRunId, setExpandedRunId] = useState<number | null>(null);
     const [generatingId, setGeneratingId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [bulkExportingId, setBulkExportingId] = useState<number | null>(null);
 
     const handleGenerate = async (runId: number) => {
         setGeneratingId(runId);
         await handleGeneratePayslips(runId);
         setGeneratingId(null);
+    };
+
+    const buildLineItems = (item: PayrollItem) => {
+        if (item.line_items && item.line_items.length > 0) return item.line_items;
+        return (item.deductions || []).map((d, idx) => ({
+            id: Number(`${item.id}${idx}`),
+            payroll_item_id: item.id,
+            label: d.label,
+            category: d.amount >= 0 ? 'earning' : 'deduction',
+            amount: d.amount,
+        })) as PayrollLineItem[];
+    };
+
+    const handleRunCsv = (run: PayrollManagerProps['runs'][number]) => {
+        const rows: string[][] = [
+            ['Payslip Reference', run.reference_number || run.period_label],
+            ['Pay Period', run.pay_period_label || run.period_label],
+            ['Pay Date', run.pay_date || 'N/A'],
+            [],
+            ['Staff Name', 'Component', 'Category', 'Amount'],
+        ];
+
+        run.items.forEach(item => {
+            const lineItems = buildLineItems(item);
+            lineItems.forEach(li => {
+                rows.push([item.user?.name || 'Unknown', li.label, li.category, `${li.amount}`]);
+            });
+            rows.push([item.user?.name || 'Unknown', 'Net Pay', 'net', `${item.net_amount}`]);
+        });
+
+        const csvContent = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `payroll_run_${run.id}_line_items.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleBulkPdfExport = async (run: PayrollManagerProps['runs'][number]) => {
+        const payslipItems = run.items.filter(item => item.payslip_url);
+        if (payslipItems.length === 0) return;
+        setBulkExportingId(run.id);
+        const zip = new JSZip();
+
+        await Promise.all(
+            payslipItems.map(async item => {
+                const response = await fetch(item.payslip_url as string);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const filename = `${item.user?.name?.replace(/\s+/g, '_') || 'staff'}_${run.period_label}.pdf`;
+                zip.file(filename, arrayBuffer);
+            })
+        );
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `payslips_run_${run.id}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setBulkExportingId(null);
     };
 
     const filteredRuns = useMemo(() => {
@@ -71,9 +137,22 @@ const PayrollManager: React.FC<PayrollManagerProps> = ({ runs, handleGeneratePay
 
                         {expandedRunId === run.id && (
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
-                                <div className="flex justify-end mb-4">
-                                    <button 
-                                        onClick={() => handleGenerate(run.id)} 
+                                <div className="flex flex-wrap justify-end gap-2 mb-4">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleRunCsv(run); }}
+                                        className="px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700"
+                                    >
+                                        Download Run CSV
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleBulkPdfExport(run); }}
+                                        disabled={bulkExportingId === run.id}
+                                        className="px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-900 disabled:bg-slate-500"
+                                    >
+                                        {bulkExportingId === run.id ? 'Preparing ZIP...' : 'Bulk Export PDFs'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleGenerate(run.id)}
                                         disabled={generatingId === run.id}
                                         className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center gap-2"
                                     >

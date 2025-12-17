@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import type { UserProfile, PayrollRun, PayrollItem, PayrollAdjustment, SchoolConfig, Campus, TeacherShift, LeaveType, LeaveRequest, Team } from '../types';
+import type { UserProfile, PayrollRun, PayrollItem, PayrollAdjustment, PayrollComponent, PayrollLineItem, PensionContribution, SchoolConfig, Campus, TeacherShift, LeaveType, LeaveRequest, Team } from '../types';
 import { LeaveRequestStatus } from '../types';
 import MyPayrollView from './MyPayrollView';
 import MyAdjustmentsView from './MyAdjustmentsView';
@@ -26,6 +26,9 @@ interface HRPayrollModuleProps {
     payrollRuns: PayrollRun[];
     payrollItems: PayrollItem[];
     payrollAdjustments: PayrollAdjustment[];
+    payrollComponents: PayrollComponent[];
+    payrollLineItems: PayrollLineItem[];
+    pensionContributions: PensionContribution[];
     schoolConfig: SchoolConfig | null;
     onRunPayroll: (staffPay: Record<string, { base_pay: string, commission: string }>) => Promise<void>;
     onUpdateUserPayroll: (userId: string, data: Partial<UserProfile>) => Promise<void>;
@@ -136,6 +139,9 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     payrollRuns,
     payrollItems,
     payrollAdjustments,
+    payrollComponents,
+    payrollLineItems,
+    pensionContributions,
     schoolConfig,
     onRunPayroll,
     onUpdateUserPayroll,
@@ -170,6 +176,9 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     const safePayrollRuns = payrollRuns || [];
     const safePayrollItems = payrollItems || [];
     const safePayrollAdjustments = payrollAdjustments || [];
+    const safePayrollComponents = payrollComponents || [];
+    const safePayrollLineItems = payrollLineItems || [];
+    const safePensionContributions = pensionContributions || [];
     const safeCampuses = campuses || [];
     const safeTeacherShifts = teacherShifts || [];
     const safeLeaveTypes = leaveTypes || [];
@@ -203,10 +212,16 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
             ...run,
             items: safePayrollItems.filter(item => item.payroll_run_id === run.id).map(item => ({
                 ...item,
-                user: safeUsers.find(u => u.id === item.user_id)
+                user: safeUsers.find(u => u.id === item.user_id),
+                line_items: safePayrollLineItems
+                    .filter(li => li.payroll_item_id === item.id)
+                    .map(li => ({
+                        ...li,
+                        component: safePayrollComponents.find(c => c.id === li.component_id)
+                    }))
             }))
         }));
-    }, [safePayrollRuns, safePayrollItems, safeUsers]);
+    }, [safePayrollRuns, safePayrollItems, safeUsers, safePayrollLineItems, safePayrollComponents]);
 
     const handleDeleteLeaveRequest = useCallback(async (id: number): Promise<boolean> => {
         try {
@@ -363,7 +378,15 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                     </div>
                 );
             case 'my_payslips':
-                return <MyPayrollView currentUser={userProfile} payrollRuns={safePayrollRuns} payrollItems={safePayrollItems} />;
+                return (
+                    <MyPayrollView
+                        currentUser={userProfile}
+                        payrollRuns={safePayrollRuns}
+                        payrollItems={safePayrollItems}
+                        schoolConfig={schoolConfig}
+                        pensionContributions={safePensionContributions}
+                    />
+                );
             case 'my_leave':
                 return <MyLeaveView 
                     currentUser={safeUserProfile} 
