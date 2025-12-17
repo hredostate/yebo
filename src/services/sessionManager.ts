@@ -178,32 +178,6 @@ export async function createSession(userId: string): Promise<{ success: boolean;
 }
 
 /**
- * Retry helper function with exponential backoff
- */
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T | null> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      // If this is the last attempt, return null instead of throwing
-      if (attempt === maxRetries - 1) {
-        return null;
-      }
-      
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  // This line should never be reached, but TypeScript requires it
-  return null;
-}
-
-/**
  * Update session heartbeat (last_active timestamp)
  * Now with retry logic and exponential backoff for better reliability
  */
