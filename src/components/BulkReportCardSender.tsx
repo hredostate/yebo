@@ -81,12 +81,12 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
                 .from('academic_class_students')
                 .select(`
                     student_id,
-                    students (
+                    students!inner (
                         id,
-                        first_name,
-                        last_name,
+                        name,
                         admission_number,
-                        parent_phone
+                        parent_phone_number_1,
+                        school_id
                     )
                 `)
                 .eq('academic_class_id', academicClassId);
@@ -107,10 +107,11 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
             const publishedStudentIds = new Set(reports?.map(r => r.student_id) || []);
 
             // Get fee balances
+            const studentIds = classStudents?.map(cs => (cs.students as any).id) || [];
             const { data: balances } = await supabase
                 .from('student_fee_balances')
                 .select('student_id, balance')
-                .in('student_id', classStudents?.map(cs => cs.students.id) || []);
+                .in('student_id', studentIds);
 
             const balanceMap = new Map(balances?.map(b => [b.student_id, b.balance]) || []);
 
@@ -119,22 +120,23 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
                 .map(cs => {
                     const student = cs.students as any;
                     const balance = balanceMap.get(student.id) || 0;
+                    const parentPhone = student.parent_phone_number_1 || '';
                     return {
                         id: student.id,
-                        first_name: student.first_name,
-                        last_name: student.last_name,
-                        admission_number: student.admission_number,
-                        parent_phone: student.parent_phone || '',
+                        school_id: student.school_id,
+                        name: student.name,
+                        admission_number: student.admission_number || '',
+                        parentPhone: parentPhone,
                         hasReport: publishedStudentIds.has(student.id),
-                        hasParentPhone: !!student.parent_phone && student.parent_phone.trim() !== '',
+                        hasParentPhone: !!parentPhone && parentPhone.trim() !== '',
                         hasDebt: balance > 0,
                         outstandingAmount: balance,
                         className: classData?.name || '',
-                        school_id: schoolId
+                        reward_points: 0
                     } as StudentWithReport;
                 })
                 .filter(s => s.hasReport && s.hasParentPhone) // Only show students with reports and phone numbers
-                .sort((a, b) => a.first_name.localeCompare(b.first_name));
+                .sort((a, b) => a.name.localeCompare(b.name));
 
             setStudents(studentsWithInfo);
 
@@ -191,19 +193,12 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
                 .filter(s => selectedStudentIds.has(s.id))
                 .map(s => ({
                     studentId: s.id,
-                    studentName: `${s.first_name} ${s.last_name}`,
-                    parentPhone: s.parent_phone,
+                    studentName: s.name,
+                    parentPhone: s.parentPhone,
                     className: s.className
                 }));
 
-            // Track progress
-            let completed = 0;
-            const updateProgress = () => {
-                completed++;
-                setSendProgress({ current: completed, total: selectedStudentIds.size });
-            };
-
-            // Use bulk send with progress tracking
+            // Use bulk send
             const results = await bulkSendReportCards({
                 students: selectedStudents,
                 termId,
@@ -240,9 +235,8 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
     const filteredStudents = students.filter(s => {
         const searchLower = searchQuery.toLowerCase();
         const matchesSearch = searchQuery === '' ||
-            s.first_name.toLowerCase().includes(searchLower) ||
-            s.last_name.toLowerCase().includes(searchLower) ||
-            s.admission_number.toLowerCase().includes(searchLower);
+            s.name.toLowerCase().includes(searchLower) ||
+            (s.admission_number && s.admission_number.toLowerCase().includes(searchLower));
 
         const matchesDebtFilter = !excludeDebtors || !s.hasDebt;
 
@@ -490,13 +484,13 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
                                                             />
                                                         </td>
                                                         <td className="p-3 font-mono text-xs">
-                                                            {student.admission_number}
+                                                            {student.admission_number || 'N/A'}
                                                         </td>
                                                         <td className="p-3 font-medium">
-                                                            {student.first_name} {student.last_name}
+                                                            {student.name}
                                                         </td>
                                                         <td className="p-3 font-mono text-xs">
-                                                            {student.parent_phone}
+                                                            {student.parentPhone}
                                                         </td>
                                                         <td className="p-3">
                                                             {student.hasDebt && (
