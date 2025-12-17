@@ -146,6 +146,27 @@ export const aggregateResultStatistics = (
     return { enrolled, withResults, averageScore, passCount, passRate };
 };
 
+/**
+ * Finds data integrity issues in student results and enrollments.
+ * 
+ * IMPORTANT: This function deliberately does NOT filter by campus_id when detecting orphan results.
+ * Orphan-result detection checks whether a student with a result has an enrollment record for
+ * that specific class and term, regardless of which campus the student belongs to.
+ * 
+ * This is correct because:
+ * - A single class may have students from multiple campuses
+ * - The buildScopeForClass function picks a campusId from the first student, but this should
+ *   NOT exclude students from other campuses when checking for orphans
+ * - Filtering by campus would cause false positives (flagging valid cross-campus enrollments as orphans)
+ * 
+ * @param reports - All student term reports
+ * @param enrollments - All class enrollments
+ * @param students - All students
+ * @param scoreEntries - All score entries
+ * @param scope - The scope to check (term, class, session, arm) - campusId is intentionally ignored
+ * @param classes - All academic classes
+ * @returns Array of integrity issues found
+ */
 export const findIntegrityIssues = (
     reports: StudentTermReport[],
     enrollments: AcademicClassStudent[],
@@ -161,17 +182,24 @@ export const findIntegrityIssues = (
         if (scope.academicClassId != null && academicClassId != null && academicClassId !== scope.academicClassId) return false;
         if (scope.sessionLabel && classInfo?.session_label && classInfo.session_label !== scope.sessionLabel) return false;
         if (scope.armName && classInfo?.arm && classInfo.arm !== scope.armName) return false;
+        // NOTE: We deliberately do NOT filter by scope.campusId here.
+        // Orphan-result detection should only verify enrollment by class/term, not campus.
+        // A class may have students from multiple campuses, and all should be checked.
         return true;
     };
 
     // Get enrollments for the specific scope (class/term)
+    // IMPORTANT: No campus filtering - we check all enrollments for this class/term
+    // regardless of which campus the students belong to.
     const scopedEnrollments = enrollments.filter(e => 
         e.enrolled_term_id === scope.termId &&
         matchesClassScope(e.academic_class_id)
     );
     const enrolledStudentIds = new Set(scopedEnrollments.map(e => e.student_id));
 
-    // Get reports for the specific scope
+    // Get reports for the specific scope (class/term)
+    // IMPORTANT: No campus filtering - we check all reports for this class/term
+    // regardless of which campus the students belong to.
     const scopedReports = reports.filter(r => r.term_id === scope.termId && matchesClassScope(r.academic_class_id));
 
     // Only check students who are ENROLLED in this specific class - not all active students
