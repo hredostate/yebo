@@ -36,6 +36,13 @@ export const cache = {
   remove: (key: string): Promise<void> => {
     return cacheStore.removeItem(key);
   },
+
+  /**
+   * Clears all items from the cache.
+   */
+  clear: (): Promise<void> => {
+    return cacheStore.clear();
+  },
 };
 
 /**

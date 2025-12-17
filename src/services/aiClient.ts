@@ -49,5 +49,60 @@ export function getCurrentModel(): string {
   return currentModel;
 }
 
+/**
+ * Wrapper for AI requests that handles rate limits with optional retry logic.
+ * @param requestFn The AI request function to execute.
+ * @param options Configuration options for retry behavior and callbacks.
+ * @returns The result of the AI request.
+ * @throws The original error if not a rate limit error or retries exhausted.
+ */
+export async function safeAIRequest<T>(
+  requestFn: () => Promise<T>,
+  options?: { 
+    maxRetries?: number; 
+    onRateLimited?: (error: any) => void;
+    retryDelayMs?: number;
+  }
+): Promise<T> {
+  const maxRetries = options?.maxRetries ?? 1;
+  const retryDelayMs = options?.retryDelayMs ?? 2000;
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a rate limit error
+      const isRateLimit = error?.status === 429 || 
+                         error?.response?.status === 429 ||
+                         error?.code === 429 ||
+                         error?.message?.toLowerCase().includes('rate limit');
+      
+      if (isRateLimit) {
+        // Call the rate limit callback if provided
+        if (options?.onRateLimited) {
+          options.onRateLimited(error);
+        }
+        
+        // If we have retries left, wait and try again
+        if (attempt < maxRetries) {
+          const delay = retryDelayMs * Math.pow(2, attempt); // Exponential backoff
+          console.warn(`[AI] Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      
+      // If not a rate limit error or no retries left, throw
+      throw error;
+    }
+  }
+  
+  // This should never be reached, but TypeScript needs it
+  throw lastError;
+}
+
 // For backward compatibility
 export { groqClient as aiClient, aiClientError };
