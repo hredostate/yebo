@@ -1,10 +1,60 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { cache, uploadStore, conflictsStore } from './db';
-import { enqueue, drain, QueuedItem } from './queue';
-import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient';
+import { cache, uploadStore, conflictsStore } from './db.js';
+import { enqueue, drain, QueuedItem } from './queue.js';
+import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient.js';
 
 export { cache };
+
+type CacheMutationKind = 'insert' | 'update' | 'delete';
+
+const tableCacheKeys: Record<string, string> = {
+  reports: 'reports',
+  tasks: 'tasks',
+  students: 'students',
+  user_profiles: 'users',
+};
+
+export function applyCacheMutation<T extends Record<string, any>>(
+  current: T[] | null,
+  mutation: { type: CacheMutationKind; record?: T | null; match?: Record<string, any> },
+  idKey: string = 'id',
+): T[] | null {
+  if (!current) return current;
+
+  const record = mutation.record ?? null;
+  const targetId = mutation.match?.[idKey] ?? (record ? record[idKey] : undefined);
+
+  switch (mutation.type) {
+    case 'insert': {
+      if (!record || record[idKey] == null) return current;
+      const deduped = current.filter(item => item?.[idKey] !== record[idKey]);
+      return [record, ...deduped];
+    }
+    case 'update': {
+      if (targetId == null || !record) return current;
+      let updated = false;
+      const next = current.map(item => {
+        if (item?.[idKey] === targetId) {
+          updated = true;
+          return { ...item, ...record } as T;
+        }
+        return item;
+      });
+
+      if (!updated && record[idKey] != null) {
+        next.unshift(record as T);
+      }
+      return next;
+    }
+    case 'delete': {
+      if (targetId == null) return current;
+      return current.filter(item => item?.[idKey] !== targetId);
+    }
+    default:
+      return current;
+  }
+}
 
 // Reuse the Supabase client from supabaseClient.ts to avoid multiple GoTrueClient instances
 // Lazy lookup keeps module import from throwing when env vars are missing so the app can surface the error gracefully
@@ -38,14 +88,32 @@ class OfflineClient {
   private isSyncing = false;
 
   constructor() {
-    window.addEventListener('online', this.sync.bind(this));
-    // Initial sync attempt on load if online
-    if (this.online()) {
-      setTimeout(() => this.sync(), 2000); // Delay slightly to allow app boot
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.sync.bind(this));
+      // Initial sync attempt on load if online
+      if (this.online()) {
+        setTimeout(() => this.sync(), 2000); // Delay slightly to allow app boot
+      }
+    }
+  }
+
+  private async updateCache(table: string, type: CacheMutationKind, record?: any, match?: Record<string, any>) {
+    const cacheKey = tableCacheKeys[table];
+    if (!cacheKey) return;
+
+    try {
+      const current = await cache.get<any[]>(cacheKey);
+      const next = applyCacheMutation(current, { type, record, match });
+      if (next) {
+        await cache.set(cacheKey, next);
+      }
+    } catch (error) {
+      console.warn(`[Offline] Failed to update cache for ${table}:`, error);
     }
   }
 
   online(): boolean {
+    if (typeof navigator === 'undefined') return true;
     return navigator.onLine;
   }
 
@@ -78,32 +146,44 @@ class OfflineClient {
   async insert(table: string, payload: any) {
     if (this.online()) {
       const result = await supa.from(table).insert(payload).select().single();
+      if (!result.error) {
+        await this.updateCache(table, 'insert', result.data ?? payload);
+      }
       if (result.error) console.error(`[Online Insert Error] ${table}:`, result.error);
       return result;
     }
     await enqueue({ kind: 'insert', table, payload });
     // Return optimistic data with a temporary ID for offline mode
     const optimisticData = { ...payload, id: payload.id || Date.now() };
+    await this.updateCache(table, 'insert', optimisticData);
     return { offlineQueued: true, data: optimisticData, error: null };
   }
-  
+
   async update(table: string, payload: any, match: any) {
     if (this.online()) {
       const result = await supa.from(table).update(payload).match(match);
+      if (!result.error) {
+        await this.updateCache(table, 'update', { ...payload, ...match }, match);
+      }
       if (result.error) console.error(`[Online Update Error] ${table}:`, result.error);
       return result;
     }
     await enqueue({ kind: 'update', table, payload, match });
+    await this.updateCache(table, 'update', { ...payload, ...match }, match);
     return { offlineQueued: true, data: null, error: null };
   }
 
   async del(table: string, match: any) {
     if (this.online()) {
       const result = await supa.from(table).delete().match(match);
+      if (!result.error) {
+        await this.updateCache(table, 'delete', null, match);
+      }
       if (result.error) console.error(`[Online Delete Error] ${table}:`, result.error);
       return result;
     }
     await enqueue({ kind: 'delete', table, match });
+    await this.updateCache(table, 'delete', null, match);
     return { offlineQueued: true, data: null, error: null };
   }
 
@@ -180,6 +260,9 @@ class OfflineClient {
       switch (item.kind) {
         case 'insert':
           ({ error } = await supa.from(item.table!).insert(item.payload));
+          if (!error) {
+            await this.updateCache(item.table!, 'insert', item.payload as any);
+          }
           break;
         case 'update': {
           // Conflict detection for specific tables
@@ -226,10 +309,21 @@ class OfflineClient {
           }
           // If no conflict, not a conflict-checked table, or server data is older, proceed with LWW.
           ({ error } = await supa.from(item.table!).update(item.payload).match(item.match));
+          if (!error) {
+            await this.updateCache(
+              item.table!,
+              'update',
+              { ...(item.payload as any), ...(item.match as any) },
+              item.match as any,
+            );
+          }
           break;
         }
         case 'delete':
           ({ error } = await supa.from(item.table!).delete().match(item.match));
+          if (!error) {
+            await this.updateCache(item.table!, 'delete', null, item.match as any);
+          }
           break;
         case 'rpc':
           ({ error } = await supa.rpc(item.rpcName!, item.rpcArgs));
