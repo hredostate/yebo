@@ -1036,4 +1036,5 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
     }
 };
 
-export default AppRouter;
+// Memoize AppRouter to prevent unnecessary re-renders when props haven't changed
+export default React.memo(AppRouter);

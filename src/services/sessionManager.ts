@@ -147,7 +147,34 @@ export async function createSession(userId: string): Promise<{ success: boolean;
 }
 
 /**
+ * Retry helper function with exponential backoff
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T | null> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      // If this is the last attempt, return null instead of throwing
+      if (attempt === maxRetries - 1) {
+        return null;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  // This line should never be reached, but TypeScript requires it
+  return null;
+}
+
+/**
  * Update session heartbeat (last_active timestamp)
+ * Now with retry logic and exponential backoff for better reliability
  */
 export async function updateSessionHeartbeat(sessionToken?: string): Promise<boolean> {
   if (!supabase) return false;
@@ -156,20 +183,25 @@ export async function updateSessionHeartbeat(sessionToken?: string): Promise<boo
     const token = sessionToken || sessionStorage.getItem('yeo_session_token');
     if (!token) return false;
     
-    const { error } = await supabase
-      .from('user_sessions')
-      .update({ last_active: new Date().toISOString() })
-      .eq('session_token', token)
-      .eq('is_active', true);
+    const result = await retryWithBackoff(async () => {
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({ last_active: new Date().toISOString() })
+        .eq('session_token', token)
+        .eq('is_active', true);
+      
+      if (error) {
+        throw error;
+      }
+      
+      return true;
+    }, 3, 1000);
     
-    if (error) {
-      console.error('Failed to update heartbeat:', error);
-      return false;
-    }
-    
-    return true;
+    // Return true if retries succeeded, false if all retries failed (graceful degradation)
+    return result === true;
   } catch (error) {
-    console.error('Error updating heartbeat:', error);
+    // Silently fail - heartbeat failures shouldn't be logged as errors
+    // The session will eventually be cleaned up by expiry logic
     return false;
   }
 }
@@ -235,6 +267,7 @@ export async function getActiveSessions(userId: string): Promise<UserSession[]> 
 
 /**
  * Clean up expired sessions (inactive for more than 5 minutes)
+ * Now with retry logic for better reliability
  */
 async function cleanupExpiredSessions(userId: string): Promise<void> {
   if (!supabase) return;
@@ -242,14 +275,23 @@ async function cleanupExpiredSessions(userId: string): Promise<void> {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
-    await supabase
-      .from('user_sessions')
-      .update({ is_active: false })
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .lt('last_active', fiveMinutesAgo);
+    await retryWithBackoff(async () => {
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .lt('last_active', fiveMinutesAgo);
+      
+      if (error) {
+        throw error;
+      }
+      
+      return true;
+    }, 3, 1000);
   } catch (error) {
-    console.error('Error cleaning up expired sessions:', error);
+    // Silently fail - cleanup failures shouldn't be logged as errors
+    // Failed cleanup will be retried on next session query
   }
 }
 
