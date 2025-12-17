@@ -37,3 +37,17 @@ export async function generateActivationLinks(request: ActivationLinkRequest) {
   if (error) throw error;
   return data as { success: boolean; results: ActivationLinkResult[]; expires_at: string };
 }
+
+export async function activateAccountWithToken(token: string, newPassword: string) {
+  const supabase = requireSupabaseClient();
+  const { data, error } = await supabase.functions.invoke('activation-links', {
+    body: {
+      action: 'activate',
+      token,
+      new_password: newPassword,
+    },
+  });
+
+  if (error) throw error;
+  return data as { success: boolean; error?: string };
+}

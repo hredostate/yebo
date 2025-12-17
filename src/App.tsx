@@ -44,6 +44,7 @@ import AIBulkResponseModal from './components/AIBulkResponseModal';
 import TaskFormModal from './components/TaskFormModal';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import FeedbackWidget from './components/common/FeedbackWidget';
+import ActivationPage from './components/ActivationPage';
 import { useKeyboardShortcuts, defaultShortcuts } from './hooks/useKeyboardShortcuts';
 
 import StudentSurveysView from './components/StudentSurveysView';
@@ -6359,6 +6360,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 <PublicReportView />
             </React.Suspense>
         );
+    }
+
+    if (pathname.startsWith('/activate')) {
+        return <ActivationPage />;
     }
 
     if (!session) {

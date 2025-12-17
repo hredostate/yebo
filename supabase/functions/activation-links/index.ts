@@ -81,26 +81,29 @@ serve(async (req) => {
     }
 
     const user = await getCurrentUser(supabaseAdmin, req);
-    if (!user) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
-    }
+    const { data: profile, error: profileError } = user
+      ? await supabaseAdmin
+          .from('profiles')
+          .select('id, role, school_id')
+          .eq('id', user.id)
+          .maybeSingle()
+      : { data: null, error: null } as any;
 
-    // Fetch profile for role check and school scoping
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, role, school_id')
-      .eq('id', user.id)
-      .maybeSingle();
+    if (body.action !== 'activate') {
+      if (!user) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
 
-    if (profileError || !profile) {
-      return new Response(JSON.stringify({ success: false, error: 'Profile not found for user' }), { status: 403, headers: corsHeaders });
-    }
+      if (profileError || !profile) {
+        return new Response(JSON.stringify({ success: false, error: 'Profile not found for user' }), { status: 403, headers: corsHeaders });
+      }
 
-    if (!isAllowedRole(profile.role)) {
-      return new Response(JSON.stringify({ success: false, error: 'Insufficient permissions' }), {
-        status: 403,
-        headers: corsHeaders,
-      });
+      if (!isAllowedRole(profile.role)) {
+        return new Response(JSON.stringify({ success: false, error: 'Insufficient permissions' }), {
+          status: 403,
+          headers: corsHeaders,
+        });
+      }
     }
 
     if (body.action === 'generate') {
@@ -176,12 +179,14 @@ serve(async (req) => {
       }
 
       // Audit log
-      await supabaseAdmin.from('audit_log').insert({
-        school_id: profile.school_id,
-        actor_user_id: profile.id,
-        action: 'activation_links_generated',
-        details: { count: results.filter((r) => r.status === 'created').length, expiry_hours: expiryHours, phone_field: body.recipient_phone_field || 'parent_phone_number_1' },
-      });
+      if (profile) {
+        await supabaseAdmin.from('audit_log').insert({
+          school_id: profile.school_id,
+          actor_user_id: profile.id,
+          action: 'activation_links_generated',
+          details: { count: results.filter((r) => r.status === 'created').length, expiry_hours: expiryHours, phone_field: body.recipient_phone_field || 'parent_phone_number_1' },
+        });
+      }
 
       return new Response(
         JSON.stringify({ success: true, results, expires_at: expiresAt.toISOString() }),
@@ -247,7 +252,7 @@ serve(async (req) => {
 
       await supabaseAdmin.from('audit_log').insert({
         school_id: student.school_id,
-        actor_user_id: user.id,
+        actor_user_id: user?.id || null,
         action: 'activation_link_used',
         details: { student_id: student.id },
       });
