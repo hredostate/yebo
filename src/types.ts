@@ -1875,6 +1875,8 @@ export type NotificationType =
     'subject_late' | 
     'report_card_ready' | 
     'emergency_broadcast' | 
+    'student_credentials' | 
+    'password_reset' | 
     'general';
 
 export interface NotificationChannelConfig {
@@ -1890,6 +1892,8 @@ export interface NotificationChannelConfig {
     subject_late: NotificationChannel;
     report_card_ready: NotificationChannel;
     emergency_broadcast: NotificationChannel;
+    student_credentials: NotificationChannel;
+    password_reset: NotificationChannel;
 }
 
 export interface WhatsAppTemplateCodes {
@@ -1905,6 +1909,8 @@ export interface WhatsAppTemplateCodes {
     subject_late?: string;
     report_card_ready?: string;
     emergency_broadcast?: string;
+    student_credentials?: string;
+    password_reset?: string;
 }
 
 export interface KudiSmsSettings {

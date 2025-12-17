@@ -18,6 +18,8 @@ interface SmsRequest {
   gateway?: '1' | '2'; // '1' for SMS, '2' for WhatsApp
   template_code?: string; // WhatsApp template code
   params?: string; // Comma-separated parameters for WhatsApp template
+  template_name?: string; // SMS template name from database
+  variables?: Record<string, string>; // Variables to replace in template
 }
 
 /**
@@ -83,6 +85,8 @@ serve(async (req) => {
       gateway = '1', // Default to SMS
       template_code,
       params,
+      template_name,
+      variables,
     } = body;
 
     // Validate required fields
@@ -90,21 +94,49 @@ serve(async (req) => {
       throw new Error('phone_number is required');
     }
 
-    // For SMS (gateway=1), message is required
-    // For WhatsApp (gateway=2), template_code is required
-    if (gateway === '1' && !message) {
-      throw new Error('message is required for SMS');
-    }
-
-    if (gateway === '2' && !template_code) {
-      throw new Error('template_code is required for WhatsApp');
-    }
-
     // Create Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // If template_name is provided, fetch template and replace variables
+    let finalMessage = message;
+    if (template_name && school_id) {
+      const { data: template, error: templateError } = await supabaseAdmin
+        .from('sms_templates')
+        .select('message_content')
+        .eq('school_id', school_id)
+        .eq('template_name', template_name)
+        .eq('is_active', true)
+        .single();
+
+      if (template && !templateError) {
+        finalMessage = template.message_content;
+        
+        // Replace variables in the template
+        // Escape special regex characters in keys to prevent ReDoS attacks
+        if (variables) {
+          Object.entries(variables).forEach(([key, value]) => {
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            finalMessage = finalMessage?.replace(new RegExp(`{{${escapedKey}}}`, 'g'), value);
+          });
+        }
+      } else {
+        console.error('Template not found or error:', templateError);
+        throw new Error(`Template '${template_name}' not found`);
+      }
+    }
+
+    // For SMS (gateway=1), message is required
+    // For WhatsApp (gateway=2), template_code is required
+    if (gateway === '1' && !finalMessage) {
+      throw new Error('message or template_name is required for SMS');
+    }
+
+    if (gateway === '2' && !template_code) {
+      throw new Error('template_code is required for WhatsApp');
+    }
 
     // Get authorization header to determine school_id if not provided
     let finalSchoolId = school_id;
@@ -188,7 +220,7 @@ serve(async (req) => {
       const kudiPayload = {
         token: effectiveToken,
         senderID: effectiveSenderId,
-        message: message,
+        message: finalMessage,
         csvHeaders: ['phone_number', 'name'],
         recipients: [
           {
@@ -219,7 +251,7 @@ serve(async (req) => {
       school_id: finalSchoolId,
       recipient_phone: formattedPhone,
       message_type: gateway === '2' ? 'whatsapp' : 'personalised',
-      message_content: message || `WhatsApp Template: ${template_code}`,
+      message_content: finalMessage || `WhatsApp Template: ${template_code}`,
       kudi_response: kudiResult,
       status: status,
       error_message: errorMessage,
@@ -252,6 +284,7 @@ serve(async (req) => {
       success: true,
       message: 'SMS message sent successfully',
       response: kudiResult,
+      channel: channel,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

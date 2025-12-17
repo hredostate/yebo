@@ -40,14 +40,46 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
     const handleExport = () => {
         exportToCsv(results, 'new_student_credentials.csv');
     };
+    
+    // Calculate messaging stats
+    const messagingStats = results.reduce((acc, res: any) => {
+        if (res.messagingResults && Array.isArray(res.messagingResults)) {
+            res.messagingResults.forEach((msg: any) => {
+                if (msg.success) {
+                    acc.sent++;
+                } else {
+                    acc.failed++;
+                }
+            });
+        } else if (res.status === 'Success') {
+            // If no messaging results, student might not have phone numbers
+            acc.noPhone++;
+        }
+        return acc;
+    }, { sent: 0, failed: 0, noPhone: 0 });
+    
     return (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
-            <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-2xl m-4 flex flex-col max-h-[90vh]">
+            <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-4xl m-4 flex flex-col max-h-[90vh]">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">Generated Credentials</h2>
                 <div className="my-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">
                     <p className="font-bold">Important</p>
                     <p className="text-sm mt-1">Please export these credentials now. Passwords will not be shown again.</p>
                 </div>
+                
+                {/* Messaging Summary */}
+                {(messagingStats.sent > 0 || messagingStats.failed > 0) && (
+                    <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 dark:bg-blue-900/20 dark:border-blue-400">
+                        <p className="font-semibold text-blue-800 dark:text-blue-300">Messaging Summary</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                            {messagingStats.sent > 0 && `✓ ${messagingStats.sent} message(s) sent successfully`}
+                            {messagingStats.sent > 0 && messagingStats.failed > 0 && ' | '}
+                            {messagingStats.failed > 0 && `✗ ${messagingStats.failed} message(s) failed`}
+                            {messagingStats.noPhone > 0 && ` | ℹ ${messagingStats.noPhone} student(s) without phone numbers`}
+                        </p>
+                    </div>
+                )}
+                
                 <div className="flex-grow my-4 overflow-y-auto border-y border-slate-200/60 dark:border-slate-700/60">
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs uppercase bg-slate-500/10 sticky top-0">
@@ -56,17 +88,35 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                                 <th className="px-4 py-2">Email</th>
                                 <th className="px-4 py-2">Password</th>
                                 <th className="px-4 py-2">Status</th>
+                                <th className="px-4 py-2">Messaging</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {results.map((res, index) => (
-                                <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60">
-                                    <td className="px-4 py-2 font-medium">{res.name}</td>
-                                    <td className="px-4 py-2">{res.email}</td>
-                                    <td className="px-4 py-2 font-mono">{res.password || 'N/A'}</td>
-                                    <td className="px-4 py-2">{res.status}</td>
-                                </tr>
-                            ))}
+                            {results.map((res: any, index) => {
+                                const msgResults = res.messagingResults || [];
+                                const sentCount = msgResults.filter((m: any) => m.success).length;
+                                const failCount = msgResults.length - sentCount;
+                                
+                                return (
+                                    <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60">
+                                        <td className="px-4 py-2 font-medium">{res.name}</td>
+                                        <td className="px-4 py-2">{res.email}</td>
+                                        <td className="px-4 py-2 font-mono">{res.password || 'N/A'}</td>
+                                        <td className="px-4 py-2">{res.status}</td>
+                                        <td className="px-4 py-2">
+                                            {msgResults.length === 0 ? (
+                                                <span className="text-gray-500 text-xs">No phone</span>
+                                            ) : (
+                                                <span className="text-xs">
+                                                    {sentCount > 0 && <span className="text-green-600 dark:text-green-400">✓ {sentCount}</span>}
+                                                    {sentCount > 0 && failCount > 0 && ' / '}
+                                                    {failCount > 0 && <span className="text-red-600 dark:text-red-400">✗ {failCount}</span>}
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

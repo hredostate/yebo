@@ -79,6 +79,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const [accountJustCreated, setAccountJustCreated] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+    const [isResendingCredentials, setIsResendingCredentials] = useState(false);
 
     // Editing state
     const [isEditing, setIsEditing] = useState(false);
@@ -292,6 +293,62 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             addToast("An error occurred while resetting the password.", "error");
         } finally {
             setIsResettingPassword(false);
+        }
+    };
+
+    const handleResendCredentials = async () => {
+        if (!student.user_id) {
+            addToast("Student does not have a login account.", "error");
+            return;
+        }
+
+        // Build phone number list for confirmation
+        const phones: string[] = [];
+        if (student.parent_phone_number_1) phones.push(student.parent_phone_number_1);
+        if (student.parent_phone_number_2) phones.push(student.parent_phone_number_2);
+
+        if (phones.length === 0) {
+            addToast("No parent phone numbers available for this student.", "error");
+            return;
+        }
+
+        const phoneList = phones.join(', ');
+        if (!window.confirm(`Send credentials for ${student.name} to:\n${phoneList}\n\nAre you sure?`)) {
+            return;
+        }
+
+        try {
+            setIsResendingCredentials(true);
+            
+            // Call the manage-users function to resend credentials
+            const { data, error } = await supabase.functions.invoke('manage-users', {
+                body: {
+                    action: 'resend_credentials',
+                    studentId: student.id
+                }
+            });
+
+            if (error) throw error;
+
+            if (data?.success) {
+                const messagingResults = data.messagingResults || [];
+                const successCount = messagingResults.filter((r: any) => r.success).length;
+                const failCount = messagingResults.length - successCount;
+
+                if (successCount > 0) {
+                    addToast(`Credentials sent to ${successCount} phone number(s) successfully.`, 'success');
+                }
+                if (failCount > 0) {
+                    addToast(`Failed to send to ${failCount} phone number(s).`, 'error');
+                }
+            } else {
+                throw new Error(data?.error || 'Failed to resend credentials');
+            }
+        } catch (e: any) {
+            console.error("Resend credentials error", e);
+            addToast("An error occurred while resending credentials: " + (e.message || 'Unknown error'), "error");
+        } finally {
+            setIsResendingCredentials(false);
         }
     };
 
@@ -737,6 +794,15 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                     className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 disabled:bg-yellow-300 flex items-center min-w-[160px] justify-center"
                                 >
                                     {isRetrieving ? <Spinner size="sm"/> : 'Retrieve Password'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleResendCredentials}
+                                    disabled={isResendingCredentials}
+                                    className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center"
+                                    title="Resend credentials to parent phone numbers via SMS/WhatsApp"
+                                >
+                                    {isResendingCredentials ? <Spinner size="sm"/> : 'Resend Credentials'}
                                 </button>
                                 {onResetPassword && (
                                     <button

@@ -32,6 +32,108 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  /**
+   * Helper function to send student credentials via SMS/WhatsApp
+   * Uses the existing messaging system with channel preferences
+   */
+  async function sendCredentialsToParent(params: {
+    studentName: string;
+    username: string;
+    password: string;
+    schoolId: number;
+    parentPhone1?: string;
+    parentPhone2?: string;
+    isPasswordReset?: boolean;
+  }): Promise<{
+    messagingResults: Array<{
+      phone: string;
+      success: boolean;
+      channel?: string;
+      error?: string;
+    }>;
+  }> {
+    const { studentName, username, password, schoolId, parentPhone1, parentPhone2, isPasswordReset } = params;
+    const messagingResults: Array<{ phone: string; success: boolean; channel?: string; error?: string }> = [];
+
+    // Get school name for the message
+    let schoolName = 'UPSS';
+    try {
+      const { data: school } = await supabaseAdmin
+        .from('schools')
+        .select('name')
+        .eq('id', schoolId)
+        .single();
+      if (school?.name) {
+        schoolName = school.name;
+      }
+    } catch (e) {
+      console.error('Failed to fetch school name:', e);
+    }
+
+    // Template name based on whether it's a reset or new credential
+    const templateName = isPasswordReset ? 'password_reset' : 'student_credentials';
+
+    // Collect phone numbers
+    const phoneNumbers: string[] = [];
+    if (parentPhone1) phoneNumbers.push(parentPhone1);
+    if (parentPhone2) phoneNumbers.push(parentPhone2);
+
+    if (phoneNumbers.length === 0) {
+      console.log(`No parent phone numbers for student: ${studentName}`);
+      return { messagingResults };
+    }
+
+    // Send to each phone number
+    for (const phone of phoneNumbers) {
+      try {
+        // Prepare variables for the template
+        const variables = isPasswordReset 
+          ? { student_name: studentName, password, school_name: schoolName }
+          : { student_name: studentName, username, password, school_name: schoolName };
+
+        // Try to send via the messaging system
+        // First, invoke kudisms-send edge function directly with template
+        const { data: result, error: sendError } = await supabaseAdmin.functions.invoke(
+          'kudisms-send',
+          {
+            body: {
+              phone_number: phone,
+              school_id: schoolId,
+              template_name: templateName,
+              variables: variables
+            }
+          }
+        );
+
+        if (sendError || !result?.success) {
+          messagingResults.push({
+            phone,
+            success: false,
+            error: sendError?.message || result?.error || 'Failed to send message'
+          });
+        } else {
+          messagingResults.push({
+            phone,
+            success: true,
+            channel: result.channel || 'sms'
+          });
+        }
+
+        // Add small delay between messages to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error: any) {
+        console.error(`Error sending credentials to ${phone}:`, error);
+        messagingResults.push({
+          phone,
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    }
+
+    return { messagingResults };
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -334,7 +436,22 @@ serve(async (req) => {
             .update({ student_record_id: studentId })
             .eq('id', user.user.id);
 
-        return new Response(JSON.stringify({ success: true, credential: { username, email, password } }), {
+        // Send credentials to parent phone numbers
+        const { messagingResults } = await sendCredentialsToParent({
+            studentName: studentRecord.name,
+            username,
+            password,
+            schoolId: studentRecord.school_id,
+            parentPhone1: studentRecord.parent_phone_number_1,
+            parentPhone2: studentRecord.parent_phone_number_2,
+            isPasswordReset: false
+        });
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            credential: { username, email, password },
+            messagingResults
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
         });
@@ -397,7 +514,25 @@ serve(async (req) => {
                     .update({ student_record_id: id })
                     .eq('id', user.user.id);
 
-                results.push({ name: student.name, username, email, password, status: 'Success' });
+                // Send credentials to parent phone numbers
+                const { messagingResults } = await sendCredentialsToParent({
+                    studentName: student.name,
+                    username,
+                    password,
+                    schoolId: student.school_id,
+                    parentPhone1: student.parent_phone_number_1,
+                    parentPhone2: student.parent_phone_number_2,
+                    isPasswordReset: false
+                });
+
+                results.push({ 
+                    name: student.name, 
+                    username, 
+                    email, 
+                    password, 
+                    status: 'Success',
+                    messagingResults 
+                });
             }
         }
 
@@ -467,7 +602,98 @@ serve(async (req) => {
         }
 
         console.log('Password reset successful');
-        return new Response(JSON.stringify({ success: true, password: newPassword }), {
+
+        // Get student record to fetch parent phone numbers and student name
+        const { data: studentProfile } = await supabaseAdmin
+            .from('student_profiles')
+            .select('student_record_id')
+            .eq('id', studentId)
+            .single();
+
+        let messagingResults: any[] = [];
+        if (studentProfile?.student_record_id) {
+            const { data: studentRecord } = await supabaseAdmin
+                .from('students')
+                .select('name, school_id, parent_phone_number_1, parent_phone_number_2')
+                .eq('id', studentProfile.student_record_id)
+                .single();
+
+            if (studentRecord) {
+                const result = await sendCredentialsToParent({
+                    studentName: studentRecord.name,
+                    username: '', // Not needed for password reset
+                    password: newPassword,
+                    schoolId: studentRecord.school_id,
+                    parentPhone1: studentRecord.parent_phone_number_1,
+                    parentPhone2: studentRecord.parent_phone_number_2,
+                    isPasswordReset: true
+                });
+                messagingResults = result.messagingResults;
+            }
+        }
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            password: newPassword,
+            messagingResults 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // Resend credentials to parent phone numbers
+    if (action === 'resend_credentials') {
+        console.log('resend_credentials action called with studentId:', studentId);
+        
+        if (!studentId) {
+            throw new Error("Missing 'studentId' for resending credentials.");
+        }
+
+        // Get student record to fetch parent phone numbers, student name, and username
+        const { data: studentRecord, error: fetchError } = await supabaseAdmin
+            .from('students')
+            .select('name, school_id, parent_phone_number_1, parent_phone_number_2, user_id')
+            .eq('id', studentId)
+            .single();
+
+        if (fetchError || !studentRecord) {
+            throw new Error('Student record not found.');
+        }
+
+        if (!studentRecord.user_id) {
+            throw new Error('Student does not have a login account.');
+        }
+
+        // Get username and password from auth user metadata
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(studentRecord.user_id);
+        
+        if (authError || !authUser?.user) {
+            throw new Error('Could not find authentication user.');
+        }
+
+        const username = authUser.user.user_metadata?.username || authUser.user.email?.split('@')[0] || '';
+        const password = authUser.user.user_metadata?.initial_password;
+
+        if (!password) {
+            throw new Error('Password not found in user metadata. Please reset the password first.');
+        }
+
+        // Send credentials to parent phone numbers
+        const { messagingResults } = await sendCredentialsToParent({
+            studentName: studentRecord.name,
+            username,
+            password,
+            schoolId: studentRecord.school_id,
+            parentPhone1: studentRecord.parent_phone_number_1,
+            parentPhone2: studentRecord.parent_phone_number_2,
+            isPasswordReset: false
+        });
+
+        return new Response(JSON.stringify({ 
+            success: true,
+            messagingResults 
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
         });
