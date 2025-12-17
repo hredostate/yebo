@@ -51,11 +51,11 @@ const PERMISSION_MATRIX: Record<PermissionRole, Partial<Record<PermissionResourc
   school_admin: { payroll: ['manage', 'view'], payroll_self: ['view'], finance: ['manage', 'view'], fees: ['manage', 'view'], staff_data: ['manage', 'view'], admin_cms: ['manage', 'view'], results_publish: ['approve'] },
   payroll_admin: { payroll: ['manage', 'view'], payroll_self: ['view'], finance: ['manage', 'view'], staff_data: ['view'] },
   accountant: { payroll: ['manage', 'view'], payroll_self: ['view'], finance: ['manage', 'view'], fees: ['view'] },
-  bursar: { fees: ['manage', 'view'] },
-  hr_admin: { staff_data: ['manage', 'view'] },
+  bursar: { fees: ['manage', 'view'], payroll_self: ['view'] },
+  hr_admin: { staff_data: ['manage', 'view'], payroll_self: ['view'] },
   teacher: { payroll_self: ['view'] },
   student: {},
-  parent: {},
+  parent: { payroll_self: ['view'] },
   unknown: {},
 };
 
