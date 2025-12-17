@@ -1,5 +1,5 @@
 
-import { queueStore } from './db';
+import { queueStore } from './db.js';
 
 export type QueuedItemKind = 'insert' | 'update' | 'delete' | 'rpc' | 'function' | 'upload';
 

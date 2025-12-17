@@ -1,6 +1,15 @@
 /* Print-specific overrides for report cards */
 @media print {
-  @page { size: A4; margin: 10mm; }
+  :root {
+    --report-print-margin: 6mm;
+    --report-print-width: calc(210mm - (var(--report-print-margin) * 2));
+    --report-print-height: calc(297mm - (var(--report-print-margin) * 2));
+  }
+
+  @page report-card {
+    size: 210mm 297mm;
+    margin: var(--report-print-margin);
+  }
 
   html, body {
     height: auto !important;
@@ -49,12 +58,18 @@
 
   /* Print canvas */
   .report-print-root {
-    width: 190mm !important;
-    max-width: 190mm !important;
+    page: report-card;
+    width: var(--report-print-width) !important;
+    max-width: var(--report-print-width) !important;
+    min-height: var(--report-print-height) !important;
+    max-height: var(--report-print-height) !important;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 6mm !important;
+    background: #fff !important;
     transform: none !important;
     zoom: 1 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
   }
 
   /* If the screen layout vertically centers content and causes big top whitespace */
@@ -62,6 +77,13 @@
   .report-print-root * {
     align-items: stretch !important;
     justify-content: flex-start !important;
+    box-sizing: border-box !important;
+    max-width: 100%;
+  }
+
+  .report-print-root .print-break-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   /* Tables: readable + no row splitting */

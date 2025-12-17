@@ -999,11 +999,96 @@ export interface PayrollRun {
     school_id: number;
     period_label: string;
     total_amount: number;
-    status: 'pending' | 'processing' | 'success' | 'failed';
+    status: 'pending' | 'processing' | 'success' | 'failed' | 'draft' | 'finalized';
     transfer_code?: string;
     created_by: string;
     created_at: string;
     meta?: any;
+    pay_period_start?: string | null;
+    pay_period_end?: string | null;
+    pay_date?: string | null;
+    reference_number?: string | null;
+    payment_method?: string | null;
+    finalized_at?: string | null;
+    pay_period_label?: string | null;
+}
+
+export type PayrollRunV2Status =
+    | 'DRAFT'
+    | 'PRE_RUN_PUBLISHED'
+    | 'FINALIZED'
+    | 'PROCESSING'
+    | 'PROCESSED_OFFLINE'
+    | 'PROCESSED_PAYSTACK'
+    | 'FAILED';
+
+export type PayrollProcessingMethod = 'OFFLINE' | 'PAYSTACK';
+
+export type PayslipStatus =
+    | 'DRAFT'
+    | 'AWAITING_APPROVAL'
+    | 'APPROVED'
+    | 'QUERY_RAISED'
+    | 'RESOLVED'
+    | 'FINAL';
+
+export type PayslipLineItemType = 'EARNING' | 'DEDUCTION' | 'INFO';
+export type PayslipQueryStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'REJECTED';
+
+export interface PayrollRunV2 {
+    id: string;
+    school_id?: number;
+    period_key: string;
+    status: PayrollRunV2Status;
+    processing_method?: PayrollProcessingMethod | null;
+    created_by?: string | null;
+    published_by?: string | null;
+    finalized_by?: string | null;
+    created_at: string;
+    published_at?: string | null;
+    finalized_at?: string | null;
+    meta?: any;
+}
+
+export interface PayslipLineItem {
+    id: string;
+    payslip_id: string;
+    type: PayslipLineItemType;
+    label: string;
+    amount: number;
+    ordering?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface PayslipQuery {
+    id: string;
+    payslip_id: string;
+    raised_by_staff_id: string;
+    status: PayslipQueryStatus;
+    message: string;
+    admin_response?: string | null;
+    attachment_url?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Payslip {
+    id: string;
+    payroll_run_id: string;
+    staff_id: string;
+    status: PayslipStatus;
+    currency: string;
+    gross_pay: number;
+    total_deductions: number;
+    net_pay: number;
+    checksum?: string | null;
+    created_at: string;
+    updated_at: string;
+    run?: PayrollRunV2;
+    staff?: UserProfile;
+    line_items?: PayslipLineItem[];
+    queries?: PayslipQuery[];
 }
 
 export interface PayrollItem {
@@ -1018,6 +1103,68 @@ export interface PayrollItem {
     narration?: string;
     payslip_url?: string;
     user?: UserProfile;
+    payment_method?: string;
+    status?: string;
+    pay_date?: string | null;
+    reference_number?: string | null;
+    employment_type?: string | null;
+    department?: string | null;
+    role_title?: string | null;
+    total_employer_contributions?: number;
+    line_items?: PayrollLineItem[];
+}
+
+export interface PayrollComponent {
+    id: number;
+    school_id: number;
+    name: string;
+    code?: string | null;
+    component_type: 'earning' | 'deduction' | 'employer_contrib';
+    taxable: boolean;
+    pensionable: boolean;
+    calculation_type: 'fixed' | 'formula';
+    amount: number;
+    formula?: string | null;
+    ordering: number;
+    show_on_payslip: boolean;
+    is_default: boolean;
+    metadata?: any;
+}
+
+export interface PayrollLineItem {
+    id: number;
+    payroll_item_id: number;
+    component_id?: number | null;
+    label: string;
+    category: 'earning' | 'deduction' | 'employer_contrib';
+    amount: number;
+    units?: number | null;
+    rate?: number | null;
+    metadata?: any;
+    component?: PayrollComponent;
+}
+
+export type PensionContributionStatus = 'recorded' | 'remitted' | 'confirmed';
+
+export interface PensionContribution {
+    id: number;
+    staff_pension_id: number;
+    payroll_run_id?: number | null;
+    user_id: string;
+    school_id: number;
+    contribution_month: string;
+    period_label: string;
+    gross_salary: number;
+    pension_base?: number | null;
+    employee_contribution: number;
+    employer_contribution: number;
+    voluntary_contribution: number;
+    total_contribution: number;
+    cumulative_employee: number;
+    cumulative_employer: number;
+    cumulative_voluntary: number;
+    cumulative_total: number;
+    status: PensionContributionStatus;
 }
 
 export interface PayrollAdjustment {
@@ -2011,7 +2158,7 @@ export interface StaffPension {
 export interface PensionContribution {
     id: number;
     staff_pension_id: number;
-    payroll_run_id?: number;
+    payroll_run_id?: number | null;
     user_id: string;
     school_id: number;
     contribution_month: string; // Date string (first day of month)
@@ -2045,7 +2192,7 @@ export interface PensionContribution {
     month_number: number; // 1, 2, 3... excluding preexisting
     total_service_months: number; // including preexisting
     
-    status: 'recorded' | 'remitted' | 'confirmed';
+    status: PensionContributionStatus;
     remittance_reference?: string;
     remitted_at?: string;
     notes?: string;

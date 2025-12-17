@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseConfig } from './runtimeConfig';
+import { getSupabaseConfig } from './runtimeConfig.js';
 
 const { url: supabaseUrl, anonKey: supabaseAnonKey, error: configError } = getSupabaseConfig();
 
