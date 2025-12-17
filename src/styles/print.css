@@ -21,8 +21,8 @@
 
   /* Page setup */
   @page {
-    size: A4;
-    margin: 1cm;
+    size: 210mm 297mm;
+    margin: 8mm;
   }
 
   /* Alternative page size for Letter format */
