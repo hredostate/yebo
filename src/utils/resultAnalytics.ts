@@ -145,7 +145,7 @@ export const rankLevel = (
     });
 
     const results: LevelRanking[] = [];
-    armGroups.forEach((armReports, armName) => {
+    armGroups.forEach((armReports, _armName) => {
         const armRanks = denseRank(armReports, r => r.average_score);
         armReports.forEach((report, idx) => {
             const levelRank = levelRankMap.get(report.student_id);
@@ -228,7 +228,7 @@ export const rankSubjects = (
         });
 
         // Calculate arm-specific rankings
-        armGroups.forEach((armEntries, armName) => {
+        armGroups.forEach((armEntries, _armName) => {
             const armRanks = denseRank(armEntries, e => e.total_score);
             armEntries.forEach((entry, idx) => {
                 const levelRank = levelRankMap.get(entry.student_id);
