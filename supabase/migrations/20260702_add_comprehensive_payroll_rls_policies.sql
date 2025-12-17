@@ -8,26 +8,25 @@
 CREATE OR REPLACE FUNCTION public.user_has_permission(user_id UUID, required_permission TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
-    user_permissions TEXT[];
     user_role TEXT;
     role_permissions TEXT[];
 BEGIN
-    -- Get user's role and direct permissions
-    SELECT up.role INTO user_role
+    -- Get user's role and permissions in a single query for better performance
+    SELECT up.role, r.permissions INTO user_role, role_permissions
     FROM public.user_profiles up
-    WHERE up.id = user_id;
+    LEFT JOIN public.roles r ON r.school_id = up.school_id AND r.title = up.role
+    WHERE up.id = user_id
+    LIMIT 1;
     
     -- If no user found, deny access
     IF user_role IS NULL THEN
         RETURN FALSE;
     END IF;
     
-    -- Get role permissions
-    SELECT r.permissions INTO role_permissions
-    FROM public.roles r
-    JOIN public.user_profiles up ON up.school_id = r.school_id AND up.role = r.title
-    WHERE up.id = user_id
-    LIMIT 1;
+    -- If no role permissions found, deny access
+    IF role_permissions IS NULL THEN
+        RETURN FALSE;
+    END IF;
     
     -- Check if user has wildcard permission (Admin)
     IF role_permissions @> ARRAY['*'] THEN
@@ -41,7 +40,7 @@ BEGIN
     
     RETURN FALSE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- ============================================================================
 -- Helper Function: Check if user is a team lead for a specific user
@@ -598,7 +597,7 @@ CREATE POLICY team_feedback_select ON public.team_feedback
         -- User is a member of the team
         OR EXISTS (
             SELECT 1 FROM public.team_assignments ta
-            WHERE ta.team_id = team_feedback.team_id 
+            WHERE ta.team_id = team_id 
             AND ta.user_id = auth.uid()
         )
         -- User is the author
@@ -615,7 +614,7 @@ CREATE POLICY team_feedback_insert ON public.team_feedback
         -- User is a member of the team
         EXISTS (
             SELECT 1 FROM public.team_assignments ta
-            WHERE ta.team_id = team_feedback.team_id 
+            WHERE ta.team_id = team_id 
             AND ta.user_id = auth.uid()
         )
         -- User is the team lead
