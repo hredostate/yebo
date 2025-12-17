@@ -999,11 +999,18 @@ export interface PayrollRun {
     school_id: number;
     period_label: string;
     total_amount: number;
-    status: 'pending' | 'processing' | 'success' | 'failed';
+    status: 'pending' | 'processing' | 'success' | 'failed' | 'draft' | 'finalized';
     transfer_code?: string;
     created_by: string;
     created_at: string;
     meta?: any;
+    pay_period_start?: string | null;
+    pay_period_end?: string | null;
+    pay_date?: string | null;
+    reference_number?: string | null;
+    payment_method?: string | null;
+    finalized_at?: string | null;
+    pay_period_label?: string | null;
 }
 
 export type PayrollRunV2Status =
@@ -1096,6 +1103,66 @@ export interface PayrollItem {
     narration?: string;
     payslip_url?: string;
     user?: UserProfile;
+    payment_method?: string;
+    status?: string;
+    pay_date?: string | null;
+    reference_number?: string | null;
+    employment_type?: string | null;
+    department?: string | null;
+    role_title?: string | null;
+    total_employer_contributions?: number;
+    line_items?: PayrollLineItem[];
+}
+
+export interface PayrollComponent {
+    id: number;
+    school_id: number;
+    name: string;
+    code?: string | null;
+    component_type: 'earning' | 'deduction' | 'employer_contrib';
+    taxable: boolean;
+    pensionable: boolean;
+    calculation_type: 'fixed' | 'formula';
+    amount: number;
+    formula?: string | null;
+    ordering: number;
+    show_on_payslip: boolean;
+    is_default: boolean;
+    metadata?: any;
+}
+
+export interface PayrollLineItem {
+    id: number;
+    payroll_item_id: number;
+    component_id?: number | null;
+    label: string;
+    category: 'earning' | 'deduction' | 'employer_contrib';
+    amount: number;
+    units?: number | null;
+    rate?: number | null;
+    metadata?: any;
+    component?: PayrollComponent;
+}
+
+export interface PensionContribution {
+    id: number;
+    staff_pension_id: number;
+    payroll_run_id?: number | null;
+    user_id: string;
+    school_id: number;
+    contribution_month: string;
+    period_label: string;
+    gross_salary: number;
+    pension_base?: number | null;
+    employee_contribution: number;
+    employer_contribution: number;
+    voluntary_contribution: number;
+    total_contribution: number;
+    cumulative_employee: number;
+    cumulative_employer: number;
+    cumulative_voluntary: number;
+    cumulative_total: number;
+    status: string;
 }
 
 export interface PayrollAdjustment {
