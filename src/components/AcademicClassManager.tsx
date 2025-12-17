@@ -512,6 +512,7 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
                     assessmentStructures={assessmentStructures}
                     gradingSchemes={gradingSchemes}
                     schoolConfig={schoolConfig}
+                    campuses={campuses}
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -599,7 +600,8 @@ const AcademicClassForm: React.FC<{
     assessmentStructures: AssessmentStructure[];
     gradingSchemes: GradingScheme[];
     schoolConfig: SchoolConfig | null;
-}> = ({ academicClass, onSave, onCancel, isSaving, terms = [], classes = [], arms = [], assessmentStructures = [], gradingSchemes = [], schoolConfig }) => {
+    campuses: Campus[];
+}> = ({ academicClass, onSave, onCancel, isSaving, terms = [], classes = [], arms = [], assessmentStructures = [], gradingSchemes = [], schoolConfig, campuses = [] }) => {
     const [localAc, setLocalAc] = useState(academicClass);
     const [activeTab, setActiveTab] = useState<FormTab>('general');
 
