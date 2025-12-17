@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Student, UserProfile, BaseDataObject, TeachingAssignment, CreatedCredential } from '../types';
-import AddStudentModal from './AddStudentModal'; 
+import AddStudentModal from './AddStudentModal';
 import { PlusCircleIcon, DownloadIcon, TrashIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { VIEWS, STUDENT_STATUSES } from '../constants';
@@ -9,6 +9,7 @@ import { exportToCsv } from '../utils/export';
 import { exportToExcel, type ExcelColumn } from '../utils/excelExport';
 import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
+import { type ActivationLinkResult } from '../services/activationLinks';
 
 interface StudentListViewProps {
   students: Student[];
@@ -28,6 +29,10 @@ interface StudentListViewProps {
   onBulkRetrievePasswords?: (studentIds: number[]) => Promise<{ success: boolean; credentials?: CreatedCredential[] }>;
   onDeleteStudent?: (studentId: number) => Promise<boolean>;
   onBulkDeleteStudents?: (studentIds: number[]) => Promise<{ success: boolean; deleted: number; total: number }>;
+  onGenerateActivationLinks?: (
+    studentIds: number[],
+    options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
+  ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string }>;
 }
 
 // Simple modal to show credentials after bulk generation
@@ -76,8 +81,8 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
     );
 };
 
-const StudentListView: React.FC<StudentListViewProps> = ({ 
-    students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions, 
+const StudentListView: React.FC<StudentListViewProps> = ({
+    students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
     onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +108,15 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isGeneratingLogins, setIsGeneratingLogins] = useState(false);
   const [credentials, setCredentials] = useState<CreatedCredential[] | null>(null);
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
+  const [activationExpiryHours, setActivationExpiryHours] = useState(72);
+  const [activationPhoneField, setActivationPhoneField] = useState<'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'>('parent_phone_number_1');
+  const [activationTemplate, setActivationTemplate] = useState(
+    'Hello {parent_or_student_name}. This is {school_name}. {student_name} ({class_arm}) can activate their portal account using this link: {activation_link}. Link expires {expires_at}. Thank you.'
+  );
+  const [activationResults, setActivationResults] = useState<ActivationLinkResult[] | null>(null);
+  const [activationExpiresAt, setActivationExpiresAt] = useState<string | null>(null);
+  const [isGeneratingActivationLinks, setIsGeneratingActivationLinks] = useState(false);
 
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
 
@@ -238,6 +252,88 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           setCredentials(creds);
           setSelectedIds(new Set()); // Clear selection
       }
+  };
+
+  const normalizeNigerianNumber = (phone?: string | null) => {
+      if (!phone) return { normalized: '', valid: false, reason: 'Missing number' };
+      const digits = phone.replace(/\D/g, '');
+      if (!digits) return { normalized: '', valid: false, reason: 'Missing number' };
+
+      let normalized = digits;
+      if (digits.startsWith('0')) {
+          normalized = `+234${digits.slice(1)}`;
+      } else if (digits.startsWith('234')) {
+          normalized = `+${digits}`;
+      } else if (!digits.startsWith('234') && !digits.startsWith('2340')) {
+          normalized = `+234${digits}`;
+      }
+
+      const numericLength = normalized.replace(/\D/g, '').length;
+      const valid = normalized.startsWith('+234') && numericLength === 13;
+      return { normalized, valid, reason: valid ? '' : 'Invalid length' };
+  };
+
+  const buildMessageFromTemplate = (template: string, row: ActivationLinkResult, phone: string) => {
+      const classArm = [row.class_name, row.arm_name].filter(Boolean).join(' ');
+      return template
+          .replace('{parent_or_student_name}', row.student_name || 'Parent/Guardian')
+          .replace('{student_name}', row.student_name || 'Student')
+          .replace('{class_arm}', classArm || 'their class')
+          .replace('{activation_link}', row.activation_link || '')
+          .replace('{expires_at}', activationExpiresAt ? new Date(activationExpiresAt).toLocaleString() : '')
+          .replace('{school_name}', 'UPSS')
+          .replace('{recipient_phone}', phone);
+  };
+
+  const handleGenerateActivationLinks = async () => {
+      if (!onGenerateActivationLinks) return;
+      if (selectedIds.size === 0) {
+          alert('Select at least one student to generate activation links.');
+          return;
+      }
+
+      setIsGeneratingActivationLinks(true);
+      try {
+          const response = await onGenerateActivationLinks(Array.from(selectedIds), {
+              expiryHours: activationExpiryHours,
+              phoneField: activationPhoneField,
+              template: activationTemplate,
+          });
+          if (response.success) {
+              setActivationResults(response.results || []);
+              setActivationExpiresAt(response.expires_at || null);
+          }
+      } catch (e: any) {
+          alert(e.message || 'Unable to generate activation links');
+      } finally {
+          setIsGeneratingActivationLinks(false);
+      }
+  };
+
+  const handleExportActivationCsv = () => {
+      if (!activationResults) return;
+      const rows = activationResults
+          .filter(r => r.status === 'created' && r.activation_link)
+          .map(r => {
+              const rawPhone = activationPhoneField === 'parent_phone_number_2'
+                  ? r.phone_2
+                  : activationPhoneField === 'student_phone'
+                      ? r.student_phone
+                      : r.phone_1;
+              const { normalized, valid, reason } = normalizeNigerianNumber(rawPhone || undefined);
+              return {
+                  student_name: r.student_name || '',
+                  admission_number: r.admission_number || '',
+                  class_name: r.class_name || '',
+                  arm_name: r.arm_name || '',
+                  recipient_phone: normalized || rawPhone || '',
+                  activation_link: r.activation_link || '',
+                  expires_at: r.expires_at || activationExpiresAt || '',
+                  phone_status: valid ? 'valid' : `invalid${reason ? `: ${reason}` : ''}`,
+              };
+          });
+
+      exportToCsv(rows, 'activation_links_whatsapp.csv');
   };
 
   const handleBulkDeleteAccounts = async () => {
@@ -441,8 +537,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                         </button>
                     )}
                     {onBulkDeleteAccounts && (
-                        <button 
-                            onClick={handleBulkDeleteAccounts} 
+                        <button
+                            onClick={handleBulkDeleteAccounts}
                             disabled={isGeneratingLogins || isDeletingAccounts || isRetrievingPasswords || isDeletingStudents}
                             className="px-4 py-1.5 bg-red-700 text-white text-sm font-bold rounded-md hover:bg-red-800 disabled:opacity-50 flex items-center gap-2"
                             title="Delete login accounts for selected students"
@@ -450,9 +546,19 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                             {isDeletingAccounts ? <Spinner size="sm"/> : 'Delete Accounts'}
                         </button>
                     )}
+                    {onGenerateActivationLinks && (
+                        <button
+                            onClick={() => setIsActivationModalOpen(true)}
+                            disabled={isGeneratingLogins || isDeletingAccounts || isRetrievingPasswords || isDeletingStudents}
+                            className="px-4 py-1.5 bg-emerald-700 text-white text-sm font-bold rounded-md hover:bg-emerald-800 disabled:opacity-50 flex items-center gap-2"
+                            title="Generate one-time activation links for WhatsApp distribution"
+                        >
+                            Generate WhatsApp Activation Links
+                        </button>
+                    )}
                     {onBulkDeleteStudents && (
-                        <button 
-                            onClick={handleBulkDeleteStudentsClick} 
+                        <button
+                            onClick={handleBulkDeleteStudentsClick}
                             disabled={isGeneratingLogins || isDeletingAccounts || isRetrievingPasswords || isDeletingStudents}
                             className="px-4 py-1.5 bg-red-900 text-white text-sm font-bold rounded-md hover:bg-red-950 disabled:opacity-50 flex items-center gap-2"
                             title="Permanently delete selected students and all their data"
@@ -567,7 +673,137 @@ const StudentListView: React.FC<StudentListViewProps> = ({
             totalItems={filteredStudents.length}
         />
       </div>
-      
+
+      {isActivationModalOpen && onGenerateActivationLinks && (
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+              <div className="rounded-2xl border border-slate-200/60 bg-white/90 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/90 w-full max-w-5xl m-4 flex flex-col max-h-[90vh]">
+                  <div className="flex justify-between items-start gap-4">
+                      <div>
+                          <h2 className="text-xl font-bold text-slate-800 dark:text-white">WhatsApp Activation Links</h2>
+                          <p className="text-sm text-slate-600 dark:text-slate-300">Links are one-time, time-limited, and should be sent privately.</p>
+                      </div>
+                      <button onClick={() => setIsActivationModalOpen(false)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white">Close</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <label className="flex flex-col text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          Expiry
+                          <select value={activationExpiryHours} onChange={e => setActivationExpiryHours(Number(e.target.value))} className="mt-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
+                              <option value={24}>24 hours</option>
+                              <option value={48}>48 hours</option>
+                              <option value={72}>72 hours</option>
+                          </select>
+                      </label>
+                      <label className="flex flex-col text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          Recipient phone
+                          <select value={activationPhoneField} onChange={e => setActivationPhoneField(e.target.value as any)} className="mt-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
+                              <option value="parent_phone_number_1">Parent phone 1</option>
+                              <option value="parent_phone_number_2">Parent phone 2</option>
+                              <option value="student_phone">Student phone (if available)</option>
+                          </select>
+                      </label>
+                      <div className="bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 rounded-md border border-amber-200 dark:border-amber-700 px-3 py-2 text-sm">
+                          <p className="font-semibold">Safety notes</p>
+                          <ul className="list-disc ml-4 space-y-1">
+                              <li>Links are single use and expire.</li>
+                              <li>Send privately, not to group chats.</li>
+                              <li>Passwords are never shown or exported.</li>
+                          </ul>
+                      </div>
+                  </div>
+
+                  <label className="flex flex-col text-sm font-semibold text-slate-700 dark:text-slate-200 mt-4">
+                      Message template
+                      <textarea
+                          className="mt-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm min-h-[100px]"
+                          value={activationTemplate}
+                          onChange={e => setActivationTemplate(e.target.value)}
+                      />
+                      <span className="text-xs text-slate-500 mt-1">Placeholders: {'{parent_or_student_name}'}, {'{student_name}'}, {'{class_arm}'}, {'{activation_link}'}, {'{expires_at}'}, {'{school_name}'}</span>
+                  </label>
+
+                  <div className="flex items-center gap-3 mt-4">
+                      <button
+                          onClick={handleGenerateActivationLinks}
+                          disabled={isGeneratingActivationLinks}
+                          className="px-4 py-2 bg-emerald-700 text-white rounded-md font-semibold hover:bg-emerald-800 disabled:opacity-50 flex items-center gap-2"
+                      >
+                          {isGeneratingActivationLinks ? <Spinner size="sm" /> : 'Generate links'}
+                      </button>
+                      <button
+                          onClick={handleExportActivationCsv}
+                          disabled={!activationResults || activationResults.length === 0}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                          <DownloadIcon className="w-4 h-4" /> Export CSV
+                      </button>
+                  </div>
+
+                  {activationResults && (
+                      <div className="mt-4 space-y-3 overflow-y-auto">
+                          <div className="flex flex-wrap gap-4 text-sm text-slate-700 dark:text-slate-200">
+                              <span className="font-semibold">Summary:</span>
+                              <span>{activationResults.filter(r => r.status === 'created').length} links created</span>
+                              <span>{activationResults.filter(r => r.status === 'error').length} errors</span>
+                              <span>{activationResults.filter(r => r.status === 'skipped').length} skipped</span>
+                              {activationExpiresAt && <span>Expires: {new Date(activationExpiresAt).toLocaleString()}</span>}
+                          </div>
+                          <div className="text-xs text-slate-500">Phone numbers are normalized to +234 format when exporting.</div>
+                          <div className="border border-slate-200 dark:border-slate-700 rounded-md max-h-[320px] overflow-y-auto">
+                              <table className="w-full text-sm">
+                                  <thead className="bg-slate-50 dark:bg-slate-800 text-left text-xs uppercase">
+                                      <tr>
+                                          <th className="px-3 py-2">Student</th>
+                                          <th className="px-3 py-2">Phone</th>
+                                          <th className="px-3 py-2">Status</th>
+                                          <th className="px-3 py-2">Actions</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {activationResults.map((r, idx) => {
+                                          const rawPhone = activationPhoneField === 'parent_phone_number_2'
+                                              ? r.phone_2
+                                              : activationPhoneField === 'student_phone'
+                                                  ? r.student_phone
+                                                  : r.phone_1;
+                                          const { normalized, valid, reason } = normalizeNigerianNumber(rawPhone || undefined);
+                                          const displayPhone = normalized || rawPhone || 'Missing';
+                                          const message = r.activation_link ? buildMessageFromTemplate(activationTemplate, r, displayPhone) : '';
+                                          return (
+                                              <tr key={`${r.student_id}-${idx}`} className="border-t border-slate-200 dark:border-slate-700">
+                                                  <td className="px-3 py-2">
+                                                      <div className="font-semibold">{r.student_name || 'Unknown'}</div>
+                                                      <div className="text-xs text-slate-500">{[r.class_name, r.arm_name].filter(Boolean).join(' ')}</div>
+                                                  </td>
+                                                  <td className="px-3 py-2">
+                                                      <div>{displayPhone}</div>
+                                                      {!valid && <div className="text-xs text-red-600">{reason || 'Invalid phone'}</div>}
+                                                  </td>
+                                                  <td className="px-3 py-2">
+                                                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">{r.status}</span>
+                                                  </td>
+                                                  <td className="px-3 py-2 space-x-2">
+                                                      {r.activation_link && (
+                                                          <button
+                                                              className="px-3 py-1 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md"
+                                                              onClick={() => navigator.clipboard.writeText(message)}
+                                                          >
+                                                              Copy message
+                                                          </button>
+                                                      )}
+                                                  </td>
+                                              </tr>
+                                          );
+                                      })}
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
       <AddStudentModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

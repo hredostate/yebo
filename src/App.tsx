@@ -3321,7 +3321,7 @@ Return a JSON object with:
 
     const handleBulkCreateStudentAccounts = useCallback(async (studentIds: number[]) => {
         if (!userProfile) return { success: false, message: 'User not authenticated' };
-        
+
         try {
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'bulk_create_for_existing', studentIds }
@@ -3340,6 +3340,24 @@ Return a JSON object with:
              return { success: false, message: `Service unavailable (Edge Function missing). Please ask students to sign up manually.` };
         }
     }, [userProfile, session, fetchData]);
+
+    const handleGenerateActivationLinks = useCallback(async (
+        studentIds: number[],
+        options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
+    ) => {
+        if (!userProfile) return { success: false, results: [], expires_at: '' };
+        const { data, error } = await supabase.functions.invoke('activation-links', {
+            body: {
+                action: 'generate',
+                student_ids: studentIds,
+                expiry_hours: options.expiryHours,
+                recipient_phone_field: options.phoneField,
+                template: options.template,
+            }
+        });
+        if (error) throw error;
+        return data as { success: boolean; results: any[]; expires_at: string };
+    }, [userProfile]);
 
 
     const handleAddStudent = useCallback(async (studentData: StudentFormData): Promise<boolean> => {
@@ -6655,6 +6673,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleSaveSocialLinks,
                                         handleOpenCreateStudentAccountModal,
                                         handleBulkCreateStudentAccounts,
+                                        handleGenerateActivationLinks,
                                         handleCreateStudentAccount,
                                         handleResetStudentPassword,
                                         handleResetStudentStrikes,
@@ -6912,6 +6931,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleSaveSocialLinks,
                                     handleOpenCreateStudentAccountModal,
                                     handleBulkCreateStudentAccounts,
+                                    handleGenerateActivationLinks,
                                     handleCreateStudentAccount,
                                     handleResetStudentPassword,
                                     handleResetStudentStrikes,
