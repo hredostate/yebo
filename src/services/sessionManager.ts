@@ -168,6 +168,7 @@ async function retryWithBackoff<T>(
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
+  // This line should never be reached, but TypeScript requires it
   return null;
 }
 
@@ -196,8 +197,8 @@ export async function updateSessionHeartbeat(sessionToken?: string): Promise<boo
       return true;
     }, 3, 1000);
     
-    // Return false silently if all retries failed (graceful degradation)
-    return result !== null;
+    // Return true if retries succeeded, false if all retries failed (graceful degradation)
+    return result === true;
   } catch (error) {
     // Silently fail - heartbeat failures shouldn't be logged as errors
     // The session will eventually be cleaned up by expiry logic
