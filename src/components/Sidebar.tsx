@@ -21,7 +21,7 @@ interface NavGroup {
 interface NavItemConfig {
   id: string;
   label: string;
-  permission: string;
+  permission?: string;
 }
 
 // Flat Navigation Configuration (reverted from hierarchical structure)
@@ -143,6 +143,7 @@ interface SidebarProps {
   onLogout: () => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
+  canAccess: (action: 'view' | 'manage', resource: 'payroll' | 'finance' | 'fees' | 'staff_data' | 'admin_cms' | 'payroll_self' | 'results_publish', ownerId?: string) => boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile, userPermissions, onLogout, isSidebarOpen, setIsSidebarOpen }) => {
@@ -214,9 +215,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
     });
   };
 
-  const hasPermission = (permission: string) => {
+  const hasPermission = (permission?: string, itemId?: string) => {
+    if (itemId === VIEWS.HR_PAYROLL) return canAccess('view', 'payroll');
+    if (permission === undefined) return true;
     if (permission === 'school.console.view') return canViewSuperAdmin;
-    // Support multiple permissions with OR logic (pipe-separated)
     if (permission.includes('|')) {
       const perms = permission.split('|');
       return isAllPowerful || perms.some(p => userPermissions.includes(p.trim()));
@@ -231,7 +233,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
       // Filter items by permission AND search query
       const visibleItems = group.items.filter(item => {
         const matchesSearch = searchQuery === '' || item.label.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesPermission = hasPermission(item.permission) || item.id === VIEWS.DASHBOARD || item.id === VIEWS.PROFILE;
+        const matchesPermission = hasPermission(item.permission, item.id) || item.id === VIEWS.DASHBOARD || item.id === VIEWS.PROFILE;
         return matchesSearch && matchesPermission;
       });
 

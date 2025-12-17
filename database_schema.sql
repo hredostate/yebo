@@ -2959,5 +2959,123 @@ CREATE INDEX IF NOT EXISTS idx_student_term_reports_scope ON public.student_term
 CREATE INDEX IF NOT EXISTS idx_score_entries_scope ON public.score_entries(term_id, academic_class_id, student_id, subject_name);
 CREATE INDEX IF NOT EXISTS idx_students_campus_status ON public.students(campus_id, status);
 
+-- Harden payroll and finance tables with deny-by-default RLS
+CREATE OR REPLACE FUNCTION public.user_has_permission(target_permission text)
+RETURNS boolean
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql
+AS $$
+    WITH me AS (SELECT id, role FROM public.user_profiles WHERE id = auth.uid())
+    SELECT
+        EXISTS (
+            SELECT 1 FROM public.roles r
+            JOIN me m ON r.title = m.role
+            WHERE r.permissions @> ARRAY[target_permission]
+        )
+        OR EXISTS (
+            SELECT 1 FROM public.user_role_assignments ura
+            JOIN public.roles r ON ura.role_id = r.id
+            WHERE ura.user_id = auth.uid() AND r.permissions @> ARRAY[target_permission]
+        )
+        OR EXISTS (
+            SELECT 1 FROM me m WHERE m.role IN ('Admin', 'Super Admin')
+        );
+$$;
+
+-- Payroll runs: admins only
+DROP POLICY IF EXISTS "Auth read payroll_runs" ON public.payroll_runs;
+DROP POLICY IF EXISTS "Auth write payroll_runs" ON public.payroll_runs;
+CREATE POLICY "Payroll admins manage payroll_runs" ON public.payroll_runs
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+-- Payroll items: allow staff to view only their own records
+DROP POLICY IF EXISTS "Auth read payroll_items" ON public.payroll_items;
+DROP POLICY IF EXISTS "Auth write payroll_items" ON public.payroll_items;
+CREATE POLICY "Payroll items view self or admin" ON public.payroll_items
+    FOR SELECT TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance') OR user_id = auth.uid());
+CREATE POLICY "Payroll items manage" ON public.payroll_items
+    FOR INSERT TO authenticated
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+CREATE POLICY "Payroll items update" ON public.payroll_items
+    FOR UPDATE TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+CREATE POLICY "Payroll items delete" ON public.payroll_items
+    FOR DELETE TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+-- Payroll adjustments
+DROP POLICY IF EXISTS "Auth read payroll_adjustments" ON public.payroll_adjustments;
+DROP POLICY IF EXISTS "Auth write payroll_adjustments" ON public.payroll_adjustments;
+CREATE POLICY "Payroll adjustments view" ON public.payroll_adjustments
+    FOR SELECT TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance') OR user_id = auth.uid());
+CREATE POLICY "Payroll adjustments manage" ON public.payroll_adjustments
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+-- Payroll components and line items (admin-only)
+DROP POLICY IF EXISTS "Auth read payroll_components" ON public.payroll_components;
+DROP POLICY IF EXISTS "Auth write payroll_components" ON public.payroll_components;
+CREATE POLICY "Payroll components manage" ON public.payroll_components
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+DROP POLICY IF EXISTS "Auth read payroll_line_items" ON public.payroll_line_items;
+DROP POLICY IF EXISTS "Auth write payroll_line_items" ON public.payroll_line_items;
+CREATE POLICY "Payroll line items manage" ON public.payroll_line_items
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+-- Next-gen payroll tables
+DROP POLICY IF EXISTS "Auth read payroll_runs_v2" ON public.payroll_runs_v2;
+DROP POLICY IF EXISTS "Auth write payroll_runs_v2" ON public.payroll_runs_v2;
+CREATE POLICY "Payroll v2 manage" ON public.payroll_runs_v2
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+DROP POLICY IF EXISTS "Auth read payslips" ON public.payslips;
+DROP POLICY IF EXISTS "Auth write payslips" ON public.payslips;
+CREATE POLICY "Payslips view" ON public.payslips
+    FOR SELECT TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance') OR staff_id = auth.uid());
+CREATE POLICY "Payslips manage" ON public.payslips
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+DROP POLICY IF EXISTS "Auth read payslip_line_items" ON public.payslip_line_items;
+DROP POLICY IF EXISTS "Auth write payslip_line_items" ON public.payslip_line_items;
+CREATE POLICY "Payslip line items manage" ON public.payslip_line_items
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+DROP POLICY IF EXISTS "Auth read payslip_queries" ON public.payslip_queries;
+DROP POLICY IF EXISTS "Auth write payslip_queries" ON public.payslip_queries;
+CREATE POLICY "Payslip queries manage" ON public.payslip_queries
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
+-- Paystack recipient details (banking data)
+DROP POLICY IF EXISTS "Auth read paystack_recipients" ON public.paystack_recipients;
+DROP POLICY IF EXISTS "Auth write paystack_recipients" ON public.paystack_recipients;
+CREATE POLICY "Paystack recipients view" ON public.paystack_recipients
+    FOR SELECT TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+CREATE POLICY "Paystack recipients manage" ON public.paystack_recipients
+    FOR ALL TO authenticated
+    USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
+    WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
+
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload config';
