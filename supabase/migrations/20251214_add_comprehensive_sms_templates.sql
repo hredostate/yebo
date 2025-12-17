@@ -170,13 +170,19 @@ WHERE template_name = 'late_arrival';
 UPDATE sms_templates
 SET message_content = E'Dear Parent,
 
-{{student_name}}\'s report card for {{term}} is now available for {{class_name}}.
+Your child\'s report card is now ready! 📊
 
-Download: {{download_link}}
+Student: {{student_name}}
+Class: {{class_name}}
+Term: {{term}}
 
-Thank you.
+View & Download Here:
+{{download_link}}
 
-- UPSS',
+This link is valid for 30 days. For any questions, please contact the school office.
+
+Best regards,
+UPSS Administration',
     variables = ARRAY['student_name', 'term', 'class_name', 'download_link']::text[]
 WHERE template_name = 'report_card_ready';
 

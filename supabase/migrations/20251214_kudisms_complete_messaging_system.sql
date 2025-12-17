@@ -22,7 +22,7 @@ ADD COLUMN IF NOT EXISTS notification_channels JSONB DEFAULT '{
   "late_arrival": "both",
   "subject_absentee": "sms",
   "subject_late": "sms",
-  "report_card_ready": "whatsapp",
+  "report_card_ready": "sms",
   "emergency_broadcast": "both"
 }'::jsonb,
 ADD COLUMN IF NOT EXISTS whatsapp_template_codes JSONB DEFAULT '{}'::jsonb;
@@ -164,7 +164,7 @@ BEGIN
     VALUES (
         p_school_id,
         'report_card_ready',
-        E'Dear Parent,\n\n📊 Report Card Ready!\n\nThe report card for {{student_name}} is now available.\n\nStudent: {{student_name}}\nTerm: {{term}}\nClass: {{class_name}}\n\n📥 View & Download:\n{{download_link}}\n\nIf you have any questions, please contact the school.\n\n- UPSS',
+        E'Dear Parent,\n\nYour child\'s report card is now ready! 📊\n\nStudent: {{student_name}}\nClass: {{class_name}}\nTerm: {{term}}\n\nView & Download Here:\n{{download_link}}\n\nThis link is valid for 30 days. For any questions, please contact the school office.\n\nBest regards,\nUPSS Administration',
         ARRAY['student_name', 'term', 'class_name', 'download_link'],
         true
     )
