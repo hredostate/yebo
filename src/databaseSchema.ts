@@ -1078,6 +1078,74 @@ CREATE TABLE IF NOT EXISTS public.paystack_recipients (
     bank_details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Payroll Pre-Run (v2)
+CREATE TYPE payroll_run_status_v2 AS ENUM (
+    'DRAFT',
+    'PRE_RUN_PUBLISHED',
+    'FINALIZED',
+    'PROCESSING',
+    'PROCESSED_OFFLINE',
+    'PROCESSED_PAYSTACK',
+    'FAILED'
+);
+
+CREATE TYPE payroll_processing_method AS ENUM ('OFFLINE', 'PAYSTACK');
+CREATE TYPE payslip_status AS ENUM ('DRAFT', 'AWAITING_APPROVAL', 'APPROVED', 'QUERY_RAISED', 'RESOLVED', 'FINAL');
+CREATE TYPE payslip_line_item_type AS ENUM ('EARNING', 'DEDUCTION', 'INFO');
+CREATE TYPE payslip_query_status AS ENUM ('OPEN', 'IN_REVIEW', 'RESOLVED', 'REJECTED');
+
+CREATE TABLE IF NOT EXISTS public.payroll_runs_v2 (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    period_key TEXT NOT NULL,
+    status payroll_run_status_v2 NOT NULL DEFAULT 'DRAFT',
+    processing_method payroll_processing_method,
+    created_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    published_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    finalized_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    published_at TIMESTAMP WITH TIME ZONE,
+    finalized_at TIMESTAMP WITH TIME ZONE,
+    meta JSONB DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS public.payslips (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payroll_run_id UUID REFERENCES public.payroll_runs_v2(id) ON DELETE CASCADE,
+    staff_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    status payslip_status NOT NULL DEFAULT 'DRAFT',
+    currency TEXT DEFAULT 'NGN',
+    gross_pay NUMERIC NOT NULL DEFAULT 0,
+    total_deductions NUMERIC NOT NULL DEFAULT 0,
+    net_pay NUMERIC NOT NULL DEFAULT 0,
+    checksum TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.payslip_line_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payslip_id UUID REFERENCES public.payslips(id) ON DELETE CASCADE,
+    type payslip_line_item_type NOT NULL,
+    label TEXT NOT NULL,
+    amount NUMERIC NOT NULL DEFAULT 0,
+    ordering INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.payslip_queries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payslip_id UUID REFERENCES public.payslips(id) ON DELETE CASCADE,
+    raised_by_staff_id UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    status payslip_query_status NOT NULL DEFAULT 'OPEN',
+    message TEXT NOT NULL,
+    admin_response TEXT,
+    attachment_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 -- Fee Management
 CREATE TABLE IF NOT EXISTS public.fee_items (
     id SERIAL PRIMARY KEY,

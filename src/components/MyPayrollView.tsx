@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { PayrollRun, PayrollItem, UserProfile, SchoolConfig, PensionContribution, PayrollLineItem } from '../types';
 import { BanknotesIcon, ChevronDownIcon } from './common/icons';
+import PreRunPayslipCard from './PreRunPayslipCard';
 
 interface MyPayrollViewProps {
     payrollRuns: PayrollRun[];
