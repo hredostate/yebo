@@ -1,5 +1,5 @@
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, memo } from 'react';
 import { VIEWS } from '../constants';
 import type { PayrollAdjustment, StudentTermReport } from '../types';
 import Dashboard from './Dashboard';
@@ -1036,4 +1036,4 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
     }
 };
 
-export default AppRouter;
+export default memo(AppRouter);
