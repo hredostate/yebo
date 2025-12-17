@@ -981,7 +981,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         students={students}
                         academicClasses={academicClasses}
                         academicClassStudents={academicClassStudents}
-                        gradingScheme={schoolConfig?.active_grading_scheme_id 
+                        scoreEntries={scoreEntries}
+                        gradingScheme={schoolConfig?.active_grading_scheme_id
                             ? gradingSchemes.find(gs => gs.id === schoolConfig.active_grading_scheme_id) || null
                             : null
                         }
