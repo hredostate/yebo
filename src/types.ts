@@ -906,6 +906,8 @@ export interface StudentTermReportDetails {
         average: number;
         positionInArm: number;
         cohortSize?: number | null;
+        positionInLevel?: number | null;
+        levelSize?: number | null;
         campusPercentile?: number | null;
         gpaAverage?: number | null;
     };

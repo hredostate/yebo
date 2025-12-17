@@ -776,9 +776,17 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Standing</p>
                 <div className="flex items-center gap-3">
-                    <p className="text-2xl font-black text-slate-900">{showPosition && summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
+                    <div>
+                        <p className="text-2xl font-black text-slate-900">{showPosition && summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
+                        <p className="text-xs text-slate-500">Position in Arm{summary.cohortSize ? ` (out of ${summary.cohortSize})` : ''}</p>
+                    </div>
                 </div>
-                <p className="text-xs text-slate-500">Cohort size: {summary.cohortSize || 'N/A'} • Campus percentile: {summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : 'N/A'}</p>
+                {summary.positionInLevel && summary.levelSize && (
+                    <p className="text-sm text-slate-600 mt-1">
+                        Level: {getOrdinal(summary.positionInLevel)} out of {summary.levelSize}
+                    </p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">Campus percentile: {summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : 'N/A'}</p>
             </div>
         </div>
         <div className="p-4 rounded-2xl border border-slate-200 shadow bg-white flex flex-col gap-2">
@@ -1156,7 +1164,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <div>Name: <strong>{student.fullName}</strong></div>
                         <div>Class: <strong>{student.className}</strong></div>
                         <div>Avg: <strong>{Number(summary.average).toFixed(2)}%</strong></div>
-                        <div>Pos (Arm): <strong>{getOrdinal(summary.positionInArm)}</strong></div>
+                        <div>Pos (Arm): <strong>{getOrdinal(summary.positionInArm)}{summary.cohortSize ? ` / ${summary.cohortSize}` : ''}</strong></div>
+                        {summary.positionInLevel && summary.levelSize && <div>Pos (Level): <strong>{getOrdinal(summary.positionInLevel)} / {summary.levelSize}</strong></div>}
                         {summary.campusPercentile != null && <div>Campus Percentile: <strong>{summary.campusPercentile.toFixed(0)}th</strong></div>}
                         <div>Att: <strong>{attendance.rate.toFixed(1)}% ({attendance.present}/{attendance.total})</strong></div>
                     </div>
@@ -1235,7 +1244,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         {renderTableBody()}
                     </table>
                     
-                    <div className="grid grid-cols-4 gap-4 mb-8 text-center border border-black p-4 bg-gray-50">
+                    <div className="grid grid-cols-5 gap-4 mb-8 text-center border border-black p-4 bg-gray-50">
                         <div>
                             <p className="text-xs font-bold uppercase">Total</p>
                             <p className="text-lg font-bold">{summary.average * subjects.length}</p>
@@ -1247,6 +1256,10 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <div>
                             <p className="text-xs font-bold uppercase">Pos (Arm)</p>
                             <p className="text-lg font-bold">{getOrdinal(summary.positionInArm)} / {summary.cohortSize ?? '-'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold uppercase">Pos (Level)</p>
+                            <p className="text-lg font-bold">{summary.positionInLevel && summary.levelSize ? `${getOrdinal(summary.positionInLevel)} / ${summary.levelSize}` : '-'}</p>
                         </div>
                         <div>
                             <p className="text-xs font-bold uppercase">Campus Percentile</p>
