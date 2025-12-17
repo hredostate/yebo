@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 import type { StudentProfile, Student } from '../types';
 import Spinner from './common/Spinner';
-import { UserCircleIcon, SaveIcon, ArrowLeftIcon } from './common/icons';
+import { UserCircleIcon, SaveIcon, ArrowLeftIcon, CameraIcon } from './common/icons';
 
 interface StudentProfileEditProps {
   studentProfile: StudentProfile;
@@ -18,6 +18,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [formData, setFormData] = useState({
     phone: '',
@@ -30,6 +31,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
     emergency_contact_phone: '',
     emergency_contact_relationship: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchStudentData = useCallback(async () => {
     if (!studentProfile.student_record_id) {
@@ -112,6 +114,89 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
     }
   };
 
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !studentProfile.student_record_id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', 'error');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      addToast('Image size must be less than 5MB', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+
+      // Upload to Supabase storage
+      const filePath = `student-photos/${studentProfile.student_record_id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update student record with new photo URL
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ photo_url: data.publicUrl })
+        .eq('id', studentProfile.student_record_id);
+
+      if (updateError) throw updateError;
+
+      addToast('Photo updated successfully!', 'success');
+      await fetchStudentData(); // Refresh data to show new photo
+
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      addToast(`Error uploading photo: ${error.message}`, 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!studentProfile.student_record_id) return;
+
+    if (!window.confirm('Are you sure you want to remove your photo?')) {
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+
+      const { error } = await supabase
+        .from('students')
+        .update({ photo_url: null })
+        .eq('id', studentProfile.student_record_id);
+
+      if (error) throw error;
+
+      addToast('Photo removed successfully!', 'success');
+      await fetchStudentData(); // Refresh data
+
+    } catch (error: any) {
+      console.error('Error removing photo:', error);
+      addToast(`Error removing photo: ${error.message}`, 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -147,17 +232,39 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
       {/* Profile Summary (Read-only) */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-6 mb-6">
-          {studentData.photo_url ? (
-            <img 
-              src={studentData.photo_url} 
-              alt={studentData.name}
-              className="w-24 h-24 rounded-full object-cover border-4 border-blue-500"
+          <div className="relative">
+            {studentData.photo_url ? (
+              <img 
+                src={studentData.photo_url} 
+                alt={studentData.name}
+                className="w-24 h-24 rounded-full object-cover border-4 border-blue-500"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                <UserCircleIcon className="h-16 w-16 text-white" />
+              </div>
+            )}
+            {/* Photo upload button overlay */}
+            <button
+              onClick={handlePhotoClick}
+              disabled={isUploadingPhoto}
+              className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Change photo"
+            >
+              {isUploadingPhoto ? (
+                <Spinner size="sm" />
+              ) : (
+                <CameraIcon className="h-4 w-4" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
             />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-              <UserCircleIcon className="h-16 w-16 text-white" />
-            </div>
-          )}
+          </div>
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{studentData.name}</h2>
             <div className="space-y-1 mt-2">
@@ -179,6 +286,15 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
                 </p>
               )}
             </div>
+            {studentData.photo_url && (
+              <button
+                onClick={handleRemovePhoto}
+                disabled={isUploadingPhoto}
+                className="mt-3 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Remove photo
+              </button>
+            )}
           </div>
         </div>
 
