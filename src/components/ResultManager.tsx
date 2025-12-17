@@ -2,12 +2,13 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon, PaperAirplaneIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
+import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores';
@@ -31,11 +32,12 @@ interface ResultManagerProps {
     onGenerateReportComment?: (studentId: number, termId: number, commentType: 'teacher' | 'principal') => Promise<string | null>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
     onNavigate?: (view: string) => void;
+    userProfile?: UserProfile;
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
     terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
-    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate 
+    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate, userProfile 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [isProcessing, setIsProcessing] = useState<number | null>(null); // assignment ID
@@ -48,6 +50,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
+    const [showBulkSender, setShowBulkSender] = useState(false);
+    const [selectedClassForSender, setSelectedClassForSender] = useState<{ id: number; name: string } | null>(null);
     
     // State for inline score preview modal
     const [showScorePreview, setShowScorePreview] = useState(false);
@@ -469,6 +473,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setShowBulkGenerator(true);
     };
 
+    const handleOpenBulkSender = (classId: number, className: string) => {
+        setSelectedClassForSender({ id: classId, name: className });
+        setShowBulkSender(true);
+    };
+
     const handleCloseBulkGenerator = () => {
         setShowBulkGenerator(false);
         setSelectedClassForBulk(null);
@@ -845,6 +854,19 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         <DownloadIcon className="w-4 h-4" />
                                         Generate Report Cards
                                     </button>
+
+                                    {/* Send Reports to Parents Button */}
+                                    {userProfile && schoolConfig && (
+                                        <button
+                                            onClick={() => handleOpenBulkSender(c.id, c.name)}
+                                            disabled={c.publishedCount === 0}
+                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title={c.publishedCount === 0 ? "No published reports available" : "Send report card links to parents via SMS"}
+                                        >
+                                            <PaperAirplaneIcon className="w-4 h-4" />
+                                            Send to Parents (SMS)
+                                        </button>
+                                    )}
                                     
                                     {/* View and Edit Scores Buttons */}
                                     <div className="flex gap-2">
@@ -1136,6 +1158,21 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     addToast={addToast}
                     schoolConfig={schoolConfig}
                     gradingSchemes={gradingSchemes}
+                />
+            )}
+
+            {/* Bulk Report Card Sender Modal */}
+            {showBulkSender && selectedClassForSender && selectedTermId && userProfile && schoolConfig && (
+                <BulkReportCardSender
+                    termId={Number(selectedTermId)}
+                    academicClassId={selectedClassForSender.id}
+                    schoolId={schoolConfig.school_id}
+                    userId={userProfile.id}
+                    onClose={() => {
+                        setShowBulkSender(false);
+                        setSelectedClassForSender(null);
+                    }}
+                    addToast={addToast}
                 />
             )}
         </div>

@@ -387,7 +387,7 @@ export async function initializeDefaultTemplates(schoolId: number): Promise<void
         },
         {
             template_name: 'report_card_ready',
-            message_content: 'Dear Parent,\n\n{{student_name}}\'s report card for {{term}} is now available for {{class_name}}.\n\nDownload: {{download_link}}\n\nThank you.\n\n- UPSS',
+            message_content: 'Dear Parent,\n\nYour child\'s report card is now ready! 📊\n\nStudent: {{student_name}}\nClass: {{class_name}}\nTerm: {{term}}\n\nView & Download Here:\n{{download_link}}\n\nThis link is valid for 30 days. For any questions, please contact the school office.\n\nBest regards,\nUPSS Administration',
             variables: ['student_name', 'term', 'class_name', 'download_link']
         },
         {
