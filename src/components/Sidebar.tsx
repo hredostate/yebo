@@ -146,7 +146,7 @@ interface SidebarProps {
   canAccess: (action: 'view' | 'manage', resource: 'payroll' | 'finance' | 'fees' | 'staff_data' | 'admin_cms' | 'payroll_self' | 'results_publish', ownerId?: string) => boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile, userPermissions, onLogout, isSidebarOpen, setIsSidebarOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile, userPermissions, onLogout, isSidebarOpen, setIsSidebarOpen, canAccess }) => {
   // Load expanded state from localStorage
   const loadExpandedState = () => {
     try {
