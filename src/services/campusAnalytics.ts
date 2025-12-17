@@ -107,6 +107,25 @@ export const calculateStudentStats = async (
   const { data: academicClasses } = await academicClassQuery;
   const classIds = academicClasses?.map(ac => ac.id) || [];
 
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
+  
+  // If no classes found, return empty stats early
+  if (classIds.length === 0) {
+    return {
+      campusId: campusId || null,
+      campusName,
+      totalStudents: 0,
+      activeStudents: 0,
+      suspendedStudents: 0,
+      expelledStudents: 0,
+      graduatedStudents: 0,
+      withdrawnStudents: 0,
+      neverLoggedIn: 0,
+      withActiveAccounts: 0,
+      statusBreakdown: {},
+    };
+  }
+
   // Get students enrolled in these academic classes
   let query = supabase
     .from('academic_class_students')
@@ -119,7 +138,7 @@ export const calculateStudentStats = async (
         student_profiles(id)
       )
     `)
-    .in('academic_class_id', classIds.length > 0 ? classIds : [-1]); // Use -1 if no classes to avoid empty array
+    .in('academic_class_id', classIds);
 
   const { data: enrollments, error } = await query;
 
@@ -129,16 +148,14 @@ export const calculateStudentStats = async (
   }
 
   // Extract unique students from enrollments
-  const studentsMap = new Map();
-  enrollments?.forEach((enrollment: any) => {
+  const studentsMap = new Map<number, any>();
+  enrollments?.forEach((enrollment: { student?: any }) => {
     if (enrollment.student && !studentsMap.has(enrollment.student.id)) {
       studentsMap.set(enrollment.student.id, enrollment.student);
     }
   });
 
   const students = Array.from(studentsMap.values());
-
-  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
   const totalStudents = students?.length || 0;
 
   // Count by status
@@ -268,32 +285,10 @@ export const calculateFinancialStats = async (
   const { data: academicClasses } = await academicClassQuery;
   const classIds = academicClasses?.map(ac => ac.id) || [];
 
-  // Get students enrolled in these academic classes
-  let studentEnrollmentQuery = supabase
-    .from('academic_class_students')
-    .select('student_id, student:students(id, status)')
-    .in('academic_class_id', classIds.length > 0 ? classIds : [-1]);
-
-  const { data: enrollments, error: enrollmentsError } = await studentEnrollmentQuery;
-
-  if (enrollmentsError) {
-    console.error('Error fetching student enrollments:', enrollmentsError);
-    throw enrollmentsError;
-  }
-
-  // Extract unique students from enrollments
-  const studentsMap = new Map();
-  enrollments?.forEach((enrollment: any) => {
-    if (enrollment.student && !studentsMap.has(enrollment.student.id)) {
-      studentsMap.set(enrollment.student.id, enrollment.student);
-    }
-  });
-
-  const students = Array.from(studentsMap.values());
-  const studentIds = students.map((s: any) => s.id);
   const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
-
-  if (studentIds.length === 0) {
+  
+  // If no classes found, return empty stats early
+  if (classIds.length === 0) {
     return {
       campusId: campusId || null,
       campusName,
@@ -307,6 +302,30 @@ export const calculateFinancialStats = async (
       collectionRate: 0,
     };
   }
+
+  // Get students enrolled in these academic classes
+  let studentEnrollmentQuery = supabase
+    .from('academic_class_students')
+    .select('student_id, student:students(id, status)')
+    .in('academic_class_id', classIds);
+
+  const { data: enrollments, error: enrollmentsError } = await studentEnrollmentQuery;
+
+  if (enrollmentsError) {
+    console.error('Error fetching student enrollments:', enrollmentsError);
+    throw enrollmentsError;
+  }
+
+  // Extract unique students from enrollments
+  const studentsMap = new Map<number, any>();
+  enrollments?.forEach((enrollment: { student?: any }) => {
+    if (enrollment.student && !studentsMap.has(enrollment.student.id)) {
+      studentsMap.set(enrollment.student.id, enrollment.student);
+    }
+  });
+
+  const students = Array.from(studentsMap.values());
+  const studentIds = students.map((s: any) => s.id);
 
   // Get invoices for these students
   let invoiceQuery = supabase
