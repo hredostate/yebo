@@ -643,6 +643,63 @@ serve(async (req) => {
         });
     }
 
+    // Resend credentials to parent phone numbers
+    if (action === 'resend_credentials') {
+        console.log('resend_credentials action called with studentId:', studentId);
+        
+        if (!studentId) {
+            throw new Error("Missing 'studentId' for resending credentials.");
+        }
+
+        const { password } = body;
+        if (!password) {
+            throw new Error("Missing 'password' for resending credentials.");
+        }
+
+        // Get student record to fetch parent phone numbers, student name, and username
+        const { data: studentRecord, error: fetchError } = await supabaseAdmin
+            .from('students')
+            .select('name, school_id, parent_phone_number_1, parent_phone_number_2, user_id')
+            .eq('id', studentId)
+            .single();
+
+        if (fetchError || !studentRecord) {
+            throw new Error('Student record not found.');
+        }
+
+        if (!studentRecord.user_id) {
+            throw new Error('Student does not have a login account.');
+        }
+
+        // Get username from auth user metadata
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(studentRecord.user_id);
+        
+        if (authError || !authUser?.user) {
+            throw new Error('Could not find authentication user.');
+        }
+
+        const username = authUser.user.user_metadata?.username || authUser.user.email || '';
+
+        // Send credentials to parent phone numbers
+        const { messagingResults } = await sendCredentialsToParent({
+            studentName: studentRecord.name,
+            username,
+            password,
+            schoolId: studentRecord.school_id,
+            parentPhone1: studentRecord.parent_phone_number_1,
+            parentPhone2: studentRecord.parent_phone_number_2,
+            isPasswordReset: false
+        });
+
+        return new Response(JSON.stringify({ 
+            success: true,
+            messagingResults 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
     // Delete a single student account
     if (action === 'delete_account') {
         console.log('delete_account action called with studentId:', studentId);
