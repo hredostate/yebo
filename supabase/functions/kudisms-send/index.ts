@@ -115,9 +115,11 @@ serve(async (req) => {
         finalMessage = template.message_content;
         
         // Replace variables in the template
+        // Escape special regex characters in keys to prevent ReDoS attacks
         if (variables) {
           Object.entries(variables).forEach(([key, value]) => {
-            finalMessage = finalMessage?.replace(new RegExp(`{{${key}}}`, 'g'), value);
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            finalMessage = finalMessage?.replace(new RegExp(`{{${escapedKey}}}`, 'g'), value);
           });
         }
       } else {

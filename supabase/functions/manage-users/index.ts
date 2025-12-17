@@ -72,7 +72,6 @@ serve(async (req) => {
 
     // Template name based on whether it's a reset or new credential
     const templateName = isPasswordReset ? 'password_reset' : 'student_credentials';
-    const notificationType = isPasswordReset ? 'password_reset' : 'student_credentials';
 
     // Collect phone numbers
     const phoneNumbers: string[] = [];
@@ -651,11 +650,6 @@ serve(async (req) => {
             throw new Error("Missing 'studentId' for resending credentials.");
         }
 
-        const { password } = body;
-        if (!password) {
-            throw new Error("Missing 'password' for resending credentials.");
-        }
-
         // Get student record to fetch parent phone numbers, student name, and username
         const { data: studentRecord, error: fetchError } = await supabaseAdmin
             .from('students')
@@ -671,14 +665,19 @@ serve(async (req) => {
             throw new Error('Student does not have a login account.');
         }
 
-        // Get username from auth user metadata
+        // Get username and password from auth user metadata
         const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(studentRecord.user_id);
         
         if (authError || !authUser?.user) {
             throw new Error('Could not find authentication user.');
         }
 
-        const username = authUser.user.user_metadata?.username || authUser.user.email || '';
+        const username = authUser.user.user_metadata?.username || authUser.user.email?.split('@')[0] || '';
+        const password = authUser.user.user_metadata?.initial_password;
+
+        if (!password) {
+            throw new Error('Password not found in user metadata. Please reset the password first.');
+        }
 
         // Send credentials to parent phone numbers
         const { messagingResults } = await sendCredentialsToParent({

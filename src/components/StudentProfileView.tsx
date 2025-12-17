@@ -297,8 +297,8 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     };
 
     const handleResendCredentials = async () => {
-        if (!student.user_id || !initialPassword) {
-            addToast("Please retrieve the password first before resending credentials.", "error");
+        if (!student.user_id) {
+            addToast("Student does not have a login account.", "error");
             return;
         }
 
@@ -324,8 +324,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: {
                     action: 'resend_credentials',
-                    studentId: student.id,
-                    password: initialPassword
+                    studentId: student.id
                 }
             });
 
@@ -796,17 +795,15 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                 >
                                     {isRetrieving ? <Spinner size="sm"/> : 'Retrieve Password'}
                                 </button>
-                                {initialPassword && (
-                                    <button
-                                        type="button"
-                                        onClick={handleResendCredentials}
-                                        disabled={isResendingCredentials}
-                                        className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center"
-                                        title="Resend credentials to parent phone numbers via SMS/WhatsApp"
-                                    >
-                                        {isResendingCredentials ? <Spinner size="sm"/> : 'Resend Credentials'}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleResendCredentials}
+                                    disabled={isResendingCredentials}
+                                    className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center"
+                                    title="Resend credentials to parent phone numbers via SMS/WhatsApp"
+                                >
+                                    {isResendingCredentials ? <Spinner size="sm"/> : 'Resend Credentials'}
+                                </button>
                                 {onResetPassword && (
                                     <button
                                         type="button"
