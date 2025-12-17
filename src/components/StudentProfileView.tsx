@@ -84,10 +84,22 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState<Partial<Student>>({});
-    
+
     // Determine if the current viewer is a student
     const isStudentViewer = currentUser.role === 'Student';
-    
+
+    const normalizeNigerianPhone = (phone: string): string | null => {
+        const cleaned = phone.replace(/[^0-9+]/g, '');
+        if (!cleaned) return '';
+        if (cleaned.startsWith('+234')) return cleaned;
+        if (cleaned.startsWith('234')) return `+${cleaned}`;
+        if (cleaned.startsWith('0')) return `+234${cleaned.slice(1)}`;
+        if (/^[1-9][0-9]{9,}$/g.test(cleaned)) return `+234${cleaned}`;
+        return null;
+    };
+
+    const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
     // Filter reports based on viewer type
     const visibleReports = useMemo(() => {
         // First, filter to only show reports involving this student
@@ -116,6 +128,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const strikeCount = infractionReports.length;
 
     const canEditStructure = userPermissions.includes('school.console.structure_edit') || userPermissions.includes('*');
+    const canEditProfile = !isStudentViewer && (userPermissions.includes('manage-students') || userPermissions.includes('*') || ['Admin', 'Principal', 'Team Lead'].includes(currentUser.role));
     const canManageAccount = ['Admin', 'Principal', 'Team Lead'].includes(currentUser.role);
     const canResetStrikes = ['Admin', 'Principal'].includes(currentUser.role);
 
@@ -164,11 +177,55 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     }
     
     const handleSave = async () => {
+        if (!canEditProfile) {
+            addToast('You do not have permission to edit this profile.', 'error');
+            return;
+        }
         setIsSaving(true);
         // Exclude id, class, arm, and user_id from update data
         // user_id should never be updated via this form - it's set by account creation
         const { id, class: _class, arm: _arm, user_id: _userId, ...updateData } = formData;
-        const success = await onUpdateStudent(student.id, updateData);
+        const sanitizedData: Partial<Student> = { ...updateData };
+
+        const emailFields: { key: keyof Student; label: string }[] = [
+            { key: 'father_email', label: "Father's email" },
+            { key: 'mother_email', label: "Mother's email" },
+        ];
+
+        for (const { key, label } of emailFields) {
+            const value = (sanitizedData[key] as string | undefined)?.trim();
+            if (value) {
+                if (!isValidEmail(value)) {
+                    addToast(`${label} is not a valid email address.`, 'error');
+                    setIsSaving(false);
+                    return;
+                }
+                sanitizedData[key] = value;
+            }
+        }
+
+        const phoneFields: { key: keyof Student; label: string }[] = [
+            { key: 'father_phone', label: "Father's phone" },
+            { key: 'mother_phone', label: "Mother's phone" },
+        ];
+
+        for (const { key, label } of phoneFields) {
+            const value = (sanitizedData[key] as string | undefined)?.trim();
+            if (value) {
+                const normalized = normalizeNigerianPhone(value);
+                if (!normalized) {
+                    addToast(`${label} must be a valid Nigerian phone number.`, 'error');
+                    setIsSaving(false);
+                    return;
+                }
+                sanitizedData[key] = normalized;
+            }
+        }
+
+        if (sanitizedData.father_name) sanitizedData.father_name = sanitizedData.father_name.trim();
+        if (sanitizedData.mother_name) sanitizedData.mother_name = sanitizedData.mother_name.trim();
+
+        const success = await onUpdateStudent(student.id, sanitizedData);
         if(success) {
             setIsEditing(false);
         }
@@ -339,6 +396,58 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
             {tabName}
         </button>
     );
+
+    const ParentCard: React.FC<{ label: string; nameKey: keyof Student; phoneKey: keyof Student; emailKey: keyof Student }> = ({ label, nameKey, phoneKey, emailKey }) => {
+        const nameValue = (formData[nameKey] as string) || '';
+        const phoneValue = (formData[phoneKey] as string) || '';
+        const emailValue = (formData[emailKey] as string) || '';
+        const status = nameValue || phoneValue || emailValue ? 'Recorded' : 'Missing';
+
+        const commonInputClasses = "w-full p-2 mt-1 text-sm bg-slate-500/10 border border-slate-300/60 dark:border-slate-700/60 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-200/50 dark:disabled:bg-slate-700/50 disabled:cursor-not-allowed";
+
+        return (
+            <div className="p-4 border border-slate-200/60 dark:border-slate-700/60 rounded-lg bg-white/60 dark:bg-slate-900/40">
+                <div className="flex justify-between items-center mb-3">
+                    <h5 className="font-semibold text-slate-800 dark:text-white">{label}</h5>
+                    <span className={`text-xs px-2 py-1 rounded-full ${status === 'Recorded' ? 'bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>{status}</span>
+                </div>
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Name</label>
+                        <input
+                            type="text"
+                            value={nameValue}
+                            onChange={e => setFormData(prev => ({ ...prev, [nameKey]: e.target.value }))}
+                            disabled={!isEditing || !canEditProfile}
+                            className={commonInputClasses}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Phone</label>
+                        <input
+                            type="tel"
+                            value={phoneValue}
+                            onChange={e => setFormData(prev => ({ ...prev, [phoneKey]: e.target.value }))}
+                            disabled={!isEditing || !canEditProfile}
+                            className={commonInputClasses}
+                            placeholder="+234..."
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Email</label>
+                        <input
+                            type="email"
+                            value={emailValue}
+                            onChange={e => setFormData(prev => ({ ...prev, [emailKey]: e.target.value }))}
+                            disabled={!isEditing || !canEditProfile}
+                            className={commonInputClasses}
+                            placeholder="guardian@email.com"
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    };
     
     const renderContent = () => {
         switch (activeTab) {
@@ -559,6 +668,19 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                    <EditableField label="Address" value={formData.address || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, address: v}))} type="textarea" className="col-span-full" />
                                 </div>
                             </div>
+                            <div className="bg-slate-500/10 p-4 rounded-lg text-slate-700 dark:text-slate-200 md:col-span-2">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                                    <div>
+                                        <h4 className="font-semibold text-slate-800 dark:text-white">Parents / Guardians</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">Keep parent contacts up to date. Fields accept Nigerian phone format and email validation.</p>
+                                    </div>
+                                    {!canEditProfile && <span className="text-xs text-slate-500">Read only</span>}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <ParentCard label="Father" nameKey="father_name" phoneKey="father_phone" emailKey="father_email" />
+                                    <ParentCard label="Mother" nameKey="mother_name" phoneKey="mother_phone" emailKey="mother_email" />
+                                </div>
+                            </div>
                             <div className="bg-red-500/10 p-4 rounded-lg text-center">
                                 <h4 className="font-semibold text-red-700 dark:text-red-300 mb-1">Reports</h4>
                                 <p className="text-4xl font-bold text-red-600 dark:text-red-400">{visibleReports.length}</p>
@@ -590,15 +712,17 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                     <p className="text-slate-500 dark:text-slate-400">Student Profile</p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
-                    {isEditing ? (
-                        <>
-                         <button type="button" onClick={() => setIsEditing(false)} disabled={isSaving} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
-                         <button type="button" onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-green-400 flex items-center min-w-[80px] justify-center">
-                             {isSaving ? <Spinner size="sm"/> : 'Save'}
-                         </button>
-                        </>
-                    ) : (
-                        <button type="button" onClick={() => setIsEditing(true)} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Edit Profile</button>
+                    {canEditProfile && (
+                        isEditing ? (
+                            <>
+                             <button type="button" onClick={() => setIsEditing(false)} disabled={isSaving} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
+                             <button type="button" onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-green-400 flex items-center min-w-[80px] justify-center">
+                                 {isSaving ? <Spinner size="sm"/> : 'Save'}
+                             </button>
+                            </>
+                        ) : (
+                            <button type="button" onClick={() => setIsEditing(true)} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Edit Profile</button>
+                        )
                     )}
                     <button type="button" onClick={() => setIsCommModalOpen(true)} className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700">Log Communication</button>
                     
