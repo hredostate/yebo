@@ -782,8 +782,10 @@ export interface AcademicClass {
     is_active: boolean;
     min_subjects?: number | null;
     max_subjects?: number | null;
+    campus_id?: number | null;
     
     assessment_structure?: AssessmentStructure;
+    campus?: { id: number; name: string };
 }
 
 export interface AcademicTeachingAssignment {

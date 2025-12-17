@@ -250,6 +250,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                                     onUpdateEnrollment={onUpdateClassEnrollment}
                                     gradingSchemes={gradingSchemes}
                                     schoolConfig={schoolConfig}
+                                    campuses={campuses}
                                 />
                             )}
                             {structureSubTab === 'assignments' && (

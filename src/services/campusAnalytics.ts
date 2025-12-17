@@ -89,28 +89,73 @@ export const calculateStudentStats = async (
   schoolId: number,
   campusId?: number | null
 ): Promise<CampusStudentStats> => {
-  // Build query
-  let query = supabase
-    .from('students')
-    .select('*, student_profiles(id)')
-    .eq('school_id', schoolId);
+  // Get academic classes for this campus
+  let academicClassQuery = supabase
+    .from('academic_classes')
+    .select('id')
+    .eq('school_id', schoolId)
+    .eq('is_active', true);
 
   if (campusId !== undefined) {
     if (campusId === null) {
-      query = query.is('campus_id', null);
+      academicClassQuery = academicClassQuery.is('campus_id', null);
     } else {
-      query = query.eq('campus_id', campusId);
+      academicClassQuery = academicClassQuery.eq('campus_id', campusId);
     }
   }
 
-  const { data: students, error } = await query;
+  const { data: academicClasses } = await academicClassQuery;
+  const classIds = academicClasses?.map(ac => ac.id) || [];
+
+  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
+  
+  // If no classes found, return empty stats early
+  if (classIds.length === 0) {
+    return {
+      campusId: campusId || null,
+      campusName,
+      totalStudents: 0,
+      activeStudents: 0,
+      suspendedStudents: 0,
+      expelledStudents: 0,
+      graduatedStudents: 0,
+      withdrawnStudents: 0,
+      neverLoggedIn: 0,
+      withActiveAccounts: 0,
+      statusBreakdown: {},
+    };
+  }
+
+  // Get students enrolled in these academic classes
+  let query = supabase
+    .from('academic_class_students')
+    .select(`
+      student:students(
+        id,
+        name,
+        status,
+        user_id,
+        student_profiles(id)
+      )
+    `)
+    .in('academic_class_id', classIds);
+
+  const { data: enrollments, error } = await query;
 
   if (error) {
     console.error('Error fetching students:', error);
     throw error;
   }
 
-  const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
+  // Extract unique students from enrollments
+  const studentsMap = new Map<number, any>();
+  enrollments?.forEach((enrollment: { student?: any }) => {
+    if (enrollment.student && !studentsMap.has(enrollment.student.id)) {
+      studentsMap.set(enrollment.student.id, enrollment.student);
+    }
+  });
+
+  const students = Array.from(studentsMap.values());
   const totalStudents = students?.length || 0;
 
   // Count by status
@@ -222,31 +267,28 @@ export const calculateFinancialStats = async (
   campusId?: number | null,
   termId?: number
 ): Promise<CampusFinancialStats> => {
-  // First get students for this campus
-  let studentQuery = supabase
-    .from('students')
-    .select('id, status, campus_id')
-    .eq('school_id', schoolId);
+  // Get academic classes for this campus
+  let academicClassQuery = supabase
+    .from('academic_classes')
+    .select('id')
+    .eq('school_id', schoolId)
+    .eq('is_active', true);
 
   if (campusId !== undefined) {
     if (campusId === null) {
-      studentQuery = studentQuery.is('campus_id', null);
+      academicClassQuery = academicClassQuery.is('campus_id', null);
     } else {
-      studentQuery = studentQuery.eq('campus_id', campusId);
+      academicClassQuery = academicClassQuery.eq('campus_id', campusId);
     }
   }
 
-  const { data: students, error: studentsError } = await studentQuery;
+  const { data: academicClasses } = await academicClassQuery;
+  const classIds = academicClasses?.map(ac => ac.id) || [];
 
-  if (studentsError) {
-    console.error('Error fetching students:', studentsError);
-    throw studentsError;
-  }
-
-  const studentIds = students?.map(s => s.id) || [];
   const campusName = campusId !== null && campusId !== undefined ? await getCampusName(campusId) : 'No Campus';
-
-  if (studentIds.length === 0) {
+  
+  // If no classes found, return empty stats early
+  if (classIds.length === 0) {
     return {
       campusId: campusId || null,
       campusName,
@@ -260,6 +302,30 @@ export const calculateFinancialStats = async (
       collectionRate: 0,
     };
   }
+
+  // Get students enrolled in these academic classes
+  let studentEnrollmentQuery = supabase
+    .from('academic_class_students')
+    .select('student_id, student:students(id, status)')
+    .in('academic_class_id', classIds);
+
+  const { data: enrollments, error: enrollmentsError } = await studentEnrollmentQuery;
+
+  if (enrollmentsError) {
+    console.error('Error fetching student enrollments:', enrollmentsError);
+    throw enrollmentsError;
+  }
+
+  // Extract unique students from enrollments
+  const studentsMap = new Map<number, any>();
+  enrollments?.forEach((enrollment: { student?: any }) => {
+    if (enrollment.student && !studentsMap.has(enrollment.student.id)) {
+      studentsMap.set(enrollment.student.id, enrollment.student);
+    }
+  });
+
+  const students = Array.from(studentsMap.values());
+  const studentIds = students.map((s: any) => s.id);
 
   // Get invoices for these students
   let invoiceQuery = supabase
