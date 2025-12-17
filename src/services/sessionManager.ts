@@ -3,6 +3,10 @@ import { getRuntimeFlags } from './runtimeConfig';
 
 /**
  * Helper function to retry async operations with exponential backoff
+ * @param fn The async operation to retry
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @param baseDelay Initial delay in milliseconds before the first retry (default: 1000ms)
+ * @returns The result of the operation or null on failure after all retries
  */
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -19,7 +23,8 @@ async function retryWithBackoff<T>(
         return null;
       }
       
-      const delay = baseDelay * Math.pow(2, attempt);
+      // Calculate delay with exponential backoff, capped at 30 seconds
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 30000);
       console.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }

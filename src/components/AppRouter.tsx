@@ -1036,4 +1036,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
     }
 };
 
+// Note: AppRouter is wrapped with memo to reduce re-renders during navigation.
+// While the 'data' and 'actions' props are complex objects, this still helps
+// prevent re-renders when navigating between views where the same object references are reused.
 export default memo(AppRouter);
