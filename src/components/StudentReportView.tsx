@@ -974,8 +974,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         {`
           @media print {
             @page {
-              size: ${orientation};
-              margin: 0.5cm;
+              size: A4 ${orientation === 'landscape' ? 'landscape' : 'portrait'};
+              margin: 6mm;
             }
             
             /* Force colors to print */
@@ -1063,7 +1063,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         `}
       </style>
 
-      <div className={`mx-auto print:w-full print:max-w-none ${orientation === 'landscape' ? 'max-w-[1100px]' : 'max-w-4xl'}`}>
+      <div className="mx-auto print:w-full print:max-w-none max-w-[210mm]">
         
         <div className="mb-4 flex justify-between items-center no-print">
           <button onClick={onBack} className="px-4 py-2 bg-white border rounded-lg shadow-sm hover:bg-gray-50 text-slate-700 font-medium">
@@ -1098,7 +1098,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
 
         {/* Screen and print view - visible in both modes */}
         <div>
-          <div className={`bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
+          <div className="a4-print-page" style={orientation === 'landscape' ? { width: '297mm', minHeight: '210mm', maxHeight: '210mm' } : undefined}>
+            <div className={`a4-print-safe-area bg-white shadow-2xl print:shadow-none rounded-xl overflow-hidden printable-report ${layout === 'professional' ? 'border-4 border-double border-black' : 'border-t-8'}`} style={layout !== 'professional' ? containerStyle : {}}>
             
             {/* --- CLASSIC, MODERN & PASTEL LAYOUTS SHARE STRUCTURE --- */}
             {(layout === 'classic' || layout === 'modern' || layout === 'pastel') && (

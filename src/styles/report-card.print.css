@@ -1,7 +1,7 @@
 /* Print-specific overrides for report cards */
 @media print {
   :root {
-    --report-print-margin: 8mm;
+    --report-print-margin: 6mm;
     --report-print-width: calc(210mm - (var(--report-print-margin) * 2));
     --report-print-height: calc(297mm - (var(--report-print-margin) * 2));
   }
@@ -62,13 +62,14 @@
     width: var(--report-print-width) !important;
     max-width: var(--report-print-width) !important;
     min-height: var(--report-print-height) !important;
+    max-height: var(--report-print-height) !important;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 6mm !important;
     background: #fff !important;
     transform: none !important;
     zoom: 1 !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   /* If the screen layout vertically centers content and causes big top whitespace */
