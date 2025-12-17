@@ -10,6 +10,7 @@ import PayrollSettings from './PayrollSettings';
 import PayrollManager from './PayrollManager'; // For History view
 import { BanknotesIcon, EditIcon } from './common/icons';
 import Spinner from './common/Spinner';
+import { useCan } from '../security/permissions';
 
 interface PayrollPortalProps {
     userProfile: UserProfile;
@@ -121,7 +122,15 @@ const PayrollPortal: React.FC<PayrollPortalProps> = ({
     userPermissions,
     campuses
 }) => {
-    const canManage = userPermissions.includes('manage-payroll') || userPermissions.includes('*');
+    const canAccess = useCan({ role: userProfile.role, permissions: userPermissions, userId: userProfile.id });
+    const canViewPayroll = canAccess('view', 'payroll');
+    const canViewOwnPayslip = canAccess('view', 'payroll_self', userProfile.id);
+
+    if (!canViewPayroll && !canViewOwnPayslip) {
+        return <div className="p-6 text-red-600 bg-red-50 border border-red-200 rounded-lg">You are not authorized to view payroll data.</div>;
+    }
+
+    const canManage = canAccess('manage', 'payroll');
     const [activeTab, setActiveTab] = useState(canManage ? 'run' : 'slips');
     const [isBankModalOpen, setIsBankModalOpen] = useState(false);
 

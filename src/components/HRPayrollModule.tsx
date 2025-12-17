@@ -18,6 +18,7 @@ import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIc
 import Spinner from './common/Spinner';
 import { supa as supabase } from '../offline/client';
 import { mapSupabaseError } from '../utils/errorHandling';
+import { useCan } from '../security/permissions';
 
 
 interface HRPayrollModuleProps {
@@ -170,7 +171,12 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
             </div>
         );
     }
-    
+
+    const canAccess = useCan({ role: userProfile.role, permissions: userPermissions, userId: userProfile.id });
+    if (!canAccess('view', 'payroll') && !canAccess('view', 'payroll_self', userProfile.id)) {
+        return <div className="p-6 text-red-600 bg-red-50 border border-red-200 rounded-lg">You are not authorized to view payroll data.</div>;
+    }
+
     const safeUserProfile = userProfile;
     const safeUsers = users || [];
     const safePayrollRuns = payrollRuns || [];

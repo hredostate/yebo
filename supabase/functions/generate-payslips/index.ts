@@ -10,6 +10,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const collectUserPermissions = async (client: any, userId: string, primaryRole?: string | null) => {
+  const permissions = new Set<string>();
+  const { data: roles } = await client.from('roles').select('id, title, permissions');
+
+  const primary = roles?.find((r: any) => r.title === primaryRole);
+  primary?.permissions?.forEach((p: string) => permissions.add(p));
+
+  const { data: assignments } = await client.from('user_role_assignments').select('role_id').eq('user_id', userId);
+  assignments?.forEach((assignment: any) => {
+    const role = roles?.find((r: any) => r.id === assignment.role_id);
+    role?.permissions?.forEach((p: string) => permissions.add(p));
+  });
+
+  if (primaryRole && (primaryRole === 'Admin' || primaryRole === 'Super Admin')) {
+    permissions.add('*');
+  }
+
+  return permissions;
+};
+
 // Structured HTML template for a comprehensive payslip
 const generatePayslipHtml = (item: any, run: any, school: any) => {
     const normalizeLineItems = (payload: any) => {
@@ -184,6 +204,24 @@ serve(async (req) => {
     const pdfApiWorkspace = Deno.env.get('PDF_API_WORKSPACE');
     if (!pdfApiKey || !pdfApiSecret || !pdfApiWorkspace) {
         throw new Error('PDF generation secrets are not configured.');
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    );
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+
+    const { data: userProfile } = await supabaseClient.from('user_profiles').select('role').eq('id', user.id).single();
+    const permissionSet = await collectUserPermissions(supabaseClient, user.id, userProfile?.role);
+    const hasPayrollAccess = permissionSet.has('*') || permissionSet.has('manage-payroll') || permissionSet.has('manage-finance');
+    if (!hasPayrollAccess) {
+      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions' }), { status: 403, headers: corsHeaders });
     }
 
     const adminClient = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));

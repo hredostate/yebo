@@ -35,6 +35,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const collectUserPermissions = async (client: any, userId: string, primaryRole?: string | null) => {
+  const permissions = new Set<string>();
+  const { data: roles } = await client.from('roles').select('id, title, permissions');
+
+  const primary = roles?.find((r: any) => r.title === primaryRole);
+  primary?.permissions?.forEach((p: string) => permissions.add(p));
+
+  const { data: assignments } = await client.from('user_role_assignments').select('role_id').eq('user_id', userId);
+  assignments?.forEach((assignment: any) => {
+    const role = roles?.find((r: any) => r.id === assignment.role_id);
+    role?.permissions?.forEach((p: string) => permissions.add(p));
+  });
+
+  if (primaryRole && (primaryRole === 'Admin' || primaryRole === 'Super Admin')) {
+    permissions.add('*');
+  }
+
+  return permissions;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -60,8 +80,14 @@ serve(async (req) => {
       throw new Error('Paystack secret key is not configured.');
     }
 
-    const { data: userProfile } = await supabaseClient.from('user_profiles').select('school_id').eq('id', user.id).single();
+    const { data: userProfile } = await supabaseClient.from('user_profiles').select('school_id, role').eq('id', user.id).single();
     if (!userProfile) throw new Error('User profile not found.');
+
+    const permissionSet = await collectUserPermissions(supabaseClient, user.id, userProfile.role);
+    const hasPayrollAccess = permissionSet.has('*') || permissionSet.has('manage-payroll') || permissionSet.has('manage-finance');
+    if (!hasPayrollAccess) {
+      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions' }), { status: 403, headers: corsHeaders });
+    }
 
     // Use Service Role for backend operations
     const adminClient = createClient(

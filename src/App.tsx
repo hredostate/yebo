@@ -18,6 +18,7 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 import { fetchAllStudents } from './utils/studentPagination';
 import { updateSessionHeartbeat, terminateCurrentSession } from './services/sessionManager';
 import { clearUserPersistedState } from './hooks/usePersistedState';
+import { canManagePayroll, canViewOwnPayslip, canViewPayroll, useCan } from './security/permissions';
 import {
     AUTH_ONLY_VIEWS,
     getInitialTargetViewFromHash,
@@ -239,6 +240,17 @@ const App: React.FC = () => {
     const [userProfile, setUserProfile] = useState<UserProfile | StudentProfile | null | undefined>(undefined);
     const [userType, setUserType] = useState<'staff' | 'student' | null>(null);
     const [userPermissions, setUserPermissions] = useState<string[]>([]);
+
+    const permissionContext = useMemo(() => {
+        const resolvedRole = userProfile && 'role' in userProfile ? userProfile.role : userType === 'student' ? 'Student' : null;
+        return {
+            role: resolvedRole,
+            permissions: userPermissions,
+            userId: session?.user?.id,
+        };
+    }, [session?.user?.id, userPermissions, userProfile, userType]);
+
+    const canAccess = useCan(permissionContext);
     
     // Theme Management
     const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -1124,6 +1136,24 @@ const App: React.FC = () => {
                         // student_term_reports (10000), student_term_report_subjects (50000),
                         // teaching_assignments (5000), lesson_plans (10000), positive_behavior (10000),
                         // student_awards (10000), quiz_responses (10000), notifications (5000).
+                        const payrollRunsQuery = canViewPayroll(permissionContext) || canManagePayroll(permissionContext)
+                            ? supabase.from('payroll_runs').select('*')
+                            : canViewOwnPayslip(permissionContext, user.id)
+                                ? supabase.from('payroll_runs').select('*, items:payroll_items!inner(user_id)').eq('items.user_id', user.id)
+                                : supabase.from('payroll_runs').select('id').limit(0);
+
+                        const payrollItemsQuery = canViewPayroll(permissionContext) || canManagePayroll(permissionContext)
+                            ? supabase.from('payroll_items').select('*')
+                            : canViewOwnPayslip(permissionContext, user.id)
+                                ? supabase.from('payroll_items').select('*').eq('user_id', user.id)
+                                : supabase.from('payroll_items').select('id').limit(0);
+
+                        const payrollAdjustmentsQuery = canManagePayroll(permissionContext)
+                            ? supabase.from('payroll_adjustments').select('*')
+                            : canViewOwnPayslip(permissionContext, user.id)
+                                ? supabase.from('payroll_adjustments').select('*').eq('user_id', user.id)
+                                : supabase.from('payroll_adjustments').select('id').limit(0);
+
                         const backgroundQueries = [
                             supabase.from('announcements').select('*, author:user_profiles(name)').order('created_at', { ascending: false }),
                             supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5000),
@@ -1166,9 +1196,9 @@ const App: React.FC = () => {
                             supabase.from('student_term_report_subjects').select('*').limit(50000),
                             supabase.from('lesson_plan_coverage_votes').select('*'),
                             supabase.from('rewards_store_items').select('*'),
-                            supabase.from('payroll_runs').select('*'),
-                            supabase.from('payroll_items').select('*'),
-                            supabase.from('payroll_adjustments').select('*'),
+                            payrollRunsQuery,
+                            payrollItemsQuery,
+                            payrollAdjustmentsQuery,
                             supabase.from('campuses').select('*'),
                             supabase.from('teacher_checkins').select('*'),
                             supabase.from('leave_types').select('*'),
@@ -1397,7 +1427,7 @@ const App: React.FC = () => {
         } finally {
             isFetchingRef.current = false;
         }
-    }, [addToast, handleLogout]); 
+    }, [addToast, handleLogout, permissionContext]);
     // --- Auth Logic & Data Fetching ---
     
     useEffect(() => {
@@ -6554,6 +6584,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                     onLogout={handleLogout}
                     isSidebarOpen={isSidebarOpen}
                     setIsSidebarOpen={setIsSidebarOpen}
+                    canAccess={canAccess}
                 />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Header
@@ -6819,6 +6850,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 onLogout={handleLogout}
                 isSidebarOpen={isSidebarOpen}
                 setIsSidebarOpen={setIsSidebarOpen}
+                canAccess={canAccess}
             />
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 <Header
