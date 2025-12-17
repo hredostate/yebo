@@ -216,7 +216,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
   };
 
   const hasPermission = (permission?: string, itemId?: string) => {
-    if (itemId === VIEWS.HR_PAYROLL) return canAccess('view', 'payroll');
+    if (itemId === VIEWS.HR_PAYROLL) {
+      // Allow access if user can view payroll (admin) OR view their own payroll (all users)
+      return canAccess('view', 'payroll') || canAccess('view', 'payroll_self', userProfile.id);
+    }
     if (permission === undefined) return true;
     if (permission === 'school.console.view') return canViewSuperAdmin;
     if (permission.includes('|')) {
