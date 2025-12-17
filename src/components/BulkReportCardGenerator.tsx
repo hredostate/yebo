@@ -1151,7 +1151,11 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           let token = existingReport?.public_token;
           
           // Generate new token if doesn't exist or is expired
-          if (!token || new Date(existingReport.token_expires_at) < new Date()) {
+          const tokenExpired = existingReport?.token_expires_at 
+            ? new Date(existingReport.token_expires_at) < new Date()
+            : true;
+            
+          if (!token || tokenExpired) {
             token = `${student.id}-${termId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
             
             const { error: updateError } = await supabase

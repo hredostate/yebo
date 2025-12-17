@@ -625,11 +625,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           status: row['Status'] || row['status'] || 'Active',
           class_id,
           arm_id,
-          parent_phone_number_1: row['Parent Phone 1'] || row['parent_phone_number_1'] || row['Guardian Contact'] || '',
+          parent_phone_number_1: row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
           parent_phone_number_2: row['Parent Phone 2'] || row['parent_phone_number_2'] || '',
           father_name: row['Father Name'] || row['father_name'] || '',
           mother_name: row['Mother Name'] || row['mother_name'] || '',
-          guardian_phone: row['Guardian Contact'] || row['guardian_phone'] || row['parent_phone_number_1'] || '',
+          // Guardian Contact can map to parent_phone_number_1 if that field is empty
+          guardian_phone: row['Guardian Contact'] || row['guardian_phone'] || row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
         };
 
         studentsToImport.push(studentData);
