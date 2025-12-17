@@ -1,14 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import type { PayrollRun, PayrollItem, UserProfile } from '../types';
+import type { PayrollRun, PayrollItem, UserProfile, Payslip } from '../types';
 import { BanknotesIcon, ChevronDownIcon } from './common/icons';
+import PreRunPayslipCard from './PreRunPayslipCard';
 
 interface MyPayrollViewProps {
     payrollRuns: PayrollRun[];
     payrollItems: PayrollItem[];
     currentUser: UserProfile;
+    payslips?: Payslip[];
+    onRefreshPayslips?: () => void;
 }
 
-const MyPayrollView: React.FC<MyPayrollViewProps> = ({ payrollRuns, payrollItems, currentUser }) => {
+const MyPayrollView: React.FC<MyPayrollViewProps> = ({ payrollRuns, payrollItems, currentUser, payslips = [], onRefreshPayslips }) => {
     const [expandedRunId, setExpandedRunId] = useState<number | null>(null);
 
     // Add null safety
@@ -22,7 +25,7 @@ const MyPayrollView: React.FC<MyPayrollViewProps> = ({ payrollRuns, payrollItems
 
     const myPayrollHistory = useMemo(() => {
         if (!payrollItems || !payrollRuns) return [];
-        
+
         const myItems = payrollItems.filter(item => item.user_id === currentUser.id);
         const myRunIds = new Set(myItems.map(item => item.payroll_run_id));
         return payrollRuns
@@ -34,6 +37,10 @@ const MyPayrollView: React.FC<MyPayrollViewProps> = ({ payrollRuns, payrollItems
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }, [payrollRuns, payrollItems, currentUser.id]);
 
+    const draftPayslip = useMemo(() => {
+        return payslips.find(slip => slip.status !== 'FINAL') || payslips[0];
+    }, [payslips]);
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
@@ -43,6 +50,12 @@ const MyPayrollView: React.FC<MyPayrollViewProps> = ({ payrollRuns, payrollItems
                 </h1>
                 <p className="text-slate-600 dark:text-slate-300 mt-1">Your personal payroll history.</p>
             </div>
+            {draftPayslip && (
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Current Payslip (Pre-Run)</h3>
+                    <PreRunPayslipCard payslip={draftPayslip} currentUserId={currentUser.id} onRefresh={onRefreshPayslips} />
+                </div>
+            )}
             <div className="space-y-4">
                 {myPayrollHistory.map(run => (
                     <div key={run.id} className="p-4 rounded-lg border bg-slate-100 dark:bg-slate-800">

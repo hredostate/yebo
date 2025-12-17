@@ -1006,6 +1006,84 @@ export interface PayrollRun {
     meta?: any;
 }
 
+export type PayrollRunV2Status =
+    | 'DRAFT'
+    | 'PRE_RUN_PUBLISHED'
+    | 'FINALIZED'
+    | 'PROCESSING'
+    | 'PROCESSED_OFFLINE'
+    | 'PROCESSED_PAYSTACK'
+    | 'FAILED';
+
+export type PayrollProcessingMethod = 'OFFLINE' | 'PAYSTACK';
+
+export type PayslipStatus =
+    | 'DRAFT'
+    | 'AWAITING_APPROVAL'
+    | 'APPROVED'
+    | 'QUERY_RAISED'
+    | 'RESOLVED'
+    | 'FINAL';
+
+export type PayslipLineItemType = 'EARNING' | 'DEDUCTION' | 'INFO';
+export type PayslipQueryStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'REJECTED';
+
+export interface PayrollRunV2 {
+    id: string;
+    school_id?: number;
+    period_key: string;
+    status: PayrollRunV2Status;
+    processing_method?: PayrollProcessingMethod | null;
+    created_by?: string | null;
+    published_by?: string | null;
+    finalized_by?: string | null;
+    created_at: string;
+    published_at?: string | null;
+    finalized_at?: string | null;
+    meta?: any;
+}
+
+export interface PayslipLineItem {
+    id: string;
+    payslip_id: string;
+    type: PayslipLineItemType;
+    label: string;
+    amount: number;
+    ordering?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface PayslipQuery {
+    id: string;
+    payslip_id: string;
+    raised_by_staff_id: string;
+    status: PayslipQueryStatus;
+    message: string;
+    admin_response?: string | null;
+    attachment_url?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Payslip {
+    id: string;
+    payroll_run_id: string;
+    staff_id: string;
+    status: PayslipStatus;
+    currency: string;
+    gross_pay: number;
+    total_deductions: number;
+    net_pay: number;
+    checksum?: string | null;
+    created_at: string;
+    updated_at: string;
+    run?: PayrollRunV2;
+    staff?: UserProfile;
+    line_items?: PayslipLineItem[];
+    queries?: PayslipQuery[];
+}
+
 export interface PayrollItem {
     id: number;
     payroll_run_id: number;
