@@ -21,8 +21,8 @@
 
   /* Page setup */
   @page {
-    size: 210mm 297mm;
-    margin: 8mm;
+    size: A4;
+    margin: 6mm 6mm 6mm 6mm;
   }
 
   /* Alternative page size for Letter format */
@@ -36,6 +36,7 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+    box-sizing: border-box !important;
   }
 
   body {
@@ -58,6 +59,40 @@
     border: 1px solid #d1d5db !important;
   }
 
+  /* Dedicated A4 canvas and safe area */
+  .a4-print-page {
+    width: 210mm;
+    min-height: 297mm;
+    max-height: 297mm;
+    padding: 6mm;
+    margin: 0 auto;
+    background: white !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+  }
+
+  .a4-print-safe-area {
+    width: calc(210mm - 12mm);
+    min-height: calc(297mm - 12mm);
+    max-height: calc(297mm - 12mm);
+    padding: 6mm;
+    margin: 0 auto;
+    background: white !important;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .print-section,
+  .a4-print-safe-area > * {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   .report-card-hero {
     background: linear-gradient(90deg, #0f172a, #312e81, #1d4ed8) !important;
     color: white !important;
@@ -77,6 +112,13 @@
   .report-card .print-break-avoid {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  /* Disable animations and transforms in print to prevent layout drift */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 
   /* Allow manual breakpoints for very long cards */

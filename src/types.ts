@@ -1144,6 +1144,8 @@ export interface PayrollLineItem {
     component?: PayrollComponent;
 }
 
+export type PensionContributionStatus = 'recorded' | 'remitted' | 'confirmed';
+
 export interface PensionContribution {
     id: number;
     staff_pension_id: number;
@@ -1162,7 +1164,7 @@ export interface PensionContribution {
     cumulative_employer: number;
     cumulative_voluntary: number;
     cumulative_total: number;
-    status: string;
+    status: PensionContributionStatus;
 }
 
 export interface PayrollAdjustment {
@@ -2156,7 +2158,7 @@ export interface StaffPension {
 export interface PensionContribution {
     id: number;
     staff_pension_id: number;
-    payroll_run_id?: number;
+    payroll_run_id?: number | null;
     user_id: string;
     school_id: number;
     contribution_month: string; // Date string (first day of month)
@@ -2190,7 +2192,7 @@ export interface PensionContribution {
     month_number: number; // 1, 2, 3... excluding preexisting
     total_service_months: number; // including preexisting
     
-    status: 'recorded' | 'remitted' | 'confirmed';
+    status: PensionContributionStatus;
     remittance_reference?: string;
     remitted_at?: string;
     notes?: string;

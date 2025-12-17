@@ -89,6 +89,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [outputMode, setOutputMode] = useState<'zip' | 'combined'>('zip');
+  const [includeCoverSheet, setIncludeCoverSheet] = useState(true);
+  const [includeCsvSummary, setIncludeCsvSummary] = useState(false);
+  const [watermarkChoice, setWatermarkChoice] = useState<'NONE' | 'DRAFT' | 'FINAL'>('NONE');
+  const [templateChoice, setTemplateChoice] = useState<'classic' | 'modern' | 'pastel' | 'professional'>('classic');
+  const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'generating' | 'packaging' | 'completed' | 'failed'>('idle');
+  const [jobReport, setJobReport] = useState<{ successes: string[]; failures: { name: string; reason: string }[] }>({ successes: [], failures: [] });
+  const [samplePreviewIds, setSamplePreviewIds] = useState<Set<number>>(new Set());
   const reportContainerRef = useRef<HTMLDivElement>(null);
 
   // Utility function to sanitize strings for safe HTML rendering and filenames
@@ -112,6 +123,14 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   useEffect(() => {
     fetchStudentData();
   }, [classId, termId, students]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const fetchStudentData = async () => {
     setIsLoading(true);
@@ -207,9 +226,78 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     setSelectedStudentIds(newSelected);
   };
 
-  const generateStudentReportPDF = async (student: StudentWithDebt): Promise<Blob | null> => {
+  const togglePreviewStudent = (studentId: number) => {
+    const updated = new Set(samplePreviewIds);
+    if (updated.has(studentId)) {
+      updated.delete(studentId);
+    } else {
+      if (updated.size >= 3) {
+        addToast('Preview is limited to 3 students at a time.', 'info');
+        return;
+      }
+      updated.add(studentId);
+    }
+    setSamplePreviewIds(updated);
+  };
+
+  const handlePreviewSample = async () => {
+    const targetId = samplePreviewIds.values().next().value || selectedStudentIds.values().next().value;
+    const targetStudent = studentsWithDebt.find((s) => s.id === targetId) || studentsWithDebt[0];
+
+    if (!targetStudent) {
+      addToast('Select at least one student to preview.', 'error');
+      return;
+    }
+
+    setPreviewing(true);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+
+    const result = await generateStudentReportPDF(targetStudent, templateChoice, watermarkChoice === 'NONE' ? undefined : watermarkChoice);
+    if (result) {
+      const url = URL.createObjectURL(result.blob);
+      setPreviewUrl(url);
+      setWizardStep(2);
+      addToast('Preview ready. Open the PDF to inspect margins and layout.', 'info');
+    }
+    setPreviewing(false);
+  };
+
+  const appendCanvasToPdf = (pdf: jsPDF, canvas: HTMLCanvasElement, startOnNewPage = false) => {
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 6;
+    const safeWidth = pageWidth - margin * 2;
+    const safeHeight = pageHeight - margin * 2;
+
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = safeWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    if (startOnNewPage) {
+      pdf.addPage('a4', 'portrait');
+    }
+
+    let heightLeft = imgHeight;
+    let position = margin;
+
+    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+    heightLeft -= safeHeight;
+
+    while (heightLeft > 0) {
+      position = margin - (imgHeight - heightLeft);
+      pdf.addPage('a4', 'portrait');
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= safeHeight;
+    }
+
+    return Math.max(1, Math.ceil(imgHeight / safeHeight));
+  };
+
+  const renderReportCanvas = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string) => {
     try {
-      // Fetch detailed report data for this student
       const { data: reportData, error: reportError } = await supabase.rpc('get_student_term_report_details', {
         p_student_id: student.id,
         p_term_id: termId,
@@ -221,10 +309,9 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         return null;
       }
 
-      // Fetch class report config and assessment structure
       let classReportConfig = null;
       let assessmentComponents = null;
-      
+
       const { data: enrollment } = await supabase
         .from('academic_class_students')
         .select('academic_class_id')
@@ -238,65 +325,74 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           .select('report_config, assessment_structure_id')
           .eq('id', enrollment.academic_class_id)
           .maybeSingle();
-        
+
         if (classData?.report_config) {
           classReportConfig = classData.report_config;
         }
-        
-        // Fetch assessment structure if available
+
         if (classData?.assessment_structure_id) {
           const { data: structure } = await supabase
             .from('assessment_structures')
             .select('components')
             .eq('id', classData.assessment_structure_id)
             .maybeSingle();
-          
+
           if (structure?.components) {
             assessmentComponents = structure.components;
           }
         }
       }
 
-      // Create a temporary container for the report
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.left = '-9999px';
-      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '210mm';
+      tempContainer.style.minHeight = '297mm';
+      tempContainer.style.padding = '6mm';
+      tempContainer.style.boxSizing = 'border-box';
       tempContainer.style.backgroundColor = 'white';
-      tempContainer.style.padding = '20mm';
+      tempContainer.className = 'a4-print-page';
       document.body.appendChild(tempContainer);
 
-      // Create simplified report HTML
-      const reportHTML = createReportHTML(reportData, student, classReportConfig, assessmentComponents);
+      const reportHTML = createReportHTML(reportData, student, classReportConfig, assessmentComponents, {
+        layoutOverride,
+        watermarkText,
+      });
       tempContainer.innerHTML = reportHTML;
 
-      // Wait for any images to load
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 120));
 
-      // Generate PDF using html2canvas and jsPDF
       const canvas = await html2canvas(tempContainer, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        windowWidth: 794,
+        windowHeight: 1123,
       });
 
-      // Remove temporary container
       document.body.removeChild(tempContainer);
+      return canvas;
+    } catch (error) {
+      console.error(`Error preparing canvas for ${student.name}:`, error);
+      return null;
+    }
+  };
 
-      // Create PDF
+  const generateStudentReportPDF = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string): Promise<{ blob: Blob; pagesAdded: number } | null> => {
+    try {
+      const canvas = await renderReportCanvas(student, layoutOverride, watermarkText);
+      if (!canvas) return null;
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
-
-      return pdf.output('blob');
+      const pagesAdded = appendCanvasToPdf(pdf, canvas, false);
+      return { blob: pdf.output('blob'), pagesAdded };
     } catch (error) {
       console.error(`Error generating PDF for student ${student.name}:`, error);
       return null;
@@ -356,11 +452,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     return `#${hex}${alphaHex}`;
   };
 
-  const createReportHTML = (reportData: ReportData, student: StudentWithDebt, classReportConfig?: ReportCardConfig | null, assessmentComponents?: Array<{ name: string; max_score: number }> | null): string => {
+  const createReportHTML = (
+    reportData: ReportData,
+    student: StudentWithDebt,
+    classReportConfig?: ReportCardConfig | null,
+    assessmentComponents?: Array<{ name: string; max_score: number }> | null,
+    options?: { layoutOverride?: string; watermarkText?: string }
+  ): string => {
     const { student: studentData, term, subjects, schoolConfig: config, summary, comments, attendance } = reportData;
     
     // Extract configuration
-    const layout = classReportConfig?.layout || 'classic';
+    const layout = options?.layoutOverride || classReportConfig?.layout || 'classic';
     const themeColor = classReportConfig?.colorTheme || '#1e3a8a';
     const logoUrl = classReportConfig?.customLogoUrl || config.logo_url;
     const schoolName = classReportConfig?.schoolNameOverride || config.display_name || config.school_name || 'School';
@@ -404,6 +506,10 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       borderRadius = '0';
     }
 
+    const watermarkLayer = options?.watermarkText && options.watermarkText !== 'NONE'
+      ? `<div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 52px; font-weight: 800; color: rgba(0,0,0,0.05); transform: rotate(-25deg); pointer-events: none;">${options.watermarkText}</div>`
+      : '';
+
     // Constant for default CA/Exam scores
     const DEFAULT_SCORES = { caScore: 0, examScore: 0 };
 
@@ -430,9 +536,10 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
     if (layout === 'classic' || layout === 'modern' || layout === 'pastel') {
       htmlContent = `
-        <div style="font-family: ${fontFamily}; color: #000; background: white;">
+        <div class="a4-print-safe-area" style="font-family: ${fontFamily}; color: #000; background: white; position: relative;">
+          ${watermarkLayer}
           <!-- Header Section -->
-          <div style="padding: 32px; border-bottom: 2px solid #e2e8f0; text-align: center; ${layout === 'pastel' ? `background: ${addAlphaToColor(themeColor, 10)};` : ''}">
+          <div class="print-section" style="padding: 24px; border-bottom: 2px solid #e2e8f0; text-align: center; ${layout === 'pastel' ? `background:${addAlphaToColor(themeColor, 10)};` : ''}">
             ${logoUrl ? `<img src="${logoUrl}" alt="Logo" style="width: 96px; height: 96px; object-fit: contain; margin: 0 auto 16px;" />` : ''}
             <h1 style="font-size: 28px; font-weight: bold; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">${sanitizedSchoolName}</h1>
             <p style="font-style: italic; margin: 4px 0; color: #64748b;">${sanitizedMotto}</p>
@@ -453,7 +560,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           </div>
 
           <!-- Summary Cards -->
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px;">
+          <div class="print-section" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px;">
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: ${borderRadius}; padding: 16px; text-align: center;">
               <p style="font-size: 10px; color: #2563eb; font-weight: bold; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL SCORE</p>
               <p style="font-size: 24px; font-weight: bold; margin: 0; color: #1e293b;">${totalScore.toFixed(1)}</p>
@@ -474,7 +581,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
           <!-- Attendance Summary -->
           ${attendance && attendance.total > 0 ? `
-          <div style="border: 1px solid #e2e8f0; border-radius: ${borderRadius}; padding: 20px; margin: 0 24px 24px 24px;">
+          <div class="print-section" style="border: 1px solid #e2e8f0; border-radius: ${borderRadius}; padding: 20px; margin: 0 24px 24px 24px;">
             <h4 style="text-align: center; font-weight: bold; color: #475569; text-transform: uppercase; font-size: 11px; margin: 0 0 16px 0; letter-spacing: 0.5px;">ATTENDANCE SUMMARY</h4>
             <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px;">
               <div style="background: white; border: 1px solid #e2e8f0; border-radius: ${borderRadius}; padding: 12px; text-align: center;">
@@ -518,7 +625,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           ` : ''}
 
           <!-- Subjects Table -->
-          <div style="padding: 0 24px 24px 24px;">
+          <div class="print-section" style="padding: 0 24px 24px 24px;">
             <h3 style="font-size: 16px; font-weight: bold; color: #1e293b; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid ${themeColor};">Academic Performance</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
               <thead>
@@ -575,7 +682,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           </div>
 
           <!-- Signatories Section -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 0 24px 24px 24px;">
+          <div class="print-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 0 24px 24px 24px;">
             <div style="border: 1px solid #cbd5e1; border-radius: ${borderRadius}; padding: 16px;">
               <h4 style="font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin: 0 0 12px 0; font-size: 12px;">${sanitizeString(teacherTitle)}'s Remark</h4>
               <p style="font-style: italic; color: #475569; min-height: 48px; margin: 0; font-size: 11px;">${sanitizeString(comments?.teacher || 'No comment provided.')}</p>
@@ -843,79 +950,156 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     return htmlContent;
   };
 
-  const handleGenerateZIP = async () => {
+  const buildCsvSummary = (studentsToSummarize: StudentWithDebt[]) => {
+    const header = ['Student Name', 'Admission No', 'Average Score', 'Has Debt', 'Report Exists'];
+    const rows = studentsToSummarize.map((s) => [
+      `"${sanitizeString(s.name)}"`,
+      `"${sanitizeString(s.admission_number || 'N/A')}"`,
+      s.averageScore !== undefined ? s.averageScore.toFixed(2) : '',
+      s.hasDebt ? 'YES' : 'NO',
+      s.reportExists ? 'YES' : 'NO',
+    ]);
+
+    return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  };
+
+  const addCoverSheet = (pdf: jsPDF, totalStudents: number) => {
+    const margin = 14;
+    pdf.setFontSize(20);
+    pdf.text('Class Report Pack', margin, 28);
+    pdf.setFontSize(14);
+    pdf.text(`${className} • ${termName}`, margin, 40);
+    pdf.setFontSize(11);
+    pdf.text(`Total students queued: ${totalStudents}`, margin, 52);
+    pdf.text(`Watermark: ${watermarkChoice === 'NONE' ? 'None' : watermarkChoice}`, margin, 60);
+    pdf.text(`Template: ${templateChoice}`, margin, 68);
+    pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, 76);
+  };
+
+  const handleGenerateReports = async () => {
     if (selectedStudentIds.size === 0) {
       addToast('Please select at least one student.', 'error');
       return;
     }
 
+    const selectedStudents = studentsWithDebt.filter((s) => selectedStudentIds.has(s.id));
     setIsGenerating(true);
-    setGenerationProgress({ current: 0, total: selectedStudentIds.size });
+    setWizardStep(3);
+    setJobStatus('queued');
+    setJobReport({ successes: [], failures: [] });
+    setGenerationProgress({ current: 0, total: selectedStudents.length });
+
+    const zip = new JSZip();
+    const combinedPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    let combinedStarted = false;
+    let successCount = 0;
+    let failCount = 0;
+    const successes: string[] = [];
+    const failures: { name: string; reason: string }[] = [];
+    const watermarkValue = watermarkChoice === 'NONE' ? undefined : watermarkChoice;
 
     try {
-      const zip = new JSZip();
-      const selectedStudents = studentsWithDebt.filter(s => selectedStudentIds.has(s.id));
-      let successCount = 0;
-      let failCount = 0;
+      if (outputMode === 'combined' && includeCoverSheet) {
+        addCoverSheet(combinedPdf, selectedStudents.length);
+        combinedStarted = true;
+      }
 
       for (let i = 0; i < selectedStudents.length; i++) {
         const student = selectedStudents[i];
+        setJobStatus('generating');
         setGenerationProgress({ current: i + 1, total: selectedStudents.length });
 
-        try {
-          const pdfBlob = await generateStudentReportPDF(student);
-          
-          if (pdfBlob) {
-            // Create filename: StudentName_AdmNumber_Term_Report.pdf
-            const safeName = sanitizeString(student.name);
-            const admNumber = sanitizeString(student.admission_number || 'NO_ADM');
-            const safeTermName = sanitizeString(termName);
-            const filename = `${safeName}_${admNumber}_${safeTermName}_Report.pdf`;
-            
-            zip.file(filename, pdfBlob);
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch (error) {
-          console.error(`Failed to generate PDF for ${student.name}:`, error);
+        const canvas = await renderReportCanvas(student, templateChoice, watermarkValue);
+        if (!canvas) {
           failCount++;
+          failures.push({ name: student.name, reason: 'Render failed' });
+          continue;
+        }
+
+        try {
+          const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          appendCanvasToPdf(pdf, canvas, false);
+          const pdfBlob = pdf.output('blob');
+
+          const safeName = sanitizeString(student.name);
+          const admNumber = sanitizeString(student.admission_number || 'NO_ADM');
+          const safeTermName = sanitizeString(termName);
+          const filename = `${safeName}_${admNumber}_${safeTermName}_Report.pdf`;
+
+          if (outputMode === 'zip') {
+            zip.file(filename, pdfBlob);
+          } else {
+            appendCanvasToPdf(combinedPdf, canvas, combinedStarted);
+            combinedStarted = true;
+          }
+
+          successCount++;
+          successes.push(student.name);
+        } catch (err: any) {
+          console.error(`Failed to generate PDF for ${student.name}:`, err);
+          failCount++;
+          failures.push({ name: student.name, reason: err?.message || 'Unknown error' });
         }
       }
 
       if (successCount === 0) {
         addToast('Failed to generate any report cards.', 'error');
+        setJobStatus('failed');
         return;
       }
 
-      // Generate ZIP file
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-      // Download ZIP
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement('a');
-      link.href = url;
+      setJobStatus('packaging');
       const safeClassName = sanitizeString(className);
       const safeTermName = sanitizeString(termName);
-      link.download = `${safeClassName}_${safeTermName}_ReportCards.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const filenameBase = `${safeClassName}_${safeTermName}_ReportCards`;
 
+      if (outputMode === 'zip') {
+        if (includeCsvSummary) {
+          zip.file(`${filenameBase}_summary.csv`, buildCsvSummary(selectedStudents));
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filenameBase}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const pdfBlob = combinedPdf.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filenameBase}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        if (includeCsvSummary) {
+          const csvBlob = new Blob([buildCsvSummary(selectedStudents)], { type: 'text/csv' });
+          const csvUrl = URL.createObjectURL(csvBlob);
+          const csvLink = document.createElement('a');
+          csvLink.href = csvUrl;
+          csvLink.download = `${filenameBase}_summary.csv`;
+          document.body.appendChild(csvLink);
+          csvLink.click();
+          document.body.removeChild(csvLink);
+          URL.revokeObjectURL(csvUrl);
+        }
+      }
+
+      setJobStatus('completed');
+      setJobReport({ successes, failures });
       addToast(
         `Successfully generated ${successCount} report card(s)${failCount > 0 ? `. ${failCount} failed.` : '.'}`,
         'success'
       );
-
-      // Close modal after successful generation
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-
     } catch (error: any) {
       addToast(`Error generating report cards: ${error.message}`, 'error');
-      console.error('Error generating ZIP:', error);
+      console.error('Error generating reports:', error);
+      setJobStatus('failed');
     } finally {
       setIsGenerating(false);
       setGenerationProgress(null);
@@ -983,6 +1167,145 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
             </div>
           ) : (
             <>
+              {/* Wizard steps and options */}
+              <div className="grid lg:grid-cols-3 gap-4 mb-6">
+                <div className="lg:col-span-2 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs uppercase text-slate-500 tracking-[0.16em]">Generation Wizard</p>
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Result Manager → Generate Report Cards</h3>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {['Select & Options', 'Preview', 'Generate'].map((label, idx) => {
+                        const stepNumber = (idx + 1) as 1 | 2 | 3;
+                        const isActive = wizardStep === stepNumber;
+                        const isComplete = wizardStep > stepNumber || jobStatus === 'completed';
+                        return (
+                          <div
+                            key={label}
+                            className={`flex items-center gap-1 px-3 py-1 rounded-full border ${isActive ? 'border-blue-500 bg-blue-50 text-blue-700' : isComplete ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-600'}`}
+                          >
+                            <span className="font-semibold text-xs">{stepNumber}</span>
+                            <span className="text-xs font-medium">{label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Output package</label>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <input type="radio" checked={outputMode === 'zip'} onChange={() => setOutputMode('zip')} className="w-4 h-4 text-blue-600" />
+                          ZIP of individual PDFs
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <input type="radio" checked={outputMode === 'combined'} onChange={() => setOutputMode('combined')} className="w-4 h-4 text-blue-600" />
+                          Single combined PDF
+                        </label>
+                      </div>
+
+                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Template & watermark</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={templateChoice}
+                          onChange={(e) => setTemplateChoice(e.target.value as any)}
+                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                        >
+                          <option value="classic">Classic (balanced)</option>
+                          <option value="modern">Modern gradient</option>
+                          <option value="pastel">Pastel</option>
+                          <option value="professional">Professional</option>
+                        </select>
+                        <select
+                          value={watermarkChoice}
+                          onChange={(e) => setWatermarkChoice(e.target.value as any)}
+                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                        >
+                          <option value="NONE">No watermark</option>
+                          <option value="DRAFT">Watermark: Draft</option>
+                          <option value="FINAL">Watermark: Final</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" checked={includeCoverSheet} onChange={(e) => setIncludeCoverSheet(e.target.checked)} className="w-4 h-4 text-blue-600" />
+                          Include cover sheet (combined PDF)
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" checked={includeCsvSummary} onChange={(e) => setIncludeCsvSummary(e.target.checked)} className="w-4 h-4 text-blue-600" />
+                          Add CSV summary
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Preview before batch</label>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Select up to 3 sample students to validate layout, margins, and branding before generating for the whole class.</p>
+                      <div className="flex flex-wrap gap-2">
+                        {studentsWithDebt.slice(0, 6).map((student) => (
+                          <button
+                            key={student.id}
+                            disabled={student.hasDebt || !student.reportExists || isGenerating}
+                            onClick={() => togglePreviewStudent(student.id)}
+                            className={`px-3 py-1 rounded-full border text-xs font-medium ${samplePreviewIds.has(student.id) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-700 dark:text-slate-300'}`}
+                          >
+                            {student.name.split(' ')[0]}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handlePreviewSample}
+                          disabled={previewing || isGenerating}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {previewing ? <Spinner size="sm" /> : 'Preview sample PDF'}
+                        </button>
+                        {previewUrl && (
+                          <a
+                            href={previewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-blue-600 hover:underline font-semibold"
+                          >
+                            Open preview
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-3">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Quality checks</p>
+                  <ul className="text-sm text-slate-700 dark:text-slate-300 list-disc list-inside space-y-1">
+                    <li>Only students without outstanding debt and with existing reports are eligible.</li>
+                    <li>Print-safe A4 canvas with 6mm margins enforced for every page.</li>
+                    <li>Watermarks, cover sheet, and CSV export options recorded in the job report.</li>
+                  </ul>
+                  {jobReport.failures.length > 0 && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                      <p className="font-semibold mb-1">Failures</p>
+                      <ul className="space-y-1 max-h-24 overflow-y-auto">
+                        {jobReport.failures.map((failure) => (
+                          <li key={failure.name}>{failure.name}: {failure.reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {jobReport.successes.length > 0 && (
+                    <p className="text-xs text-green-700">Completed {jobReport.successes.length} PDF(s).</p>
+                  )}
+                  <div className="text-xs text-slate-500">
+                    Status: <span className="font-semibold text-slate-800 dark:text-slate-100">{jobStatus}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Controls */}
               <div className="flex flex-wrap gap-3 mb-4">
                 <input
@@ -1080,17 +1403,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
         {/* Footer */}
         <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          {isGenerating && generationProgress && (
+          {generationProgress && (
             <div className="mb-4">
               <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mb-2">
-                <span>Generating report cards...</span>
+                <span>{jobStatus === 'completed' ? 'Job completed' : 'Generating report cards...'}</span>
                 <span>
                   {generationProgress.current} of {generationProgress.total}
                 </span>
               </div>
               <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-600 transition-all duration-300"
+                  className={`h-full ${jobStatus === 'completed' ? 'bg-green-500' : 'bg-blue-600'} transition-all duration-300`}
                   style={{
                     width: `${(generationProgress.current / generationProgress.total) * 100}%`,
                   }}
@@ -1112,7 +1435,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 Cancel
               </button>
               <button
-                onClick={handleGenerateZIP}
+                onClick={handleGenerateReports}
                 disabled={isGenerating || selectedStudentIds.size === 0}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium flex items-center gap-2"
               >
@@ -1124,7 +1447,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                 ) : (
                   <>
                     <DownloadIcon className="w-5 h-5" />
-                    Download as ZIP
+                    {outputMode === 'zip' ? 'Generate ZIP (per student)' : 'Generate combined PDF'}
                   </>
                 )}
               </button>
