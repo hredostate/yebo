@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Student, UserProfile, BaseDataObject, TeachingAssignment, CreatedCredential } from '../types';
 import AddStudentModal from './AddStudentModal';
-import { PlusCircleIcon, DownloadIcon, TrashIcon } from './common/icons';
+import { PlusCircleIcon, DownloadIcon, TrashIcon, UploadCloudIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { VIEWS, STUDENT_STATUSES } from '../constants';
 import { exportToCsv } from '../utils/export';
@@ -10,6 +10,8 @@ import { exportToExcel, type ExcelColumn } from '../utils/excelExport';
 import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
 import { type ActivationLinkResult } from '../services/activationLinks';
+import { parseCsv } from '../utils/feesCsvUtils';
+import { supabase } from '../services/supabaseClient';
 
 interface StudentListViewProps {
   students: Student[];
@@ -33,6 +35,7 @@ interface StudentListViewProps {
     studentIds: number[],
     options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
   ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string }>;
+  addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 // Simple modal to show credentials after bulk generation
@@ -83,7 +86,7 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
 
 const StudentListView: React.FC<StudentListViewProps> = ({
     students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
-    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents
+    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents, addToast
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -125,6 +128,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     'name', 'admission_number', 'email', 'class', 'arm', 'status', 
     'has_account', 'date_of_birth', 'guardian_phone', 'address'
   ]));
+
+  // CSV Upload state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
 
@@ -547,6 +556,143 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     setShowExportModal(false);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+    }
+  };
+
+  const handleCsvUpload = async () => {
+    if (!uploadFile || !addToast) return;
+
+    try {
+      setIsUploading(true);
+      
+      const text = await uploadFile.text();
+      const parsedCsv = parseCsv(text);
+      
+      if (parsedCsv.rows.length === 0) {
+        addToast('CSV file is empty or invalid', 'error');
+        return;
+      }
+
+      // Process and validate student data
+      const studentsToImport: any[] = [];
+      const errors: string[] = [];
+
+      for (let i = 0; i < parsedCsv.rows.length; i++) {
+        const row = parsedCsv.rows[i];
+        const rowNum = i + 2; // +2 because: +1 for header, +1 for 0-based index
+
+        // Required fields
+        const name = row['Name'] || row['name'];
+        if (!name) {
+          errors.push(`Row ${rowNum}: Name is required`);
+          continue;
+        }
+
+        // Find class and arm by name if provided
+        let class_id = null;
+        let arm_id = null;
+        
+        const className = row['Class'] || row['class'];
+        if (className) {
+          const foundClass = allClasses.find(c => c.name.toLowerCase() === className.toLowerCase());
+          if (foundClass) {
+            class_id = foundClass.id;
+          } else {
+            errors.push(`Row ${rowNum}: Class "${className}" not found`);
+          }
+        }
+
+        const armName = row['Arm'] || row['arm'];
+        if (armName && class_id) {
+          const foundArm = allArms.find(a => a.name.toLowerCase() === armName.toLowerCase());
+          if (foundArm) {
+            arm_id = foundArm.id;
+          } else {
+            errors.push(`Row ${rowNum}: Arm "${armName}" not found`);
+          }
+        }
+
+        const studentData: any = {
+          name,
+          admission_number: row['Admission Number'] || row['admission_number'] || '',
+          email: row['Email/Username'] || row['Email'] || row['email'] || '',
+          date_of_birth: row['Date of Birth'] || row['date_of_birth'] || '',
+          address: row['Address'] || row['address'] || '',
+          status: row['Status'] || row['status'] || 'Active',
+          class_id,
+          arm_id,
+          parent_phone_number_1: row['Parent Phone 1'] || row['parent_phone_number_1'] || row['Guardian Contact'] || '',
+          parent_phone_number_2: row['Parent Phone 2'] || row['parent_phone_number_2'] || '',
+          father_name: row['Father Name'] || row['father_name'] || '',
+          mother_name: row['Mother Name'] || row['mother_name'] || '',
+          guardian_phone: row['Guardian Contact'] || row['guardian_phone'] || row['parent_phone_number_1'] || '',
+        };
+
+        studentsToImport.push(studentData);
+      }
+
+      if (errors.length > 0 && studentsToImport.length === 0) {
+        addToast(`Upload failed: ${errors.join(', ')}`, 'error');
+        setIsUploading(false);
+        return;
+      }
+
+      // Import students
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const studentData of studentsToImport) {
+        try {
+          // Get the school_id from the first student in the list or from supabase user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            throw new Error('Not authenticated');
+          }
+
+          // Get school_id from user profile
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('school_id')
+            .eq('id', user.id)
+            .single();
+
+          if (!profile) {
+            throw new Error('User profile not found');
+          }
+
+          const success = await onAddStudent({ ...studentData, school_id: profile.school_id });
+          if (success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          console.error('Error adding student:', err);
+          failCount++;
+        }
+      }
+
+      if (errors.length > 0) {
+        addToast(`Partial upload: ${successCount} students added, ${failCount} failed, ${errors.length} validation errors`, 'info');
+      } else if (successCount > 0) {
+        addToast(`Successfully imported ${successCount} student${successCount !== 1 ? 's' : ''}!`, 'success');
+      }
+
+      setShowUploadModal(false);
+      setUploadFile(null);
+      
+    } catch (error: any) {
+      console.error('CSV upload error:', error);
+      addToast?.(`Upload failed: ${error.message}`, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleExportStudentsExcel = () => {
       const columns: ExcelColumn[] = [
           { key: 'name', header: 'Name', width: 25, type: 'string' },
@@ -630,6 +776,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                 <DownloadIcon className="w-4 h-4" />
                 <span className="text-xs">Export</span>
             </button>
+            {canManageStudents && (
+              <button onClick={() => setShowUploadModal(true)} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1" title="Upload Students CSV">
+                  <UploadCloudIcon className="w-4 h-4" />
+                  <span className="text-xs">Upload</span>
+              </button>
+            )}
           </div>
         </div>
         
@@ -1038,6 +1190,117 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               >
                 <DownloadIcon className="w-5 h-5" />
                 Export as Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
+          <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-2xl m-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Upload Students from CSV</h2>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                Upload a CSV file containing student information. The file should include columns for:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 mb-4">
+                <div>• Name (required)</div>
+                <div>• Admission Number</div>
+                <div>• Email/Username</div>
+                <div>• Class</div>
+                <div>• Arm</div>
+                <div>• Date of Birth</div>
+                <div>• Address</div>
+                <div>• Status</div>
+                <div>• Parent Phone 1</div>
+                <div>• Parent Phone 2</div>
+                <div>• Guardian Contact</div>
+                <div>• Father Name</div>
+                <div>• Mother Name</div>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ Note: Class and Arm names must match existing values in the system
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block">
+                <div className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  uploadFile 
+                    ? 'border-green-400 bg-green-50 dark:bg-green-900/20' 
+                    : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500'
+                }`}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <UploadCloudIcon className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+                  {uploadFile ? (
+                    <>
+                      <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+                        {uploadFile.name}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Click to change file
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        CSV files only
+                      </p>
+                    </>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCsvUpload}
+                disabled={!uploadFile || isUploading}
+                className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isUploading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloudIcon className="w-5 h-5" />
+                    Upload Students
+                  </>
+                )}
               </button>
             </div>
           </div>
