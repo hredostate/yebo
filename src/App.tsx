@@ -1148,7 +1148,7 @@ const App: React.FC = () => {
                                 ? supabase.from('payroll_items').select('*').eq('user_id', user.id)
                                 : supabase.from('payroll_items').select('id').limit(0);
 
-                        const payrollAdjustmentsQuery = canManagePayroll(permissionContext)
+                        const payrollAdjustmentsQuery = canManagePayroll(permissionContext) || sp.role === 'Admin'
                             ? supabase.from('payroll_adjustments').select('*')
                             : canViewOwnPayslip(permissionContext, user.id)
                                 ? supabase.from('payroll_adjustments').select('*').eq('user_id', user.id)
