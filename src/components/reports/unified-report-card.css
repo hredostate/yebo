@@ -1,17 +1,23 @@
 /**
  * Unified Report Card Print-First CSS
  * 
- * Fixed A4 dimensions with mm/pt units only - NO viewport units (vw, vh, em, rem)
+ * Print-optimized for A4 (210mm × 297mm) with 12mm margins
+ * Uses mm/pt units only - NO viewport units (vw, vh, em, rem, px)
  * All measurements designed for consistent print output
  */
 
 /* === A4 Page Specifications === */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
 :root {
   --urc-page-width: 210mm;
   --urc-page-height: 297mm;
-  --urc-margin: 6mm;
-  --urc-content-width: 198mm; /* 210mm - (6mm * 2) */
-  --urc-content-height: 285mm; /* 297mm - (6mm * 2) */
+  --urc-margin: 12mm;
+  --urc-content-width: 186mm; /* 210mm - (12mm * 2) */
+  --urc-content-height: 273mm; /* 297mm - (12mm * 2) */
   
   /* Typography */
   --urc-font-body: 10pt;
@@ -20,11 +26,16 @@
   --urc-font-header: 16pt;
   --urc-font-subheader: 12pt;
   
-  /* Colors */
-  --urc-primary: #1e3a8a;
+  /* Colors - Dark navy primary, neutral grays */
+  --urc-primary: #1e3a5f;
   --urc-border: #cbd5e1;
   --urc-text: #000000;
   --urc-bg: #ffffff;
+  --urc-gray-50: #f8fafc;
+  --urc-gray-100: #f1f5f9;
+  --urc-gray-500: #64748b;
+  --urc-gray-700: #334155;
+  --urc-gray-900: #0f172a;
 }
 
 /* === Page Container === */
@@ -33,20 +44,18 @@
   max-width: 210mm;
   min-height: 297mm;
   background: var(--urc-bg);
-  padding: var(--urc-margin);
+  padding: 0;
   box-sizing: border-box;
   font-family: Arial, sans-serif;
   color: var(--urc-text);
   position: relative;
-  overflow: hidden;
   margin: 0 auto;
 }
 
 /* === Content Area === */
 .urc-content {
-  width: 198mm;
-  max-width: 198mm;
-  min-height: 285mm;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 3mm;
@@ -57,6 +66,8 @@
   text-align: center;
   padding: 4mm 0;
   border-bottom: 2pt solid var(--urc-border);
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .urc-logo {
@@ -73,19 +84,25 @@
   margin: 0 0 2mm 0;
   text-transform: uppercase;
   letter-spacing: 0.3mm;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .urc-motto {
   font-style: italic;
   font-size: 9pt;
   margin: 1mm 0;
-  color: #64748b;
+  color: var(--urc-gray-500);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .urc-address {
   font-size: var(--urc-font-small);
   margin: 1mm 0;
-  color: #64748b;
+  color: var(--urc-gray-500);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .urc-term-badge {
@@ -94,29 +111,39 @@
   padding: 2mm 6mm;
   background: var(--urc-primary);
   color: var(--urc-bg);
-  border-radius: 4mm;
+  border-radius: 2mm;
   font-weight: 600;
   font-size: 9pt;
 }
 
 /* === Student Info Grid === */
 .urc-student-info {
-  background: #f8fafc;
+  background: var(--urc-gray-50);
   padding: 4mm;
   border-bottom: 1pt solid var(--urc-border);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4mm;
   font-size: 9pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .urc-info-item {
-  color: #64748b;
+  color: var(--urc-gray-500);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.urc-info-label {
+  font-weight: normal;
 }
 
 .urc-info-value {
   font-weight: bold;
   color: var(--urc-text);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* === Summary Cards === */
@@ -125,6 +152,8 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 4mm;
   padding: 4mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .urc-summary-card {
@@ -154,6 +183,8 @@
   border-radius: 2mm;
   padding: 4mm;
   margin: 0 0 4mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .urc-attendance-title {
@@ -182,7 +213,7 @@
 
 .urc-attendance-label {
   font-size: var(--urc-font-small);
-  color: #64748b;
+  color: var(--urc-gray-500);
   margin: 0 0 1mm 0;
   text-transform: uppercase;
 }
@@ -191,6 +222,67 @@
   font-size: 14pt;
   font-weight: bold;
   margin: 0;
+}
+
+/* === Student Ranking Section === */
+.urc-rankings {
+  margin: 4mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.urc-rankings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4mm;
+  margin-top: 3mm;
+}
+
+.urc-rank-card {
+  border: 2pt solid var(--urc-border);
+  border-radius: 3mm;
+  padding: 4mm;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.urc-rank-arm {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #3b82f6;
+}
+
+.urc-rank-level {
+  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+  border-color: #f59e0b;
+}
+
+.urc-rank-icon {
+  font-size: 24pt;
+  margin-bottom: 2mm;
+}
+
+.urc-rank-label {
+  font-size: 9pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--urc-gray-700);
+  margin-bottom: 2mm;
+  letter-spacing: 0.2mm;
+}
+
+.urc-rank-value {
+  font-size: 18pt;
+  font-weight: bold;
+  color: var(--urc-primary);
+  margin: 2mm 0;
+}
+
+.urc-rank-subtitle {
+  font-size: var(--urc-font-small);
+  color: var(--urc-gray-500);
+  font-style: italic;
+  margin-top: 1mm;
 }
 
 /* === Subjects Table === */
@@ -204,18 +296,20 @@
   margin: 0 0 3mm 0;
   padding-bottom: 2mm;
   border-bottom: 2pt solid var(--urc-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3mm;
 }
 
 .urc-table {
   width: 100%;
-  max-width: 198mm;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--urc-font-table);
 }
 
 .urc-table thead {
-  background: #f1f5f9;
+  background: var(--urc-gray-100);
+  display: table-header-group;
 }
 
 .urc-table th,
@@ -230,6 +324,11 @@
 .urc-table th {
   font-weight: bold;
   text-align: center;
+}
+
+.urc-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* Fixed column widths */
@@ -267,19 +366,20 @@
   width: 10mm; 
   text-align: center;
   font-size: var(--urc-font-small);
-  color: #64748b;
+  color: var(--urc-gray-500);
 }
 
 .col-remark { 
   width: 28mm; 
   white-space: normal; 
   word-wrap: break-word;
+  overflow-wrap: break-word;
   font-style: italic;
   font-size: var(--urc-font-small);
 }
 
 .urc-table tbody tr:nth-child(even) {
-  background: #f8fafc;
+  background: var(--urc-gray-50);
 }
 
 /* === Grade Badges === */
@@ -304,6 +404,8 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 4mm;
   padding: 0 0 4mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .urc-comment-box {
@@ -325,6 +427,8 @@
   font-size: var(--urc-font-table);
   min-height: 12mm;
   margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .urc-signature-line {
@@ -345,7 +449,7 @@
 
 /* === Footer === */
 .urc-footer {
-  background: #1e293b;
+  background: var(--urc-gray-900);
   color: var(--urc-bg);
   text-align: center;
   padding: 2mm;
@@ -370,11 +474,6 @@
 
 /* === Print Styles === */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 6mm;
-  }
-
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -389,9 +488,9 @@
 
   .urc-page {
     page-break-after: always;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    break-after: always;
     margin: 0;
+    padding: 0;
     box-shadow: none;
   }
 
@@ -399,19 +498,27 @@
   .urc-student-info,
   .urc-summary-cards,
   .urc-attendance,
-  .urc-table-container,
+  .urc-rankings,
   .urc-comments {
-    page-break-inside: avoid;
     break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .urc-table {
     page-break-inside: auto;
   }
 
+  .urc-table thead {
+    display: table-header-group;
+  }
+
+  .urc-table tbody {
+    display: table-row-group;
+  }
+
   .urc-table tr {
-    page-break-inside: avoid;
     break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* Hide non-print elements */
@@ -423,7 +530,8 @@
 /* === Screen Preview Mode === */
 @media screen {
   .urc-page {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2mm 8mm rgba(0, 0, 0, 0.1);
     margin: 5mm auto;
+    padding: 12mm;
   }
 }
