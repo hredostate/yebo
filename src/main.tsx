@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register';
 import App from './App'
 import './index.css'
+import './components/reports/unified-report-card.css'
 import { Offline, supa } from './offline/client';
 import { queueStore } from './offline/db';
 import { QueryProvider } from './providers/QueryProvider';
