@@ -313,7 +313,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     addToast(`All subjects for ${className} have been unlocked.`, 'success');
                 }
             } else {
-                // Fallback to direct supabase call
+                // Fallback to direct supabase call (without data refresh)
                 const { error } = await supabase
                     .from('teaching_assignments')
                     .update({ is_locked: false })
@@ -321,9 +321,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     .eq('term_id', selectedTermId);
                 
                 if (error) throw error;
-                addToast(`All subjects for ${className} have been unlocked.`, 'success');
-                // Force reload as fallback
-                window.location.reload();
+                addToast(`All subjects for ${className} have been unlocked. Please refresh the page to see changes.`, 'info');
             }
         } catch (e: any) {
             addToast(`Unlock failed: ${e.message}`, 'error');
