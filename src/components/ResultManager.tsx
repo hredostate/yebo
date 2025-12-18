@@ -1155,7 +1155,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     onClose={handleCloseBulkGenerator}
                     addToast={addToast}
                     schoolConfig={schoolConfig}
-                    gradingSchemes={gradingSchemes}
                 />
             )}
 

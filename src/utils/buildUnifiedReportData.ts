@@ -131,7 +131,10 @@ export function buildUnifiedReportData(
       total: rawReport.attendance.total ?? 0,
       rate: rawReport.attendance.rate ?? 0,
       overrideApplied: rawReport.attendance.overrideApplied,
-      computed: rawReport.attendance.computed,
+      computed: rawReport.attendance.computed ? {
+        present: rawReport.attendance.computed.present ?? 0,
+        total: rawReport.attendance.computed.total ?? 0,
+      } : undefined,
     };
   }
 
