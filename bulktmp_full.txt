@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { supa as supabase } from '../offline/client';
-import type { Student, SchoolConfig } from '../types';
+import type { Student, GradingScheme, SchoolConfig, ReportCardConfig } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';
 import html2canvas from 'html2canvas';
@@ -20,6 +20,7 @@ interface BulkReportCardGeneratorProps {
   onClose: () => void;
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   schoolConfig: SchoolConfig | null;
+  gradingSchemes: GradingScheme[];
 }
 
 interface StudentWithDebt extends Student {
@@ -27,6 +28,53 @@ interface StudentWithDebt extends Student {
   outstandingAmount: number;
   averageScore?: number;
   reportExists: boolean;
+}
+
+interface ReportSubject {
+  subjectName: string;
+  totalScore?: number;
+  grade?: string;
+  remark?: string;
+  componentScores?: Record<string, number>;
+  subjectPosition?: number | null;
+}
+
+interface ReportData {
+  student: {
+    fullName: string;
+    className: string;
+  };
+  term: {
+    sessionLabel: string;
+    termLabel: string;
+  };
+  subjects: ReportSubject[];
+  schoolConfig: {
+    school_name?: string;
+    display_name?: string;
+    address?: string;
+    motto?: string;
+    logo_url?: string;
+  };
+  summary?: {
+    positionInArm?: number | string;
+    totalStudentsInArm?: number | string;
+    gpaAverage?: number | string;
+    campusPercentile?: number | null;
+  };
+  comments?: {
+    teacher?: string;
+    principal?: string;
+  };
+  attendance?: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    unexcused: number;
+    total: number;
+    rate: number;
+  };
 }
 
 const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
@@ -38,6 +86,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   onClose,
   addToast,
   schoolConfig,
+  gradingSchemes,
 }) => {
   const [studentsWithDebt, setStudentsWithDebt] = useState<StudentWithDebt[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(new Set());
