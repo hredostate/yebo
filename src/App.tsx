@@ -303,6 +303,7 @@ const App: React.FC = () => {
 
     const [booting, setBooting] = useState(true);
     const lastFetchedUserId = useRef<string | null>(null);
+    const lastFetchedTimestamp = useRef<number>(0);
     const isFetchingRef = useRef(false);
     const [dbError, setDbError] = useState<string | null>(null);
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
@@ -771,7 +772,15 @@ const App: React.FC = () => {
             return;
         }
         
-        // If refreshing, ignore the lastFetchedUserId check
+        // Add debouncing: prevent rapid successive calls (within 200ms) for the same user
+        const now = Date.now();
+        const DEBOUNCE_THRESHOLD = 200; // milliseconds
+        if (!forceRefresh && lastFetchedUserId.current === user.id && (now - lastFetchedTimestamp.current) < DEBOUNCE_THRESHOLD) {
+            console.log('[Auth] Debouncing: fetch called too soon, skipping');
+            return;
+        }
+        
+        // If refreshing, ignore the lastFetchedUserId check but still check timestamp for debouncing
         if (!forceRefresh && lastFetchedUserId.current === user.id && userProfileRef.current) {
             console.log('[Auth] User data already loaded, skipping fetch');
             return;
@@ -779,6 +788,7 @@ const App: React.FC = () => {
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
         isFetchingRef.current = true;
+        lastFetchedTimestamp.current = now;
         setIsProfileLoading(true);
         setProfileLoadError(null);
 
@@ -1136,21 +1146,29 @@ const App: React.FC = () => {
                         // student_term_reports (10000), student_term_report_subjects (50000),
                         // teaching_assignments (5000), lesson_plans (10000), positive_behavior (10000),
                         // student_awards (10000), quiz_responses (10000), notifications (5000).
-                        const payrollRunsQuery = canViewPayroll(permissionContext) || canManagePayroll(permissionContext)
+                        
+                        // Calculate permission context inline to avoid circular dependency
+                        const inlinePermissionContext = {
+                            role: sp.role,
+                            permissions: [], // Will be populated when userPermissions are loaded
+                            userId: user.id,
+                        };
+                        
+                        const payrollRunsQuery = canViewPayroll(inlinePermissionContext) || canManagePayroll(inlinePermissionContext)
                             ? supabase.from('payroll_runs').select('*')
-                            : canViewOwnPayslip(permissionContext, user.id)
+                            : canViewOwnPayslip(inlinePermissionContext, user.id)
                                 ? supabase.from('payroll_runs').select('*, items:payroll_items!inner(user_id)').eq('items.user_id', user.id)
                                 : supabase.from('payroll_runs').select('id').limit(0);
 
-                        const payrollItemsQuery = canViewPayroll(permissionContext) || canManagePayroll(permissionContext)
+                        const payrollItemsQuery = canViewPayroll(inlinePermissionContext) || canManagePayroll(inlinePermissionContext)
                             ? supabase.from('payroll_items').select('*')
-                            : canViewOwnPayslip(permissionContext, user.id)
+                            : canViewOwnPayslip(inlinePermissionContext, user.id)
                                 ? supabase.from('payroll_items').select('*').eq('user_id', user.id)
                                 : supabase.from('payroll_items').select('id').limit(0);
 
-                        const payrollAdjustmentsQuery = canManagePayroll(permissionContext) || sp.role === 'Admin'
+                        const payrollAdjustmentsQuery = canManagePayroll(inlinePermissionContext) || sp.role === 'Admin'
                             ? supabase.from('payroll_adjustments').select('*')
-                            : canViewOwnPayslip(permissionContext, user.id)
+                            : canViewOwnPayslip(inlinePermissionContext, user.id)
                                 ? supabase.from('payroll_adjustments').select('*').eq('user_id', user.id)
                                 : supabase.from('payroll_adjustments').select('id').limit(0);
 
@@ -1427,7 +1445,14 @@ const App: React.FC = () => {
         } finally {
             isFetchingRef.current = false;
         }
-    }, [addToast, handleLogout, permissionContext]);
+    }, [addToast, handleLogout]);
+    
+    // Store fetchData in a ref to avoid it being a dependency in effects
+    const fetchDataRef = useRef(fetchData);
+    useEffect(() => {
+        fetchDataRef.current = fetchData;
+    }, [fetchData]);
+    
     // --- Auth Logic & Data Fetching ---
     
     useEffect(() => {
@@ -1454,7 +1479,7 @@ const App: React.FC = () => {
                 setBooting(false);
                 setUserProfile(null);
             } else {
-                fetchData(session.user);
+                fetchDataRef.current(session.user);
             }
         });
 
@@ -1465,7 +1490,7 @@ const App: React.FC = () => {
                 clearTimeout(profileLoadTimeoutRef.current);
             }
         };
-    }, [addToast, fetchData]);
+    }, [addToast]);
 
     // --- Realtime Updates ---
     useEffect(() => {
@@ -1477,8 +1502,11 @@ const App: React.FC = () => {
                 { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${session.user.id}` },
                 (payload) => {
                     console.log('Profile updated remotely', payload);
-                    fetchData(session.user, true);
-                    addToast('Your profile has been updated.', 'info');
+                    // Prevent realtime updates from triggering during initial boot
+                    if (!booting) {
+                        fetchDataRef.current(session.user, true);
+                        addToast('Your profile has been updated.', 'info');
+                    }
                 }
             )
             .on(
@@ -1486,8 +1514,11 @@ const App: React.FC = () => {
                 { event: '*', schema: 'public', table: 'user_role_assignments', filter: `user_id=eq.${session.user.id}` },
                 (payload) => {
                     console.log('Role assignments updated remotely', payload);
-                    fetchData(session.user, true);
-                    addToast('Your permissions have been updated.', 'info');
+                    // Prevent realtime updates from triggering during initial boot
+                    if (!booting) {
+                        fetchDataRef.current(session.user, true);
+                        addToast('Your permissions have been updated.', 'info');
+                    }
                 }
             )
             // NEW: Listen for notifications
@@ -1505,7 +1536,7 @@ const App: React.FC = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [session, addToast]); 
+    }, [session, addToast, booting]); 
 
     // --- Initialize AI Client ---
     useEffect(() => {
@@ -2194,7 +2225,7 @@ Context: ${JSON.stringify(contextData)}`;
              const newReport: SchoolHealthReport = { ...reportData, generated_at: new Date().toISOString() };
              await handleUpdateSchoolSettings({ school_documents: { ...schoolSettings?.school_documents, health_report: newReport } });
              addToast("School Health Report generated.", "success");
-             if(session.user) fetchData(session.user, true);
+             if(session.user) fetchDataRef.current(session.user, true);
          } catch(e: any) { 
              console.error(e); 
              if (isRateLimitError(e)) {
@@ -2203,7 +2234,7 @@ Context: ${JSON.stringify(contextData)}`;
                  addToast(`Failed: ${e.message}`, 'error');
              }
          }
-    }, [session, addToast, reports, tasks, atRiskStudents, positiveRecords, teamPulse, schoolSettings, handleUpdateSchoolSettings, fetchData, classGroups, teacherCheckins, scoreEntries, lessonPlans, inventory]);
+    }, [session, addToast, reports, tasks, atRiskStudents, positiveRecords, teamPulse, schoolSettings, handleUpdateSchoolSettings, classGroups, teacherCheckins, scoreEntries, lessonPlans, inventory]);
 
     // ... (Existing handlers: tasks, announcements, etc.) ...
     const handleUpdateTaskStatus = useCallback(async (taskId: number, status: TaskStatus) => {
@@ -3343,7 +3374,7 @@ Return a JSON object with:
             }
             
             // Refresh student list after bulk create (Edge function creates Auth users AND triggers DB insert/updates)
-            setTimeout(() => fetchData(session!.user, true), 2000);
+            setTimeout(() => fetchDataRef.current(session!.user, true), 2000);
 
             return { success: true, message: `${enrichedData.length} students processed.`, credentials: data.credentials };
         } catch (e: any) {
@@ -3351,7 +3382,7 @@ Return a JSON object with:
             // Fallback to direct DB insert if function fails (no login generated, only DB record) - Simplified for now
             return { success: false, message: `Service unavailable or error: ${e.message}` };
         }
-    }, [userProfile, session, fetchData, allClasses, allArms]);
+    }, [userProfile, session, allClasses, allArms]);
 
     const handleBulkCreateStudentAccounts = useCallback(async (studentIds: number[]) => {
         if (!userProfile) return { success: false, message: 'User not authenticated' };
@@ -3366,14 +3397,14 @@ Return a JSON object with:
                  throw new Error("Edge function unavailable");
             }
             
-            fetchData(session!.user, true); // Refresh list to update user_id presence
+            fetchDataRef.current(session!.user, true); // Refresh list to update user_id presence
 
             return { success: true, message: `Accounts generated for ${studentIds.length} students.`, credentials: data.credentials };
         } catch (e: any) {
              console.error("Bulk account creation error:", e);
              return { success: false, message: `Service unavailable (Edge Function missing). Please ask students to sign up manually.` };
         }
-    }, [userProfile, session, fetchData]);
+    }, [userProfile, session]);
 
     const handleGenerateActivationLinks = useCallback(async (
         studentIds: number[],
@@ -3419,7 +3450,7 @@ Return a JSON object with:
             
             addToast(`Login created for student.`, 'success');
             // Refresh to update UI state (e.g. removing the button)
-            if(session?.user) fetchData(session.user, true);
+            if(session?.user) fetchDataRef.current(session.user, true);
 
             return data.credential;
         } catch (e: any) {
@@ -3427,7 +3458,7 @@ Return a JSON object with:
             addToast(`Automated creation unavailable. Student can sign up using Secret Code: UPSS-SECRET-2025`, 'warning'); 
             return null;
         }
-    }, [session, fetchData, addToast]);
+    }, [session, addToast]);
 
 
     const handleUpdateStudent = useCallback(async (studentId: number, studentData: Partial<Student>): Promise<boolean> => {
@@ -3623,7 +3654,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
                         addToast('Failed to save awards.', 'error');
                     } else {
                         addToast('Student awards generated successfully.', 'success');
-                        if (session?.user) fetchData(session.user, true);
+                        if (session?.user) fetchDataRef.current(session.user, true);
                     }
                 }
             }
@@ -3636,7 +3667,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
                 addToast('Failed to generate awards. Please try again.', 'error');
             }
         }
-    }, [userProfile, positiveRecords, addToast, session, fetchData, schoolSettings, students, scoreEntries, studentTermReports, classGroups]);
+    }, [userProfile, positiveRecords, addToast, session, schoolSettings, students, scoreEntries, studentTermReports, classGroups]);
 
     const handleGenerateStudentInsight = useCallback(async (studentId: number): Promise<any | null> => {
         const aiClient = getAIClient();
@@ -5501,8 +5532,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         });
         
         if (error) addToast(error.message, 'error');
-        else { addToast('Payroll run initiated', 'success'); if(session?.user) fetchData(session.user, true); }
-    }, [payrollAdjustments, users, addToast, fetchData, session]);
+        else { addToast('Payroll run initiated', 'success'); if(session?.user) fetchDataRef.current(session.user, true); }
+    }, [payrollAdjustments, users, addToast, session]);
 
     // --- Shift Handlers ---
     const handleSaveShift = useCallback(async (shift: Partial<TeacherShift>): Promise<boolean> => {
@@ -6037,7 +6068,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             
             // Refresh reports to reflect the changes
             if (session?.user) {
-                fetchData(session.user, true);
+                fetchDataRef.current(session.user, true);
             }
             
             addToast('All student strikes have been reset. All active infraction reports have been archived.', 'success');
@@ -6051,7 +6082,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             console.error('Error resetting strikes:', e);
             addToast(`Error resetting strikes: ${e.message}`, 'error');
         }
-    }, [userProfile, supabase, session, fetchData, addToast, logAuditAction]);
+    }, [userProfile, supabase, session, addToast, logAuditAction]);
 
     const handleLogCommunication = useCallback(async (communicationData: CommunicationLogData): Promise<boolean> => {
         if (!userProfile) return false;
@@ -6302,7 +6333,7 @@ Generate a JSON object with:
             });
 
             addToast('School Improvement Plan generated successfully.', 'success');
-            if (session.user) fetchData(session.user, true);
+            if (session.user) fetchDataRef.current(session.user, true);
             
             return improvementPlan;
         } catch (e: any) {
@@ -6315,7 +6346,7 @@ Generate a JSON object with:
             }
             return null;
         }
-    }, [userProfile, session, isAiInCooldown, addToast, reports, tasks, atRiskStudents, students, positiveRecords, lessonPlans, schoolSettings, handleUpdateSchoolSettings, fetchData, isRateLimitError, setAiCooldown]);
+    }, [userProfile, session, isAiInCooldown, addToast, reports, tasks, atRiskStudents, students, positiveRecords, lessonPlans, schoolSettings, handleUpdateSchoolSettings, isRateLimitError, setAiCooldown]);
 
     const handleGenerateCoverageDeviationReport = useCallback(async (): Promise<any> => {
         if (!userProfile) return null;
@@ -6414,7 +6445,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             });
 
             addToast('Coverage Deviation Report generated successfully.', 'success');
-            if (session.user) fetchData(session.user, true);
+            if (session.user) fetchDataRef.current(session.user, true);
             
             return report;
         } catch (e: any) {
@@ -6427,7 +6458,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             }
             return null;
         }
-    }, [userProfile, session, isAiInCooldown, addToast, lessonPlans, schoolSettings, handleUpdateSchoolSettings, fetchData, isRateLimitError, setAiCooldown]);
+    }, [userProfile, session, isAiInCooldown, addToast, lessonPlans, schoolSettings, handleUpdateSchoolSettings, isRateLimitError, setAiCooldown]);
 
     // --- Alias for existing handler ---
     const handleUpdateReportComments = useCallback(async (reportId: number, teacherComment: string, principalComment: string): Promise<void> => {
@@ -6542,7 +6573,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                 setProfileLoadError(null);
                                 if (session?.user) {
                                     console.log('[Auth] Retrying profile load...');
-                                    fetchData(session.user, true);
+                                    fetchDataRef.current(session.user, true);
                                 }
                             }}
                             className="w-full px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
@@ -7096,7 +7127,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleBulkDeleteStudents,
                                     reloadData: async () => {
                                         if (session?.user) {
-                                            await fetchData(session.user, true);
+                                            await fetchDataRef.current(session.user, true);
                                         }
                                     },
                                 }}
