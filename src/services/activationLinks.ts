@@ -5,6 +5,7 @@ export interface ActivationLinkRequest {
   expiryHours?: number;
   phoneField?: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone';
   template?: string;
+  sendSms?: boolean;
 }
 
 export interface ActivationLinkResult {
@@ -23,6 +24,13 @@ export interface ActivationLinkResult {
   error?: string;
 }
 
+export interface SmsResult {
+  student_id: number;
+  phone: string;
+  success: boolean;
+  error?: string;
+}
+
 export async function generateActivationLinks(request: ActivationLinkRequest) {
   const supabase = requireSupabaseClient();
   const { data, error } = await supabase.functions.invoke('activation-links', {
@@ -32,11 +40,12 @@ export async function generateActivationLinks(request: ActivationLinkRequest) {
       expiry_hours: request.expiryHours ?? 72,
       recipient_phone_field: request.phoneField || 'parent_phone_number_1',
       template: request.template,
+      send_sms: request.sendSms ?? false,
     },
   });
 
   if (error) throw error;
-  return data as { success: boolean; results: ActivationLinkResult[]; expires_at: string };
+  return data as { success: boolean; results: ActivationLinkResult[]; expires_at: string; sms_results?: SmsResult[] };
 }
 
 export async function activateAccountWithToken(token: string, newPassword: string) {
