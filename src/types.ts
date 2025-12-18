@@ -1989,6 +1989,13 @@ export interface ZeroScoreEntry {
     term?: Term;
 }
 
+export interface ZeroScoreStudent {
+    student_id: number;
+    student_name: string;
+    admission_number: string | null;
+    total_score: number | null;
+}
+
 // ============================================
 // Lesson Plan Enhancement Types
 // ============================================

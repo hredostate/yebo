@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass } from '../types';
+import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass, ZeroScoreStudent } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon, PaperAirplaneIcon } from './common/icons';
 import { aiClient } from '../services/aiClient';
@@ -11,6 +11,7 @@ import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
 import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
+import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores';
 
@@ -21,7 +22,7 @@ interface ResultManagerProps {
     academicClasses: AcademicClass[];
     scoreEntries: ScoreEntry[];
     users: UserProfile[];
-    onLockScores: (assignmentId: number) => Promise<boolean>;
+    onLockScores: (assignmentId: number, zeroScoreCallback?: (students: ZeroScoreStudent[]) => Promise<'unenroll' | 'keep' | 'cancel'>) => Promise<boolean>;
     onResetSubmission: (assignmentId: number) => Promise<boolean>;
     userPermissions: string[];
     students: Student[];
@@ -62,6 +63,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         subject?: string;
     } | null>(null);
     const [scorePreviewMode, setScorePreviewMode] = useState<'view' | 'edit'>('view');
+    
+    // State for zero score confirmation modal
+    const [showZeroScoreModal, setShowZeroScoreModal] = useState(false);
+    const [zeroScoreData, setZeroScoreData] = useState<{
+        students: ZeroScoreStudent[];
+        assignmentId: number;
+        subjectName: string;
+        className: string;
+    } | null>(null);
+    const [isProcessingZeroScores, setIsProcessingZeroScores] = useState(false);
+    const [zeroScoreResolver, setZeroScoreResolver] = useState<((choice: 'unenroll' | 'keep' | 'cancel') => void) | null>(null);
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -311,11 +323,59 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
     const handleLock = async (assignmentId: number) => {
         if (!canLock) return;
+        
+        // Find the assignment to get subject and class details
+        const assignment = assignmentsForTerm.find(a => a.id === assignmentId);
+        if (!assignment) return;
+        
         if (window.confirm("Locking scores will publish them to student report cards. This cannot be easily undone. Continue?")) {
             setIsProcessing(assignmentId);
-            await onLockScores(assignmentId);
+            
+            // Create callback to handle zero score confirmation
+            const zeroScoreCallback = async (students: ZeroScoreStudent[]): Promise<'unenroll' | 'keep' | 'cancel'> => {
+                return new Promise((resolve) => {
+                    setZeroScoreData({
+                        students,
+                        assignmentId,
+                        subjectName: assignment.subject_name,
+                        className: assignment.academic_class?.name || 'Unknown Class'
+                    });
+                    setShowZeroScoreModal(true);
+                    setZeroScoreResolver(() => resolve);
+                });
+            };
+            
+            await onLockScores(assignmentId, zeroScoreCallback);
             setIsProcessing(null);
+            setShowZeroScoreModal(false);
+            setZeroScoreData(null);
+            setZeroScoreResolver(null);
         }
+    };
+    
+    // Handlers for zero score modal
+    const handleZeroScoreUnenrollAndLock = async () => {
+        setIsProcessingZeroScores(true);
+        if (zeroScoreResolver) {
+            zeroScoreResolver('unenroll');
+        }
+    };
+    
+    const handleZeroScoreKeepAndLock = async () => {
+        setIsProcessingZeroScores(true);
+        if (zeroScoreResolver) {
+            zeroScoreResolver('keep');
+        }
+    };
+    
+    const handleZeroScoreCancel = () => {
+        if (zeroScoreResolver) {
+            zeroScoreResolver('cancel');
+        }
+        setShowZeroScoreModal(false);
+        setZeroScoreData(null);
+        setZeroScoreResolver(null);
+        setIsProcessingZeroScores(false);
     };
     
     const handleReset = async (assignmentId: number) => {
@@ -1170,6 +1230,19 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         setSelectedClassForSender(null);
                     }}
                     addToast={addToast}
+                />
+            )}
+
+            {/* Zero Score Confirmation Modal */}
+            {showZeroScoreModal && zeroScoreData && (
+                <ZeroScoreConfirmationModal
+                    students={zeroScoreData.students}
+                    subjectName={zeroScoreData.subjectName}
+                    className={zeroScoreData.className}
+                    isProcessing={isProcessingZeroScores}
+                    onUnenrollAndLock={handleZeroScoreUnenrollAndLock}
+                    onKeepAndLock={handleZeroScoreKeepAndLock}
+                    onCancel={handleZeroScoreCancel}
                 />
             )}
         </div>
