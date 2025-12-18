@@ -1,0 +1,429 @@
+/**
+ * Unified Report Card Print-First CSS
+ * 
+ * Fixed A4 dimensions with mm/pt units only - NO viewport units (vw, vh, em, rem)
+ * All measurements designed for consistent print output
+ */
+
+/* === A4 Page Specifications === */
+:root {
+  --urc-page-width: 210mm;
+  --urc-page-height: 297mm;
+  --urc-margin: 6mm;
+  --urc-content-width: 198mm; /* 210mm - (6mm * 2) */
+  --urc-content-height: 285mm; /* 297mm - (6mm * 2) */
+  
+  /* Typography */
+  --urc-font-body: 10pt;
+  --urc-font-table: 9pt;
+  --urc-font-small: 8pt;
+  --urc-font-header: 16pt;
+  --urc-font-subheader: 12pt;
+  
+  /* Colors */
+  --urc-primary: #1e3a8a;
+  --urc-border: #cbd5e1;
+  --urc-text: #000000;
+  --urc-bg: #ffffff;
+}
+
+/* === Page Container === */
+.urc-page {
+  width: 210mm;
+  max-width: 210mm;
+  min-height: 297mm;
+  background: var(--urc-bg);
+  padding: var(--urc-margin);
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  color: var(--urc-text);
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* === Content Area === */
+.urc-content {
+  width: 198mm;
+  max-width: 198mm;
+  min-height: 285mm;
+  display: flex;
+  flex-direction: column;
+  gap: 3mm;
+}
+
+/* === Header Section === */
+.urc-header {
+  text-align: center;
+  padding: 4mm 0;
+  border-bottom: 2pt solid var(--urc-border);
+}
+
+.urc-logo {
+  width: 24mm;
+  height: 24mm;
+  object-fit: contain;
+  margin: 0 auto 3mm;
+  display: block;
+}
+
+.urc-school-name {
+  font-size: var(--urc-font-header);
+  font-weight: bold;
+  margin: 0 0 2mm 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3mm;
+}
+
+.urc-motto {
+  font-style: italic;
+  font-size: 9pt;
+  margin: 1mm 0;
+  color: #64748b;
+}
+
+.urc-address {
+  font-size: var(--urc-font-small);
+  margin: 1mm 0;
+  color: #64748b;
+}
+
+.urc-term-badge {
+  display: inline-block;
+  margin-top: 3mm;
+  padding: 2mm 6mm;
+  background: var(--urc-primary);
+  color: var(--urc-bg);
+  border-radius: 4mm;
+  font-weight: 600;
+  font-size: 9pt;
+}
+
+/* === Student Info Grid === */
+.urc-student-info {
+  background: #f8fafc;
+  padding: 4mm;
+  border-bottom: 1pt solid var(--urc-border);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4mm;
+  font-size: 9pt;
+}
+
+.urc-info-item {
+  color: #64748b;
+}
+
+.urc-info-value {
+  font-weight: bold;
+  color: var(--urc-text);
+}
+
+/* === Summary Cards === */
+.urc-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4mm;
+  padding: 4mm 0;
+}
+
+.urc-summary-card {
+  border: 1pt solid var(--urc-border);
+  border-radius: 2mm;
+  padding: 3mm;
+  text-align: center;
+}
+
+.urc-summary-label {
+  font-size: var(--urc-font-small);
+  font-weight: bold;
+  margin: 0 0 2mm 0;
+  text-transform: uppercase;
+  letter-spacing: 0.2mm;
+}
+
+.urc-summary-value {
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 0;
+}
+
+/* === Attendance Section === */
+.urc-attendance {
+  border: 1pt solid var(--urc-border);
+  border-radius: 2mm;
+  padding: 4mm;
+  margin: 0 0 4mm 0;
+}
+
+.urc-attendance-title {
+  text-align: center;
+  font-weight: bold;
+  font-size: 9pt;
+  text-transform: uppercase;
+  margin: 0 0 3mm 0;
+  letter-spacing: 0.2mm;
+}
+
+.urc-attendance-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3mm;
+  margin-bottom: 3mm;
+}
+
+.urc-attendance-item {
+  background: var(--urc-bg);
+  border: 1pt solid var(--urc-border);
+  border-radius: 2mm;
+  padding: 2mm;
+  text-align: center;
+}
+
+.urc-attendance-label {
+  font-size: var(--urc-font-small);
+  color: #64748b;
+  margin: 0 0 1mm 0;
+  text-transform: uppercase;
+}
+
+.urc-attendance-count {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 0;
+}
+
+/* === Subjects Table === */
+.urc-table-container {
+  padding: 0 0 4mm 0;
+}
+
+.urc-section-title {
+  font-size: var(--urc-font-subheader);
+  font-weight: bold;
+  margin: 0 0 3mm 0;
+  padding-bottom: 2mm;
+  border-bottom: 2pt solid var(--urc-primary);
+}
+
+.urc-table {
+  width: 100%;
+  max-width: 198mm;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--urc-font-table);
+}
+
+.urc-table thead {
+  background: #f1f5f9;
+}
+
+.urc-table th,
+.urc-table td {
+  border: 1pt solid var(--urc-border);
+  padding: 2mm;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.urc-table th {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Fixed column widths */
+.col-sn { 
+  width: 8mm; 
+  text-align: center;
+}
+
+.col-subject { 
+  width: auto; /* Takes remaining space */
+}
+
+.col-component {
+  width: 12mm;
+  text-align: center;
+}
+
+.col-score { 
+  width: 12mm; 
+  text-align: center;
+}
+
+.col-total { 
+  width: 14mm; 
+  text-align: center;
+  font-weight: bold;
+}
+
+.col-grade { 
+  width: 12mm; 
+  text-align: center;
+}
+
+.col-pos { 
+  width: 10mm; 
+  text-align: center;
+  font-size: var(--urc-font-small);
+  color: #64748b;
+}
+
+.col-remark { 
+  width: 28mm; 
+  white-space: normal; 
+  word-wrap: break-word;
+  font-style: italic;
+  font-size: var(--urc-font-small);
+}
+
+.urc-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+/* === Grade Badges === */
+.urc-grade-badge {
+  display: inline-block;
+  padding: 1mm 2mm;
+  border-radius: 1mm;
+  font-weight: bold;
+  font-size: var(--urc-font-small);
+}
+
+.grade-A { background: #d1fae5; color: #065f46; }
+.grade-B { background: #dbeafe; color: #1e40af; }
+.grade-C { background: #fef3c7; color: #92400e; }
+.grade-D { background: #fed7aa; color: #9a3412; }
+.grade-E { background: #fee2e2; color: #991b1b; }
+.grade-F { background: #fecaca; color: #7f1d1d; }
+
+/* === Comments Section === */
+.urc-comments {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4mm;
+  padding: 0 0 4mm 0;
+}
+
+.urc-comment-box {
+  border: 1pt solid var(--urc-border);
+  border-radius: 2mm;
+  padding: 3mm;
+}
+
+.urc-comment-title {
+  font-weight: bold;
+  font-size: 9pt;
+  border-bottom: 1pt solid var(--urc-border);
+  padding-bottom: 2mm;
+  margin: 0 0 2mm 0;
+}
+
+.urc-comment-text {
+  font-style: italic;
+  font-size: var(--urc-font-table);
+  min-height: 12mm;
+  margin: 0;
+}
+
+.urc-signature-line {
+  margin-top: 3mm;
+  padding-top: 2mm;
+  border-top: 1pt dashed var(--urc-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.urc-signature-label {
+  font-size: var(--urc-font-small);
+  font-weight: bold;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* === Footer === */
+.urc-footer {
+  background: #1e293b;
+  color: var(--urc-bg);
+  text-align: center;
+  padding: 2mm;
+  font-size: var(--urc-font-small);
+  margin-top: auto;
+}
+
+/* === Watermark === */
+.urc-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52pt;
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.05);
+  transform: rotate(-25deg);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* === Print Styles === */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    background: var(--urc-bg) !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .urc-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .urc-header,
+  .urc-student-info,
+  .urc-summary-cards,
+  .urc-attendance,
+  .urc-table-container,
+  .urc-comments {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .urc-table {
+    page-break-inside: auto;
+  }
+
+  .urc-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Hide non-print elements */
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* === Screen Preview Mode === */
+@media screen {
+  .urc-page {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin: 5mm auto;
+  }
+}
