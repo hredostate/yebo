@@ -321,7 +321,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     .eq('term_id', selectedTermId);
                 
                 if (error) throw error;
-                addToast(`All subjects for ${className} have been unlocked. Please refresh the page to see changes.`, 'info');
+                addToast(`All subjects for ${className} have been unlocked.`, 'success');
             }
         } catch (e: any) {
             addToast(`Unlock failed: ${e.message}`, 'error');
