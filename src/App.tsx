@@ -772,16 +772,18 @@ const App: React.FC = () => {
             return;
         }
         
-        // Add debouncing: prevent rapid successive calls (within 200ms) for the same user
+        // Add debouncing: prevent rapid successive calls (within 200ms) for the SAME user
         const now = Date.now();
         const DEBOUNCE_THRESHOLD = 200; // milliseconds
-        if (!forceRefresh && lastFetchedUserId.current === user.id && (now - lastFetchedTimestamp.current) < DEBOUNCE_THRESHOLD) {
-            console.log('[Auth] Debouncing: fetch called too soon, skipping');
+        const isSameUser = lastFetchedUserId.current === user.id;
+        
+        if (!forceRefresh && isSameUser && (now - lastFetchedTimestamp.current) < DEBOUNCE_THRESHOLD) {
+            console.log('[Auth] Debouncing: fetch called too soon for same user, skipping');
             return;
         }
         
-        // If refreshing, ignore the lastFetchedUserId check but still check timestamp for debouncing
-        if (!forceRefresh && lastFetchedUserId.current === user.id && userProfileRef.current) {
+        // If not forcing refresh and data already loaded for this user, skip
+        if (!forceRefresh && isSameUser && userProfileRef.current) {
             console.log('[Auth] User data already loaded, skipping fetch');
             return;
         }
@@ -1147,7 +1149,10 @@ const App: React.FC = () => {
                         // teaching_assignments (5000), lesson_plans (10000), positive_behavior (10000),
                         // student_awards (10000), quiz_responses (10000), notifications (5000).
                         
-                        // Calculate permission context inline to avoid circular dependency
+                        // Calculate permission context inline to avoid circular dependency with fetchData
+                        // Note: permissions array is empty here as it's populated later (line ~958)
+                        // For payroll queries, the role-based permission check is sufficient for initial load
+                        // Explicit permissions provide more granular control after they're loaded
                         const inlinePermissionContext = {
                             role: sp.role,
                             permissions: [], // Will be populated when userPermissions are loaded
