@@ -129,14 +129,22 @@ BEGIN
         
         GET DIAGNOSTICS v_deleted_zero_entries = ROW_COUNT;
         
-        -- 4. Recalculate student term report
+        -- 4. Delete from student_term_report_subjects (remove subject from cached report card)
+        DELETE FROM public.student_term_report_subjects
+        WHERE report_id IN (
+            SELECT id FROM public.student_term_reports 
+            WHERE student_id = v_student_id AND term_id = v_term_id
+        )
+        AND subject_name = v_subject_name;
+        
+        -- 5. Recalculate student term report
         PERFORM public.recalculate_student_term_report(v_student_id, v_term_id, v_class_id);
     END LOOP;
     
-    -- 5. Recalculate class rankings
+    -- 6. Recalculate class rankings
     PERFORM public.recalculate_class_rankings(v_term_id, v_class_id);
     
-    -- 6. Recalculate level rankings
+    -- 7. Recalculate level rankings
     IF v_level IS NOT NULL AND v_session_label IS NOT NULL THEN
         PERFORM public.recalculate_level_rankings(v_term_id, v_level, v_session_label);
     END IF;
@@ -206,9 +214,6 @@ BEGIN
         average_score = COALESCE(v_avg_score, 0),
         total_score = COALESCE(v_total_score, 0),
         created_at = NOW();
-    
-    -- Delete from student_term_report_subjects for removed subject
-    -- This is handled by the calling function which knows the subject name
 END;
 $$;
 

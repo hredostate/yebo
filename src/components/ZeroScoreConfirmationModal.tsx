@@ -70,7 +70,7 @@ const ZeroScoreConfirmationModal: React.FC<ZeroScoreConfirmationModalProps> = ({
                             {students.map((student) => (
                                 <div
                                     key={student.student_id}
-                                    className="px-4 py-3 flex items-center gap-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750"
+                                    className="px-4 py-3 flex items-center gap-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 >
                                     <UserCircleIcon className="h-8 w-8 text-gray-400" />
                                     <div className="flex-1 min-w-0">
