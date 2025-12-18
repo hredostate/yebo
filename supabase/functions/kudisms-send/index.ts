@@ -24,8 +24,14 @@ interface SmsRequest {
 
 /**
  * Format phone number to Nigerian format (234XXXXXXXXXX)
+ * Returns null for invalid inputs
  */
-function formatPhoneNumber(phoneNumber: string): string {
+function formatPhoneNumber(phoneNumber: string | null | undefined): string | null {
+  // Handle null/undefined/empty input
+  if (!phoneNumber || phoneNumber.trim() === '') {
+    return null;
+  }
+  
   // Remove all non-digit characters
   let cleaned = phoneNumber.replace(/\D/g, '');
   
@@ -39,7 +45,38 @@ function formatPhoneNumber(phoneNumber: string): string {
     cleaned = '234' + cleaned;
   }
   
+  // Validate the final formatted number is exactly 13 digits (234 + 10 digits)
+  if (cleaned.length !== 13 || !cleaned.startsWith('234')) {
+    return null;
+  }
+  
   return cleaned;
+}
+
+/**
+ * Validate if a phone number is valid Nigerian format
+ * Returns validation result with error message if invalid
+ */
+function validatePhoneNumber(phoneNumber: string | null | undefined): { valid: boolean; error?: string } {
+  const formatted = formatPhoneNumber(phoneNumber);
+  
+  if (formatted === null) {
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      return { valid: false, error: 'Phone number is required' };
+    }
+    
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      return { valid: false, error: 'Phone number too short. Expected Nigerian number with 10 digits after country code.' };
+    }
+    if (cleaned.length > 13) {
+      return { valid: false, error: 'Phone number too long. Expected Nigerian number with 10 digits after country code.' };
+    }
+    
+    return { valid: false, error: 'Invalid phone number format. Expected Nigerian number with 10 digits after country code.' };
+  }
+  
+  return { valid: true };
 }
 
 /**
@@ -92,6 +129,44 @@ serve(async (req) => {
     // Validate required fields
     if (!phone_number) {
       throw new Error('phone_number is required');
+    }
+
+    // Validate and format phone number early
+    console.log('Original phone number received:', phone_number);
+    const phoneValidation = validatePhoneNumber(phone_number);
+    
+    if (!phoneValidation.valid) {
+      console.error('Phone number validation failed:', {
+        original: phone_number,
+        error: phoneValidation.error
+      });
+      return new Response(JSON.stringify({
+        error: 'Invalid phone number',
+        message: phoneValidation.error,
+        original_phone_number: phone_number
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    const formattedPhone = formatPhoneNumber(phone_number);
+    console.log('Phone number validated and formatted:', {
+      original: phone_number,
+      formatted: formattedPhone
+    });
+
+    // This should never happen since we validated above, but TypeScript needs the check
+    if (!formattedPhone) {
+      console.error('Critical error: Phone number passed validation but formatting failed:', phone_number);
+      return new Response(JSON.stringify({
+        error: 'Internal error during phone number processing',
+        message: 'Phone number validation succeeded but formatting failed',
+        original_phone_number: phone_number
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
     }
 
     // Create Supabase admin client
@@ -177,9 +252,6 @@ serve(async (req) => {
         effectiveSenderId = settings.sender_id;
       }
     }
-
-    // Format phone number
-    const formattedPhone = formatPhoneNumber(phone_number);
 
     let kudiResponse: Response;
     let kudiResult: any;
@@ -270,10 +342,21 @@ serve(async (req) => {
     }
 
     if (!isSuccess) {
+      console.error('Kudi SMS API error:', {
+        original_phone: phone_number,
+        formatted_phone: formattedPhone,
+        error_code: kudiResult.error_code,
+        error_message: errorMessage
+      });
+      
       return new Response(JSON.stringify({ 
         error: 'Failed to send SMS message',
         message: errorMessage,
-        error_code: kudiResult.error_code
+        error_code: kudiResult.error_code,
+        debug_info: {
+          original_phone_number: phone_number,
+          formatted_phone_number: formattedPhone
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
