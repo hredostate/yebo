@@ -15,7 +15,7 @@ import StatisticsCard from './StatisticsCard';
 import GradeDistributionChart from './GradeDistributionChart';
 import ArmComparisonChart from './ArmComparisonChart';
 import StudentRankingTable from './StudentRankingTable';
-import { aggregateResultStatistics, findIntegrityIssues, rankCohort, type ResultScope } from '../utils/resultAnalytics';
+import { aggregateResultStatistics, rankCohort, type ResultScope } from '../utils/resultAnalytics';
 import { exportToCsv } from '../utils/export';
 import { DownloadIcon } from './common/icons';
 
@@ -295,19 +295,7 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         return allRankings.sort((a, b) => a.rank - b.rank);
     }, [selectedLevel, viewMode, selectedArmId, classesForLevel, studentTermReports, students, academicClassStudents, academicClasses, termId]);
 
-    const auditIssues = useMemo(() => {
-        const classIds = viewMode === 'per-arm' && selectedArmId
-            ? [selectedArmId]
-            : classesForLevel.map(c => c.id);
 
-        return classIds.flatMap(classId => {
-            const scope = buildScopeForClass(classId);
-            const scopeLabel = academicClasses.find(ac => ac.id === classId)?.name || `Class ${classId}`;
-
-            return findIntegrityIssues(studentTermReports, academicClassStudents, students, scoreEntries, scope, academicClasses)
-                .map(issue => ({ ...issue, scopeLabel }));
-        });
-    }, [viewMode, selectedArmId, classesForLevel, studentTermReports, academicClassStudents, students, scoreEntries, academicClasses]);
 
     // Subject-wise statistics
     const subjectStatistics = useMemo(() => {
@@ -502,23 +490,6 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
                             </div>
                         )}
                     </>
-                )}
-            </div>
-
-            {/* Data Audit */}
-            <div className="p-4 rounded-xl border bg-white/60 dark:bg-slate-900/40">
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Data Audit</h3>
-                    <span className="text-xs text-slate-500">{auditIssues.length} issue{auditIssues.length === 1 ? '' : 's'}</span>
-                </div>
-                {auditIssues.length === 0 ? (
-                    <p className="text-sm text-green-700 dark:text-green-300">No integrity issues detected for this selection.</p>
-                ) : (
-                    <ul className="list-disc list-inside space-y-1 text-sm text-amber-700 dark:text-amber-300">
-                        {auditIssues.map((issue, idx) => (
-                            <li key={`${issue.type}-${idx}`}>{issue.scopeLabel}: {issue.message}</li>
-                        ))}
-                    </ul>
                 )}
             </div>
 
