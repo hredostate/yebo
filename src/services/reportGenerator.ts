@@ -43,7 +43,7 @@ function determineEffort(
 /**
  * Generate a comment for a specific subject
  */
-async function generateSubjectComment(
+export async function generateSubjectComment(
   subjectName: string,
   score: number,
   grade: string,
