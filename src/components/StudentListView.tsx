@@ -1,3 +1,4 @@
+import type { SmsResult } from '../services/activationLinks';
 
 import React, { useState, useMemo, useRef } from 'react';
 import type { Student, UserProfile, BaseDataObject, TeachingAssignment, CreatedCredential } from '../types';
@@ -34,7 +35,7 @@ interface StudentListViewProps {
   onGenerateActivationLinks?: (
     studentIds: number[],
     options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string; sendSms?: boolean }
-  ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string; sms_results?: any[] }>;
+  ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string; sms_results?: SmsResult[] }>;
   addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -171,7 +172,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [activationExpiresAt, setActivationExpiresAt] = useState<string | null>(null);
   const [isGeneratingActivationLinks, setIsGeneratingActivationLinks] = useState(false);
   const [sendSmsEnabled, setSendSmsEnabled] = useState(true);
-  const [smsResults, setSmsResults] = useState<any[] | null>(null);
+  const [smsResults, setSmsResults] = useState<SmsResult[] | null>(null);
 
   // Export configuration state
   const [showExportModal, setShowExportModal] = useState(false);
@@ -377,8 +378,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               
               // Show success notification if SMS was sent
               if (sendSmsEnabled && response.sms_results && addToast) {
-                  const successCount = response.sms_results.filter((r: any) => r.success).length;
-                  const failCount = response.sms_results.filter((r: any) => !r.success).length;
+                  const successCount = response.sms_results.filter((r: SmsResult) => r.success).length;
+                  const failCount = response.sms_results.filter((r: SmsResult) => !r.success).length;
                   if (successCount > 0) {
                       addToast(`${successCount} SMS message(s) sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}`, 'success');
                   } else if (failCount > 0) {

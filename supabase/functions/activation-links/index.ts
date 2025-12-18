@@ -21,6 +21,13 @@ interface GenerateRequestBody {
   send_sms?: boolean;
 }
 
+interface SmsResult {
+  student_id: number;
+  phone: string;
+  success: boolean;
+  error?: string;
+}
+
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
@@ -217,7 +224,7 @@ serve(async (req) => {
       }
 
       // Send SMS if requested
-      const smsResults: any[] = [];
+      const smsResults: SmsResult[] = [];
       if (body.send_sms && body.template) {
         for (const result of results) {
           if (result.status === 'created' && result.activation_link) {
