@@ -57,7 +57,7 @@ function formatPhoneNumber(phoneNumber: string | null | undefined): string | nul
  * Validate if a phone number is valid Nigerian format
  * Returns validation result with error message if invalid
  */
-function validatePhoneNumber(phoneNumber: string | null | undefined): { valid: boolean; error?: string } {
+function validatePhoneNumber(phoneNumber: string | null | undefined): { valid: boolean; error?: string; formatted?: string } {
   const formatted = formatPhoneNumber(phoneNumber);
   
   if (formatted === null) {
@@ -76,7 +76,7 @@ function validatePhoneNumber(phoneNumber: string | null | undefined): { valid: b
     return { valid: false, error: 'Invalid phone number format. Expected Nigerian number with 10 digits after country code.' };
   }
   
-  return { valid: true };
+  return { valid: true, formatted };
 }
 
 /**
@@ -150,24 +150,12 @@ serve(async (req) => {
       });
     }
 
-    const formattedPhone = formatPhoneNumber(phone_number);
+    // At this point, validation succeeded and we have the formatted phone number
+    const formattedPhone = phoneValidation.formatted!;
     console.log('Phone number validated and formatted:', {
       original: phone_number,
       formatted: formattedPhone
     });
-
-    // This should never happen since we validated above, but TypeScript needs the check
-    if (!formattedPhone) {
-      console.error('Critical error: Phone number passed validation but formatting failed:', phone_number);
-      return new Response(JSON.stringify({
-        error: 'Internal error during phone number processing',
-        message: 'Phone number validation succeeded but formatting failed',
-        original_phone_number: phone_number
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
-    }
 
     // Create Supabase admin client
     const supabaseAdmin = createClient(
