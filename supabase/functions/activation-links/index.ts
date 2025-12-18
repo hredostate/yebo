@@ -136,6 +136,15 @@ serve(async (req) => {
           continue;
         }
 
+        // Fetch username from auth.users metadata
+        let username = '';
+        if (student.user_id) {
+          const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(student.user_id);
+          if (!authError && authUser?.user?.user_metadata?.username) {
+            username = authUser.user.user_metadata.username;
+          }
+        }
+
         // Invalidate previous tokens
         await supabaseAdmin
           .from('account_activation_tokens')
@@ -175,6 +184,7 @@ serve(async (req) => {
           phone_1: student.parent_phone_number_1,
           phone_2: student.parent_phone_number_2,
           student_phone: student.phone,
+          username: username,
         });
       }
 

@@ -165,7 +165,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [activationExpiryHours, setActivationExpiryHours] = useState(72);
   const [activationPhoneField, setActivationPhoneField] = useState<'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'>('parent_phone_number_1');
   const [activationTemplate, setActivationTemplate] = useState(
-    'Hello {parent_or_student_name}. This is {school_name}. {student_name} ({class_arm}) can activate their portal account using this link: {activation_link}. Link expires {expires_at}. Thank you.'
+    'Hello {parent_or_student_name}. This is {school_name}. {student_name} ({class_arm}) can activate their portal account using this link: {activation_link}. Username: {username}. Link expires {expires_at}. Thank you.'
   );
   const [activationResults, setActivationResults] = useState<ActivationLinkResult[] | null>(null);
   const [activationExpiresAt, setActivationExpiresAt] = useState<string | null>(null);
@@ -347,6 +347,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           .replace('{student_name}', row.student_name || 'Student')
           .replace('{class_arm}', classArm || 'their class')
           .replace('{activation_link}', row.activation_link || '')
+          .replace('{username}', row.username || row.admission_number || '')
           .replace('{expires_at}', activationExpiresAt ? new Date(activationExpiresAt).toLocaleString() : '')
           .replace('{school_name}', 'UPSS')
           .replace('{recipient_phone}', phone);
@@ -391,6 +392,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               return {
                   student_name: r.student_name || '',
                   admission_number: r.admission_number || '',
+                  username: r.username || r.admission_number || '',
                   class_name: r.class_name || '',
                   arm_name: r.arm_name || '',
                   recipient_phone: normalized || rawPhone || '',
@@ -1041,7 +1043,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                           value={activationTemplate}
                           onChange={e => setActivationTemplate(e.target.value)}
                       />
-                      <span className="text-xs text-slate-500 mt-1">Placeholders: {'{parent_or_student_name}'}, {'{student_name}'}, {'{class_arm}'}, {'{activation_link}'}, {'{expires_at}'}, {'{school_name}'}</span>
+                      <span className="text-xs text-slate-500 mt-1">Placeholders: {'{parent_or_student_name}'}, {'{student_name}'}, {'{class_arm}'}, {'{activation_link}'}, {'{username}'}, {'{expires_at}'}, {'{school_name}'}</span>
                   </label>
 
                   <div className="flex items-center gap-3 mt-4">

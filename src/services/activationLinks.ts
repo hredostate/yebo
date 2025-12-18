@@ -19,6 +19,7 @@ export interface ActivationLinkResult {
   phone_1?: string | null;
   phone_2?: string | null;
   student_phone?: string | null;
+  username?: string;
   error?: string;
 }
 
