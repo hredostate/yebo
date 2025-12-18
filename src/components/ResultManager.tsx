@@ -7,6 +7,7 @@ import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
+import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
 import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
@@ -996,14 +997,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
             {selectedTermId && viewMode === 'statistics' && (
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold">Level Statistics & Rankings</h2>
-                    <LevelStatisticsDashboard
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Level Statistics & Rankings</h2>
+                    <EnhancedStatisticsDashboard
                         termId={Number(selectedTermId)}
-                        studentTermReports={studentTermReports}
-                        students={students}
                         academicClasses={academicClasses}
-                        academicClassStudents={academicClassStudents}
-                        scoreEntries={scoreEntries}
+                        schoolId={schoolConfig?.school_id || 0}
                         gradingScheme={schoolConfig?.active_grading_scheme_id
                             ? gradingSchemes.find(gs => gs.id === schoolConfig.active_grading_scheme_id) || null
                             : null
