@@ -307,7 +307,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setPublishingClassId(classId);
         try {
             const { error } = await supabase
-                .from('academic_teaching_assignments')
+                .from('teaching_assignments')
                 .update({ is_locked: false })
                 .eq('academic_class_id', classId)
                 .eq('term_id', selectedTermId);
