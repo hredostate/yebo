@@ -137,7 +137,8 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
 
 const StudentListView: React.FC<StudentListViewProps> = ({
     students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
-    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents, addToast
+    onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents, addToast,
+    onGenerateActivationLinks
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
