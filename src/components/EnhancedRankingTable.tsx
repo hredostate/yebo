@@ -23,6 +23,9 @@ const EnhancedRankingTable: React.FC<EnhancedRankingTableProps> = ({
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
 
+    // Calculate total columns for dynamic colspan
+    const totalColumns = showArmColumn ? 8 : 7;
+
     // Filter rankings based on search
     const filteredRankings = useMemo(() => {
         if (!searchQuery.trim()) return rankings;
@@ -45,9 +48,9 @@ const EnhancedRankingTable: React.FC<EnhancedRankingTableProps> = ({
             
             switch (sortField) {
                 case 'rank':
-                    // Treat null ranks as infinity so they sort to the end
-                    aValue = a.level_rank ?? Infinity;
-                    bValue = b.level_rank ?? Infinity;
+                    // Treat null ranks as a very large number so they sort to the end
+                    aValue = a.level_rank ?? Number.MAX_SAFE_INTEGER;
+                    bValue = b.level_rank ?? Number.MAX_SAFE_INTEGER;
                     break;
                 case 'name':
                     aValue = a.name;
@@ -263,7 +266,7 @@ const EnhancedRankingTable: React.FC<EnhancedRankingTableProps> = ({
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                         {paginatedRankings.length === 0 ? (
                             <tr>
-                                <td colSpan={showArmColumn ? 8 : 7} className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                <td colSpan={totalColumns} className="p-8 text-center text-slate-500 dark:text-slate-400">
                                     {searchQuery ? 'No students found matching your search' : 'No students to display'}
                                 </td>
                             </tr>

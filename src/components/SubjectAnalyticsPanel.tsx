@@ -234,7 +234,7 @@ const SubjectAnalyticsPanel: React.FC<SubjectAnalyticsPanelProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-amber-600 dark:text-amber-400">⚡</span>
-                        <span className="text-slate-700 dark:text-slate-300">High fail rate (&gt;50%)</span>
+                        <span className="text-slate-700 dark:text-slate-300">High fail rate ({'>'}50%)</span>
                     </div>
                 </div>
             </div>
