@@ -18,6 +18,14 @@ interface GenerateRequestBody {
   template?: string;
   token?: string;
   new_password?: string;
+  send_sms?: boolean;
+}
+
+interface SmsResult {
+  student_id: number;
+  phone: string;
+  success: boolean;
+  error?: string;
 }
 
 async function hashToken(token: string): Promise<string> {
@@ -54,6 +62,33 @@ function isAllowedRole(role: string | null): boolean {
   if (!role) return false;
   const normalized = role.toLowerCase();
   return normalized.includes('super_admin') || normalized.includes('school_admin') || normalized === 'admin' || normalized === 'principal';
+}
+
+async function sendActivationSms(
+  supabaseAdmin: any,
+  phone: string,
+  message: string,
+  schoolId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabaseAdmin.functions.invoke('kudisms-send', {
+      body: {
+        phone_number: phone,
+        message: message,
+        school_id: schoolId,
+      },
+    });
+
+    if (error || !data?.success) {
+      console.error('SMS send failed:', error || data?.error);
+      return { success: false, error: error?.message || data?.error || 'Failed to send SMS' };
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('SMS send exception:', e);
+    return { success: false, error: e.message || 'Unknown error' };
+  }
 }
 
 serve(async (req) => {
@@ -136,6 +171,15 @@ serve(async (req) => {
           continue;
         }
 
+        // Fetch username from auth.users metadata
+        let username = '';
+        if (student.user_id) {
+          const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(student.user_id);
+          if (!authError && authUser?.user?.user_metadata?.username) {
+            username = authUser.user.user_metadata.username;
+          }
+        }
+
         // Invalidate previous tokens
         await supabaseAdmin
           .from('account_activation_tokens')
@@ -175,7 +219,60 @@ serve(async (req) => {
           phone_1: student.parent_phone_number_1,
           phone_2: student.parent_phone_number_2,
           student_phone: student.phone,
+          username: username,
         });
+      }
+
+      // Send SMS if requested
+      const smsResults: SmsResult[] = [];
+      if (body.send_sms && body.template) {
+        for (const result of results) {
+          if (result.status === 'created' && result.activation_link) {
+            // Determine which phone number to use
+            let phone = '';
+            const phoneField = body.recipient_phone_field || 'parent_phone_number_1';
+            if (phoneField === 'parent_phone_number_2') {
+              phone = result.phone_2 || '';
+            } else if (phoneField === 'student_phone') {
+              phone = result.student_phone || '';
+            } else {
+              phone = result.phone_1 || '';
+            }
+
+            // Skip if no phone number
+            if (!phone) {
+              smsResults.push({
+                student_id: result.student_id,
+                success: false,
+                error: 'No phone number available',
+              });
+              continue;
+            }
+
+            // Build message from template
+            const classArm = [result.class_name, result.arm_name].filter(Boolean).join(' ');
+            const message = body.template
+              .replace('{parent_or_student_name}', result.student_name || 'Parent/Guardian')
+              .replace('{student_name}', result.student_name || 'Student')
+              .replace('{class_arm}', classArm || 'their class')
+              .replace('{activation_link}', result.activation_link || '')
+              .replace('{username}', result.username || result.admission_number || '')
+              .replace('{expires_at}', expiresAt.toLocaleString())
+              .replace('{school_name}', 'UPSS');
+
+            // Send SMS
+            const smsResult = await sendActivationSms(supabaseAdmin, phone, message, profile.school_id);
+            smsResults.push({
+              student_id: result.student_id,
+              phone: phone,
+              success: smsResult.success,
+              error: smsResult.error,
+            });
+
+            // Add small delay to avoid rate limiting
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
       }
 
       // Audit log
@@ -184,12 +281,24 @@ serve(async (req) => {
           school_id: profile.school_id,
           actor_user_id: profile.id,
           action: 'activation_links_generated',
-          details: { count: results.filter((r) => r.status === 'created').length, expiry_hours: expiryHours, phone_field: body.recipient_phone_field || 'parent_phone_number_1' },
+          details: { 
+            count: results.filter((r) => r.status === 'created').length, 
+            expiry_hours: expiryHours, 
+            phone_field: body.recipient_phone_field || 'parent_phone_number_1',
+            sms_sent: body.send_sms,
+            sms_success_count: smsResults.filter((r) => r.success).length,
+            sms_fail_count: smsResults.filter((r) => !r.success).length,
+          },
         });
       }
 
       return new Response(
-        JSON.stringify({ success: true, results, expires_at: expiresAt.toISOString() }),
+        JSON.stringify({ 
+          success: true, 
+          results, 
+          expires_at: expiresAt.toISOString(),
+          sms_results: smsResults.length > 0 ? smsResults : undefined,
+        }),
         { status: 200, headers: corsHeaders },
       );
     }

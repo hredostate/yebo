@@ -1,3 +1,4 @@
+import type { SmsResult } from '../services/activationLinks';
 
 import React, { useState, useMemo, useRef } from 'react';
 import type { Student, UserProfile, BaseDataObject, TeachingAssignment, CreatedCredential } from '../types';
@@ -33,8 +34,8 @@ interface StudentListViewProps {
   onBulkDeleteStudents?: (studentIds: number[]) => Promise<{ success: boolean; deleted: number; total: number }>;
   onGenerateActivationLinks?: (
     studentIds: number[],
-    options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
-  ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string }>;
+    options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string; sendSms?: boolean }
+  ) => Promise<{ success: boolean; results: ActivationLinkResult[]; expires_at: string; sms_results?: SmsResult[] }>;
   addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -165,11 +166,13 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [activationExpiryHours, setActivationExpiryHours] = useState(72);
   const [activationPhoneField, setActivationPhoneField] = useState<'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'>('parent_phone_number_1');
   const [activationTemplate, setActivationTemplate] = useState(
-    'Hello {parent_or_student_name}. This is {school_name}. {student_name} ({class_arm}) can activate their portal account using this link: {activation_link}. Link expires {expires_at}. Thank you.'
+    'Hello {parent_or_student_name}. This is {school_name}. {student_name} ({class_arm}) can activate their portal account using this link: {activation_link}. Username: {username}. Link expires {expires_at}. Thank you.'
   );
   const [activationResults, setActivationResults] = useState<ActivationLinkResult[] | null>(null);
   const [activationExpiresAt, setActivationExpiresAt] = useState<string | null>(null);
   const [isGeneratingActivationLinks, setIsGeneratingActivationLinks] = useState(false);
+  const [sendSmsEnabled, setSendSmsEnabled] = useState(true);
+  const [smsResults, setSmsResults] = useState<SmsResult[] | null>(null);
 
   // Export configuration state
   const [showExportModal, setShowExportModal] = useState(false);
@@ -347,6 +350,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           .replace('{student_name}', row.student_name || 'Student')
           .replace('{class_arm}', classArm || 'their class')
           .replace('{activation_link}', row.activation_link || '')
+          .replace('{username}', row.username || row.admission_number || '')
           .replace('{expires_at}', activationExpiresAt ? new Date(activationExpiresAt).toLocaleString() : '')
           .replace('{school_name}', 'UPSS')
           .replace('{recipient_phone}', phone);
@@ -365,10 +369,23 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               expiryHours: activationExpiryHours,
               phoneField: activationPhoneField,
               template: activationTemplate,
+              sendSms: sendSmsEnabled,
           });
           if (response.success) {
               setActivationResults(response.results || []);
               setActivationExpiresAt(response.expires_at || null);
+              setSmsResults(response.sms_results || null);
+              
+              // Show success notification if SMS was sent
+              if (sendSmsEnabled && response.sms_results && addToast) {
+                  const successCount = response.sms_results.filter((r: SmsResult) => r.success).length;
+                  const failCount = response.sms_results.filter((r: SmsResult) => !r.success).length;
+                  if (successCount > 0) {
+                      addToast(`${successCount} SMS message(s) sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}`, 'success');
+                  } else if (failCount > 0) {
+                      addToast(`Failed to send ${failCount} SMS message(s)`, 'error');
+                  }
+              }
           }
       } catch (e: any) {
           alert(e.message || 'Unable to generate activation links');
@@ -391,6 +408,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               return {
                   student_name: r.student_name || '',
                   admission_number: r.admission_number || '',
+                  username: r.username || r.admission_number || '',
                   class_name: r.class_name || '',
                   arm_name: r.arm_name || '',
                   recipient_phone: normalized || rawPhone || '',
@@ -1041,7 +1059,18 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                           value={activationTemplate}
                           onChange={e => setActivationTemplate(e.target.value)}
                       />
-                      <span className="text-xs text-slate-500 mt-1">Placeholders: {'{parent_or_student_name}'}, {'{student_name}'}, {'{class_arm}'}, {'{activation_link}'}, {'{expires_at}'}, {'{school_name}'}</span>
+                      <span className="text-xs text-slate-500 mt-1">Placeholders: {'{parent_or_student_name}'}, {'{student_name}'}, {'{class_arm}'}, {'{activation_link}'}, {'{username}'}, {'{expires_at}'}, {'{school_name}'}</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-4">
+                      <input
+                          type="checkbox"
+                          checked={sendSmsEnabled}
+                          onChange={e => setSendSmsEnabled(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+                      />
+                      <span>Send activation links via SMS</span>
+                      <span className="text-xs font-normal text-slate-500">(Messages will be sent automatically)</span>
                   </label>
 
                   <div className="flex items-center gap-3 mt-4">
@@ -1063,11 +1092,19 @@ const StudentListView: React.FC<StudentListViewProps> = ({
 
                   {activationResults && (
                       <div className="mt-4 space-y-3 overflow-y-auto">
-                          <div className="flex flex-wrap gap-4 text-sm text-slate-700 dark:text-slate-200">
+                           <div className="flex flex-wrap gap-4 text-sm text-slate-700 dark:text-slate-200">
                               <span className="font-semibold">Summary:</span>
                               <span>{activationResults.filter(r => r.status === 'created').length} links created</span>
                               <span>{activationResults.filter(r => r.status === 'error').length} errors</span>
                               <span>{activationResults.filter(r => r.status === 'skipped').length} skipped</span>
+                              {smsResults && smsResults.length > 0 && (
+                                  <>
+                                      <span className="text-green-600 dark:text-green-400">✓ {smsResults.filter(r => r.success).length} SMS sent</span>
+                                      {smsResults.filter(r => !r.success).length > 0 && (
+                                          <span className="text-red-600 dark:text-red-400">✗ {smsResults.filter(r => !r.success).length} SMS failed</span>
+                                      )}
+                                  </>
+                              )}
                               {activationExpiresAt && <span>Expires: {new Date(activationExpiresAt).toLocaleString()}</span>}
                           </div>
                           <div className="text-xs text-slate-500">Phone numbers are normalized to +234 format when exporting.</div>
@@ -1077,7 +1114,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                                       <tr>
                                           <th className="px-3 py-2">Student</th>
                                           <th className="px-3 py-2">Phone</th>
-                                          <th className="px-3 py-2">Status</th>
+                                          <th className="px-3 py-2">Link Status</th>
+                                          {smsResults && smsResults.length > 0 && <th className="px-3 py-2">SMS Status</th>}
                                           <th className="px-3 py-2">Actions</th>
                                       </tr>
                                   </thead>
@@ -1091,6 +1129,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                                           const { normalized, valid, reason } = normalizeNigerianNumber(rawPhone || undefined);
                                           const displayPhone = normalized || rawPhone || 'Missing';
                                           const message = r.activation_link ? buildMessageFromTemplate(activationTemplate, r, displayPhone) : '';
+                                          const smsResult = smsResults?.find(s => s.student_id === r.student_id);
                                           return (
                                               <tr key={`${r.student_id}-${idx}`} className="border-t border-slate-200 dark:border-slate-700">
                                                   <td className="px-3 py-2">
@@ -1104,6 +1143,19 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                                                   <td className="px-3 py-2">
                                                       <span className="px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">{r.status}</span>
                                                   </td>
+                                                  {smsResults && smsResults.length > 0 && (
+                                                      <td className="px-3 py-2">
+                                                          {smsResult ? (
+                                                              smsResult.success ? (
+                                                                  <span className="text-green-600 dark:text-green-400 text-xs">✓ Sent</span>
+                                                              ) : (
+                                                                  <span className="text-red-600 dark:text-red-400 text-xs" title={smsResult.error}>✗ Failed</span>
+                                                              )
+                                                          ) : (
+                                                              <span className="text-slate-400 text-xs">-</span>
+                                                          )}
+                                                      </td>
+                                                  )}
                                                   <td className="px-3 py-2 space-x-2">
                                                       {r.activation_link && (
                                                           <button
