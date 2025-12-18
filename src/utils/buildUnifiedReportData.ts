@@ -110,6 +110,37 @@ interface AssessmentComponent {
 }
 
 /**
+ * Extract position in level from various field name formats
+ */
+function extractPositionInLevel(summary: RawReportData['summary']): number | string | undefined {
+  return summary?.positionInLevel ?? 
+         summary?.position_in_level ?? 
+         summary?.position_in_grade ?? 
+         summary?.gradeLevelPosition;
+}
+
+/**
+ * Extract total students in level from various field name formats
+ */
+function extractTotalStudentsInLevel(summary: RawReportData['summary']): number | string | undefined {
+  return summary?.totalStudentsInLevel ?? 
+         summary?.total_students_in_level ?? 
+         summary?.levelSize ?? 
+         summary?.gradeLevelSize;
+}
+
+/**
+ * Extract total students in arm from various field name formats
+ */
+function extractTotalStudentsInArm(summary: RawReportData['summary']): number | string | 'N/A' {
+  return summary?.totalStudentsInArm ?? 
+         summary?.total_students_in_arm ?? 
+         summary?.cohortSize ?? 
+         'N/A';
+}
+
+
+/**
  * Normalizes raw report data into UnifiedReportCardData format
  */
 export function buildUnifiedReportData(
@@ -187,9 +218,9 @@ export function buildUnifiedReportData(
       totalScore,
       averageScore,
       positionInArm: rawReport.summary?.positionInArm ?? rawReport.summary?.position_in_arm ?? 'N/A',
-      totalStudentsInArm: rawReport.summary?.totalStudentsInArm ?? rawReport.summary?.total_students_in_arm ?? rawReport.summary?.cohortSize ?? 'N/A',
-      positionInLevel: rawReport.summary?.positionInLevel ?? rawReport.summary?.position_in_level ?? rawReport.summary?.position_in_grade ?? rawReport.summary?.gradeLevelPosition,
-      totalStudentsInLevel: rawReport.summary?.totalStudentsInLevel ?? rawReport.summary?.total_students_in_level ?? rawReport.summary?.levelSize ?? rawReport.summary?.gradeLevelSize,
+      totalStudentsInArm: extractTotalStudentsInArm(rawReport.summary),
+      positionInLevel: extractPositionInLevel(rawReport.summary),
+      totalStudentsInLevel: extractTotalStudentsInLevel(rawReport.summary),
       gpaAverage: rawReport.summary?.gpaAverage ?? rawReport.summary?.gpa_average ?? 'N/A',
       campusPercentile: rawReport.summary?.campusPercentile ?? rawReport.summary?.campus_percentile ?? null,
     },

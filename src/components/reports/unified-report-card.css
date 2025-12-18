@@ -9,13 +9,13 @@
 /* === A4 Page Specifications === */
 @page {
   size: A4 portrait;
-  margin: 12mm;
+  margin: 12mm; /* Cannot use CSS variables in @page rule - must be literal */
 }
 
 :root {
   --urc-page-width: 210mm;
   --urc-page-height: 297mm;
-  --urc-margin: 12mm;
+  --urc-margin: 12mm; /* Must match @page margin above */
   --urc-content-width: 186mm; /* 210mm - (12mm * 2) */
   --urc-content-height: 273mm; /* 297mm - (12mm * 2) */
   

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
-import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition } from '../../utils/reportCardHelpers';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
@@ -28,10 +28,8 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
   const showArmRanking = config?.showArmRanking !== false; // default true
 
   // Determine if we have level ranking data
-  const hasLevelRanking = summary.positionInLevel != null && summary.positionInLevel !== 'N/A' && 
-                          summary.totalStudentsInLevel != null && summary.totalStudentsInLevel !== 'N/A';
-  const hasArmRanking = summary.positionInArm != null && summary.positionInArm !== 'N/A' &&
-                        summary.totalStudentsInArm != null && summary.totalStudentsInArm !== 'N/A';
+  const hasLevelRanking = hasValidRanking(summary.positionInLevel, summary.totalStudentsInLevel);
+  const hasArmRanking = hasValidRanking(summary.positionInArm, summary.totalStudentsInArm);
 
   return (
     <div className="urc-page">
