@@ -71,6 +71,8 @@ DECLARE
     v_deleted_scores INTEGER := 0;
     v_updated_enrollments INTEGER := 0;
     v_deleted_zero_entries INTEGER := 0;
+    v_deleted_report_subjects INTEGER := 0;
+    v_row_count INTEGER;
     v_student_id INTEGER;
     v_level TEXT;
     v_session_label TEXT;
@@ -106,7 +108,8 @@ BEGIN
           AND term_id = v_term_id
           AND academic_class_id = v_class_id;
         
-        GET DIAGNOSTICS v_deleted_scores = ROW_COUNT;
+        GET DIAGNOSTICS v_row_count = ROW_COUNT;
+        v_deleted_scores := v_deleted_scores + v_row_count;
         
         -- 2. Update subject enrollment (if exists)
         IF v_subject_id IS NOT NULL THEN
@@ -117,7 +120,8 @@ BEGIN
               AND academic_class_id = v_class_id
               AND subject_id = v_subject_id;
             
-            GET DIAGNOSTICS v_updated_enrollments = ROW_COUNT;
+            GET DIAGNOSTICS v_row_count = ROW_COUNT;
+            v_updated_enrollments := v_updated_enrollments + v_row_count;
         END IF;
         
         -- 3. Remove from zero_score_entries (cleanup)
@@ -127,7 +131,8 @@ BEGIN
           AND term_id = v_term_id
           AND academic_class_id = v_class_id;
         
-        GET DIAGNOSTICS v_deleted_zero_entries = ROW_COUNT;
+        GET DIAGNOSTICS v_row_count = ROW_COUNT;
+        v_deleted_zero_entries := v_deleted_zero_entries + v_row_count;
         
         -- 4. Delete from student_term_report_subjects (remove subject from cached report card)
         DELETE FROM public.student_term_report_subjects
@@ -136,6 +141,9 @@ BEGIN
             WHERE student_id = v_student_id AND term_id = v_term_id
         )
         AND subject_name = v_subject_name;
+        
+        GET DIAGNOSTICS v_row_count = ROW_COUNT;
+        v_deleted_report_subjects := v_deleted_report_subjects + v_row_count;
         
         -- 5. Recalculate student term report
         PERFORM public.recalculate_student_term_report(v_student_id, v_term_id, v_class_id);
@@ -155,7 +163,8 @@ BEGIN
         'students_processed', array_length(p_student_ids, 1),
         'scores_deleted', v_deleted_scores,
         'enrollments_updated', v_updated_enrollments,
-        'zero_entries_deleted', v_deleted_zero_entries
+        'zero_entries_deleted', v_deleted_zero_entries,
+        'report_subjects_deleted', v_deleted_report_subjects
     );
 END;
 $$;
