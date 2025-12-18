@@ -34,6 +34,8 @@ export interface PrintStudent {
   fullName: string;
   admissionNumber: string;
   className: string;
+  armName?: string;
+  levelName?: string;
 }
 
 export interface PrintSchool {
@@ -54,6 +56,8 @@ export interface PrintSummary {
   averageScore: number;
   positionInArm?: number | string;
   totalStudentsInArm?: number | string;
+  positionInLevel?: number | string;
+  totalStudentsInLevel?: number | string;
   gpaAverage?: number | string;
   campusPercentile?: number | null;
 }
@@ -82,6 +86,8 @@ export interface PrintConfig {
   schoolNameOverride?: string;
   principalLabel?: string;
   teacherLabel?: string;
+  showLevelRanking?: boolean;
+  showArmRanking?: boolean;
 }
 
 export interface UnifiedReportCardData {

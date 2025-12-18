@@ -54,3 +54,28 @@ export function getGradeBadgeClass(grade: string): string {
   const firstChar = grade.charAt(0).toUpperCase();
   return `urc-grade-badge grade-${firstChar}`;
 }
+
+/**
+ * Format position as "Xth of Y" or "N/A" if data unavailable
+ */
+export function formatPosition(position: number | string | null | undefined, total: number | string | null | undefined): string {
+  if (position == null || position === 'N/A' || total == null || total === 'N/A') {
+    return 'N/A';
+  }
+  const pos = typeof position === 'string' ? parseInt(position, 10) : position;
+  const tot = typeof total === 'string' ? parseInt(total, 10) : total;
+  if (isNaN(pos) || isNaN(tot)) return 'N/A';
+  return `${getOrdinal(pos)} of ${tot}`;
+}
+
+/**
+ * Check if valid ranking data exists
+ */
+export function hasValidRanking(position: number | string | null | undefined, total: number | string | null | undefined): boolean {
+  if (position == null || position === 'N/A' || total == null || total === 'N/A') {
+    return false;
+  }
+  const pos = typeof position === 'string' ? parseInt(position, 10) : position;
+  const tot = typeof total === 'string' ? parseInt(total, 10) : total;
+  return !isNaN(pos) && !isNaN(tot);
+}

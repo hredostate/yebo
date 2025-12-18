@@ -13,6 +13,11 @@ interface RawReportData {
     name?: string;
     className?: string;
     class?: string;
+    armName?: string;
+    arm_name?: string;
+    levelName?: string;
+    level_name?: string;
+    level?: string;
   };
   term: {
     sessionLabel?: string;
@@ -44,6 +49,15 @@ interface RawReportData {
     position_in_arm?: number | string;
     totalStudentsInArm?: number | string;
     total_students_in_arm?: number | string;
+    cohortSize?: number | string;
+    positionInLevel?: number | string;
+    position_in_level?: number | string;
+    position_in_grade?: number | string;
+    gradeLevelPosition?: number | string;
+    totalStudentsInLevel?: number | string;
+    total_students_in_level?: number | string;
+    levelSize?: number | string;
+    gradeLevelSize?: number | string;
     gpaAverage?: number | string;
     gpa_average?: number | string;
     campusPercentile?: number | null;
@@ -96,6 +110,37 @@ interface AssessmentComponent {
 }
 
 /**
+ * Extract position in level from various field name formats
+ */
+function extractPositionInLevel(summary: RawReportData['summary']): number | string | undefined {
+  return summary?.positionInLevel ?? 
+         summary?.position_in_level ?? 
+         summary?.position_in_grade ?? 
+         summary?.gradeLevelPosition;
+}
+
+/**
+ * Extract total students in level from various field name formats
+ */
+function extractTotalStudentsInLevel(summary: RawReportData['summary']): number | string | undefined {
+  return summary?.totalStudentsInLevel ?? 
+         summary?.total_students_in_level ?? 
+         summary?.levelSize ?? 
+         summary?.gradeLevelSize;
+}
+
+/**
+ * Extract total students in arm from various field name formats
+ */
+function extractTotalStudentsInArm(summary: RawReportData['summary']): number | string | 'N/A' {
+  return summary?.totalStudentsInArm ?? 
+         summary?.total_students_in_arm ?? 
+         summary?.cohortSize ?? 
+         'N/A';
+}
+
+
+/**
  * Normalizes raw report data into UnifiedReportCardData format
  */
 export function buildUnifiedReportData(
@@ -144,11 +189,18 @@ export function buildUnifiedReportData(
     ...rawReport.schoolConfig,
   };
 
+  // Extract arm and level names
+  const className = rawReport.student.className || rawReport.student.class || 'Unknown Class';
+  const armName = rawReport.student.armName || rawReport.student.arm_name;
+  const levelName = rawReport.student.levelName || rawReport.student.level_name || rawReport.student.level;
+
   return {
     student: {
       fullName: rawReport.student.fullName || rawReport.student.name || 'Unknown Student',
       admissionNumber: studentAdmNumber || 'N/A',
-      className: rawReport.student.className || rawReport.student.class || 'Unknown Class',
+      className,
+      armName,
+      levelName,
     },
     school: {
       name: mergedSchoolConfig.school_name || 'School Name',
@@ -166,7 +218,9 @@ export function buildUnifiedReportData(
       totalScore,
       averageScore,
       positionInArm: rawReport.summary?.positionInArm ?? rawReport.summary?.position_in_arm ?? 'N/A',
-      totalStudentsInArm: rawReport.summary?.totalStudentsInArm ?? rawReport.summary?.total_students_in_arm ?? 'N/A',
+      totalStudentsInArm: extractTotalStudentsInArm(rawReport.summary),
+      positionInLevel: extractPositionInLevel(rawReport.summary),
+      totalStudentsInLevel: extractTotalStudentsInLevel(rawReport.summary),
       gpaAverage: rawReport.summary?.gpaAverage ?? rawReport.summary?.gpa_average ?? 'N/A',
       campusPercentile: rawReport.summary?.campusPercentile ?? rawReport.summary?.campus_percentile ?? null,
     },

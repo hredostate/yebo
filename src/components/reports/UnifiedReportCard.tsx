@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
-import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass } from '../../utils/reportCardHelpers';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
@@ -24,6 +24,12 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
   const schoolName = config?.schoolNameOverride || school.displayName || school.name;
   const principalLabel = config?.principalLabel || 'Principal';
   const teacherLabel = config?.teacherLabel || 'Class Teacher';
+  const showLevelRanking = config?.showLevelRanking !== false; // default true
+  const showArmRanking = config?.showArmRanking !== false; // default true
+
+  // Determine if we have level ranking data
+  const hasLevelRanking = hasValidRanking(summary.positionInLevel, summary.totalStudentsInLevel);
+  const hasArmRanking = hasValidRanking(summary.positionInArm, summary.totalStudentsInArm);
 
   return (
     <div className="urc-page">
@@ -126,6 +132,39 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                 <p className="urc-attendance-label">Total Days</p>
                 <p className="urc-attendance-count" style={{ color: '#475569' }}>{attendance.total}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Student Ranking Section */}
+        {(showArmRanking || showLevelRanking) && (hasArmRanking || hasLevelRanking) && (
+          <div className="urc-rankings">
+            <h3 className="urc-section-title" style={{ borderColor: themeColor }}>Student Ranking</h3>
+            <div className="urc-rankings-grid">
+              {showArmRanking && hasArmRanking && (
+                <div className="urc-rank-card urc-rank-arm">
+                  <div className="urc-rank-icon">🏅</div>
+                  <div className="urc-rank-label">
+                    Position in {student.armName ? sanitize(student.armName) : 'Class Arm'}
+                  </div>
+                  <div className="urc-rank-value">
+                    {formatPosition(summary.positionInArm, summary.totalStudentsInArm)}
+                  </div>
+                  <div className="urc-rank-subtitle">Within Class Arm</div>
+                </div>
+              )}
+              {showLevelRanking && hasLevelRanking && (
+                <div className="urc-rank-card urc-rank-level">
+                  <div className="urc-rank-icon">🏆</div>
+                  <div className="urc-rank-label">
+                    Position in {student.levelName ? `All ${sanitize(student.levelName)}` : 'Level'}
+                  </div>
+                  <div className="urc-rank-value">
+                    {formatPosition(summary.positionInLevel, summary.totalStudentsInLevel)}
+                  </div>
+                  <div className="urc-rank-subtitle">Across All Arms</div>
+                </div>
+              )}
             </div>
           </div>
         )}
