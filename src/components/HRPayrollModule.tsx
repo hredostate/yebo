@@ -403,7 +403,13 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                     addToast={addToast}
                 />;
             case 'my_adjustments':
-                return <MyAdjustmentsView currentUser={userProfile} />;
+                return <MyAdjustmentsView 
+                    currentUser={userProfile} 
+                    adjustments={canManagePayroll 
+                        ? safePayrollAdjustments 
+                        : safePayrollAdjustments.filter(a => a.user_id === userProfile.id)
+                    } 
+                />;
             case 'run_payroll':
                 return <PayrollPage staffForPayroll={safeUsers.filter(u => u.role !== 'Student' && u.role !== 'Guardian')} adjustments={safePayrollAdjustments} onRunPayroll={onRunPayroll} campuses={safeCampuses} />;
             case 'payroll_history':
