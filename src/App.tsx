@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/auth-js';
 import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -3724,8 +3724,51 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
 
     // Lock academic assignment scores (for Result Manager)
-    const handleLockScores = useCallback(async (assignmentId: number): Promise<boolean> => {
+    const handleLockScores = useCallback(async (
+        assignmentId: number, 
+        zeroScoreCallback?: (students: ZeroScoreStudent[]) => Promise<'unenroll' | 'keep' | 'cancel'>
+    ): Promise<boolean> => {
         try {
+            // 1. Detect zero total scores
+            const { data: zeroScoreStudents, error: detectError } = await supabase
+                .rpc('detect_zero_total_scores', { p_assignment_id: assignmentId });
+
+            if (detectError) {
+                console.error('Error detecting zero scores:', detectError);
+                addToast(`Error detecting zero scores: ${detectError.message}`, 'error');
+                return false;
+            }
+
+            // 2. If zero scores found and callback provided, ask user what to do
+            if (zeroScoreStudents && zeroScoreStudents.length > 0 && zeroScoreCallback) {
+                const userChoice = await zeroScoreCallback(zeroScoreStudents);
+                
+                if (userChoice === 'cancel') {
+                    return false; // Abort lock operation
+                }
+                
+                if (userChoice === 'unenroll') {
+                    // 3. Unenroll students with zero scores
+                    const studentIds = zeroScoreStudents.map((s: ZeroScoreStudent) => s.student_id);
+                    const { data: unenrollResult, error: unenrollError } = await supabase
+                        .rpc('unenroll_zero_score_students', { 
+                            p_assignment_id: assignmentId,
+                            p_student_ids: studentIds
+                        });
+
+                    if (unenrollError) {
+                        console.error('Error unenrolling students:', unenrollError);
+                        addToast(`Error unenrolling students: ${unenrollError.message}`, 'error');
+                        return false;
+                    }
+
+                    console.log('Unenrollment result:', unenrollResult);
+                    addToast(`Successfully unenrolled ${studentIds.length} student(s) with zero total scores`, 'success');
+                }
+                // If 'keep', continue to lock without unenrollment
+            }
+
+            // 4. Lock the assignment
             const { error } = await Offline.update('teaching_assignments', 
                 { is_locked: true }, 
                 { id: assignmentId }
@@ -3744,6 +3787,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             addToast('Scores locked successfully.', 'success');
             return true;
         } catch (e: any) {
+            console.error('Error in handleLockScores:', e);
             addToast(`Error locking scores: ${e.message}`, 'error');
             return false;
         }

@@ -844,7 +844,64 @@ export const useAppLogic = () => {
         handleDeleteAssessment: async () => true,
         handleSaveAssessmentScores: async () => true,
         handleCopyAssessment: async () => true,
-        handleLockScores: async () => true,
+        handleLockScores: async (assignmentId: number, zeroScoreCallback?: (students: any[]) => Promise<'unenroll' | 'keep' | 'cancel'>) => {
+            try {
+                // 1. Detect zero total scores
+                const { data: zeroScoreStudents, error: detectError } = await supabase
+                    .rpc('detect_zero_total_scores', { p_assignment_id: assignmentId });
+
+                if (detectError) {
+                    console.error('Error detecting zero scores:', detectError);
+                    addToast(`Error detecting zero scores: ${detectError.message}`, 'error');
+                    return false;
+                }
+
+                // 2. If zero scores found and callback provided, ask user what to do
+                if (zeroScoreStudents && zeroScoreStudents.length > 0 && zeroScoreCallback) {
+                    const userChoice = await zeroScoreCallback(zeroScoreStudents);
+                    
+                    if (userChoice === 'cancel') {
+                        return false; // Abort lock operation
+                    }
+                    
+                    if (userChoice === 'unenroll') {
+                        // 3. Unenroll students with zero scores
+                        const studentIds = zeroScoreStudents.map((s: any) => s.student_id);
+                        const { data: unenrollResult, error: unenrollError } = await supabase
+                            .rpc('unenroll_zero_score_students', { 
+                                p_assignment_id: assignmentId,
+                                p_student_ids: studentIds
+                            });
+
+                        if (unenrollError) {
+                            console.error('Error unenrolling students:', unenrollError);
+                            addToast(`Error unenrolling students: ${unenrollError.message}`, 'error');
+                            return false;
+                        }
+
+                        console.log('Unenrollment result:', unenrollResult);
+                        addToast(`Successfully unenrolled ${studentIds.length} student(s) with zero total scores`, 'success');
+                    }
+                    // If 'keep', continue to lock without unenrollment
+                }
+
+                // 4. Lock the assignment
+                const { error: lockError } = await Offline.update('teaching_assignments', { is_locked: true }, { id: assignmentId });
+                
+                if (lockError) {
+                    addToast(`Error locking scores: ${lockError.message}`, 'error');
+                    return false;
+                }
+
+                fetchData();
+                addToast('Scores locked successfully', 'success');
+                return true;
+            } catch (error: any) {
+                console.error('Error in handleLockScores:', error);
+                addToast(`Error: ${error.message}`, 'error');
+                return false;
+            }
+        },
         handleUpdateReportComments: async () => {},
         handleAddPolicySnippet: async (content: string) => {
              await Offline.insert('living_policy_snippets', { content, school_id: userProfile?.school_id, author_id: userProfile?.id });
