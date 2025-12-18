@@ -426,6 +426,12 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             let successCount = 0;
             let errorCount = 0;
 
+            // Effort level thresholds
+            const EXCELLENT_THRESHOLD = 80;
+            const GOOD_THRESHOLD = 65;
+            const SATISFACTORY_THRESHOLD = 50;
+            const RATE_LIMIT_DELAY_MS = 500;
+
             // Generate and save comments for each student
             for (const scoreEntry of relevantScores) {
                 const student = students.find(st => st.id === scoreEntry.student_id);
@@ -435,9 +441,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     // Determine effort level based on score
                     const score = scoreEntry.total_score || 0;
                     let effort: 'excellent' | 'good' | 'satisfactory' | 'needs improvement';
-                    if (score >= 80) effort = 'excellent';
-                    else if (score >= 65) effort = 'good';
-                    else if (score >= 50) effort = 'satisfactory';
+                    if (score >= EXCELLENT_THRESHOLD) effort = 'excellent';
+                    else if (score >= GOOD_THRESHOLD) effort = 'good';
+                    else if (score >= SATISFACTORY_THRESHOLD) effort = 'satisfactory';
                     else effort = 'needs improvement';
 
                     // Generate AI comment
@@ -465,27 +471,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     }
 
                     // Small delay to avoid rate limiting
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
 
                 } catch (err) {
                     console.error(`Error generating comment for ${student.name}:`, err);
                     errorCount++;
-                }
-            }
-
-            // Refresh score entries to show new comments
-            // Query the database to get updated score entries
-            if (userProfile && 'school_id' in userProfile) {
-                const { data: refreshedScores } = await supabase
-                    .from('score_entries')
-                    .select('*')
-                    .eq('school_id', userProfile.school_id);
-                
-                if (refreshedScores) {
-                    // Note: This updates the local state but since scoreEntries is a prop,
-                    // the parent component manages the state. In a real scenario,
-                    // we would need a callback from the parent to refresh data.
-                    // For now, the UI will update on next navigation or manual refresh.
                 }
             }
             
