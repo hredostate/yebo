@@ -7,57 +7,13 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
   data: UnifiedReportCardData;
   watermark?: WatermarkType;
 }
-
-// Helper: Get ordinal suffix (1st, 2nd, 3rd, etc.)
-const getOrdinal = (n: number | string | null | undefined): string => {
-  if (n == null || n === 'N/A') return '-';
-  const num = typeof n === 'string' ? parseInt(n, 10) : n;
-  if (isNaN(num)) return '-';
-  const s = ["th", "st", "nd", "rd"];
-  const v = num % 100;
-  return num + (s[(v - 20) % 10] || s[v] || s[0]);
-};
-
-// Helper: Sanitize strings for HTML
-const sanitize = (str: string | number | undefined | null): string => {
-  if (str == null) return '';
-  const text = String(str);
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-};
-
-// Helper: Get grade badge class
-const getGradeBadgeClass = (grade: string): string => {
-  const firstChar = grade.charAt(0).toUpperCase();
-  return `urc-grade-badge grade-${firstChar}`;
-};
-
-// Helper: Calculate CA and Exam from component scores
-const categorizeComponentScore = (componentScores: Record<string, number>): { caScore: number; examScore: number } => {
-  let caScore = 0;
-  let examScore = 0;
-  
-  Object.entries(componentScores).forEach(([key, value]) => {
-    const lowerKey = key.toLowerCase();
-    if (lowerKey.includes('exam') || lowerKey.includes('test') || lowerKey.includes('final')) {
-      examScore += value;
-    } else {
-      caScore += value;
-    }
-  });
-  
-  return { caScore, examScore };
-};
 
 export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, watermark }) => {
   const { student, school, term, subjects, summary, comments, attendance, assessmentComponents, config } = data;
@@ -133,9 +89,9 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
           <div className="urc-summary-card" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
             <p className="urc-summary-label" style={{ color: '#d97706' }}>Position</p>
             <p className="urc-summary-value">{getOrdinal(summary.positionInArm)}</p>
-            {summary.campusPercentile != null && (
+            {summary.campusPercentile != null && typeof summary.campusPercentile === 'number' && (
               <p style={{ margin: '1mm 0 0 0', fontSize: '8pt', color: '#b45309' }}>
-                Campus: {summary.campusPercentile}th
+                Campus: {summary.campusPercentile.toFixed(0)}th
               </p>
             )}
           </div>
