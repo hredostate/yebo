@@ -40,22 +40,34 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get authorization header to determine school_id
+    // Parse request body to get school_id if provided
     let schoolId: number | null = null;
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-      
-      if (!userError && userData?.user) {
-        const { data: profile } = await supabaseAdmin
-          .from('user_profiles')
-          .select('school_id')
-          .eq('id', userData.user.id)
-          .single();
+    try {
+      const body = await req.json();
+      if (body?.school_id) {
+        schoolId = body.school_id;
+      }
+    } catch (e) {
+      // If no body or invalid JSON, continue without school_id from body
+    }
+
+    // Fallback: Get authorization header to determine school_id if not provided in body
+    if (!schoolId) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
         
-        if (profile) {
-          schoolId = profile.school_id;
+        if (!userError && userData?.user) {
+          const { data: profile } = await supabaseAdmin
+            .from('user_profiles')
+            .select('school_id')
+            .eq('id', userData.user.id)
+            .single();
+          
+          if (profile) {
+            schoolId = profile.school_id;
+          }
         }
       }
     }

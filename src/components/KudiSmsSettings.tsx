@@ -293,7 +293,9 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
         setLoadingBalance(true);
         try {
-            const { data, error } = await supabase.functions.invoke('kudisms-balance');
+            const { data, error } = await supabase.functions.invoke('kudisms-balance', {
+                body: { school_id: schoolId }
+            });
 
             if (error) {
                 setBalance('Error fetching balance');
