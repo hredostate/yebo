@@ -2208,6 +2208,93 @@ export interface LevelStatistics {
     arms: ArmStatistics[];
 }
 
+// RPC Function Response Types
+export interface RankingConfig {
+    id: number;
+    school_id: number;
+    tie_method: 'dense' | 'competition';
+    missing_subject_policy: 'exclude' | 'zero';
+    min_subjects_for_ranking: number;
+    pass_threshold: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LevelRankingResult {
+    student_id: number;
+    name: string;
+    admission_number: string | null;
+    arm: string;
+    total_score: number;
+    average_score: number;
+    subjects_count: number;
+    level_rank: number | null;
+    level_percentile: number | null;
+    is_ranked: boolean;
+    rank_reason: string | null;
+    grade_counts: Record<string, number>;
+}
+
+export interface ArmRankingResult {
+    student_id: number;
+    name: string;
+    admission_number: string | null;
+    average_score: number;
+    arm_rank: number;
+    arm_percentile: number;
+    subject_scores: Record<string, number>;
+}
+
+export interface SubjectAnalytics {
+    subject: string;
+    avg_score: number;
+    min_score: number;
+    max_score: number;
+    student_count: number;
+    fail_count: number;
+    fail_rate: number;
+}
+
+export interface TopBottomStudent {
+    student_id: number;
+    name: string;
+    average: number;
+}
+
+export interface ArmComparison {
+    arm: string;
+    student_count: number;
+    average: number;
+    pass_rate: number;
+}
+
+export interface LevelStatisticsResult {
+    total_enrolled: number;
+    students_with_scores: number;
+    students_complete: number;
+    students_incomplete: number;
+    mean_score: number;
+    median_score: number;
+    min_score: number;
+    max_score: number;
+    std_dev: number;
+    pass_count: number;
+    pass_rate: number;
+    grade_distribution: Array<{
+        grade: string;
+        count: number;
+        percentage: number;
+    }>;
+    subject_analytics: SubjectAnalytics[];
+    top_10_students: TopBottomStudent[];
+    bottom_10_students: TopBottomStudent[];
+    arm_comparison: ArmComparison[];
+    hardest_subject: string | null;
+    easiest_subject: string | null;
+    highest_fail_rate_subject: string | null;
+}
+
+
 // Absence Request Types
 export type AbsenceRequestType = 'sick' | 'family' | 'appointment' | 'vacation' | 'other';
 export type AbsenceRequestStatus = 'pending' | 'approved' | 'denied';
