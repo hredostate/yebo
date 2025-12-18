@@ -902,6 +902,22 @@ export const useAppLogic = () => {
                 return false;
             }
         },
+        handleUnlockClass: async (classId: number, termId: number) => {
+            const { error } = await supabase
+                .from('teaching_assignments')
+                .update({ is_locked: false })
+                .eq('academic_class_id', classId)
+                .eq('term_id', termId);
+            
+            if (error) {
+                addToast(`Error unlocking class: ${error.message}`, 'error');
+                return false;
+            }
+            
+            fetchData();
+            addToast('Class unlocked successfully', 'success');
+            return true;
+        },
         handleUpdateReportComments: async () => {},
         handleAddPolicySnippet: async (content: string) => {
              await Offline.insert('living_policy_snippets', { content, school_id: userProfile?.school_id, author_id: userProfile?.id });

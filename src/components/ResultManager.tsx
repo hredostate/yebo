@@ -24,6 +24,7 @@ interface ResultManagerProps {
     users: UserProfile[];
     onLockScores: (assignmentId: number, zeroScoreCallback?: (students: ZeroScoreStudent[]) => Promise<'unenroll' | 'keep' | 'cancel'>) => Promise<boolean>;
     onResetSubmission: (assignmentId: number) => Promise<boolean>;
+    onUnlockClass?: (classId: number, termId: number) => Promise<boolean>;
     userPermissions: string[];
     students: Student[];
     studentTermReports: StudentTermReport[];
@@ -38,7 +39,7 @@ interface ResultManagerProps {
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
-    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, userPermissions, 
+    terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, onUnlockClass, userPermissions, 
     students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate, userProfile 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
@@ -293,7 +294,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
     // Unlock all subjects for an entire class
     const handleUnlockClass = async (classId: number, className: string) => {
-        if (!canLock) return;
+        if (!canLock || !selectedTermId) return;
         
         const classAssignments = assignmentsForTerm.filter(a => a.academic_class_id === classId && a.is_locked);
         
@@ -306,14 +307,22 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
         setPublishingClassId(classId);
         try {
-            const { error } = await supabase
-                .from('teaching_assignments')
-                .update({ is_locked: false })
-                .eq('academic_class_id', classId)
-                .eq('term_id', selectedTermId);
-            
-            if (error) throw error;
-            addToast(`All subjects for ${className} have been unlocked.`, 'success');
+            if (onUnlockClass) {
+                const success = await onUnlockClass(classId, Number(selectedTermId));
+                if (success) {
+                    addToast(`All subjects for ${className} have been unlocked.`, 'success');
+                }
+            } else {
+                // Fallback to direct supabase call (without data refresh)
+                const { error } = await supabase
+                    .from('teaching_assignments')
+                    .update({ is_locked: false })
+                    .eq('academic_class_id', classId)
+                    .eq('term_id', selectedTermId);
+                
+                if (error) throw error;
+                addToast(`All subjects for ${className} have been unlocked.`, 'success');
+            }
         } catch (e: any) {
             addToast(`Unlock failed: ${e.message}`, 'error');
         } finally {
