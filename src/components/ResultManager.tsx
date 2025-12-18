@@ -6,6 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintB
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { supa as supabase } from '../offline/client';
+import { generateSubjectComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -404,32 +405,95 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast('Cannot generate comments: No active grading scheme found for this class or school.', 'error');
             return;
         }
+        
         setIsGeneratingComments(assignment.id);
-        addToast(`Generating comments for ${assignment.academic_class?.name} - ${assignment.subject_name}...`, 'info');
         
         try {
-            if (!aiClient) throw new Error("AI Client not ready");
-            
             // Find scores for this assignment
             const relevantScores = scoreEntries.filter(s => 
                 s.term_id === assignment.term_id && 
                 s.academic_class_id === assignment.academic_class_id && 
                 s.subject_name === assignment.subject_name
             );
-            
-            // Prepare context for AI
-            const scoresContext = relevantScores.map(s => {
-                const student = students.find(st => st.id === s.student_id);
-                return {
-                    studentName: student?.name,
-                    score: s.total_score,
-                    grade: s.grade_label // Changed from 'grade' to 'grade_label'
-                };
-            });
 
-            // Mock implementation for now as bulk update logic would be complex here
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            addToast("AI Comment generation logic would run here. In production, this iterates through scores and updates the DB.", "info");
+            if (relevantScores.length === 0) {
+                addToast('No scores found for this subject.', 'warning');
+                return;
+            }
+
+            addToast(`Generating comments for ${relevantScores.length} students...`, 'info');
+            
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Generate and save comments for each student
+            for (const scoreEntry of relevantScores) {
+                const student = students.find(st => st.id === scoreEntry.student_id);
+                if (!student) continue;
+
+                try {
+                    // Determine effort level based on score
+                    const score = scoreEntry.total_score || 0;
+                    let effort: 'excellent' | 'good' | 'satisfactory' | 'needs improvement';
+                    if (score >= 80) effort = 'excellent';
+                    else if (score >= 65) effort = 'good';
+                    else if (score >= 50) effort = 'satisfactory';
+                    else effort = 'needs improvement';
+
+                    // Generate AI comment
+                    const comment = await generateSubjectComment(
+                        assignment.subject_name,
+                        score,
+                        scoreEntry.grade_label || '',
+                        effort,
+                        'balanced', // tone
+                        'standard', // length
+                        undefined // previousScore (optional)
+                    );
+
+                    // Save to database
+                    const { error: updateError } = await supabase
+                        .from('score_entries')
+                        .update({ remark: comment })
+                        .eq('id', scoreEntry.id);
+
+                    if (updateError) {
+                        console.error(`Failed to save comment for ${student.name}:`, updateError);
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                } catch (err) {
+                    console.error(`Error generating comment for ${student.name}:`, err);
+                    errorCount++;
+                }
+            }
+
+            // Refresh score entries to show new comments
+            // Query the database to get updated score entries
+            if (userProfile && 'school_id' in userProfile) {
+                const { data: refreshedScores } = await supabase
+                    .from('score_entries')
+                    .select('*')
+                    .eq('school_id', userProfile.school_id);
+                
+                if (refreshedScores) {
+                    // Note: This updates the local state but since scoreEntries is a prop,
+                    // the parent component manages the state. In a real scenario,
+                    // we would need a callback from the parent to refresh data.
+                    // For now, the UI will update on next navigation or manual refresh.
+                }
+            }
+            
+            if (errorCount === 0) {
+                addToast(`Successfully generated comments for ${successCount} students!`, 'success');
+            } else {
+                addToast(`Generated ${successCount} comments. ${errorCount} failed.`, 'warning');
+            }
 
         } catch (e: any) {
             addToast(`Error generating comments: ${e.message}`, 'error');
