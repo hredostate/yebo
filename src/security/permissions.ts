@@ -42,8 +42,18 @@ const ROLE_ALIASES: Record<string, PermissionRole> = {
   'hr admin': 'hr_admin',
   hr_admin: 'hr_admin',
   teacher: 'teacher',
+  'team lead': 'teacher',
+  team_lead: 'teacher',
+  counselor: 'teacher',
+  maintenance: 'teacher',
+  librarian: 'teacher',
+  nurse: 'teacher',
+  security: 'teacher',
+  driver: 'teacher',
+  'lab technician': 'teacher',
   student: 'student',
   parent: 'parent',
+  guardian: 'parent',
 };
 
 const PERMISSION_MATRIX: Record<PermissionRole, Partial<Record<PermissionResource, PermissionAction[]>>> = {
@@ -56,7 +66,7 @@ const PERMISSION_MATRIX: Record<PermissionRole, Partial<Record<PermissionResourc
   teacher: { payroll_self: ['view'] },
   student: {},
   parent: { payroll_self: ['view'] },
-  unknown: {},
+  unknown: { payroll_self: ['view'] },
 };
 
 const normalizeRole = (role?: string | null): PermissionRole => {
@@ -85,7 +95,10 @@ export const can = (
 
   if (resource === 'payroll_self') {
     if (resourceOwnerId && context.userId && resourceOwnerId === context.userId) {
-      return allowedActions.includes(action) || allowedActions.includes('manage') || hasExplicitPermission('view-my-payroll', context);
+      return allowedActions.includes(action) 
+        || allowedActions.includes('manage') 
+        || hasExplicitPermission('view-my-payroll', context)
+        || (context.role?.toLowerCase() !== 'student');
     }
     return false;
   }
