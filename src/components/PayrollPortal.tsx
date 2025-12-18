@@ -214,7 +214,13 @@ const PayrollPortal: React.FC<PayrollPortalProps> = ({
                     />
                 )}
                 {activeTab === 'my_adjustments' && (
-                    <MyAdjustmentsView currentUser={userProfile} />
+                    <MyAdjustmentsView 
+                        currentUser={userProfile} 
+                        adjustments={canManage 
+                            ? payrollAdjustments 
+                            : payrollAdjustments.filter(a => a.user_id === userProfile.id)
+                        } 
+                    />
                 )}
                 {activeTab === 'run' && canManage && (
                     <PayrollPage 
