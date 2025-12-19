@@ -30,6 +30,7 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const fetchZeroScores = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('zero_score_entries')
                 .select(`
@@ -54,6 +55,7 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const handleMarkReviewed = async (entry: ZeroScoreEntry, reviewed: boolean) => {
         setIsReviewing(true);
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('zero_score_entries')
                 .update({

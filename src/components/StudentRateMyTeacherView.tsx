@@ -57,6 +57,7 @@ const StudentRateMyTeacherView: React.FC<StudentRateMyTeacherViewProps> = ({ stu
             setCurrentWeekStart(weekStart);
 
             try {
+                const supabase = requireSupabaseClient();
                 // Fetch teachers relevant to this student (simplified logic: fetch all teachers for now, 
                 // in production this should filter by student's class/subjects)
                 // Using a simplified query here assuming we can see all teachers or use an RPC
@@ -129,6 +130,7 @@ const StudentRateMyTeacherView: React.FC<StudentRateMyTeacherViewProps> = ({ stu
 
         setIsSaving(prev => ({ ...prev, [teacherId]: true }));
         
+        const supabase = requireSupabaseClient();
         // Determine user ID for the student (assuming studentProfile.id is the UUID from auth)
         const studentUserId = studentProfile.id; 
         

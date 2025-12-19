@@ -23,6 +23,7 @@ const StudentQuizzesView: React.FC<StudentQuizzesViewProps> = ({ studentProfile,
             setIsLoading(true);
             
             try {
+                const supabase = requireSupabaseClient();
                 // 1. Fetch all quizzes (filtering by audience would ideally happen server-side or here)
                 // For now fetching all for simplicity
                 const { data: allQuizzes, error: quizzesError } = await supabase
@@ -69,6 +70,7 @@ const StudentQuizzesView: React.FC<StudentQuizzesViewProps> = ({ studentProfile,
             }}
             addToast={addToast}
             onSubmitQuiz={async (answers) => {
+                const supabase = requireSupabaseClient();
                 const { error } = await supabase.rpc('submit_quiz_answers', { p_answers: answers });
                 if (error) {
                     addToast(`Error: ${error.message}`, 'error');

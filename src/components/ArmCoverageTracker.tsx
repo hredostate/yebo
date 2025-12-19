@@ -27,6 +27,7 @@ const ArmCoverageTracker: React.FC<ArmCoverageTrackerProps> = ({
     const loadCoverageData = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Load academic class info
             const { data: classData, error: classError } = await supabase
                 .from('academic_classes')
@@ -60,6 +61,7 @@ const ArmCoverageTracker: React.FC<ArmCoverageTrackerProps> = ({
     ) => {
         setSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             // Check if coverage record exists
             const existing = coverage.find(c => c.arm_id === armId);
 

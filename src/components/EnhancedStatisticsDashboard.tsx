@@ -76,6 +76,7 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
             setError(null);
             
             try {
+                const supabase = requireSupabaseClient();
                 // Get the first class to extract session_label if available
                 const firstClass = classesForLevel[0];
                 const sessionLabel = firstClass?.session_label || null;
@@ -129,6 +130,7 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
             setError(null);
             
             try {
+                const supabase = requireSupabaseClient();
                 const { data, error } = await supabase
                     .rpc('calculate_arm_rankings', {
                         p_school_id: schoolId,
