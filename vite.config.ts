@@ -5,19 +5,19 @@ import { VitePWA } from 'vite-plugin-pwa';
 import circularDependency from 'vite-plugin-circular-dependency';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    // Circular dependency detection (development only)
-    circularDependency({
-      circularImportThresholds: 1,
-      exclude: ['node_modules'],
-      onDetected: ({ paths, type }) => {
-        if (type === 'error') {
-          console.error('Circular dependency detected:', paths);
+    // Circular dependency detection (development only - warning mode)
+    ...(mode === 'development' ? [
+      circularDependency({
+        circularImportThresholds: 1,
+        exclude: ['node_modules'],
+        onDetected: ({ paths }) => {
+          console.warn('⚠️ Circular dependency detected:', paths.join(' -> '));
         }
-      }
-    }),
+      })
+    ] : []),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -90,4 +90,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));
