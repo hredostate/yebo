@@ -103,9 +103,9 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     // Pre-bundle these dependencies to avoid circular issues at runtime
     include: [
-      'react', 
-      'react-dom', 
-      '@supabase/supabase-js', 
+      'react',
+      'react-dom',
+      '@supabase/supabase-js',
       'localforage',
       'openai',
     ],
