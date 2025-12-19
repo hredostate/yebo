@@ -2559,3 +2559,295 @@ export interface PensionSummary {
     // Recent contributions
     recentContributions: PensionContribution[];
 }
+
+// ============================================
+// TRANSPORT SYSTEM TYPES
+// ============================================
+
+export enum TransportDirection {
+    MorningPickup = 'morning_pickup',
+    AfternoonDropoff = 'afternoon_dropoff'
+}
+
+export enum TransportTripStatus {
+    Scheduled = 'scheduled',
+    InProgress = 'in_progress',
+    Completed = 'completed',
+    Cancelled = 'cancelled'
+}
+
+export enum TransportRequestStatus {
+    Pending = 'pending',
+    Approved = 'approved',
+    Rejected = 'rejected',
+    Waitlisted = 'waitlisted',
+    Cancelled = 'cancelled'
+}
+
+export enum TransportSubscriptionStatus {
+    Active = 'active',
+    Suspended = 'suspended',
+    Cancelled = 'cancelled'
+}
+
+export enum TransportAttendanceStatus {
+    Present = 'present',
+    Absent = 'absent',
+    Late = 'late',
+    Excused = 'excused',
+    ParentPickup = 'parent_pickup'
+}
+
+export interface TransportRoute {
+    id: number;
+    school_id: number;
+    route_name: string;
+    route_code?: string;
+    description?: string;
+    serves_campus_ids?: number[] | null; // NULL means all campuses
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    created_by?: string;
+}
+
+export interface TransportStop {
+    id: number;
+    route_id: number;
+    stop_name: string;
+    stop_address?: string;
+    near_campus_id?: number;
+    pickup_time?: string; // TIME format
+    dropoff_time?: string; // TIME format
+    stop_order: number;
+    latitude?: number;
+    longitude?: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    campus?: { id: number; name: string };
+}
+
+export interface TransportBus {
+    id: number;
+    school_id: number;
+    bus_number: string;
+    license_plate?: string;
+    capacity: number;
+    driver_name?: string;
+    driver_phone?: string;
+    home_campus_id?: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    campus?: { id: number; name: string };
+}
+
+export interface TransportRouteBus {
+    id: number;
+    route_id: number;
+    bus_id: number;
+    is_primary: boolean;
+    created_at: string;
+    bus?: TransportBus;
+    route?: TransportRoute;
+}
+
+export interface TransportTrip {
+    id: number;
+    route_id: number;
+    trip_date: string; // DATE
+    direction: TransportDirection;
+    status: TransportTripStatus;
+    created_at: string;
+    updated_at: string;
+    route?: TransportRoute;
+}
+
+export interface TransportTripBus {
+    id: number;
+    trip_id: number;
+    bus_id: number;
+    created_at: string;
+    bus?: TransportBus;
+    trip?: TransportTrip;
+}
+
+export interface TransportRequest {
+    id: number;
+    school_id: number;
+    student_id: number;
+    term_id: number;
+    route_id: number;
+    stop_id: number;
+    preferred_bus_id?: number;
+    preferred_seat_label?: string;
+    status: TransportRequestStatus;
+    rejection_reason?: string;
+    requested_at: string;
+    reviewed_at?: string;
+    reviewed_by?: string;
+    notes?: string;
+    student?: Student;
+    route?: TransportRoute;
+    stop?: TransportStop;
+    term?: Term;
+    preferred_bus?: TransportBus;
+}
+
+export interface TransportSubscription {
+    id: number;
+    school_id: number;
+    student_id: number;
+    term_id: number;
+    route_id: number;
+    stop_id: number;
+    assigned_bus_id: number;
+    seat_label?: string;
+    student_campus_id?: number;
+    status: TransportSubscriptionStatus;
+    started_at: string;
+    cancelled_at?: string;
+    cancelled_by?: string;
+    cancellation_reason?: string;
+    student?: Student;
+    route?: TransportRoute;
+    stop?: TransportStop;
+    term?: Term;
+    assigned_bus?: TransportBus;
+    campus?: Campus;
+}
+
+export interface TransportClassGroup {
+    id: number;
+    school_id: number;
+    group_name: string;
+    created_by: string;
+    term_id: number;
+    route_id?: number;
+    description?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    term?: Term;
+    route?: TransportRoute;
+    creator?: { name: string };
+}
+
+export interface TransportClassGroupMember {
+    id: number;
+    group_id: number;
+    student_id: number;
+    subscription_id: number;
+    added_at: string;
+    added_by?: string;
+    student?: Student;
+    subscription?: TransportSubscription;
+    group?: TransportClassGroup;
+}
+
+export interface TransportAttendance {
+    id: number;
+    trip_id: number;
+    student_id: number;
+    class_group_id?: number;
+    status: TransportAttendanceStatus;
+    marked_at: string;
+    marked_by?: string;
+    note?: string;
+    sms_sent: boolean;
+    sms_sent_at?: string;
+    trip?: TransportTrip;
+    student?: Student;
+    class_group?: TransportClassGroup;
+}
+
+export interface TransportSmsTemplate {
+    id: number;
+    school_id: number;
+    template_name: string;
+    template_text: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TransportSmsLog {
+    id: number;
+    school_id: number;
+    attendance_id?: number;
+    student_id: number;
+    phone_number: string;
+    message_text: string;
+    template_name?: string;
+    sent_at: string;
+    status: string; // 'sent', 'failed', 'pending'
+    error_message?: string;
+}
+
+export interface TransportSettings {
+    id: number;
+    school_id: number;
+    enable_sms_notifications: boolean;
+    auto_send_boarding_sms: boolean;
+    auto_send_absent_sms: boolean;
+    auto_send_late_sms: boolean;
+    auto_promote_waitlist: boolean;
+    default_bus_capacity: number;
+    seat_layout_config: {
+        rows: number;
+        columns: string[];
+    };
+    settings?: any;
+    created_at: string;
+    updated_at: string;
+}
+
+// RPC Result Types
+export interface RouteAvailability {
+    route_id: number;
+    route_name: string;
+    route_code?: string;
+    total_capacity: number;
+    occupied_seats: number;
+    available_seats: number;
+    is_full: boolean;
+}
+
+export interface BusAvailableSeats {
+    bus_id: number;
+    bus_number: string;
+    total_capacity: number;
+    occupied_seats: number;
+    available_seats: number;
+}
+
+export interface ApproveRequestResult {
+    success: boolean;
+    message: string;
+    subscription_id?: number;
+}
+
+export interface TransportRoster {
+    student_id: number;
+    student_name: string;
+    admission_number?: string;
+    campus_name?: string;
+    route_name: string;
+    stop_name: string;
+    bus_number: string;
+    seat_label?: string;
+}
+
+export interface TransportManifestEntry {
+    student_id: number;
+    student_name: string;
+    admission_number?: string;
+    campus_name?: string;
+    stop_name: string;
+    stop_order: number;
+    seat_label?: string;
+    attendance_status?: TransportAttendanceStatus;
+    marked_at?: string;
+    parent_phone?: string;
+}
