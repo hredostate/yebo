@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { TimetablePeriod, TimetableEntry, TimetableLocation, UserProfile, AcademicClass, Subject, Term, Campus } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, EditIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from './common/icons';
@@ -522,6 +522,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     useEffect(() => {
         if (localTerms.length === 0) {
             const fetchTerms = async () => {
+                const supabase = requireSupabaseClient();
                 const { data } = await supabase.from('terms').select('*').eq('is_active', true);
                 if (data && data.length > 0) {
                     setLocalTerms(data);
@@ -546,6 +547,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     useEffect(() => {
         if (localCampuses.length === 0 && userProfile) {
             const fetchCampuses = async () => {
+                const supabase = requireSupabaseClient();
                 const { data } = await supabase.from('campuses').select('*').eq('school_id', userProfile.school_id);
                 if (data) setLocalCampuses(data);
             };
@@ -557,6 +559,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
+            const supabase = requireSupabaseClient();
             const [pRes, eRes, lRes] = await Promise.all([
                 supabase.from('timetable_periods').select('*'),
                 selectedTermId ? supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId) : { data: [] },
@@ -575,6 +578,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     // Period Management Handlers
     const handleSavePeriod = async (period: Partial<TimetablePeriod>) => {
         if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         const payload = { ...period, school_id: userProfile.school_id };
         if (period.id) {
             await supabase.from('timetable_periods').update(payload).eq('id', period.id);
@@ -588,6 +592,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
 
     const handleDeletePeriod = async (id: number) => {
         if (window.confirm("Delete this period? All associated entries will be removed.")) {
+            const supabase = requireSupabaseClient();
             await supabase.from('timetable_periods').delete().eq('id', id);
             setPeriods(prev => prev.filter(p => p.id !== id));
         }
@@ -596,6 +601,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     // Location Management Handlers
     const handleSaveLocation = async (location: Partial<TimetableLocation>) => {
         if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         const payload = { 
             name: location.name, 
             campus_id: location.campus_id, 
@@ -614,6 +620,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
 
     const handleDeleteLocation = async (id: number) => {
         if (window.confirm("Delete this location? Associated timetable entries will have their location cleared.")) {
+            const supabase = requireSupabaseClient();
             await supabase.from('timetable_locations').delete().eq('id', id);
             setLocations(prev => prev.filter(l => l.id !== id));
             addToast('Location deleted', 'success');
@@ -629,6 +636,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
             return;
         }
 
+        const supabase = requireSupabaseClient();
         const candidate: TimetableCandidate = {
             ...(entry as TimetableCandidate),
             school_id: userProfile!.school_id,
@@ -675,6 +683,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
     };
 
     const handleDeleteEntry = async (id: number) => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('timetable_entries').delete().eq('id', id);
         if (error) {
             addToast('Failed to delete entry', 'error');
