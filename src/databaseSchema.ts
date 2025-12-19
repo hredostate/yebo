@@ -45,6 +45,11 @@ BEGIN
         ALTER TABLE public.schools ADD COLUMN social_accounts JSONB DEFAULT '{}';
     END IF;
     
+    -- Add total_school_days to terms for global attendance calculation
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='terms' AND column_name='total_school_days') THEN
+        ALTER TABLE public.terms ADD COLUMN total_school_days INTEGER DEFAULT NULL;
+    END IF;
+    
     -- Create student_subject_enrollments table for managing which students take which subjects
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='student_subject_enrollments') THEN
         CREATE TABLE public.student_subject_enrollments (
@@ -280,6 +285,7 @@ DECLARE
     v_attendance JSONB;
     v_term_start DATE;
     v_term_end DATE;
+    v_term_total_school_days INTEGER;
     v_present_count INTEGER;
     v_absent_count INTEGER;
     v_late_count INTEGER;
@@ -322,8 +328,8 @@ BEGIN
 
     -- 2. Term Info with date range
     SELECT jsonb_build_object('sessionLabel', session_label, 'termLabel', term_label),
-           start_date, end_date
-    INTO v_term, v_term_start, v_term_end
+           start_date, end_date, total_school_days
+    INTO v_term, v_term_start, v_term_end, v_term_total_school_days
     FROM public.terms WHERE id = p_term_id;
 
     -- 3. Config
@@ -464,8 +470,14 @@ BEGIN
         v_late_count := v_late_computed;
         v_excused_count := v_excused_computed;
         v_unexcused_count := v_unexcused_computed;
-        v_total_count := v_total_computed;
-        v_attendance_source := 'computed';
+        -- Use term's total_school_days as fallback if set, otherwise use computed total
+        IF v_term_total_school_days IS NOT NULL AND v_term_total_school_days > 0 THEN
+            v_total_count := v_term_total_school_days;
+            v_attendance_source := 'term_default';
+        ELSE
+            v_total_count := v_total_computed;
+            v_attendance_source := 'computed';
+        END IF;
     END IF;
 
     IF v_total_count > 0 THEN

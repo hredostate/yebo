@@ -773,6 +773,7 @@ export interface Term {
     start_date: string;
     end_date: string;
     is_active: boolean;
+    total_school_days?: number | null;
 }
 
 export interface AssessmentComponent {
