@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { requireSupabaseClient } from './supabaseClient';
 import type { StudentAcademicGoal } from '../types';
 
 interface GoalAnalysisResult {
@@ -17,6 +17,9 @@ export async function generateGoalAnalysis(
     termId: number
 ): Promise<GoalAnalysisResult | null> {
     try {
+        // Get supabase client lazily to avoid circular dependency issues
+        const supabase = requireSupabaseClient();
+        
         // 1. Fetch the student's academic goal for the term
         const { data: goal, error: goalError } = await supabase
             .from('student_academic_goals')
