@@ -94,7 +94,7 @@ const PolicyStatementsManager = lazy(() => import('./PolicyStatementsManager'));
 
 // Transport System Components
 const TransportManager = lazy(() => import('./transport/TransportManager'));
-const StudentTransportSignUp = lazy(() => import('./transport/StudentTransportSignUp'));
+const StudentTransportation = lazy(() => import('./transport/StudentTransportation'));
 const TeacherTransportGroupManager = lazy(() => import('./transport/TeacherTransportGroupManager'));
 const TeacherTransportAttendance = lazy(() => import('./transport/TeacherTransportAttendance'));
 
@@ -237,7 +237,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 }
                 return (
                     <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
-                        <StudentTransportSignUp
+                        <StudentTransportation
                             student={studentRecord}
                             currentTerm={currentTerm}
                             onClose={() => actions.setCurrentView(VIEWS.STUDENT_PORTAL)}
@@ -1053,6 +1053,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                      <TransportManager
                          schoolId={data.userProfile.school_id}
                          currentTermId={currentTermForTransport.id}
+                         campuses={data.campuses}
                          addToast={actions.addToast}
                      />
                  </Suspense>

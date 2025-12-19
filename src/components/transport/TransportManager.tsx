@@ -12,6 +12,7 @@ import TransportTripGenerator from './TransportTripGenerator';
 interface TransportManagerProps {
   schoolId: number;
   currentTermId: number;
+  campuses: Campus[];
   addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
@@ -20,6 +21,7 @@ type TabKey = 'routes' | 'stops' | 'buses' | 'requests' | 'subscriptions' | 'man
 export default function TransportManager({
   schoolId,
   currentTermId,
+  campuses,
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
@@ -64,13 +66,21 @@ export default function TransportManager({
       addToast,
     };
     
+    if (loadingCampuses) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+    
     switch (activeTab) {
       case 'routes':
         return <TransportRouteEditor {...props} />;
       case 'stops':
         return <TransportStopEditor {...props} />;
       case 'buses':
-        return <TransportBusEditor {...props} />;
+        return <TransportBusEditor schoolId={schoolId} campuses={campuses} addToast={addToast} />;
       case 'requests':
         return <TransportRequestsList {...props} />;
       case 'subscriptions':
