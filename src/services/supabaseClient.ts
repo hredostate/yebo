@@ -71,5 +71,6 @@ export function getSupabaseError(): string | null {
   return _supabaseError;
 }
 
-// For backward compatibility with existing code that uses `supabaseError`
-export const supabaseError: string | null = null; // Will be null initially, use getSupabaseError() for actual value
+// DEPRECATED: For backward compatibility with existing code that uses `supabaseError`
+// This will always be null. Use getSupabaseError() function to get the actual error.
+export const supabaseError: string | null = null;

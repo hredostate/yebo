@@ -57,11 +57,14 @@ export function applyCacheMutation<T extends Record<string, any>>(
 
 // Lazy getter to avoid circular dependency at module load
 // Import is deferred until first call
+// Using require() here is intentional - Vite handles this correctly during build
+// and it ensures synchronous access which is needed for the proxy pattern
 let _cachedSupabaseModule: any = null;
 
 function getSupabaseClient(): SupabaseClient {
   if (!_cachedSupabaseModule) {
     // Dynamic require for lazy loading (Vite handles this in the browser)
+    // This breaks the circular dependency by deferring the import until first use
     _cachedSupabaseModule = require('../services/supabaseClient.js');
   }
   return _cachedSupabaseModule.requireSupabaseClient();
