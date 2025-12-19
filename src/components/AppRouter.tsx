@@ -78,6 +78,10 @@ const CampusStatsReport = lazy(() => import('./CampusStatsReport'));
 
 // Lesson Plan Enhancement Components
 const HomeworkManager = lazy(() => import('./HomeworkManager'));
+
+// Manuals System Components
+const ManualsManager = lazy(() => import('./manuals/admin/ManualsManager'));
+const MyManualsLibrary = lazy(() => import('./manuals/user/MyManualsLibrary'));
 const StudentHomeworkView = lazy(() => import('./StudentHomeworkView'));
 const NotesComplianceTracker = lazy(() => import('./NotesComplianceTracker'));
 const StudentLessonPortal = lazy(() => import('./StudentLessonPortal'));
@@ -884,6 +888,25 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onSave={actions.handleCreateLeaveRequest}
                 onDelete={actions.handleDeleteLeaveRequest}
              />;
+        case VIEWS.MANUALS:
+             // Admin/Principal/Team Lead view for managing manuals
+             if (data.userPermissions.includes('manage-manuals') || ['Admin', 'Principal', 'Team Lead'].includes(data.userProfile.role)) {
+                 return <Suspense fallback={<Spinner size="lg" />}>
+                     <ManualsManager 
+                         userProfile={data.userProfile}
+                         schoolId={data.userProfile.school_id}
+                         roles={data.roles.map((r: any) => r.title)}
+                         addToast={actions.addToast}
+                     />
+                 </Suspense>;
+             }
+             // Regular users view their assigned manuals
+             return <Suspense fallback={<Spinner size="lg" />}>
+                 <MyManualsLibrary 
+                     userProfile={data.userProfile}
+                     addToast={actions.addToast}
+                 />
+             </Suspense>;
         case VIEWS.LEAVE_APPROVALS:
              return <LeaveApprovalView 
                 currentUser={data.userProfile}
