@@ -1,6 +1,7 @@
 
 
-import { supa, Offline } from '../offline/client';
+import { Offline } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { TeacherCheckin, TeacherCheckinStatus, TeacherMood, WeeklyCheckinRow } from '../types';
 
 export async function checkInToday(
@@ -72,6 +73,7 @@ export async function fetchMyCheckins(
   opts?: { from?: string; to?: string; limit?: number }
 ): Promise<{ data: TeacherCheckin[]; error: string | null }> {
   try {
+    const supa = requireSupabaseClient();
     let q = supa.from('teacher_checkins').select('*').eq('teacher_id', teacherId).order('checkin_date', { ascending: false });
     if (opts?.from) q = q.gte('checkin_date', opts.from);
     if (opts?.to) q = q.lte('checkin_date', opts.to);
@@ -90,6 +92,7 @@ export async function fetchWeeklyForSchool(
   weekStartISO: string
 ): Promise<{ data: WeeklyCheckinRow[]; error: string | null }> {
   try {
+    const supa = requireSupabaseClient();
     const { data, error } = await (supa.rpc as any)('teacher_checkin_weekly', {
       p_school_id: schoolId,
       p_week_start: weekStartISO,
@@ -119,6 +122,7 @@ export async function uploadCheckinPhoto(file: File, pathHint: string) {
     }
     
     // Get public URL for online success
+    const supa = requireSupabaseClient();
     const { data } = supa.storage.from('report_images').getPublicUrl(filePath);
     return { publicUrl: data.publicUrl, path: filePath };
 }

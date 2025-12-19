@@ -3,7 +3,7 @@ import type { LivingPolicySnippet, UserProfile, SchoolSettings } from '../types'
 import { getAIClient, getCurrentModel } from '../services/aiClient';
 import { WandIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface PolicyQueryViewProps {
     userProfile: UserProfile;
@@ -23,6 +23,7 @@ const PolicyQueryView: React.FC<PolicyQueryViewProps> = ({ userProfile, schoolSe
         const loadPolicyData = async () => {
             setIsLoading(true);
             try {
+                const supabase = requireSupabaseClient();
                 // Load snippets
                 const { data: snippets } = await supabase
                     .from('living_policy_snippets')
