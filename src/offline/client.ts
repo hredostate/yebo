@@ -2,8 +2,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { cache, uploadStore, conflictsStore } from './db.js';
 import { enqueue, drain, QueuedItem } from './queue.js';
-// REMOVED: Static import that caused circular dependency
-// import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient.js';
 
 export { cache };
 
@@ -57,11 +55,16 @@ export function applyCacheMutation<T extends Record<string, any>>(
   }
 }
 
-// Lazy getter to avoid circular dependency
+// Lazy getter to avoid circular dependency at module load
+// Import is deferred until first call
+let _cachedSupabaseModule: any = null;
+
 function getSupabaseClient(): SupabaseClient {
-  // Use require() for lazy loading to break circular dependency
-  const { requireSupabaseClient } = require('../services/supabaseClient.js');
-  return requireSupabaseClient();
+  if (!_cachedSupabaseModule) {
+    // Dynamic require for lazy loading (Vite handles this in the browser)
+    _cachedSupabaseModule = require('../services/supabaseClient.js');
+  }
+  return _cachedSupabaseModule.requireSupabaseClient();
 }
 
 // Lazy proxy that defers Supabase access until actually used

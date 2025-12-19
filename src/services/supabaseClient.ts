@@ -1,17 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from './runtimeConfig.js';
 
-// Lazy config import to avoid circular dependency at module load time
-let _config: { url: string; anonKey: string; error?: string } | null = null;
-
-function getConfig() {
-  if (!_config) {
-    // Dynamic require breaks the circular dependency
-    const { getSupabaseConfig } = require('./runtimeConfig.js');
-    _config = getSupabaseConfig();
-  }
-  return _config;
-}
-
+// Lazy initialization to avoid circular dependency at module load time
 let _supabaseClient: SupabaseClient | null = null;
 let _supabaseError: string | null = null;
 let _initialized = false;
@@ -20,15 +10,15 @@ function initializeSupabase() {
   if (_initialized) return;
   _initialized = true;
 
-  const config = getConfig();
+  const { url, anonKey, error: configError } = getSupabaseConfig();
   
-  if (!config || config.error) {
-    _supabaseError = config?.error || 'Failed to get Supabase configuration';
+  if (configError) {
+    _supabaseError = configError;
     return;
   }
 
   try {
-    _supabaseClient = createClient(config.url, config.anonKey, {
+    _supabaseClient = createClient(url, anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
