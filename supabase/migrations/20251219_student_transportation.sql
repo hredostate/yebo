@@ -898,6 +898,7 @@ RETURNS TABLE(
   route_name VARCHAR,
   stop_name VARCHAR,
   class_group_name VARCHAR,
+  class_group_id INTEGER,
   attendance_status VARCHAR,
   marked_at TIMESTAMP WITH TIME ZONE
 ) AS $$
@@ -910,6 +911,7 @@ BEGIN
     r.route_name,
     st.stop_name,
     cg.group_name,
+    cg.id,
     a.status,
     a.marked_at
   FROM transport_class_groups cg
@@ -1051,14 +1053,21 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- DEFAULT SMS TEMPLATES
 -- ============================================
 
-INSERT INTO transport_sms_templates (school_id, template_name, template_text) VALUES
-(1, 'boarding_confirmed', 'Hello! {student_name} has boarded bus {bus_number} on route {route_name} at {time}.'),
-(1, 'absent_alert', 'Alert: {student_name} was marked absent from bus {bus_number} ({route_name}) at {time}.'),
-(1, 'late_notification', 'Notice: {student_name} was marked late for bus {bus_number} ({route_name}) at {time}.'),
-(1, 'departure', 'Bus {bus_number} ({route_name}) has departed at {time}.'),
-(1, 'dropoff', '{student_name} has been dropped off at {stop_name} at {time}.')
-ON CONFLICT (school_id, template_name) DO NOTHING;
+-- Note: These templates are school-specific and should be created during school setup
+-- For multi-school deployments, use the following pattern:
+-- INSERT INTO transport_sms_templates (school_id, template_name, template_text) VALUES
+-- (:school_id, 'boarding_confirmed', 'Hello! {student_name} has boarded bus {bus_number} on route {route_name} at {time}.')
+-- etc. for each school
 
--- Insert default transport settings
-INSERT INTO transport_settings (school_id) VALUES (1)
-ON CONFLICT (school_id) DO NOTHING;
+-- Example templates (comment out or customize for your deployment):
+-- INSERT INTO transport_sms_templates (school_id, template_name, template_text) VALUES
+-- (1, 'boarding_confirmed', 'Hello! {student_name} has boarded bus {bus_number} on route {route_name} at {time}.'),
+-- (1, 'absent_alert', 'Alert: {student_name} was marked absent from bus {bus_number} ({route_name}) at {time}.'),
+-- (1, 'late_notification', 'Notice: {student_name} was marked late for bus {bus_number} ({route_name}) at {time}.'),
+-- (1, 'departure', 'Bus {bus_number} ({route_name}) has departed at {time}.'),
+-- (1, 'dropoff', '{student_name} has been dropped off at {stop_name} at {time}.')
+-- ON CONFLICT (school_id, template_name) DO NOTHING;
+
+-- Insert default transport settings (school-specific)
+-- INSERT INTO transport_settings (school_id) VALUES (1)
+-- ON CONFLICT (school_id) DO NOTHING;

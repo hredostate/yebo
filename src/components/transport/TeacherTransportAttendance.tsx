@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../offline/client';
+import { supa as supabase } from '../../offline/client';
 import type {
   TransportDirection,
   TransportAttendanceStatus,
@@ -14,6 +14,7 @@ interface AttendanceStudent {
   route_name: string;
   stop_name: string;
   class_group_name: string;
+  class_group_id: number;
   attendance_status: TransportAttendanceStatus | null;
   marked_at: string | null;
 }
@@ -73,14 +74,17 @@ export default function TeacherTransportAttendance({
     try {
       // Find class group ID from the student data
       const student = students.find(s => s.student_id === studentId);
-      if (!student) return;
+      if (!student) {
+        addToast('Student not found', 'error');
+        return;
+      }
 
       const { data, error } = await supabase.rpc('mark_transport_attendance_by_teacher', {
         p_trip_id: tripId,
         p_student_id: studentId,
         p_status: status,
         p_marked_by: userId,
-        p_class_group_id: null, // Will need to get this from the data
+        p_class_group_id: student.class_group_id, // Use the class group ID from student data
         p_note: null,
         p_send_sms: true, // Auto-send SMS
       });

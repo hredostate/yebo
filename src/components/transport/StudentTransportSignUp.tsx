@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../offline/client';
+import { supa as supabase } from '../../offline/client';
 import type { 
   TransportRoute, 
   TransportStop, 
