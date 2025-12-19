@@ -58,16 +58,16 @@ export async function generateSubjectComment(
     const improvement = previousScore ? score - previousScore : 0;
     
     if (score >= 80) {
-      return `Excellent grasp of ${subjectName}`;
+      return `Outstanding performance and understanding shown`;
     } else if (score >= 65) {
-      return `Good understanding demonstrated`;
+      return `Good understanding clearly demonstrated`;
     } else if (score >= 50) {
       if (improvement > 5) {
-        return `Improving steadily in this subject`;
+        return `Steady improvement this term`;
       }
       return `Satisfactory progress made overall`;
     } else {
-      return `Needs additional support here`;
+      return `Needs additional support currently`;
     }
   }
 
@@ -116,10 +116,10 @@ Examples of good comments (notice they are very short):
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return textFromAI(response).trim() || `Demonstrates ${effort} effort`;
+    return textFromAI(response).trim() || `Working towards improvement`;
   } catch (error) {
     console.error('AI comment generation error:', error);
-    return `Shows ${effort} performance overall`;
+    return `Consistent effort shown this term`;
   }
 }
 
