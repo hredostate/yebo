@@ -7,7 +7,7 @@ interface ManualCardProps {
   onClick: () => void;
 }
 
-const ManualCard: React.FC<ManualCardProps> = ({ assignment }) => {
+const ManualCard: React.FC<ManualCardProps> = ({ assignment, onClick }) => {
   const { manual, status, due_date, completed_at } = assignment;
 
   if (!manual) return null;
@@ -49,7 +49,7 @@ const ManualCard: React.FC<ManualCardProps> = ({ assignment }) => {
 
   return (
     <div
-      onClick={assignment.onClick}
+      onClick={onClick}
       className={`border-2 rounded-lg p-4 cursor-pointer hover:shadow-lg transition ${getStatusColor()}`}
     >
       <div className="flex items-start justify-between mb-3">

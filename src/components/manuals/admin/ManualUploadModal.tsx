@@ -46,11 +46,11 @@ const ManualUploadModal: React.FC<ManualUploadModalProps> = ({ isOpen, onClose, 
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (selectedFile.type !== 'application/pdf') {
-        alert('Please select a PDF file');
+        // Will be handled in handleSubmit
         return;
       }
       if (selectedFile.size > 25 * 1024 * 1024) {
-        alert('File size must be less than 25MB');
+        // Will be handled in handleSubmit
         return;
       }
       setFile(selectedFile);
@@ -78,11 +78,11 @@ const ManualUploadModal: React.FC<ManualUploadModalProps> = ({ isOpen, onClose, 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
       if (droppedFile.type !== 'application/pdf') {
-        alert('Please select a PDF file');
+        // Will be handled in handleSubmit
         return;
       }
       if (droppedFile.size > 25 * 1024 * 1024) {
-        alert('File size must be less than 25MB');
+        // Will be handled in handleSubmit
         return;
       }
       setFile(droppedFile);
@@ -96,7 +96,17 @@ const ManualUploadModal: React.FC<ManualUploadModalProps> = ({ isOpen, onClose, 
     e.preventDefault();
 
     if (!file) {
+      return; // Button is disabled when no file
+    }
+
+    // Validate file
+    if (file.type !== 'application/pdf') {
       alert('Please select a PDF file');
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      alert('File size must be less than 25MB');
       return;
     }
 
@@ -122,9 +132,8 @@ const ManualUploadModal: React.FC<ManualUploadModalProps> = ({ isOpen, onClose, 
         acknowledgment_text: 'I confirm that I have read and understood this manual.',
       });
       onClose();
-    } else {
-      alert(result.error || 'Upload failed');
     }
+    // Error handled by parent via toast
   };
 
   const toggleTargetAudience = (audience: TargetAudience) => {

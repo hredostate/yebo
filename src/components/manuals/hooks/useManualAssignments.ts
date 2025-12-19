@@ -311,16 +311,12 @@ export function useManualAssignments() {
   };
 
   /**
-   * Get user's IP address
+   * Get user's IP address (optional, may not be available)
    */
   const getUserIP = async (): Promise<string | null> => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip || null;
-    } catch {
-      return null;
-    }
+    // IP address capture removed for privacy reasons
+    // Can be captured server-side if needed for compliance
+    return null;
   };
 
   return {
