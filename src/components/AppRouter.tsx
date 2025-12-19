@@ -92,6 +92,12 @@ const AbsenceRequestsView = lazy(() => import('./AbsenceRequestsView'));
 const PolicyQueryView = lazy(() => import('./PolicyQueryView'));
 const PolicyStatementsManager = lazy(() => import('./PolicyStatementsManager'));
 
+// Transport System Components
+const TransportManager = lazy(() => import('./transport/TransportManager'));
+const StudentTransportSignUp = lazy(() => import('./transport/StudentTransportSignUp'));
+const TeacherTransportGroupManager = lazy(() => import('./transport/TeacherTransportGroupManager'));
+const TeacherTransportAttendance = lazy(() => import('./transport/TeacherTransportAttendance'));
+
 interface AppRouterProps {
     currentView: string;
     data: any;
@@ -216,6 +222,26 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                             onCreateRequest={actions.handleCreateAbsenceRequest}
                             onApproveRequest={actions.handleApproveAbsenceRequest}
                             onDenyRequest={actions.handleDenyAbsenceRequest}
+                        />
+                    </Suspense>
+                );
+            case VIEWS.TRANSPORT_SIGN_UP:
+                const currentTerm = data.terms?.find((t: any) => t.is_current);
+                if (!currentTerm) {
+                    return <div className="p-6 text-center text-gray-600">No active term found</div>;
+                }
+                // Get the student record for the student profile
+                const studentRecord = data.students?.find((s: any) => s.user_id === data.userProfile.id);
+                if (!studentRecord) {
+                    return <div className="p-6 text-center text-gray-600">Student record not found</div>;
+                }
+                return (
+                    <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                        <StudentTransportSignUp
+                            student={studentRecord}
+                            currentTerm={currentTerm}
+                            onClose={() => actions.setCurrentView(VIEWS.STUDENT_PORTAL)}
+                            addToast={actions.addToast}
                         />
                     </Suspense>
                 );
@@ -1016,6 +1042,45 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 addToast={actions.addToast}
                 users={data.users}
              />;
+        case VIEWS.TRANSPORT_MANAGER:
+             const currentTermForTransport = data.terms?.find((t: any) => t.is_current);
+             if (!currentTermForTransport) {
+                 return <div className="p-6 text-center text-gray-600">No active term found</div>;
+             }
+             return (
+                 <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                     <TransportManager
+                         schoolId={data.userProfile.school_id}
+                         currentTermId={currentTermForTransport.id}
+                         addToast={actions.addToast}
+                     />
+                 </Suspense>
+             );
+        case VIEWS.TEACHER_TRANSPORT_GROUPS:
+             const currentTermForGroups = data.terms?.find((t: any) => t.is_current);
+             if (!currentTermForGroups) {
+                 return <div className="p-6 text-center text-gray-600">No active term found</div>;
+             }
+             return (
+                 <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                     <TeacherTransportGroupManager
+                         userId={data.userProfile.id}
+                         schoolId={data.userProfile.school_id}
+                         currentTerm={currentTermForGroups}
+                         addToast={actions.addToast}
+                     />
+                 </Suspense>
+             );
+        case VIEWS.TEACHER_TRANSPORT_ATTENDANCE:
+             return (
+                 <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                     <TeacherTransportAttendance
+                         userId={data.userProfile.id}
+                         schoolId={data.userProfile.school_id}
+                         addToast={actions.addToast}
+                     />
+                 </Suspense>
+             );
         case VIEWS.SURVEYS: // Added fallback for Surveys View
              return <SurveyListView 
                 surveys={data.surveys}

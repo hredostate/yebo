@@ -69,6 +69,16 @@ export const ALL_PERMISSIONS: string[] = [
   'view-campus-stats',
   'score_entries.view_all', // View all teacher-entered scores
   'score_entries.edit_all', // Edit any score entry (for Team Lead/Admin)
+  // Transport permissions
+  'transport.routes.manage',
+  'transport.stops.manage',
+  'transport.buses.manage',
+  'transport.requests.manage',
+  'transport.subscriptions.manage',
+  'transport.attendance.view',
+  'transport.attendance.mark',
+  'transport.trips.manage',
+  'transport.view', // View transport information
 ];
 
 export const VIEWS = {
@@ -155,6 +165,11 @@ export const VIEWS = {
   ABSENCE_REQUESTS: 'Absence Requests',
   STUDENT_SUBJECT_CHOICES_ADMIN: 'Student Subject Choices',
   STUDENT_SUBJECT_ENROLLMENT_MANAGER: 'Student Subject Enrollment',
+  // Transport Views
+  TRANSPORT_MANAGER: 'Transport Manager',
+  TRANSPORT_SIGN_UP: 'Transport Sign-Up',
+  TEACHER_TRANSPORT_GROUPS: 'Transport Groups',
+  TEACHER_TRANSPORT_ATTENDANCE: 'Transport Attendance',
 } as const;
 
 export const STUDENT_STATUSES = [
