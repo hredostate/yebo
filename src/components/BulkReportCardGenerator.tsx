@@ -261,6 +261,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
   const renderReportCanvas = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string) => {
     try {
+      const supabase = requireSupabaseClient();
       const { data: reportData, error: reportError } = await supabase.rpc('get_student_term_report_details', {
         p_student_id: student.id,
         p_term_id: termId,

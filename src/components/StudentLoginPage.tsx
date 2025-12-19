@@ -51,7 +51,7 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
     setMessage(null);
 
     try {
-      if (!supabase) throw new Error("Supabase client not initialized");
+      const supabase = requireSupabaseClient();
       if (authView === 'login') {
         // Cast supabase.auth to any to bypass potential type definition mismatches
         const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });

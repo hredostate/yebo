@@ -253,6 +253,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         }
         setIsRetrieving(true);
         setInitialPassword(null);
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.rpc('get_student_initial_password', {
             p_student_user_id: student.user_id,
         });
@@ -320,6 +321,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         try {
             setIsResendingCredentials(true);
             
+            const supabase = requireSupabaseClient();
             // Call the manage-users function to resend credentials
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: {

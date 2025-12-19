@@ -122,6 +122,7 @@ export default function TeacherTransportGroupManager({
 
   const loadAvailableStudents = async (groupId: number) => {
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase.rpc('get_available_students_for_group', {
         p_group_id: groupId,
       });
