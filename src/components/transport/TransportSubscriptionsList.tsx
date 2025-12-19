@@ -210,21 +210,32 @@ export default function TransportSubscriptionsList({
   };
 
   const exportToCSV = () => {
+    // Helper function to escape CSV values
+    const escapeCSV = (value: string | number | null | undefined): string => {
+      if (value === null || value === undefined) return '';
+      const stringValue = String(value);
+      // Escape double quotes by doubling them and wrap in quotes if contains comma, newline, or quotes
+      if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('"')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const headers = ['Student Name', 'Admission #', 'Route', 'Stop', 'Bus', 'Seat', 'Campus', 'Status', 'Start Date'];
     const rows = filteredSubscriptions.map(sub => [
-      sub.student?.name || '',
-      sub.student?.admission_number || '',
-      sub.route?.route_name || '',
-      sub.stop?.stop_name || '',
-      sub.assigned_bus?.bus_number || '',
-      sub.seat_label || '',
-      sub.campus?.name || '',
-      sub.status,
-      new Date(sub.started_at).toLocaleDateString(),
+      escapeCSV(sub.student?.name),
+      escapeCSV(sub.student?.admission_number),
+      escapeCSV(sub.route?.route_name),
+      escapeCSV(sub.stop?.stop_name),
+      escapeCSV(sub.assigned_bus?.bus_number),
+      escapeCSV(sub.seat_label),
+      escapeCSV(sub.campus?.name),
+      escapeCSV(sub.status),
+      escapeCSV(new Date(sub.started_at).toLocaleDateString()),
     ]);
 
-    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const csvContent = [headers.map(escapeCSV), ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
