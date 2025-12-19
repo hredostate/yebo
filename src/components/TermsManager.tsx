@@ -50,8 +50,12 @@ const TermsManager: React.FC<TermsManagerProps> = ({ terms = [], onSave, onDelet
                 {terms.map(term => (
                     <div key={term.id} className="p-3 border rounded-lg flex justify-between items-center">
                         <div>
-                            <p className="font-semibold">{term.session_label} - {term.term_label}</p>
+                            <p className="font-semibold">
+                                {term.session_label} - {term.term_label}
+                                {term.is_active && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Active</span>}
+                            </p>
                             <p className="text-xs text-slate-500">{term.start_date} to {term.end_date}</p>
+                            {term.total_school_days && <p className="text-xs text-slate-600">Total school days: {term.total_school_days}</p>}
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditingTerm(term)} className="text-sm font-semibold">Edit</button>
@@ -78,7 +82,7 @@ const TermForm: React.FC<{
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
-        setLocalTerm(prev => ({...prev, [name]: type === 'checkbox' ? checked : value}));
+        setLocalTerm(prev => ({...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === '' ? null : Number(value)) : value)}));
     };
     
     return (
@@ -88,6 +92,11 @@ const TermForm: React.FC<{
                 <input name="term_label" value={localTerm.term_label || ''} onChange={handleChange} placeholder="Term (e.g., First Term)" className="p-2 border rounded"/>
                 <input name="start_date" type="date" value={localTerm.start_date || ''} onChange={handleChange} className="p-2 border rounded"/>
                 <input name="end_date" type="date" value={localTerm.end_date || ''} onChange={handleChange} className="p-2 border rounded"/>
+                <input name="total_school_days" type="number" value={localTerm.total_school_days ?? ''} onChange={handleChange} placeholder="Total school days in term" className="p-2 border rounded" min="0"/>
+                <div className="flex items-center gap-2 p-2">
+                    <input name="is_active" type="checkbox" checked={localTerm.is_active || false} onChange={handleChange} id="is_active_checkbox" className="w-4 h-4"/>
+                    <label htmlFor="is_active_checkbox" className="text-sm font-medium cursor-pointer">Set as Active Term</label>
+                </div>
             </div>
             <div className="flex justify-end gap-2">
                 <button type="button" onClick={onCancel}>Cancel</button>
