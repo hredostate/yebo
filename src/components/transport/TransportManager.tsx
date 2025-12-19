@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { requireSupabaseClient } from '../../services/supabaseClient';
+import type { Campus } from '../../types';
+import TransportBusEditor from './TransportBusEditor';
+import Spinner from '../common/Spinner';
 
 // Placeholder components - will be created next
 const TransportRouteEditor = ({ onClose }: { onClose: () => void }) => (
@@ -6,9 +10,6 @@ const TransportRouteEditor = ({ onClose }: { onClose: () => void }) => (
 );
 const TransportStopEditor = ({ onClose }: { onClose: () => void }) => (
   <div className="p-4">Stop Editor - Coming Soon</div>
-);
-const TransportBusEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Bus Editor - Coming Soon</div>
 );
 const TransportRequestsList = ({ onClose }: { onClose: () => void }) => (
   <div className="p-4">Requests List - Coming Soon</div>
@@ -37,6 +38,31 @@ export default function TransportManager({
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [loadingCampuses, setLoadingCampuses] = useState(true);
+
+  useEffect(() => {
+    fetchCampuses();
+  }, [schoolId]);
+
+  const fetchCampuses = async () => {
+    setLoadingCampuses(true);
+    try {
+      const supabase = requireSupabaseClient();
+      const { data, error } = await supabase
+        .from('campuses')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('name');
+
+      if (error) throw error;
+      setCampuses(data || []);
+    } catch (error: any) {
+      addToast(`Failed to load campuses: ${error.message}`, 'error');
+    } finally {
+      setLoadingCampuses(false);
+    }
+  };
 
   const tabs = [
     { key: 'routes' as TabKey, label: 'Routes', icon: '🛣️' },
@@ -51,13 +77,21 @@ export default function TransportManager({
   const renderTabContent = () => {
     const props = { onClose: () => {} }; // Placeholder for now
     
+    if (loadingCampuses) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+    
     switch (activeTab) {
       case 'routes':
         return <TransportRouteEditor {...props} />;
       case 'stops':
         return <TransportStopEditor {...props} />;
       case 'buses':
-        return <TransportBusEditor {...props} />;
+        return <TransportBusEditor schoolId={schoolId} campuses={campuses} addToast={addToast} />;
       case 'requests':
         return <TransportRequestsList {...props} />;
       case 'subscriptions':
