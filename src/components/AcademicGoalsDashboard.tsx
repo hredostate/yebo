@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { AcademicClass, Student, AcademicClassStudent, StudentAcademicGoal } from '../types';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { 
     CheckCircleIcon, 
@@ -50,6 +50,7 @@ const AcademicGoalsDashboard: React.FC<AcademicGoalsDashboardProps> = ({
     const fetchGoals = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Get all students for the term with their goals and analysis
             const { data: goalsData, error: goalsError } = await supabase
                 .from('student_academic_goals')

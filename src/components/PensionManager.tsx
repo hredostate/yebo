@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { UserProfile, StaffPension, PensionContribution, ContributionInputType } from '../types';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { 
     BanknotesIcon, 
     SearchIcon, 
@@ -49,6 +49,7 @@ const PensionManager: React.FC<PensionManagerProps> = ({ users, schoolId, addToa
     const loadPensionData = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Fetch all staff pensions for this school
             const { data: pensionData, error: pensionError } = await supabase
                 .from('staff_pension')
@@ -131,6 +132,7 @@ const PensionManager: React.FC<PensionManagerProps> = ({ users, schoolId, addToa
 
     const handleSavePension = async (config: Partial<StaffPension>) => {
         try {
+            const supabase = requireSupabaseClient();
             const existingConfig = getPensionConfig(editingStaff!.id);
             
             if (existingConfig) {

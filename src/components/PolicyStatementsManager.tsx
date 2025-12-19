@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { PolicyStatement, UserProfile, PolicyAcknowledgment } from '../types';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { BookOpenIcon, PlusCircleIcon, PencilIcon, CheckCircleIcon, CloseIcon } from './common/icons';
 
