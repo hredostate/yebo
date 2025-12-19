@@ -22,17 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    // Get environment variables
-    const kudiSmsToken = Deno.env.get('KUDI_SMS_TOKEN');
     const kudiSmsBaseUrl = Deno.env.get('KUDI_SMS_BASE_URL') || 'https://my.kudisms.net/api';
-
-    if (!kudiSmsToken) {
-      console.error('KUDI_SMS_TOKEN not configured');
-      return new Response(JSON.stringify({ error: 'Configuration error' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
-    }
 
     // Create Supabase admin client
     const supabaseAdmin = createClient(
@@ -40,15 +30,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Parse request body to get school_id if provided
+    // Parse request body to get school_id and campus_id if provided
     let schoolId: number | null = null;
+    let campusId: number | null = null;
     try {
       const body = await req.json();
       if (body?.school_id) {
         schoolId = body.school_id;
       }
+      if (body?.campus_id) {
+        campusId = body.campus_id;
+      }
     } catch (e) {
-      // If no body or invalid JSON, continue without school_id from body
+      // If no body or invalid JSON, continue without school_id/campus_id from body
     }
 
     // Fallback: Get authorization header to determine school_id if not provided in body
@@ -72,27 +66,74 @@ serve(async (req) => {
       }
     }
 
-    // Get school-specific Kudi SMS settings if available
-    let effectiveToken = kudiSmsToken;
+    // Determine effective token source
+    let effectiveToken: string | null = null;
+    let tokenSource = 'none';
 
+    // 1. If school_id provided, try database first
     if (schoolId) {
-      const { data: settings } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('kudisms_settings')
         .select('token, is_active')
         .eq('school_id', schoolId)
-        .eq('is_active', true)
-        .single();
+        .eq('is_active', true);
 
-      if (settings) {
-        effectiveToken = settings.token;
+      // Filter by campus_id if provided
+      if (campusId) {
+        query = query.eq('campus_id', campusId);
+      } else {
+        query = query.is('campus_id', null);
       }
+
+      const { data: settings, error: settingsError } = await query.single();
+
+      if (settings?.token) {
+        effectiveToken = settings.token;
+        tokenSource = 'database';
+        console.log(`Using database token for school_id: ${schoolId}${campusId ? `, campus_id: ${campusId}` : ''}`);
+      } else {
+        console.log(`No active settings found for school_id: ${schoolId}${campusId ? `, campus_id: ${campusId}` : ''}, error: ${settingsError?.message || 'No data'}`);
+      }
+    }
+
+    // 2. Fallback to environment variable if no database token
+    if (!effectiveToken) {
+      const envToken = Deno.env.get('KUDI_SMS_TOKEN');
+      if (envToken) {
+        effectiveToken = envToken;
+        tokenSource = 'environment';
+        console.log('Using environment variable token');
+      }
+    }
+
+    // 3. If still no token, return clear error
+    if (!effectiveToken) {
+      console.error('No Kudi SMS token available from any source');
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'No Kudi SMS token configured',
+        message: schoolId 
+          ? `No active Kudi SMS settings found for school_id: ${schoolId}${campusId ? `, campus_id: ${campusId}` : ''}` 
+          : 'No school_id provided and KUDI_SMS_TOKEN env var not set',
+        balanceRaw: 0,
+        balanceFormatted: '₦0.00',
+        debug: { 
+          schoolId, 
+          campusId,
+          tokenSource,
+          hasEnvToken: !!Deno.env.get('KUDI_SMS_TOKEN')
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
     // Prepare Kudi SMS API request
     const balanceUrl = `${kudiSmsBaseUrl}/balance?token=${encodeURIComponent(effectiveToken)}`;
 
     // Get balance from Kudi SMS API
-    console.log('Fetching balance from Kudi SMS');
+    console.log(`Fetching balance from Kudi SMS using ${tokenSource} token`);
     
     const kudiResponse = await fetch(balanceUrl, {
       method: 'GET',
@@ -111,12 +152,20 @@ serve(async (req) => {
 
     if (!isSuccess) {
       const errorMessage = kudiResult?.msg || kudiResult?.status_msg || 'Failed to fetch balance';
+      console.error(`Kudi SMS API error: ${errorMessage}, error_code: ${kudiResult?.error_code}`);
       return new Response(JSON.stringify({ 
+        success: false,
         error: 'Failed to fetch balance',
         message: errorMessage,
         error_code: kudiResult?.error_code,
         balanceRaw: 0,
         balanceFormatted: '₦0.00',
+        debug: {
+          schoolId,
+          campusId,
+          tokenSource,
+          apiErrorCode: kudiResult?.error_code
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200, // Return 200 with error in body for consistent error handling
@@ -128,7 +177,11 @@ serve(async (req) => {
       balanceRaw: balance,
       balanceFormatted: `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       currency: 'NGN',
-      response: kudiResult,
+      debug: {
+        schoolId,
+        campusId,
+        tokenSource
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
@@ -137,10 +190,14 @@ serve(async (req) => {
   } catch (error) {
     console.error('Balance check error:', error);
     return new Response(JSON.stringify({ 
+      success: false,
       error: 'Internal server error',
       message: error.message,
       balanceRaw: 0,
       balanceFormatted: '₦0.00',
+      debug: {
+        errorType: error.name
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200, // Return 200 with error in body for consistent error handling

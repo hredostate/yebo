@@ -294,19 +294,32 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         setLoadingBalance(true);
         try {
             const { data, error } = await supabase.functions.invoke('kudisms-balance', {
-                body: { school_id: schoolId }
+                body: { 
+                    school_id: schoolId,
+                    campus_id: selectedCampus > 0 ? selectedCampus : null
+                }
             });
 
             if (error) {
-                setBalance('Error fetching balance');
+                console.error('Balance fetch error:', error);
+                setBalance(`Error: ${error.message || 'Unknown error'}`);
+            } else if (data?.success === false) {
+                // API returned an error response
+                console.error('Balance API error:', data);
+                const errorMsg = data.message || data.error || 'Failed to fetch balance';
+                setBalance(`Error: ${errorMsg}`);
             } else if (data?.balanceFormatted) {
                 setBalance(data.balanceFormatted);
+                // Log debug info if available
+                if (data.debug) {
+                    console.log('Balance fetch debug info:', data.debug);
+                }
             } else {
                 setBalance('₦0.00');
             }
         } catch (error) {
             console.error('Error fetching balance:', error);
-            setBalance('Error');
+            setBalance('Error: Connection failed');
         } finally {
             setLoadingBalance(false);
         }
