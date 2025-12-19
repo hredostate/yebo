@@ -146,6 +146,7 @@ export const VIEWS = {
   // Lesson Plan Enhancement Views
   COVERAGE_DASHBOARD: 'Coverage Dashboard',
   REVIEW_DASHBOARD: 'Review Dashboard',
+  TEAM_LESSON_HUB: 'Team Lesson Hub',
   STUDENT_LESSON_PORTAL: 'Student Lessons',
   HOMEWORK_MANAGER: 'Homework Manager',
   STUDENT_HOMEWORK: 'My Homework',

@@ -450,13 +450,44 @@ export interface LessonPlanSession {
     theory_questions: { question: string; answer: string }[];
 }
 
+export interface LessonPlanAssignment {
+    id: number;
+    lesson_plan_id: number;
+    teaching_entity_id: number;
+    created_at: string;
+    teaching_entity?: AcademicTeachingAssignment;
+}
+
+export interface LessonPlanReviewEvidence {
+    id: number;
+    lesson_plan_id: number;
+    reviewer_id: string;
+    time_spent_seconds: number;
+    checklist_responses: {
+        objectives_clear: boolean;
+        activities_aligned: boolean;
+        assessment_appropriate: boolean;
+        materials_listed: boolean;
+        time_realistic: boolean;
+    };
+    quality_rating: 1 | 2 | 3 | 4 | 5;
+    feedback: string;
+    decision: 'approved' | 'revision_required' | 'rejected';
+    revision_notes?: string;
+    opened_at: string;
+    decided_at: string;
+    created_at: string;
+    reviewer?: UserProfile;
+}
+
 export interface LessonPlan {
     id: number;
     school_id: number;
-    teaching_entity_id: number; // links to TeachingAssignment (Academic)
+    teaching_entity_id?: number; // Optional - plans now link via junction table
     week_start_date: string;
     title: string;
     grade_level?: string;
+    subject?: string; // New field for grouping by subject
     
     // Structured content
     smart_goals?: string;
@@ -489,6 +520,8 @@ export interface LessonPlan {
     author?: { name: string };
     teaching_entity?: AcademicTeachingAssignment;
     ai_analysis?: LessonPlanAnalysis;
+    assignments?: LessonPlanAssignment[]; // New field for multi-class assignments
+    review_evidence?: LessonPlanReviewEvidence[]; // New field for review tracking
 }
 
 export interface LessonPlanAnalysis {
@@ -2003,14 +2036,15 @@ export interface ZeroScoreStudent {
 export interface LessonPlanCoverage {
     id: number;
     lesson_plan_id: number;
+    teaching_entity_id: number; // Updated to use teaching_entity_id for proper tracking
     academic_class_id: number;
     arm_id: number;
-    coverage_status: 'Pending' | 'Fully Covered' | 'Partially Covered' | 'Not Covered';
-    coverage_percentage: number;
+    coverage_status: 'not_started' | 'Pending' | 'Fully Covered' | 'Partially Covered' | 'Not Covered';
+    coverage_percentage?: number;
     topics_covered?: string;
     topics_pending?: string;
     notes?: string;
-    covered_date?: string;
+    coverage_date?: string; // Changed from covered_date to match migration
     created_at: string;
     updated_at: string;
 }
@@ -2025,9 +2059,9 @@ export interface LearningMaterial {
     file_url?: string;
     external_url?: string;
     tags?: string[];
-    is_shared: boolean;
-    is_published: boolean;
-    uploaded_by?: string;
+    is_shared: boolean; // New field for sharing across teachers
+    is_published: boolean; // New field for publishing to students
+    uploaded_by?: string; // New field to track uploader
     created_at: string;
     updated_at: string;
 }
