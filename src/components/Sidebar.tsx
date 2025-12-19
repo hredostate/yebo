@@ -96,6 +96,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.TEACHER_RATINGS, label: 'Teacher Ratings', permission: 'view-teacher-ratings' },
       { id: VIEWS.TEACHER_PULSE, label: 'Teacher Pulse', permission: 'view-dashboard' },
       { id: VIEWS.LEAVE_APPROVALS, label: 'Leave Approvals', permission: 'manage-users' },
+      { id: VIEWS.MANUALS, label: 'Manuals', permission: 'view-dashboard' },
     ]
   },
   {

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, lazy } from 'react';
 import type { UserProfile, Task, Announcement, Alert, AtRiskStudent, PositiveBehaviorRecord, StaffAward, TeamPulse, TeamFeedback, Team, Student, StudentInterventionPlan, InventoryItem, ReportRecord, AtRiskTeacher, SocialMediaAnalytics, PolicyInquiry, CurriculumReport, SuggestedTask, SIPLog, TeacherCheckin, Campus, TeacherMood } from '../types';
+import { VIEWS } from '../constants';
 import { ALL_WIDGETS } from '../dashboardWidgets';
 import MyTasksWidget from './widgets/MyTasksWidget';
 import AnnouncementsWidget from './widgets/AnnouncementsWidget';
@@ -18,6 +19,7 @@ import SIPWidget from './widgets/SIPWidget';
 import AtRiskTeachersWidget from './widgets/AtRiskTeachersWidget';
 import SocialMediaSummaryWidget from './widgets/SocialMediaSummaryWidget';
 import PolicyInquiryWidget from './widgets/PolicyInquiryWidget';
+import RequiredManualsBanner from './manuals/user/RequiredManualsBanner';
 import CurriculumReportWidget from './widgets/CurriculumReportWidget';
 import CustomizeDashboardModal from './CustomizeDashboardModal';
 import { CogIcon } from './common/icons';
@@ -243,6 +245,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                     </button>
                 </div>
             </div>
+
+            {/* Required Manuals Banner */}
+            <RequiredManualsBanner
+                userProfile={userProfile}
+                onViewManuals={() => onNavigate(VIEWS.MANUALS)}
+            />
 
             <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {summaryStats.map((stat) => (
