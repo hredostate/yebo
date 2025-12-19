@@ -591,6 +591,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                teamMembers={data.teams.flatMap(t => [t.lead, ...t.members.map(m => m.profile)]).filter((p): p is any => p != null)}
                currentUser={data.userProfile}
                onSubmitReview={async (planId, review) => {
+                 const supabase = requireSupabaseClient();
                  const { error } = await supabase
                    .from('lesson_plan_review_evidence')
                    .insert(review);
