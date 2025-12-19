@@ -10,6 +10,7 @@ import JSZip from 'jszip';
 import { UnifiedReportCard } from './reports/UnifiedReportCard';
 import { buildUnifiedReportData } from '../utils/buildUnifiedReportData';
 import type { WatermarkType } from '../types/reportCardPrint';
+import { generateBulkGoalAnalyses } from '../services/goalAnalysisService';
 
 interface BulkReportCardGeneratorProps {
   classId: number;
@@ -432,6 +433,13 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const watermarkValue = watermarkChoice === 'NONE' ? undefined : watermarkChoice;
 
     try {
+      // Generate goal analyses for all selected students before creating PDFs
+      addToast('Generating goal analyses...', 'info');
+      const studentIds = selectedStudents.map(s => s.id);
+      await generateBulkGoalAnalyses(studentIds, termId, (current, total) => {
+        console.log(`Goal analysis progress: ${current}/${total}`);
+      });
+
       if (outputMode === 'combined' && includeCoverSheet) {
         addCoverSheet(combinedPdf, selectedStudents.length);
         combinedStarted = true;
