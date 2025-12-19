@@ -125,7 +125,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
               .lte('session_date', activeTerm.end_date);
 
             const presentCount = records?.filter(r => 
-              ['present', 'p'].includes(r.status?.toLowerCase())
+              r.status && ['present', 'p'].includes(r.status.toLowerCase())
             ).length || 0;
             const totalRecords = records?.length || 0;
 

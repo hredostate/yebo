@@ -36,7 +36,7 @@ function calculateAttendancePercentage(
   } else if (records && records.length > 0) {
     // Compute from attendance records
     const presentCount = records.filter(r => 
-      ['present', 'p'].includes(r.status?.toLowerCase())
+      r.status && ['present', 'p'].includes(r.status.toLowerCase())
     ).length;
     const totalRecords = records.length;
 
@@ -115,5 +115,14 @@ const records9: AttendanceRecord[] = [
 ];
 const result9 = calculateAttendancePercentage(null, records9);
 assert.strictEqual(result9, 67, 'Should round 66.67% to 67%');
+
+// Test 10: Null status values should be ignored
+const records10: AttendanceRecord[] = [
+  { status: 'present', session_date: '2024-01-01' },
+  { status: null as any, session_date: '2024-01-02' },
+  { status: 'present', session_date: '2024-01-03' },
+];
+const result10 = calculateAttendancePercentage(null, records10);
+assert.strictEqual(result10, 67, 'Should ignore null status values (2 present out of 3)');
 
 console.log('✅ All student attendance calculation tests passed!');
