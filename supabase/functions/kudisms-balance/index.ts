@@ -164,8 +164,7 @@ serve(async (req) => {
           schoolId,
           campusId,
           tokenSource,
-          apiErrorCode: kudiResult?.error_code,
-          apiResponse: kudiResult
+          apiErrorCode: kudiResult?.error_code
         }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -178,7 +177,6 @@ serve(async (req) => {
       balanceRaw: balance,
       balanceFormatted: `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       currency: 'NGN',
-      response: kudiResult,
       debug: {
         schoolId,
         campusId,
@@ -198,8 +196,7 @@ serve(async (req) => {
       balanceRaw: 0,
       balanceFormatted: '₦0.00',
       debug: {
-        errorType: error.name,
-        errorStack: error.stack?.split('\n').slice(0, 3).join('\n')
+        errorType: error.name
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
