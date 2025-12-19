@@ -596,6 +596,260 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 `;
 
+export const MANUALS_SYSTEM_SQL = `
+-- ============================================
+-- MANUALS SYSTEM MIGRATION
+-- Instruction Manuals with Compliance Tracking
+-- ============================================
+
+-- 1. Manuals Table
+CREATE TABLE IF NOT EXISTS public.manuals (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL CHECK (category IN ('Academic', 'Administrative', 'Safety & Security', 'IT & Technology', 'Student Handbook', 'Teacher Guide', 'General')),
+    
+    -- File information
+    file_url TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    version INTEGER DEFAULT 1,
+    
+    -- Status and access control
+    status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+    target_audience TEXT[] DEFAULT '{}',
+    restricted_to_classes INTEGER[],
+    restricted_to_roles TEXT[],
+    
+    -- Compliance fields
+    is_compulsory BOOLEAN DEFAULT FALSE,
+    compulsory_for_roles TEXT[],
+    compulsory_for_new_staff BOOLEAN DEFAULT FALSE,
+    days_to_complete INTEGER DEFAULT 7,
+    requires_acknowledgment BOOLEAN DEFAULT TRUE,
+    acknowledgment_text TEXT,
+    
+    -- Metadata
+    uploaded_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    published_at TIMESTAMP WITH TIME ZONE,
+    published_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_manuals_school_id ON public.manuals(school_id);
+CREATE INDEX IF NOT EXISTS idx_manuals_status ON public.manuals(status);
+CREATE INDEX IF NOT EXISTS idx_manuals_category ON public.manuals(category);
+CREATE INDEX IF NOT EXISTS idx_manuals_compulsory ON public.manuals(is_compulsory) WHERE is_compulsory = TRUE;
+
+-- 2. Manual Assignments Table
+CREATE TABLE IF NOT EXISTS public.manual_assignments (
+    id SERIAL PRIMARY KEY,
+    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    
+    -- Assignment metadata
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    assigned_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    due_date TIMESTAMP WITH TIME ZONE,
+    reason TEXT,
+    
+    -- Status tracking
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'overdue')),
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    time_spent_seconds INTEGER DEFAULT 0,
+    
+    -- Acknowledgment
+    acknowledged BOOLEAN DEFAULT FALSE,
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    acknowledgment_signature TEXT,
+    ip_address TEXT,
+    
+    -- Reminders
+    reminder_sent_at TIMESTAMP WITH TIME ZONE,
+    reminder_count INTEGER DEFAULT 0,
+    
+    UNIQUE(manual_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_assignments_user_id ON public.manual_assignments(user_id);
+CREATE INDEX IF NOT EXISTS idx_manual_assignments_manual_id ON public.manual_assignments(manual_id);
+CREATE INDEX IF NOT EXISTS idx_manual_assignments_status ON public.manual_assignments(status);
+CREATE INDEX IF NOT EXISTS idx_manual_assignments_due_date ON public.manual_assignments(due_date);
+CREATE INDEX IF NOT EXISTS idx_manual_assignments_overdue ON public.manual_assignments(status, due_date) WHERE status != 'completed';
+
+-- 3. Manual Read Sessions Table (for tracking progress)
+CREATE TABLE IF NOT EXISTS public.manual_read_sessions (
+    id SERIAL PRIMARY KEY,
+    assignment_id INTEGER REFERENCES public.manual_assignments(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
+    
+    session_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    session_end TIMESTAMP WITH TIME ZONE,
+    pages_viewed INTEGER[],
+    last_page_viewed INTEGER,
+    total_pages INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_read_sessions_assignment ON public.manual_read_sessions(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_manual_read_sessions_user ON public.manual_read_sessions(user_id);
+
+-- 4. Manual Compliance Log Table (audit trail)
+CREATE TABLE IF NOT EXISTS public.manual_compliance_log (
+    id SERIAL PRIMARY KEY,
+    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    action TEXT NOT NULL CHECK (action IN ('assigned', 'started', 'completed', 'acknowledged', 'reminder_sent')),
+    details JSONB,
+    performed_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_manual ON public.manual_compliance_log(manual_id);
+CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_user ON public.manual_compliance_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_action ON public.manual_compliance_log(action);
+
+-- 5. Trigger: Auto-assign compulsory manuals to new staff
+CREATE OR REPLACE FUNCTION public.auto_assign_onboarding_manuals()
+RETURNS TRIGGER AS $$
+DECLARE
+    manual_record RECORD;
+    v_due_date TIMESTAMP WITH TIME ZONE;
+BEGIN
+    -- Only process if this is a staff member (not Student, Guardian, Parent)
+    IF NEW.role NOT IN ('Student', 'Guardian', 'Parent') THEN
+        -- Find all manuals marked for new staff in this school
+        FOR manual_record IN
+            SELECT id, days_to_complete
+            FROM public.manuals
+            WHERE school_id = NEW.school_id
+              AND status = 'published'
+              AND compulsory_for_new_staff = TRUE
+              AND (
+                  compulsory_for_roles IS NULL 
+                  OR NEW.role = ANY(compulsory_for_roles)
+              )
+        LOOP
+            -- Calculate due date
+            v_due_date := NOW() + (manual_record.days_to_complete || ' days')::INTERVAL;
+            
+            -- Create assignment (ignore if already exists)
+            INSERT INTO public.manual_assignments (
+                manual_id,
+                user_id,
+                school_id,
+                assigned_at,
+                due_date,
+                reason,
+                status
+            ) VALUES (
+                manual_record.id,
+                NEW.id,
+                NEW.school_id,
+                NOW(),
+                v_due_date,
+                'Auto-assigned for new staff onboarding',
+                'pending'
+            ) ON CONFLICT (manual_id, user_id) DO NOTHING;
+            
+            -- Log the assignment
+            INSERT INTO public.manual_compliance_log (
+                manual_id,
+                user_id,
+                action,
+                details,
+                performed_by
+            ) VALUES (
+                manual_record.id,
+                NEW.id,
+                'assigned',
+                jsonb_build_object(
+                    'reason', 'new_staff_onboarding',
+                    'due_date', v_due_date
+                ),
+                NULL  -- System-generated
+            );
+        END LOOP;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists and recreate
+DROP TRIGGER IF EXISTS trigger_auto_assign_onboarding_manuals ON public.user_profiles;
+CREATE TRIGGER trigger_auto_assign_onboarding_manuals
+    AFTER INSERT ON public.user_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.auto_assign_onboarding_manuals();
+
+-- 6. Function to update assignment status based on due date
+CREATE OR REPLACE FUNCTION public.update_overdue_manual_assignments()
+RETURNS void AS $$
+BEGIN
+    UPDATE public.manual_assignments
+    SET status = 'overdue'
+    WHERE status IN ('pending', 'in_progress')
+      AND due_date < NOW()
+      AND status != 'overdue';
+END;
+$$ LANGUAGE plpgsql;
+
+-- 7. RLS Policies for Manuals Tables
+DO $$
+BEGIN
+    -- Manuals table policies
+    ALTER TABLE public.manuals ENABLE ROW LEVEL SECURITY;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manuals' AND policyname = 'Auth read manuals') THEN
+        CREATE POLICY "Auth read manuals" ON public.manuals FOR SELECT TO authenticated USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manuals' AND policyname = 'Auth write manuals') THEN
+        CREATE POLICY "Auth write manuals" ON public.manuals FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+    
+    -- Manual assignments policies
+    ALTER TABLE public.manual_assignments ENABLE ROW LEVEL SECURITY;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_assignments' AND policyname = 'Auth read manual_assignments') THEN
+        CREATE POLICY "Auth read manual_assignments" ON public.manual_assignments FOR SELECT TO authenticated USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_assignments' AND policyname = 'Auth write manual_assignments') THEN
+        CREATE POLICY "Auth write manual_assignments" ON public.manual_assignments FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+    
+    -- Manual read sessions policies
+    ALTER TABLE public.manual_read_sessions ENABLE ROW LEVEL SECURITY;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_read_sessions' AND policyname = 'Auth read manual_read_sessions') THEN
+        CREATE POLICY "Auth read manual_read_sessions" ON public.manual_read_sessions FOR SELECT TO authenticated USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_read_sessions' AND policyname = 'Auth write manual_read_sessions') THEN
+        CREATE POLICY "Auth write manual_read_sessions" ON public.manual_read_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+    
+    -- Manual compliance log policies
+    ALTER TABLE public.manual_compliance_log ENABLE ROW LEVEL SECURITY;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_compliance_log' AND policyname = 'Auth read manual_compliance_log') THEN
+        CREATE POLICY "Auth read manual_compliance_log" ON public.manual_compliance_log FOR SELECT TO authenticated USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_compliance_log' AND policyname = 'Auth write manual_compliance_log') THEN
+        CREATE POLICY "Auth write manual_compliance_log" ON public.manual_compliance_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+END $$;
+
+NOTIFY pgrst, 'reload config';
+`;
+
 
 const DATABASE_SCHEMA = `
 -- Complete Database Schema for School Guardian 360
@@ -2141,260 +2395,6 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_notifications_status ON public.whatsapp_
 CREATE INDEX IF NOT EXISTS idx_student_term_reports_scope ON public.student_term_reports(term_id, academic_class_id, student_id);
 CREATE INDEX IF NOT EXISTS idx_score_entries_scope ON public.score_entries(term_id, academic_class_id, student_id, subject_name);
 CREATE INDEX IF NOT EXISTS idx_students_campus_status ON public.students(campus_id, status);
-
-NOTIFY pgrst, 'reload config';
-`;
-
-export const MANUALS_SYSTEM_SQL = `
--- ============================================
--- MANUALS SYSTEM MIGRATION
--- Instruction Manuals with Compliance Tracking
--- ============================================
-
--- 1. Manuals Table
-CREATE TABLE IF NOT EXISTS public.manuals (
-    id SERIAL PRIMARY KEY,
-    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    description TEXT,
-    category TEXT NOT NULL CHECK (category IN ('Academic', 'Administrative', 'Safety & Security', 'IT & Technology', 'Student Handbook', 'Teacher Guide', 'General')),
-    
-    -- File information
-    file_url TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    file_size_bytes BIGINT NOT NULL,
-    version INTEGER DEFAULT 1,
-    
-    -- Status and access control
-    status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
-    target_audience TEXT[] DEFAULT '{}',
-    restricted_to_classes INTEGER[],
-    restricted_to_roles TEXT[],
-    
-    -- Compliance fields
-    is_compulsory BOOLEAN DEFAULT FALSE,
-    compulsory_for_roles TEXT[],
-    compulsory_for_new_staff BOOLEAN DEFAULT FALSE,
-    days_to_complete INTEGER DEFAULT 7,
-    requires_acknowledgment BOOLEAN DEFAULT TRUE,
-    acknowledgment_text TEXT,
-    
-    -- Metadata
-    uploaded_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
-    published_at TIMESTAMP WITH TIME ZONE,
-    published_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_manuals_school_id ON public.manuals(school_id);
-CREATE INDEX IF NOT EXISTS idx_manuals_status ON public.manuals(status);
-CREATE INDEX IF NOT EXISTS idx_manuals_category ON public.manuals(category);
-CREATE INDEX IF NOT EXISTS idx_manuals_compulsory ON public.manuals(is_compulsory) WHERE is_compulsory = TRUE;
-
--- 2. Manual Assignments Table
-CREATE TABLE IF NOT EXISTS public.manual_assignments (
-    id SERIAL PRIMARY KEY,
-    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
-    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
-    
-    -- Assignment metadata
-    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    assigned_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
-    due_date TIMESTAMP WITH TIME ZONE,
-    reason TEXT,
-    
-    -- Status tracking
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'overdue')),
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    time_spent_seconds INTEGER DEFAULT 0,
-    
-    -- Acknowledgment
-    acknowledged BOOLEAN DEFAULT FALSE,
-    acknowledged_at TIMESTAMP WITH TIME ZONE,
-    acknowledgment_signature TEXT,
-    ip_address TEXT,
-    
-    -- Reminders
-    reminder_sent_at TIMESTAMP WITH TIME ZONE,
-    reminder_count INTEGER DEFAULT 0,
-    
-    UNIQUE(manual_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_manual_assignments_user_id ON public.manual_assignments(user_id);
-CREATE INDEX IF NOT EXISTS idx_manual_assignments_manual_id ON public.manual_assignments(manual_id);
-CREATE INDEX IF NOT EXISTS idx_manual_assignments_status ON public.manual_assignments(status);
-CREATE INDEX IF NOT EXISTS idx_manual_assignments_due_date ON public.manual_assignments(due_date);
-CREATE INDEX IF NOT EXISTS idx_manual_assignments_overdue ON public.manual_assignments(status, due_date) WHERE status != 'completed';
-
--- 3. Manual Read Sessions Table (for tracking progress)
-CREATE TABLE IF NOT EXISTS public.manual_read_sessions (
-    id SERIAL PRIMARY KEY,
-    assignment_id INTEGER REFERENCES public.manual_assignments(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
-    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
-    
-    session_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    session_end TIMESTAMP WITH TIME ZONE,
-    pages_viewed INTEGER[],
-    last_page_viewed INTEGER,
-    total_pages INTEGER
-);
-
-CREATE INDEX IF NOT EXISTS idx_manual_read_sessions_assignment ON public.manual_read_sessions(assignment_id);
-CREATE INDEX IF NOT EXISTS idx_manual_read_sessions_user ON public.manual_read_sessions(user_id);
-
--- 4. Manual Compliance Log Table (audit trail)
-CREATE TABLE IF NOT EXISTS public.manual_compliance_log (
-    id SERIAL PRIMARY KEY,
-    manual_id INTEGER REFERENCES public.manuals(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
-    action TEXT NOT NULL CHECK (action IN ('assigned', 'started', 'completed', 'acknowledged', 'reminder_sent')),
-    details JSONB,
-    performed_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_manual ON public.manual_compliance_log(manual_id);
-CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_user ON public.manual_compliance_log(user_id);
-CREATE INDEX IF NOT EXISTS idx_manual_compliance_log_action ON public.manual_compliance_log(action);
-
--- 5. Trigger: Auto-assign compulsory manuals to new staff
-CREATE OR REPLACE FUNCTION public.auto_assign_onboarding_manuals()
-RETURNS TRIGGER AS $$
-DECLARE
-    manual_record RECORD;
-    v_due_date TIMESTAMP WITH TIME ZONE;
-BEGIN
-    -- Only process if this is a staff member (not Student, Guardian, Parent)
-    IF NEW.role NOT IN ('Student', 'Guardian', 'Parent') THEN
-        -- Find all manuals marked for new staff in this school
-        FOR manual_record IN
-            SELECT id, days_to_complete
-            FROM public.manuals
-            WHERE school_id = NEW.school_id
-              AND status = 'published'
-              AND compulsory_for_new_staff = TRUE
-              AND (
-                  compulsory_for_roles IS NULL 
-                  OR NEW.role = ANY(compulsory_for_roles)
-              )
-        LOOP
-            -- Calculate due date
-            v_due_date := NOW() + (manual_record.days_to_complete || ' days')::INTERVAL;
-            
-            -- Create assignment (ignore if already exists)
-            INSERT INTO public.manual_assignments (
-                manual_id,
-                user_id,
-                school_id,
-                assigned_at,
-                due_date,
-                reason,
-                status
-            ) VALUES (
-                manual_record.id,
-                NEW.id,
-                NEW.school_id,
-                NOW(),
-                v_due_date,
-                'Auto-assigned for new staff onboarding',
-                'pending'
-            ) ON CONFLICT (manual_id, user_id) DO NOTHING;
-            
-            -- Log the assignment
-            INSERT INTO public.manual_compliance_log (
-                manual_id,
-                user_id,
-                action,
-                details,
-                performed_by
-            ) VALUES (
-                manual_record.id,
-                NEW.id,
-                'assigned',
-                jsonb_build_object(
-                    'reason', 'new_staff_onboarding',
-                    'due_date', v_due_date
-                ),
-                NULL  -- System-generated
-            );
-        END LOOP;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Drop trigger if exists and recreate
-DROP TRIGGER IF EXISTS trigger_auto_assign_onboarding_manuals ON public.user_profiles;
-CREATE TRIGGER trigger_auto_assign_onboarding_manuals
-    AFTER INSERT ON public.user_profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION public.auto_assign_onboarding_manuals();
-
--- 6. Function to update assignment status based on due date
-CREATE OR REPLACE FUNCTION public.update_overdue_manual_assignments()
-RETURNS void AS $$
-BEGIN
-    UPDATE public.manual_assignments
-    SET status = 'overdue'
-    WHERE status IN ('pending', 'in_progress')
-      AND due_date < NOW()
-      AND status != 'overdue';
-END;
-$$ LANGUAGE plpgsql;
-
--- 7. RLS Policies for Manuals Tables
-DO $$
-BEGIN
-    -- Manuals table policies
-    ALTER TABLE public.manuals ENABLE ROW LEVEL SECURITY;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manuals' AND policyname = 'Auth read manuals') THEN
-        CREATE POLICY "Auth read manuals" ON public.manuals FOR SELECT TO authenticated USING (true);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manuals' AND policyname = 'Auth write manuals') THEN
-        CREATE POLICY "Auth write manuals" ON public.manuals FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-    
-    -- Manual assignments policies
-    ALTER TABLE public.manual_assignments ENABLE ROW LEVEL SECURITY;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_assignments' AND policyname = 'Auth read manual_assignments') THEN
-        CREATE POLICY "Auth read manual_assignments" ON public.manual_assignments FOR SELECT TO authenticated USING (true);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_assignments' AND policyname = 'Auth write manual_assignments') THEN
-        CREATE POLICY "Auth write manual_assignments" ON public.manual_assignments FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-    
-    -- Manual read sessions policies
-    ALTER TABLE public.manual_read_sessions ENABLE ROW LEVEL SECURITY;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_read_sessions' AND policyname = 'Auth read manual_read_sessions') THEN
-        CREATE POLICY "Auth read manual_read_sessions" ON public.manual_read_sessions FOR SELECT TO authenticated USING (true);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_read_sessions' AND policyname = 'Auth write manual_read_sessions') THEN
-        CREATE POLICY "Auth write manual_read_sessions" ON public.manual_read_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-    
-    -- Manual compliance log policies
-    ALTER TABLE public.manual_compliance_log ENABLE ROW LEVEL SECURITY;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_compliance_log' AND policyname = 'Auth read manual_compliance_log') THEN
-        CREATE POLICY "Auth read manual_compliance_log" ON public.manual_compliance_log FOR SELECT TO authenticated USING (true);
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'manual_compliance_log' AND policyname = 'Auth write manual_compliance_log') THEN
-        CREATE POLICY "Auth write manual_compliance_log" ON public.manual_compliance_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-END $$;
 
 NOTIFY pgrst, 'reload config';
 `;
