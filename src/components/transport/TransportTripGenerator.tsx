@@ -123,8 +123,9 @@ export default function TransportTripGenerator({
       const tripsToCreate: any[] = [];
 
       // Generate trips for each day in the range
-      for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-        const dateStr = date.toISOString().split('T')[0];
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const dateStr = currentDate.toISOString().split('T')[0];
 
         for (const routeId of selectedRoutes) {
           if (generateMorning) {
@@ -145,6 +146,8 @@ export default function TransportTripGenerator({
             });
           }
         }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
       }
 
       const { error } = await supabase

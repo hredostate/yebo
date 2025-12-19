@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransportRequest, TransportBus, TransportSubscription, Campus } from '../../types';
-import { TransportRequestStatus } from '../../types';
+import { TransportRequestStatus, TransportSubscriptionStatus } from '../../types';
 import { requireSupabaseClient } from '../../services/supabaseClient';
 import Spinner from '../common/Spinner';
 import { CloseIcon } from '../common/icons';
@@ -106,7 +106,7 @@ export default function TransportRequestsList({
           student:students(id, name, admission_number)
         `)
         .eq('assigned_bus_id', busId)
-        .eq('status', 'active')
+        .eq('status', TransportSubscriptionStatus.Active)
         .eq('term_id', currentTermId);
 
       if (error) throw error;
@@ -155,7 +155,7 @@ export default function TransportRequestsList({
           stop_id: approvingRequest.stop_id,
           assigned_bus_id: selectedBusId,
           seat_label: selectedSeat,
-          status: 'active',
+          status: TransportSubscriptionStatus.Active,
           started_at: new Date().toISOString(),
         });
 

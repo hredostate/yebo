@@ -171,7 +171,7 @@ export default function TransportSubscriptionsList({
           student:students(id, name, admission_number)
         `)
         .eq('assigned_bus_id', subscription.assigned_bus_id)
-        .eq('status', 'active')
+        .eq('status', TransportSubscriptionStatus.Active)
         .eq('term_id', currentTermId)
         .neq('id', subscription.id);
 

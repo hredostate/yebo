@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransportBus, TransportSubscription, Campus } from '../../types';
+import { TransportSubscriptionStatus } from '../../types';
 import { requireSupabaseClient } from '../../services/supabaseClient';
 import Spinner from '../common/Spinner';
 import { PlusCircleIcon, CloseIcon, EyeIcon } from '../common/icons';
@@ -71,7 +72,7 @@ export default function TransportBusEditor({
             .from('transport_subscriptions')
             .select('id', { count: 'exact', head: true })
             .eq('assigned_bus_id', bus.id)
-            .eq('status', 'active')
+            .eq('status', TransportSubscriptionStatus.Active)
             .eq('term_id', currentTermId);
 
           return {
@@ -209,7 +210,7 @@ export default function TransportBusEditor({
           student:students(id, name, admission_number)
         `)
         .eq('assigned_bus_id', bus.id)
-        .eq('status', 'active')
+        .eq('status', TransportSubscriptionStatus.Active)
         .eq('term_id', currentTermId);
 
       if (error) throw error;

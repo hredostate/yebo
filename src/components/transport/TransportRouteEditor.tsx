@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransportRoute, Campus } from '../../types';
+import { TransportSubscriptionStatus } from '../../types';
 import { requireSupabaseClient } from '../../services/supabaseClient';
 import Spinner from '../common/Spinner';
 import { PlusCircleIcon, CloseIcon } from '../common/icons';
@@ -71,7 +72,7 @@ export default function TransportRouteEditor({
               .from('transport_subscriptions')
               .select('id', { count: 'exact', head: true })
               .eq('route_id', route.id)
-              .eq('status', 'active'),
+              .eq('status', TransportSubscriptionStatus.Active),
           ]);
 
           return {

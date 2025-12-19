@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransportSubscription, TransportRoute, TransportBus, Campus } from '../../types';
-import { TransportDirection } from '../../types';
+import { TransportDirection, TransportSubscriptionStatus } from '../../types';
 import { requireSupabaseClient } from '../../services/supabaseClient';
 import Spinner from '../common/Spinner';
 
@@ -97,7 +97,7 @@ export default function TransportManifest({
         `)
         .eq('school_id', schoolId)
         .eq('term_id', currentTermId)
-        .eq('status', 'active');
+        .eq('status', TransportSubscriptionStatus.Active);
 
       if (viewType === 'route' && selectedRouteId) {
         query = query.eq('route_id', selectedRouteId);
