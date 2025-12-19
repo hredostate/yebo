@@ -3154,10 +3154,6 @@ Return a JSON object with:
     const handleStudentPasswordReset = useCallback(async (userId: string): Promise<string | null> => {
         const supabase = requireSupabaseClient();
         try {
-            if (!supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
              const { data, error } = await supabase.functions.invoke('manage-users', {
                  body: { action: 'reset_password', studentId: userId }
              });
@@ -3192,10 +3188,6 @@ Return a JSON object with:
     const handleDeleteStudentAccount = useCallback(async (userId: string): Promise<boolean> => {
         const supabase = requireSupabaseClient();
         try {
-            if (!supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'delete_account', studentId: userId }
             });
@@ -3234,10 +3226,6 @@ Return a JSON object with:
     const handleBulkDeleteStudentAccounts = useCallback(async (userIds: string[]): Promise<{ success: boolean; deleted: number; total: number }> => {
         const supabase = requireSupabaseClient();
         try {
-            if (!supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
             console.log(`Attempting to delete ${userIds.length} student accounts`);
 
             const { data, error } = await supabase.functions.invoke('manage-users', {
