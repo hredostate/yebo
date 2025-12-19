@@ -1467,6 +1467,8 @@ const App: React.FC = () => {
         // Clear reload lock on successful app mount
         sessionStorage.removeItem('sg360_reload_lock');
 
+        const supabase = requireSupabaseClient();
+
         // Auth Listener
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -1503,6 +1505,8 @@ const App: React.FC = () => {
     // --- Realtime Updates ---
     useEffect(() => {
         if (!session?.user) return;
+
+        const supabase = requireSupabaseClient();
 
         const channel = supabase.channel('app_updates')
             .on(
@@ -2142,6 +2146,7 @@ Context: ${JSON.stringify(contextData)}`;
 
     const handleSaveInventoryItem = useCallback(async (item: Partial<InventoryItem>) => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const staffProfile = userProfile as UserProfile;
         let error;
         if (item.id) {
@@ -2547,6 +2552,7 @@ Teacher Data: ${JSON.stringify(teacherData)}`;
 
     const handleSaveTeamFeedback = useCallback(async (teamId: number, rating: number, comments: string | null): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         const weekStart = getWeekStartDateString(new Date());
         const { error } = await supabase.from('team_feedback').upsert({
             team_id: teamId,
@@ -2738,6 +2744,7 @@ Data:
 
     const handleUpdateProfile = useCallback(async (data: Partial<UserProfile>): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('user_profiles').update(data).eq('id', userProfile.id);
         if (error) {
             addToast(`Update failed: ${error.message}`, 'error');
@@ -2749,6 +2756,7 @@ Data:
     }, [userProfile, addToast]);
     
     const handleUpdatePassword = useCallback(async (password: string): Promise<void> => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.auth.updateUser({ password });
         if (error) {
              addToast(`Password update failed: ${error.message}`, 'error');
@@ -3116,6 +3124,7 @@ Return a JSON object with:
     }, [addToast, reports, userProfile, handleAddTask]);
 
     const handleBulkDeleteReports = useCallback(async (reportIds: number[]) => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').delete().in('id', reportIds);
         if (error) addToast(`Bulk delete failed: ${error.message}`, 'error');
         else {
@@ -3128,6 +3137,7 @@ Return a JSON object with:
     }, [addToast, reports, students, analyzeAtRiskStudents, generateTaskSuggestions]);
 
     const handleBulkAssignReports = useCallback(async (reportIds: number[], assigneeId: string | null) => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').update({ assignee_id: assigneeId }).in('id', reportIds);
         if (error) addToast(`Bulk assign failed: ${error.message}`, 'error');
         else {
@@ -3137,6 +3147,7 @@ Return a JSON object with:
     }, [users, addToast]);
 
     const handleBulkUpdateReportStatus = useCallback(async (reportIds: number[], status: 'pending' | 'treated') => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').update({ status }).in('id', reportIds);
         if (error) addToast(`Bulk update failed: ${error.message}`, 'error');
         else {
@@ -3280,6 +3291,7 @@ Return a JSON object with:
     }, [addToast]);
 
     const handleDeleteStudent = useCallback(async (studentId: number): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             // First, if student has an auth account, delete it
             const student = students.find(s => s.id === studentId);
@@ -3315,6 +3327,7 @@ Return a JSON object with:
     }, [students, addToast, logAuditAction]);
 
     const handleBulkDeleteStudents = useCallback(async (studentIds: number[]): Promise<{ success: boolean; deleted: number; total: number }> => {
+        const supabase = requireSupabaseClient();
         try {
             // Get students with auth accounts
             const studentsToDelete = students.filter(s => studentIds.includes(s.id));
@@ -3348,6 +3361,7 @@ Return a JSON object with:
     
     const handleBulkAddStudents = useCallback(async (studentsData: any[]) => {
         if (!userProfile) return { success: false, message: 'User not authenticated' };
+        const supabase = requireSupabaseClient();
         
         // Map class_name/arm_name to IDs to ensure proper linkage
         const enrichedData = studentsData.map(s => {
@@ -3386,6 +3400,7 @@ Return a JSON object with:
 
     const handleBulkCreateStudentAccounts = useCallback(async (studentIds: number[]) => {
         if (!userProfile) return { success: false, message: 'User not authenticated' };
+        const supabase = requireSupabaseClient();
 
         try {
             const { data, error } = await supabase.functions.invoke('manage-users', {
@@ -3411,6 +3426,7 @@ Return a JSON object with:
         options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
     ) => {
         if (!userProfile) return { success: false, results: [], expires_at: '' };
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.functions.invoke('activation-links', {
             body: {
                 action: 'generate',
@@ -3438,6 +3454,7 @@ Return a JSON object with:
     }, [userProfile, addToast]);
 
     const handleCreateStudentAccount = useCallback(async (studentId: number): Promise<CreatedCredential | null> => {
+        const supabase = requireSupabaseClient();
         try {
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'create_single_for_existing', studentId }
@@ -3462,6 +3479,7 @@ Return a JSON object with:
 
 
     const handleUpdateStudent = useCallback(async (studentId: number, studentData: Partial<Student>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         const { error } = await Offline.update('students', studentData, { id: studentId });
         if (error) {
             addToast(error.message, 'error');
@@ -3553,6 +3571,7 @@ Return a JSON object with:
 
     const handleGenerateStudentAwards = useCallback(async (): Promise<void> => {
         if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         const aiClient = getAIClient();
         if (!aiClient) return;
         
@@ -3670,6 +3689,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, positiveRecords, addToast, session, schoolSettings, students, scoreEntries, studentTermReports, classGroups]);
 
     const handleGenerateStudentInsight = useCallback(async (studentId: number): Promise<any | null> => {
+        const supabase = requireSupabaseClient();
         const aiClient = getAIClient();
         if (!aiClient) return null;
         
@@ -3723,6 +3743,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         assignmentId: number, 
         zeroScoreCallback?: (students: ZeroScoreStudent[]) => Promise<'unenroll' | 'keep' | 'cancel'>
     ): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             // 1. Detect zero total scores
             const { data: zeroScoreStudents, error: detectError } = await supabase
@@ -3969,6 +3990,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- Grading Scheme Handlers ---
     const handleSaveGradingScheme = useCallback(async (scheme: Partial<GradingScheme>): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         try {
             const { rules, ...schemeData } = scheme;
             
@@ -4170,6 +4192,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- Term Handlers ---
     const handleSaveTerm = useCallback(async (term: Partial<Term>): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         try {
             if (term.id) {
                 const { error } = await Offline.update('terms', term, { id: term.id });
@@ -4362,6 +4385,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateUser = useCallback(async (userId: string, userData: Partial<UserProfile>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             // If email is being updated, sync it to auth.users via edge function
             if (userData.email) {
@@ -4414,6 +4438,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast, logAuditAction]);
 
     const handleDeleteUser = useCallback(async (userId: string): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             const userToDelete = users.find(u => u.id === userId);
             
@@ -4554,6 +4579,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- UPDATED handleUpdateRoleAssignments ---
     const handleUpdateRoleAssignments = useCallback(async (roleId: number, userIds: string[]) => {
         if (!userProfile || !session) return;
+        const supabase = requireSupabaseClient();
 
         // 1. Fetch role details for notification text
         const roleDef = Object.values(roles).find(r => r.id === roleId);
@@ -4619,6 +4645,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleDeleteTeam = useCallback(async (teamId: number) => {
+        const supabase = requireSupabaseClient();
         const { error } = await Offline.del('teams', { id: teamId });
         if (error) {
             addToast(error.message, 'error');
@@ -4630,6 +4657,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateTeamMembers = useCallback(async (teamId: number, memberIds: string[]) => {
+        const supabase = requireSupabaseClient();
         // Delete old
         await supabase.from('team_assignments').delete().eq('team_id', teamId);
         // Insert new
@@ -4646,6 +4674,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateClassGroupMembers = useCallback(async (groupId: number, studentIds: number[]): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         // Delete old
         const { error: delError } = await supabase.from('class_group_members').delete().eq('group_id', groupId);
         if (delError) {
@@ -4706,6 +4735,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleSaveAttendanceRecord = useCallback(async (record: Partial<AttendanceRecord>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (record.id) {
             // Update existing
             const { error } = await Offline.update('attendance_records', record, { id: record.id });
@@ -4729,6 +4759,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // Helper function to refresh class groups data
     const refreshClassGroups = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         try {
             const { data, error } = await supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))');
             if (error) {
@@ -4855,6 +4886,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleUpdateAvatar = useCallback(async (file: File) => {
         if (!userProfile) return null;
+        const supabase = requireSupabaseClient();
         const filePath = `avatars/${userProfile.id}/${Date.now()}_${file.name}`;
         const { error } = await supabase.storage.from('avatars').upload(filePath, file);
         if (error) {
@@ -4868,6 +4900,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleUploadCertification = useCallback(async (file: File, metadata: { certification_type?: string; certification_number?: string; expiry_date?: string; staff_id?: string } = {}) => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const currentUser = userProfile as UserProfile;
         const staffId = metadata.staff_id || currentUser.id;
         const privilegedRoles: RoleTitle[] = ['Admin', 'Principal', 'Team Lead'];
@@ -4933,6 +4966,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleDeleteCertification = useCallback(async (certificationId: number) => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const currentUser = userProfile as UserProfile;
         const target = staffCertifications.find(c => c.id === certificationId);
         if (!target) {
@@ -4963,6 +4997,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, userType, staffCertifications, addToast]);
 
     const handleGetCertificationUrl = useCallback(async (certification: StaffCertification) => {
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.storage.from('staff-certifications').createSignedUrl(certification.file_path, 3600);
         if (error) {
             addToast(`Unable to generate download link: ${error.message}`, 'error');
@@ -4973,6 +5008,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleResetPassword = useCallback(async () => {
         if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         const email = (userProfile as any).email || session?.user?.email;
         if (email) {
             await supabase.auth.resetPasswordForEmail(email);
@@ -4981,6 +5017,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, session, addToast]);
 
     const handleUpdateEmail = useCallback(async (email: string) => {
+         const supabase = requireSupabaseClient();
          const { error } = await supabase.auth.updateUser({ email });
          if (error) addToast(error.message, 'error');
          else addToast('Confirmation email sent to new address.', 'info');
@@ -4989,6 +5026,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // ... (Survey handlers)
     const handleSaveSurvey = useCallback(async (surveyData: any) => {
         if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         const { questions, ...surveyFields } = surveyData;
         
         let surveyId = surveyData.id;
@@ -5025,6 +5063,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         weeksData: { week_number: number; expected_topics: string }[]
     ): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const staffProfile = userProfile as UserProfile;
         
         try {
@@ -5105,6 +5144,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // ... (Lesson Plan handlers)
     const handleSaveLessonPlan = useCallback(async (planData: Partial<LessonPlan>, generateWithAi: boolean, file: File | null) => {
         if (!userProfile) return null;
+        const supabase = requireSupabaseClient();
         let finalPlanData = { ...planData };
 
         if (generateWithAi) {
@@ -5158,6 +5198,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleCopyLessonPlan = useCallback(async (sourcePlan: LessonPlan, targetEntityIds: number[]) => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         // Use a loop for offline client compatibility or create a bulk insert method.
         // Let's use loop for safety with current Offline client implementation.
         let successCount = 0;
@@ -5206,6 +5247,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- Score Entry Handlers ---
     const handleSaveScores = useCallback(async (scores: Partial<ScoreEntry>[]): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         
         try {
             // Get current valid student IDs
@@ -5356,6 +5398,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleUpdateScore = useCallback(async (scoreId: number, updates: Partial<ScoreEntry>): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const staffProfile = userProfile as UserProfile;
         
         try {
@@ -5386,6 +5429,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleSubmitScoresForReview = useCallback(async (assignmentId: number): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
+        const supabase = requireSupabaseClient();
         const staffProfile = userProfile as UserProfile;
         
         try {
@@ -5455,6 +5499,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- Order Handlers ---
     const handleCreateOrder = useCallback(async (items: { inventory_item_id: number; quantity: number; unit_price: number }[]) => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         
         // 1. Create Order
@@ -5561,6 +5606,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
     
     const handleRunPayroll = useCallback(async (staffPay: Record<string, { base_pay: string, commission: string }>) => {
+        const supabase = requireSupabaseClient();
         const items = Object.entries(staffPay).map(([userId, pay]) => ({
             user_id: userId,
             gross_amount: Number(pay.base_pay) + Number(pay.commission),
@@ -5679,6 +5725,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     // --- Leave Request Handlers ---
     const handleSubmitLeaveRequest = useCallback(async (request: Partial<LeaveRequest>): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         const payload = { ...request, requester_id: userProfile.id, school_id: userProfile.school_id, status: LeaveRequestStatus.Pending };
         const { error, data } = await Offline.insert('leave_requests', payload);
         if (error) {
@@ -5757,6 +5804,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         supporting_document_url?: string;
     }): Promise<void> => {
         if (!userProfile) throw new Error('User not authenticated');
+        const supabase = requireSupabaseClient();
         
         const requestData = {
             ...data,
@@ -5783,6 +5831,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleApproveAbsenceRequest = useCallback(async (requestId: number, notes: string): Promise<void> => {
         if (!userProfile) throw new Error('User not authenticated');
+        const supabase = requireSupabaseClient();
         
         const { error } = await Offline.update('absence_requests', {
             status: 'approved',
@@ -5808,6 +5857,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleDenyAbsenceRequest = useCallback(async (requestId: number, notes: string): Promise<void> => {
         if (!userProfile) throw new Error('User not authenticated');
+        const supabase = requireSupabaseClient();
         
         const { error } = await Offline.update('absence_requests', {
             status: 'denied',
@@ -6172,6 +6222,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
         if (!userProfile) return false;
+        const supabase = requireSupabaseClient();
         
         try {
             // Step 1: Fetch existing enrollments for this class+term (only student_id needed for delta calculation)
