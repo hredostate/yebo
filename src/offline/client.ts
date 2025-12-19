@@ -57,15 +57,44 @@ export function applyCacheMutation<T extends Record<string, any>>(
 
 // Lazy getter to avoid circular dependency at module load
 // Import is deferred until first call
-// Using require() here is intentional - Vite handles this correctly during build
-// and it ensures synchronous access which is needed for the proxy pattern
+// Using dynamic import() for proper ESM handling in production builds
 let _cachedSupabaseModule: any = null;
+let _isLoading = false;
+let _loadPromise: Promise<void> | null = null;
+
+/**
+ * Preload the Supabase client module asynchronously.
+ * Must be called during app initialization before the client is used.
+ */
+export async function ensureSupabaseLoaded(): Promise<void> {
+  if (_cachedSupabaseModule) return;
+  
+  if (_isLoading && _loadPromise) {
+    return _loadPromise;
+  }
+  
+  _isLoading = true;
+  _loadPromise = (async () => {
+    try {
+      // Dynamic import for lazy loading (Vite/Rollup handles this correctly)
+      // This breaks the circular dependency by deferring the import until first use
+      _cachedSupabaseModule = await import('../services/supabaseClient.js');
+    } catch (error) {
+      console.error('[Offline] Failed to load Supabase client:', error);
+      throw error;
+    } finally {
+      _isLoading = false;
+    }
+  })();
+  
+  return _loadPromise;
+}
 
 function getSupabaseClient(): SupabaseClient {
   if (!_cachedSupabaseModule) {
-    // Dynamic require for lazy loading (Vite handles this in the browser)
-    // This breaks the circular dependency by deferring the import until first use
-    _cachedSupabaseModule = require('../services/supabaseClient.js');
+    throw new Error(
+      'Supabase client module not loaded. Call ensureSupabaseLoaded() during app initialization.'
+    );
   }
   return _cachedSupabaseModule.requireSupabaseClient();
 }
