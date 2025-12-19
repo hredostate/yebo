@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, Student } from '../types';
 import Spinner from './common/Spinner';
 import { UserCircleIcon, SaveIcon, ArrowLeftIcon, CameraIcon } from './common/icons';
@@ -135,6 +135,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
     }
 
     try {
+      const supabase = requireSupabaseClient();
       setIsUploadingPhoto(true);
 
       // Upload to Supabase storage

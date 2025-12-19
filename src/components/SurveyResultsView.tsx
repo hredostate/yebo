@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { getAIClient, getCurrentModel } from '../services/aiClient';
 import type { SurveyWithQuestions, DetailedSurveyResponse } from '../types';
 import Spinner from './common/Spinner';
@@ -104,6 +104,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
 
     useEffect(() => {
         const fetchResults = async () => {
+            const supabase = requireSupabaseClient();
             setLoading(true);
             // Note: DB function is still called get_quiz_results
             const { data, error } = await supabase.rpc('get_quiz_results', { p_quiz_id: survey.id });
@@ -138,6 +139,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
     };
 
     const handleExport = async () => {
+        const supabase = requireSupabaseClient();
         setIsExporting(true);
         const { data, error } = await supabase.rpc('get_detailed_quiz_responses', { p_quiz_id: survey.id });
         if (error) {
@@ -153,6 +155,7 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
     };
 
     const handleAnalyzeResults = async () => {
+        const supabase = requireSupabaseClient();
         setIsAnalyzing(true);
         setAiAnalysis('');
         try {

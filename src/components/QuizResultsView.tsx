@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { getAIClient, getCurrentModel } from '../services/aiClient';
 import type { QuizWithQuestions, DetailedQuizResponse } from '../types';
 import Spinner from './common/Spinner';
@@ -103,6 +103,7 @@ const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToas
 
     useEffect(() => {
         const fetchResults = async () => {
+            const supabase = requireSupabaseClient();
             setLoading(true);
             const { data, error } = await supabase.rpc('get_quiz_results', { p_quiz_id: quiz.id });
             if (error) {
@@ -136,6 +137,7 @@ const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToas
     };
 
     const handleExport = async () => {
+        const supabase = requireSupabaseClient();
         setIsExporting(true);
         const { data, error } = await supabase.rpc('get_detailed_quiz_responses', { p_quiz_id: quiz.id });
         if (error) {
@@ -151,6 +153,7 @@ const QuizResultsView: React.FC<QuizResultsViewProps> = ({ quiz, onBack, addToas
     };
 
     const handleAnalyzeResults = async () => {
+        const supabase = requireSupabaseClient();
         setIsAnalyzing(true);
         setAiAnalysis('');
         try {

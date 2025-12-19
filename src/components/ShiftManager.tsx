@@ -4,7 +4,7 @@ import type { TeacherShift, UserProfile, Holiday } from '../types';
 import { PlusCircleIcon, TrashIcon, CalendarIcon, CloseIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import SearchableSelect from './common/SearchableSelect';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { isActiveEmployee } from '../utils/userHelpers';
 
 interface ShiftManagerProps {
@@ -24,6 +24,7 @@ const HolidaysManager: React.FC = () => {
 
     useEffect(() => {
         const fetch = async () => {
+            const supabase = requireSupabaseClient();
             const { data } = await supabase.from('holidays').select('*').order('date', { ascending: true });
             if (data) setHolidays(data);
         };
@@ -32,6 +33,7 @@ const HolidaysManager: React.FC = () => {
 
     const handleAdd = async () => {
         if (!name || !date) return;
+        const supabase = requireSupabaseClient();
         setIsSaving(true);
         
         const { data: { user } } = await supabase.auth.getUser();
@@ -59,6 +61,7 @@ const HolidaysManager: React.FC = () => {
         if (!window.confirm('Are you sure you want to delete this holiday? This action cannot be undone and may affect attendance rules.')) {
             return;
         }
+        const supabase = requireSupabaseClient();
         await supabase.from('holidays').delete().eq('id', id);
         setHolidays(prev => prev.filter(h => h.id !== id));
     };

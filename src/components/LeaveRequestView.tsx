@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { LeaveRequest, LeaveType, UserProfile } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon } from './common/icons';
@@ -31,6 +31,7 @@ const LeaveRequestView: React.FC<LeaveRequestViewProps> = ({
     const leaveTypes = propsTypes || internalTypes;
 
     const fetchData = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         setIsLoading(true);
         const { data: types, error: typesError } = await supabase.from('leave_types').select('*');
         if (typesError) addToast('Failed to load leave types.', 'error');
@@ -67,6 +68,7 @@ const LeaveRequestView: React.FC<LeaveRequestViewProps> = ({
         }
         
         // Fallback to internal implementation
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('leave_requests').insert({
             ...data,
             requester_id: currentUser.id,

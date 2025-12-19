@@ -63,7 +63,7 @@ import StudentFinancialOverview from './StudentFinancialOverview';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 import { resolveTimetableAccess } from '../utils/timetableAccess';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 // Lazy load heavy components and those used dynamically elsewhere to fix build warnings and reduce chunk size
 const TimetableView = lazy(() => import('./TimetableView'));

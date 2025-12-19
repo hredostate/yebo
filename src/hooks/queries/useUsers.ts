@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { UserProfile } from '../../types';
 
 export const useUsers = (enabled = true) => {
   return useQuery({
     queryKey: ['users'],
     queryFn: async (): Promise<UserProfile[]> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -21,6 +22,7 @@ export const useUser = (userId: string, enabled = true) => {
   return useQuery({
     queryKey: ['users', userId],
     queryFn: async (): Promise<UserProfile | null> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')

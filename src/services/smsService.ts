@@ -4,7 +4,7 @@
  * with channel selection and fallback logic
  */
 
-import { supabase } from './supabaseClient';
+import { requireSupabaseClient } from './supabaseClient';
 import type { SmsTemplate, SmsNotification, NotificationType, NotificationChannel } from '../types';
 
 interface SendSmsParams {
@@ -35,6 +35,7 @@ async function sendViaChannel(
     templateCode?: string,
     templateParams?: string
 ): Promise<{ success: boolean; error?: string }> {
+    const supabase = requireSupabaseClient();
     try {
         const body: any = {
             phone_number: recipientPhone,
@@ -73,6 +74,7 @@ async function sendViaChannel(
  * with channel selection and fallback logic
  */
 export async function sendSmsNotification(params: SendSmsParams): Promise<boolean> {
+    const supabase = requireSupabaseClient();
     const {
         schoolId,
         studentId,
@@ -247,6 +249,7 @@ export async function wasRecentlyNotified(
     notificationType: string,
     withinMinutes: number = 60
 ): Promise<boolean> {
+    const supabase = requireSupabaseClient();
     const cutoffTime = new Date();
     cutoffTime.setMinutes(cutoffTime.getMinutes() - withinMinutes);
 
@@ -273,6 +276,7 @@ export async function getNotificationHistory(
     studentId: number,
     limit: number = 50
 ): Promise<SmsNotification[]> {
+    const supabase = requireSupabaseClient();
     const { data, error } = await supabase
         .from('sms_notifications')
         .select('*')
@@ -294,6 +298,7 @@ export async function getNotificationHistory(
 export async function saveSmsTemplate(
     template: Partial<SmsTemplate>
 ): Promise<SmsTemplate | null> {
+    const supabase = requireSupabaseClient();
     if (template.id) {
         // Update existing template
         const { data, error } = await supabase
@@ -341,6 +346,7 @@ export async function saveSmsTemplate(
  * Get all active templates for a school
  */
 export async function getSmsTemplates(schoolId: number): Promise<SmsTemplate[]> {
+    const supabase = requireSupabaseClient();
     const { data, error } = await supabase
         .from('sms_templates')
         .select('*')
@@ -359,6 +365,7 @@ export async function getSmsTemplates(schoolId: number): Promise<SmsTemplate[]> 
  * Initialize default templates for a school
  */
 export async function initializeDefaultTemplates(schoolId: number): Promise<void> {
+    const supabase = requireSupabaseClient();
     const defaultTemplates = [
         {
             template_name: 'fee_reminder',

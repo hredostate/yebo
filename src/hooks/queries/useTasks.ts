@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { Task } from '../../types';
 
 export const useTasks = (enabled = true) => {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: async (): Promise<Task[]> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -22,6 +23,7 @@ export const useAddTask = () => {
   
   return useMutation({
     mutationFn: async (taskData: Partial<Task>) => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('tasks')
         .insert(taskData)
@@ -41,6 +43,7 @@ export const useUpdateTaskStatus = () => {
   
   return useMutation({
     mutationFn: async ({ taskId, status }: { taskId: number; status: string }) => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('tasks')
         .update({ status })

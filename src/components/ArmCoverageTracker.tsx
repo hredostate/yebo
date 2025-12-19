@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { LessonPlanCoverage, AcademicClass } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, ClockIcon } from './common/icons';
 

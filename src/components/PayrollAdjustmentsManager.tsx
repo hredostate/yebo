@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { PayrollAdjustment, UserProfile, Campus } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, SearchIcon, EditIcon } from './common/icons';
@@ -32,6 +32,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     const [isBulkUpdateOpen, setIsBulkUpdateOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         setIsLoading(true);
         const { data, error } = await supabase
             .from('payroll_adjustments')
@@ -88,6 +89,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
 
 
     const handleSave = async (data: Partial<Omit<PayrollAdjustment, 'id' | 'user_id'>> & { id?: number, user_ids?: string[] }) => {
+        const supabase = requireSupabaseClient();
         const { user_ids, id, ...rest } = data;
         
         // Fix: Store all amounts as positive values to prevent double-negation bug where deductions were incorrectly added instead of subtracted during payroll calculation
@@ -130,6 +132,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     };
 
     const handleDelete = async (id: number) => {
+        const supabase = requireSupabaseClient();
         if (window.confirm('Are you sure you want to delete this unprocessed adjustment?')) {
             const { error } = await supabase.from('payroll_adjustments').delete().eq('id', id);
             if (error) {
@@ -151,6 +154,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
             return;
         }
         
+        const supabase = requireSupabaseClient();
         setIsBulkDeleting(true);
         const idsToDelete = Array.from(selectedIds);
         
@@ -174,6 +178,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     const handleBulkUpdate = async (updates: { adjustment_type?: 'addition' | 'deduction'; is_recurring?: boolean }) => {
         if (selectedIds.size === 0) return false;
         
+        const supabase = requireSupabaseClient();
         const idsToUpdate = Array.from(selectedIds);
         
         const { error } = await supabase

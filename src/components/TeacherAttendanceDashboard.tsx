@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Campus, AcademicTeachingAssignment, TeacherShift } from '../types';
 import Spinner from './common/Spinner';
 import { todayISO } from '../services/checkins';
@@ -76,6 +76,7 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
     // Fetch shifts to calculate early checkout
     useEffect(() => {
         const fetchShifts = async () => {
+            const supabase = requireSupabaseClient();
             const { data } = await supabase.from('teacher_shifts').select('*');
             if(data) setTeacherShifts(data);
         };
@@ -84,6 +85,7 @@ const TeacherAttendanceDashboard: React.FC<TeacherAttendanceDashboardProps> = ({
 
     useEffect(() => {
         const fetchAttendance = async () => {
+            const supabase = requireSupabaseClient();
             setIsLoading(true);
             const { data, error } = await supabase.rpc('get_daily_teacher_attendance', {
                 p_date: date,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Spinner from './common/Spinner';
 import { MegaphoneIcon } from './common/icons';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface EmergencyBroadcastProps {
   onSendBroadcast: (title: string, message: string) => Promise<void>;

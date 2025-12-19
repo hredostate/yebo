@@ -12,7 +12,7 @@ import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
 import { type ActivationLinkResult } from '../services/activationLinks';
 import { parseCsv } from '../utils/feesCsvUtils';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface StudentListViewProps {
   students: Student[];
@@ -800,6 +800,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       let failCount = 0;
 
       // Get school_id once before the loop
+      const supabase = requireSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Not authenticated');

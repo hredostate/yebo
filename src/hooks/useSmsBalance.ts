@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { SmsBalance } from '../types';
 
 export const useSmsBalance = () => {
@@ -9,19 +9,15 @@ export const useSmsBalance = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchBalance = useCallback(async () => {
-    if (!supabase) {
-      setError("Supabase client not initialized.");
-      setLoading(false);
-      return;
-    }
-
-    // Don't show loader for background refetches
-    if (!balanceData) {
-        setLoading(true);
-    }
-    setError(null);
-
     try {
+      const supabase = requireSupabaseClient();
+      
+      // Don't show loader for background refetches
+      if (!balanceData) {
+          setLoading(true);
+      }
+      setError(null);
+
       const { data, error: invokeError } = await supabase.functions.invoke('sms-balance');
 
       if (invokeError) {

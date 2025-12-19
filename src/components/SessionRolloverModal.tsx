@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Term, AcademicClass, AcademicTeachingAssignment } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { RepeatIcon, CheckCircleIcon } from './common/icons';
 
@@ -26,6 +26,7 @@ const SessionRolloverModal: React.FC<SessionRolloverModalProps> = ({ isOpen, onC
 
     const handleAnalyze = async () => {
         if (!sourceTermId || !targetTermId) return;
+        const supabase = requireSupabaseClient();
         setIsAnalyzing(true);
         setAnalysis(null);
 

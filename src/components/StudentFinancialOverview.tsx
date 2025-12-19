@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Payment, StudentInvoice, StudentProfile } from '../types';
 import Spinner from './common/Spinner';
 import { BanknotesIcon, ClipboardListIcon, DownloadIcon, FilterIcon, ShieldIcon } from './common/icons';

@@ -3,7 +3,7 @@
  * Provides comprehensive statistics and reporting by campus
  */
 
-import { supabase } from './supabaseClient';
+import { requireSupabaseClient } from './supabaseClient';
 import type { Student, UserProfile, StudentInvoice, Payment, Campus } from '../types';
 import { StudentStatus } from '../types';
 
@@ -68,6 +68,7 @@ export interface CampusStats {
  * Get all campuses for a school
  */
 export const getCampuses = async (schoolId: number): Promise<Campus[]> => {
+  const supabase = requireSupabaseClient();
   const { data, error } = await supabase
     .from('campuses')
     .select('*')
@@ -89,6 +90,7 @@ export const calculateStudentStats = async (
   schoolId: number,
   campusId?: number | null
 ): Promise<CampusStudentStats> => {
+  const supabase = requireSupabaseClient();
   // Get academic classes for this campus
   let academicClassQuery = supabase
     .from('academic_classes')
@@ -210,6 +212,7 @@ export const calculateUserStats = async (
   schoolId: number,
   campusId?: number | null
 ): Promise<CampusUserStats> => {
+  const supabase = requireSupabaseClient();
   // Build query
   let query = supabase
     .from('user_profiles')
@@ -267,6 +270,7 @@ export const calculateFinancialStats = async (
   campusId?: number | null,
   termId?: number
 ): Promise<CampusFinancialStats> => {
+  const supabase = requireSupabaseClient();
   // Get academic classes for this campus
   let academicClassQuery = supabase
     .from('academic_classes')

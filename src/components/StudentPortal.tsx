@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon, BookOpenIcon, ClockIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
@@ -48,6 +48,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             }
 
             // 1. Get Active Term & Enrollment to find the exact AcademicClass
+            const supabase = requireSupabaseClient();
             const { data: activeTerms } = await supabase.from('terms').select('id, school_id').eq('is_active', true).limit(1);
             const activeTermIdLocal = activeTerms?.[0]?.id;
             const schoolIdLocal = activeTerms?.[0]?.school_id ?? studentProfile.school_id;

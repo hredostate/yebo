@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { aiClient } from '../services/aiClient';
 import type { SurveyWithQuestions, MultipleChoiceOption } from '../types';
 import Spinner from './common/Spinner';
@@ -104,6 +104,7 @@ const SurveyTakerView: React.FC<SurveyTakerViewProps> = ({ survey, onBack, addTo
 
 
     const handleSubmit = async () => {
+            const supabase = requireSupabaseClient();
         const unansweredQuestions = survey.questions.filter(q => !answers[q.id!]);
         if (unansweredQuestions.length > 0) {
             addToast(`Please answer all questions. Question ${unansweredQuestions[0].position + 1} is unanswered.`, 'error');

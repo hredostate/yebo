@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { PublicTeacher, PublicMaskedComment, PublicClass } from '../types';
 import { ShieldIcon, StarIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -80,6 +80,7 @@ const PublicTeacherRatingsView: React.FC<PublicTeacherRatingsViewProps> = ({ onS
 
     // Fetch comments for selected teacher
     const fetchComments = useCallback(async (teacherId: string, page: number) => {
+        const supabase = requireSupabaseClient();
         setLoading(prev => ({...prev, comments: true}));
         const {data, error} = await supabase.rpc('teacher_comments_public', {
             p_teacher_id: teacherId,
@@ -106,6 +107,7 @@ const PublicTeacherRatingsView: React.FC<PublicTeacherRatingsViewProps> = ({ onS
 
 
     const performSearch = async () => {
+        const supabase = requireSupabaseClient();
         setLoading(prev => ({ ...prev, search: true }));
         const { data, error } = await supabase.rpc('search_teachers_public', {
             q: searchQuery || undefined,

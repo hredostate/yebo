@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { LeaveRequest } from '../../types';
 
 export const useLeaveRequests = (userId: string, enabled = true) => {
   return useQuery({
     queryKey: ['leaveRequests', userId],
     queryFn: async (): Promise<LeaveRequest[]> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('leave_requests')
         .select('*, leave_type:leave_types!leave_type_id(*)')
@@ -23,6 +24,7 @@ export const useCreateLeaveRequest = () => {
   
   return useMutation({
     mutationFn: async (requestData: Partial<LeaveRequest>) => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('leave_requests')
         .insert(requestData)

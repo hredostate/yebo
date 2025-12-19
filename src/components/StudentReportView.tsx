@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentTermReportDetails, GradingScheme, StudentInvoice, Student, StudentTermReport, Term, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
@@ -150,6 +150,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
 
     setIsSendingSms(true);
     
+    const supabase = requireSupabaseClient();
     try {
       const studentName = `${reportDetails.student.firstName} ${reportDetails.student.lastName}`;
       const termName = reportDetails.term.termName || 'Current Term';
@@ -261,6 +262,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
 
   useEffect(() => {
     const fetchReportAndStatus = async () => {
+      const supabase = requireSupabaseClient();
       setIsLoading(true);
       setError(null);
       

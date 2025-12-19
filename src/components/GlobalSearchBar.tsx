@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { GlobalSearchResult } from '../types';
 import { SearchIcon, UsersIcon, FileTextIcon, ClipboardListIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -26,6 +26,7 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         const handler = setTimeout(async () => {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase.rpc('global_search', { p_query: query });
             if (error) {
                 console.error("Global search error:", error);
