@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { ReportRecord } from '../../types';
 
 export const useReports = (enabled = true) => {
   return useQuery({
     queryKey: ['reports'],
     queryFn: async (): Promise<ReportRecord[]> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('reports')
         .select('*')
@@ -22,6 +23,7 @@ export const useAddReport = () => {
   
   return useMutation({
     mutationFn: async (reportData: Partial<ReportRecord>) => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('reports')
         .insert(reportData)

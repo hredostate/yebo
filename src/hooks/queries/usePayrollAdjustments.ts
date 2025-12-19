@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { PayrollAdjustment } from '../../types';
 
 export const usePayrollAdjustments = (userId: string, enabled = true) => {
   return useQuery({
     queryKey: ['payrollAdjustments', userId],
     queryFn: async (): Promise<PayrollAdjustment[]> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('payroll_adjustments')
         .select('*')

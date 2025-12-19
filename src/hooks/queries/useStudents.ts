@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { Student } from '../../types';
 import { fetchAllStudents } from '../../utils/studentPagination';
 
@@ -18,6 +18,7 @@ export const useStudent = (studentId: number, enabled = true) => {
   return useQuery({
     queryKey: ['students', studentId],
     queryFn: async (): Promise<Student | null> => {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('students')
         .select('*, class:classes(name), arm:arms(name)')

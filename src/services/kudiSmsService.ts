@@ -4,7 +4,7 @@
  * Supports both SMS and WhatsApp with per-notification channel preferences
  */
 
-import { supabase } from './supabaseClient';
+import { requireSupabaseClient } from './supabaseClient';
 import type {
     KudiSmsResponse,
     KudiSmsRecipient,
@@ -254,6 +254,7 @@ export async function getKudiSmsSettings(
     schoolId: number,
     campusId?: number
 ): Promise<KudiSmsSettings | null> {
+    const supabase = requireSupabaseClient();
     let query = supabase
         .from('kudisms_settings')
         .select('*')
@@ -472,6 +473,7 @@ export async function getKudiSmsBalance(schoolId: number): Promise<{
     currency?: string;
     error?: string;
 }> {
+    const supabase = requireSupabaseClient();
     try {
         const { data, error } = await supabase.functions.invoke('kudisms-balance', {
             body: { school_id: schoolId }

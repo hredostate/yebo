@@ -1,4 +1,4 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student } from '../types';
 
 /**
@@ -29,6 +29,7 @@ export async function fetchAllStudents(
   orderBy: string = 'name',
   pageSize: number = DEFAULT_PAGE_SIZE
 ): Promise<Student[]> {
+  const supabase = requireSupabaseClient();
   const allStudents: Student[] = [];
   let page = 0;
   let hasMore = true;
