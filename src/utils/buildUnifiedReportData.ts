@@ -5,7 +5,7 @@
  * into the unified UnifiedReportCardData format.
  */
 
-import type { UnifiedReportCardData, PrintSubject, PrintAttendance } from '../types/reportCardPrint';
+import type { UnifiedReportCardData, PrintSubject, PrintAttendance } from '../types/reportCardPrint.js';
 
 interface RawReportData {
   student: {

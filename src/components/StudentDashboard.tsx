@@ -82,8 +82,62 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
       // Count pending absence requests
       const pendingRequests = absenceData?.filter(r => r.status === 'pending').length || 0;
 
-      // TODO: Fetch actual attendance and assignments data when available
-      const attendancePercentage = 85; // Placeholder
+      // Fetch real attendance data
+      let attendancePercentage = 0;
+
+      // Step 1: Fetch active term
+      const { data: activeTerm } = await supabase
+        .from('terms')
+        .select('id, start_date, end_date')
+        .eq('school_id', studentProfile.school_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (activeTerm) {
+        // Step 2: Get student's class group membership
+        const { data: membership } = await supabase
+          .from('class_group_members')
+          .select('id, group_id')
+          .eq('student_id', studentProfile.student_record_id)
+          .maybeSingle();
+
+        if (membership) {
+          // Step 3: Check for attendance override
+          const { data: override } = await supabase
+            .from('attendance_overrides')
+            .select('days_present, total_days')
+            .eq('student_id', studentProfile.student_record_id)
+            .eq('term_id', activeTerm.id)
+            .eq('class_group_id', membership.group_id)
+            .maybeSingle();
+
+          if (override) {
+            // Use override values
+            const total = override.total_days || 0;
+            attendancePercentage = total > 0 ? Math.round((override.days_present / total) * 100) : 0;
+          } else {
+            // Step 4: Compute from attendance records
+            const { data: records } = await supabase
+              .from('attendance_records')
+              .select('status, session_date')
+              .eq('member_id', membership.id)
+              .gte('session_date', activeTerm.start_date)
+              .lte('session_date', activeTerm.end_date);
+
+            const presentCount = records?.filter(r => 
+              r.status && ['present', 'p'].includes(r.status.toLowerCase())
+            ).length || 0;
+            const totalRecords = records?.length || 0;
+
+            // Step 5: Calculate attendance percentage
+            if (totalRecords > 0) {
+              attendancePercentage = Math.round((presentCount / totalRecords) * 100);
+            }
+          }
+        }
+      }
+
+      // TODO: Fetch actual assignments data when available
       const pendingAssignments = 3; // Placeholder
 
       setStats({
