@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supa as supabase } from '../../offline/client';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type {
   TransportClassGroup,
   TransportClassGroupMember,
@@ -122,6 +122,7 @@ export default function TeacherTransportGroupManager({
 
   const loadAvailableStudents = async (groupId: number) => {
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase.rpc('get_available_students_for_group', {
         p_group_id: groupId,
       });

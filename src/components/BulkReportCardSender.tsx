@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, CheckCircleIcon, AlertCircleIcon, PaperAirplaneIcon, SearchIcon } from './common/icons';

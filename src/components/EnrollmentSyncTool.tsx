@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Term } from '../types';
 
 interface EnrollmentSyncToolProps {
@@ -72,6 +72,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
         setSyncResult(null);
 
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase.rpc('admin_sync_student_enrollments', {
                 p_term_id: selectedTermId,
                 p_school_id: schoolId,
@@ -121,6 +122,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
         setDiagnostics([]);
 
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase.rpc('get_enrollment_sync_diagnostics', {
                 p_term_id: selectedTermId,
                 p_school_id: schoolId
@@ -154,6 +156,7 @@ const EnrollmentSyncTool: React.FC<EnrollmentSyncToolProps> = ({ terms, schoolId
         setRepairResult(null);
 
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase.rpc('repair_missing_enrollments', {
                 p_term_id: selectedTermId,
                 p_school_id: schoolId

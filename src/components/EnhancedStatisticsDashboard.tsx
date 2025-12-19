@@ -8,7 +8,7 @@ import type {
     SubjectAnalytics,
     GradingScheme
 } from '../types';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import StatisticsCard from './StatisticsCard';
 import GradeDistributionChart from './GradeDistributionChart';

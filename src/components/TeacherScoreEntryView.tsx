@@ -4,7 +4,7 @@ import Spinner from './common/Spinner';
 import { DownloadIcon, UploadCloudIcon } from './common/icons';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { parseCsv, findColumnByVariations, normalizeHeaderName, ParsedCsvResult } from '../utils/feesCsvUtils';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface TeacherScoreEntryViewProps {
     assignmentId: number;

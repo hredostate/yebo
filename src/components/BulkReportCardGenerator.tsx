@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';
@@ -261,6 +261,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
   const renderReportCanvas = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string) => {
     try {
+      const supabase = requireSupabaseClient();
       const { data: reportData, error: reportError } = await supabase.rpc('get_student_term_report_details', {
         p_student_id: student.id,
         p_term_id: termId,

@@ -4,7 +4,7 @@ import { LeaveRequestStatus } from '../types';
 import { NIGERIAN_BANKS } from '../constants/banks';
 import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon, SaveIcon } from './common/icons';
 import Spinner from './common/Spinner';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { useCan } from '../security/permissions';
 
@@ -234,10 +234,7 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
 
     const handleDeleteLeaveRequest = useCallback(async (id: number): Promise<boolean> => {
         try {
-            if (!supabase) {
-                addToast('Database client not available', 'error');
-                return false;
-            }
+            const supabase = requireSupabaseClient();
             
             const { error } = await supabase.from('leave_requests').delete().eq('id', id);
             if (error) {
@@ -257,9 +254,7 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
 
     const handleGeneratePayslips = async (runId: number) => {
         try {
-            if (!supabase || !supabase.functions) {
-                throw new Error('Supabase functions not available');
-            }
+            const supabase = requireSupabaseClient();
             const { error } = await supabase.functions.invoke('generate-payslips', { body: { run_id: runId } });
             if(error) throw error;
             addToast('Payslips generated successfully.', 'success');

@@ -1,4 +1,4 @@
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from './supabaseClient';
 import { getRuntimeFlags } from './runtimeConfig';
 
 /**
@@ -142,9 +142,7 @@ async function getIPAddress(): Promise<string | null> {
  * Create a new session for the current user
  */
 export async function createSession(userId: string): Promise<{ success: boolean; sessionToken?: string; error?: string }> {
-  if (!supabase) {
-    return { success: false, error: 'Supabase client not initialized' };
-  }
+  const supabase = requireSupabaseClient();
   
   try {
     const deviceInfo = getDeviceInfo();
@@ -182,7 +180,7 @@ export async function createSession(userId: string): Promise<{ success: boolean;
  * Now with retry logic and exponential backoff for better reliability
  */
 export async function updateSessionHeartbeat(sessionToken?: string): Promise<boolean> {
-  if (!supabase) return false;
+  const supabase = requireSupabaseClient();
   
   try {
     const token = sessionToken || sessionStorage.getItem('yeo_session_token');
@@ -215,7 +213,7 @@ export async function updateSessionHeartbeat(sessionToken?: string): Promise<boo
  * Get active session count for a user
  */
 export async function getActiveSessionCount(userId: string): Promise<number> {
-  if (!supabase) return 0;
+  const supabase = requireSupabaseClient();
   
   try {
     // Clean up expired sessions first
@@ -244,7 +242,7 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
  * Get all active sessions for a user
  */
 export async function getActiveSessions(userId: string): Promise<UserSession[]> {
-  if (!supabase) return [];
+  const supabase = requireSupabaseClient();
   
   try {
     // Clean up expired sessions first
@@ -275,7 +273,7 @@ export async function getActiveSessions(userId: string): Promise<UserSession[]> 
  * Now with retry logic for better reliability
  */
 async function cleanupExpiredSessions(userId: string): Promise<void> {
-  if (!supabase) return;
+  const supabase = requireSupabaseClient();
   
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -305,7 +303,7 @@ async function cleanupExpiredSessions(userId: string): Promise<void> {
  * Terminate a specific session
  */
 export async function terminateSession(sessionToken: string): Promise<boolean> {
-  if (!supabase) return false;
+  const supabase = requireSupabaseClient();
   
   try {
     const { error } = await supabase
@@ -334,8 +332,6 @@ export async function terminateSession(sessionToken: string): Promise<boolean> {
  * Terminate the oldest active session for a user
  */
 export async function terminateOldestSession(userId: string): Promise<boolean> {
-  if (!supabase) return false;
-  
   try {
     const sessions = await getActiveSessions(userId);
     if (sessions.length === 0) return false;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { ZeroScoreEntry } from '../types';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, TrashIcon, UserCircleIcon, FilterIcon } from './common/icons';
 
@@ -55,6 +55,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const handleMarkReviewed = async (entryId: number) => {
         setProcessingIds(prev => new Set(prev).add(entryId));
         try {
+            const supabase = requireSupabaseClient();
             const { data: { user } } = await supabase.auth.getUser();
             const userId = user?.id;
 
@@ -101,6 +102,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
         setProcessingIds(new Set(entriesToReview));
 
         try {
+            const supabase = requireSupabaseClient();
             const { data: { user } } = await supabase.auth.getUser();
             const userId = user?.id;
 

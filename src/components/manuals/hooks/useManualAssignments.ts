@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supa } from '../../../offline/client';
+import { requireSupabaseClient } from '../../../services/supabaseClient';
 import type { ManualAssignment, AssignmentStatus } from '../../../types/manuals';
 
 /**
@@ -21,7 +21,8 @@ export function useManualAssignments() {
       setLoading(true);
       setError(null);
 
-      let query = supa
+      const supabase = requireSupabaseClient();
+      let query = supabase
         .from('manual_assignments')
         .select(`
           *,
@@ -67,7 +68,8 @@ export function useManualAssignments() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supa
+      const supabase = requireSupabaseClient();
+      const { data, error: fetchError } = await supabase
         .from('manual_assignments')
         .select(`
           *,
@@ -102,6 +104,7 @@ export function useManualAssignments() {
       setLoading(true);
       setError(null);
 
+      const supabase = requireSupabaseClient();
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + daysToComplete);
 
@@ -115,7 +118,7 @@ export function useManualAssignments() {
         status: 'pending' as AssignmentStatus,
       }));
 
-      const { error: insertError } = await supa
+      const { error: insertError } = await supabase
         .from('manual_assignments')
         .insert(assignments);
 
@@ -134,7 +137,7 @@ export function useManualAssignments() {
         performed_by: assignedBy,
       }));
 
-      await supa.from('manual_compliance_log').insert(complianceLogs);
+      await supabase.from('manual_compliance_log').insert(complianceLogs);
 
       return { success: true, error: null };
     } catch (err: any) {
@@ -158,10 +161,11 @@ export function useManualAssignments() {
       setLoading(true);
       setError(null);
 
+      const supabase = requireSupabaseClient();
       const now = new Date().toISOString();
 
       // Update assignment status
-      const { error: updateError } = await supa
+      const { error: updateError } = await supabase
         .from('manual_assignments')
         .update({
           status: 'in_progress',
@@ -173,7 +177,7 @@ export function useManualAssignments() {
       if (updateError) throw updateError;
 
       // Log compliance action
-      await supa.from('manual_compliance_log').insert({
+      await supabase.from('manual_compliance_log').insert({
         manual_id: manualId,
         user_id: userId,
         action: 'started',
@@ -200,7 +204,8 @@ export function useManualAssignments() {
     manualId: number
   ): Promise<{ sessionId: number | null; error: string | null }> => {
     try {
-      const { data, error: insertError } = await supa
+      const supabase = requireSupabaseClient();
+      const { data, error: insertError } = await supabase
         .from('manual_read_sessions')
         .insert({
           assignment_id: assignmentId,
@@ -229,7 +234,8 @@ export function useManualAssignments() {
     totalPages: number
   ): Promise<{ success: boolean; error: string | null }> => {
     try {
-      const { error: updateError } = await supa
+      const supabase = requireSupabaseClient();
+      const { error: updateError } = await supabase
         .from('manual_read_sessions')
         .update({
           session_end: new Date().toISOString(),
@@ -261,10 +267,11 @@ export function useManualAssignments() {
       setLoading(true);
       setError(null);
 
+      const supabase = requireSupabaseClient();
       const now = new Date().toISOString();
 
       // Update assignment
-      const { error: updateError } = await supa
+      const { error: updateError } = await supabase
         .from('manual_assignments')
         .update({
           status: 'completed',
@@ -279,7 +286,7 @@ export function useManualAssignments() {
       if (updateError) throw updateError;
 
       // Log compliance actions
-      await supa.from('manual_compliance_log').insert([
+      await supabase.from('manual_compliance_log').insert([
         {
           manual_id: manualId,
           user_id: userId,
