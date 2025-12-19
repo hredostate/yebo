@@ -123,6 +123,7 @@ export default function TransportTripGenerator({
       const tripsToCreate: any[] = [];
 
       // Generate trips for each day in the range
+      // We use a mutable currentDate and increment it each iteration
       const currentDate = new Date(start);
       while (currentDate <= end) {
         const dateStr = currentDate.toISOString().split('T')[0];

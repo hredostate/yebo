@@ -170,7 +170,7 @@ export default function TransportBusEditor({
   };
 
   const handleDelete = async (bus: BusWithStats) => {
-    if (bus.occupied_seats! > 0) {
+    if ((bus.occupied_seats ?? 0) > 0) {
       addToast(
         `Cannot delete bus with ${bus.occupied_seats} active subscriptions`,
         'warning'

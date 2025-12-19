@@ -370,7 +370,7 @@ export default function TransportRequestsList({
               <th className="px-6 py-3 text-left">
                 <input
                   type="checkbox"
-                  checked={filteredRequests.every(r => selectedRequests.includes(r.id))}
+                  checked={filteredRequests.length > 0 && filteredRequests.every(r => selectedRequests.includes(r.id))}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedRequests(filteredRequests.map(r => r.id));
