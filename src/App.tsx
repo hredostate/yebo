@@ -1464,6 +1464,7 @@ const App: React.FC = () => {
     // --- Auth Logic & Data Fetching ---
     
     useEffect(() => {
+        const supabase = requireSupabaseClient();
         // Clear reload lock on successful app mount
         sessionStorage.removeItem('sg360_reload_lock');
 
@@ -1503,6 +1504,7 @@ const App: React.FC = () => {
     // --- Realtime Updates ---
     useEffect(() => {
         if (!session?.user) return;
+        const supabase = requireSupabaseClient();
 
         const channel = supabase.channel('app_updates')
             .on(
@@ -2141,6 +2143,7 @@ Context: ${JSON.stringify(contextData)}`;
     }, [userProfile, userType, addToast]);
 
     const handleSaveInventoryItem = useCallback(async (item: Partial<InventoryItem>) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile || userType !== 'staff') return false;
         const staffProfile = userProfile as UserProfile;
         let error;
@@ -2546,6 +2549,7 @@ Teacher Data: ${JSON.stringify(teacherData)}`;
     }, [users, addToast, schoolSettings, teacherCheckins, leaveRequests, lessonPlans, weeklyRatings, teamFeedback, reports]);
 
     const handleSaveTeamFeedback = useCallback(async (teamId: number, rating: number, comments: string | null): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         const weekStart = getWeekStartDateString(new Date());
         const { error } = await supabase.from('team_feedback').upsert({
@@ -2737,6 +2741,7 @@ Data:
     }, [lessonPlans, addToast, schoolSettings, curriculumWeeks, academicAssignments, scoreEntries]);
 
     const handleUpdateProfile = useCallback(async (data: Partial<UserProfile>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         const { error } = await supabase.from('user_profiles').update(data).eq('id', userProfile.id);
         if (error) {
@@ -2749,6 +2754,7 @@ Data:
     }, [userProfile, addToast]);
     
     const handleUpdatePassword = useCallback(async (password: string): Promise<void> => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.auth.updateUser({ password });
         if (error) {
              addToast(`Password update failed: ${error.message}`, 'error');
@@ -3116,6 +3122,7 @@ Return a JSON object with:
     }, [addToast, reports, userProfile, handleAddTask]);
 
     const handleBulkDeleteReports = useCallback(async (reportIds: number[]) => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').delete().in('id', reportIds);
         if (error) addToast(`Bulk delete failed: ${error.message}`, 'error');
         else {
@@ -3128,6 +3135,7 @@ Return a JSON object with:
     }, [addToast, reports, students, analyzeAtRiskStudents, generateTaskSuggestions]);
 
     const handleBulkAssignReports = useCallback(async (reportIds: number[], assigneeId: string | null) => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').update({ assignee_id: assigneeId }).in('id', reportIds);
         if (error) addToast(`Bulk assign failed: ${error.message}`, 'error');
         else {
@@ -3137,6 +3145,7 @@ Return a JSON object with:
     }, [users, addToast]);
 
     const handleBulkUpdateReportStatus = useCallback(async (reportIds: number[], status: 'pending' | 'treated') => {
+        const supabase = requireSupabaseClient();
         const { error } = await supabase.from('reports').update({ status }).in('id', reportIds);
         if (error) addToast(`Bulk update failed: ${error.message}`, 'error');
         else {
@@ -3280,6 +3289,7 @@ Return a JSON object with:
     }, [addToast]);
 
     const handleDeleteStudent = useCallback(async (studentId: number): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             // First, if student has an auth account, delete it
             const student = students.find(s => s.id === studentId);
@@ -3315,6 +3325,7 @@ Return a JSON object with:
     }, [students, addToast, logAuditAction]);
 
     const handleBulkDeleteStudents = useCallback(async (studentIds: number[]): Promise<{ success: boolean; deleted: number; total: number }> => {
+        const supabase = requireSupabaseClient();
         try {
             // Get students with auth accounts
             const studentsToDelete = students.filter(s => studentIds.includes(s.id));
@@ -3347,6 +3358,7 @@ Return a JSON object with:
     // ... (Handlers for students, sips, calendar, etc.) ...
     
     const handleBulkAddStudents = useCallback(async (studentsData: any[]) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return { success: false, message: 'User not authenticated' };
         
         // Map class_name/arm_name to IDs to ensure proper linkage
@@ -3385,6 +3397,7 @@ Return a JSON object with:
     }, [userProfile, session, allClasses, allArms]);
 
     const handleBulkCreateStudentAccounts = useCallback(async (studentIds: number[]) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return { success: false, message: 'User not authenticated' };
 
         try {
@@ -3438,6 +3451,7 @@ Return a JSON object with:
     }, [userProfile, addToast]);
 
     const handleCreateStudentAccount = useCallback(async (studentId: number): Promise<CreatedCredential | null> => {
+        const supabase = requireSupabaseClient();
         try {
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'create_single_for_existing', studentId }
@@ -3462,6 +3476,7 @@ Return a JSON object with:
 
 
     const handleUpdateStudent = useCallback(async (studentId: number, studentData: Partial<Student>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         const { error } = await Offline.update('students', studentData, { id: studentId });
         if (error) {
             addToast(error.message, 'error');
@@ -3552,6 +3567,7 @@ Return a JSON object with:
     const AI_AWARDS_GENERATION_COUNT = 3;
 
     const handleGenerateStudentAwards = useCallback(async (): Promise<void> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return;
         const aiClient = getAIClient();
         if (!aiClient) return;
@@ -3968,6 +3984,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // --- Grading Scheme Handlers ---
     const handleSaveGradingScheme = useCallback(async (scheme: Partial<GradingScheme>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         try {
             const { rules, ...schemeData } = scheme;
@@ -4169,6 +4186,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // --- Term Handlers ---
     const handleSaveTerm = useCallback(async (term: Partial<Term>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         try {
             if (term.id) {
@@ -4362,6 +4380,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateUser = useCallback(async (userId: string, userData: Partial<UserProfile>): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             // If email is being updated, sync it to auth.users via edge function
             if (userData.email) {
@@ -4414,6 +4433,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast, logAuditAction]);
 
     const handleDeleteUser = useCallback(async (userId: string): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
             const userToDelete = users.find(u => u.id === userId);
             
@@ -4553,6 +4573,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // --- UPDATED handleUpdateRoleAssignments ---
     const handleUpdateRoleAssignments = useCallback(async (roleId: number, userIds: string[]) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile || !session) return;
 
         // 1. Fetch role details for notification text
@@ -4630,6 +4651,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateTeamMembers = useCallback(async (teamId: number, memberIds: string[]) => {
+        const supabase = requireSupabaseClient();
         // Delete old
         await supabase.from('team_assignments').delete().eq('team_id', teamId);
         // Insert new
@@ -4646,6 +4668,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleUpdateClassGroupMembers = useCallback(async (groupId: number, studentIds: number[]): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         // Delete old
         const { error: delError } = await supabase.from('class_group_members').delete().eq('group_id', groupId);
         if (delError) {
@@ -4854,6 +4877,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     const sanitizeFileName = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, '_');
 
     const handleUpdateAvatar = useCallback(async (file: File) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return null;
         const filePath = `avatars/${userProfile.id}/${Date.now()}_${file.name}`;
         const { error } = await supabase.storage.from('avatars').upload(filePath, file);
@@ -4867,6 +4891,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, handleUpdateProfile, addToast]);
 
     const handleUploadCertification = useCallback(async (file: File, metadata: { certification_type?: string; certification_number?: string; expiry_date?: string; staff_id?: string } = {}) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile || userType !== 'staff') return false;
         const currentUser = userProfile as UserProfile;
         const staffId = metadata.staff_id || currentUser.id;
@@ -4932,6 +4957,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, userType, addToast]);
 
     const handleDeleteCertification = useCallback(async (certificationId: number) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile || userType !== 'staff') return false;
         const currentUser = userProfile as UserProfile;
         const target = staffCertifications.find(c => c.id === certificationId);
@@ -4963,6 +4989,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, userType, staffCertifications, addToast]);
 
     const handleGetCertificationUrl = useCallback(async (certification: StaffCertification) => {
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.storage.from('staff-certifications').createSignedUrl(certification.file_path, 3600);
         if (error) {
             addToast(`Unable to generate download link: ${error.message}`, 'error');
@@ -4972,6 +4999,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleResetPassword = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return;
         const email = (userProfile as any).email || session?.user?.email;
         if (email) {
@@ -4981,6 +5009,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, session, addToast]);
 
     const handleUpdateEmail = useCallback(async (email: string) => {
+         const supabase = requireSupabaseClient();
          const { error } = await supabase.auth.updateUser({ email });
          if (error) addToast(error.message, 'error');
          else addToast('Confirmation email sent to new address.', 'info');
@@ -5077,6 +5106,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             }
             
             // Refresh curriculum data filtered by school
+            const supabase = requireSupabaseClient();
             const { data: refreshedCurricula } = await supabase
                 .from('curriculum')
                 .select('*')
@@ -5127,6 +5157,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         }
         
         if (file) {
+             const supabase = requireSupabaseClient();
              const filePath = `lesson_plans/${Date.now()}_${file.name}`;
              const { error } = await supabase.storage.from('lesson_plans').upload(filePath, file);
              if (!error) {
@@ -5184,6 +5215,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
              addToast(`Successfully copied plan to ${successCount} assignments.`, 'success');
              // Refresh lesson plans
              // Updated query to fetch teaching_assignments
+             const supabase = requireSupabaseClient();
              const { data } = await supabase.from('lesson_plans').select('*, author:user_profiles!author_id(name), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').limit(10000);
              if (data) setLessonPlans(data as any);
              return true;
