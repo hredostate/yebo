@@ -13,8 +13,10 @@ import BulkReportCardGenerator from './BulkReportCardGenerator';
 import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
+import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 
-type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores';
+
+type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
 
 interface ResultManagerProps {
     terms: any[];
@@ -814,6 +816,12 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             >
                                 Zero Scores
                             </button>
+                            <button
+                                onClick={() => setViewMode('academic-goals')}
+                                className={`px-3 py-1 text-sm font-medium rounded-md transition ${viewMode === 'academic-goals' ? 'bg-white dark:bg-slate-600 shadow' : ''}`}
+                            >
+                                Academic Goals
+                            </button>
                         </div>
                         {/* Result Sheet Design Selector */}
                         <div className="relative">
@@ -1136,6 +1144,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     termId={Number(selectedTermId)}
                     addToast={addToast}
                     userPermissions={userPermissions}
+                />
+            )}
+
+            {selectedTermId && viewMode === 'academic-goals' && (
+                <AcademicGoalsDashboard
+                    termId={Number(selectedTermId)}
+                    academicClasses={academicClasses}
+                    students={students}
+                    academicClassStudents={academicClassStudents}
+                    addToast={addToast}
                 />
             )}
             
