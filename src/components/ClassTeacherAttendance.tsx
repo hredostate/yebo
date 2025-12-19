@@ -65,6 +65,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
             return;
         }
 
+        const supabase = requireSupabaseClient();
         setIsLoading(true);
         setError(null);
 
@@ -155,6 +156,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
 
     useEffect(() => {
         const fetchTerms = async () => {
+            const supabase = requireSupabaseClient();
             const { data, error: termError } = await supabase
                 .from('terms')
                 .select('*')
@@ -197,6 +199,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
 
     const handleSaveOverrides = async () => {
         if (!selectedTermId) return;
+        const supabase = requireSupabaseClient();
         setIsSaving(true);
         setError(null);
 
