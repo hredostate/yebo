@@ -925,11 +925,11 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, school
                     </button>
                     <button 
                         onClick={() => handleBulkNotify([AttendanceStatus.Absent, AttendanceStatus.Late])}
-                        disabled={isNotifying}
+                        disabled={bulkNotifying}
                         className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
                         title="Notify all parents of absent and late students"
                     >
-                        {isNotifying ? <Spinner size="sm" /> : <><BellIcon className="w-4 h-4" /> Notify Absent/Late</>}
+                        {bulkNotifying ? <Spinner size="sm" /> : <><BellIcon className="w-4 h-4" /> Notify Absent/Late</>}
                     </button>
                 </div>
             </div>
