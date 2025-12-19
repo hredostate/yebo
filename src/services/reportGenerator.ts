@@ -54,27 +54,21 @@ export async function generateSubjectComment(
 ): Promise<string> {
   const aiClient = getAIClient();
   if (!aiClient) {
-    // Fallback template-based comment
+    // Fallback template-based comment (4-8 words, very brief)
     const improvement = previousScore ? score - previousScore : 0;
-    let comment = `${subjectName}: `;
     
     if (score >= 80) {
-      comment += `Outstanding performance with a score of ${score}%. `;
+      return `Excellent grasp of ${subjectName}`;
     } else if (score >= 65) {
-      comment += `Good understanding demonstrated with ${score}%. `;
+      return `Good understanding demonstrated`;
     } else if (score >= 50) {
-      comment += `Satisfactory progress with ${score}%. `;
+      if (improvement > 5) {
+        return `Improving steadily in this subject`;
+      }
+      return `Satisfactory progress made overall`;
     } else {
-      comment += `Requires additional support (${score}%). `;
+      return `Needs additional support here`;
     }
-
-    if (improvement > 5) {
-      comment += `Shows excellent improvement from previous term.`;
-    } else if (improvement < -5) {
-      comment += `Needs to focus on consistent performance.`;
-    }
-
-    return comment;
   }
 
   try {
@@ -83,12 +77,12 @@ export async function generateSubjectComment(
       : '';
 
     const lengthGuide = {
-      brief: '1-2 sentences',
-      standard: '2-3 sentences',
-      detailed: '3-4 sentences',
+      brief: '4-6 words',
+      standard: '5-7 words',
+      detailed: '6-8 words',
     };
 
-    const prompt = `You are a teacher writing a report card comment.
+    const prompt = `You are a teacher writing a VERY SHORT report card comment for a single subject.
 
 Subject: ${subjectName}
 Current Score: ${score}%
@@ -96,23 +90,36 @@ Grade: ${grade}
 Effort Level: ${effort}
 ${improvementText}
 
-Write a ${tone} comment (${lengthGuide[length as keyof typeof lengthGuide]}) about this student's performance in ${subjectName}. 
+STRICT FORMATTING RULES - YOU MUST FOLLOW THESE:
+- Write EXACTLY one (1) sentence only
+- Keep it VERY short: ${lengthGuide[length as keyof typeof lengthGuide]} total
+- NO semicolons (;)
+- NO bullet points
+- NO numbering
+- Be natural and specific to the student's data
+
 ${tone === 'encouraging' ? 'Focus on strengths and potential.' : ''}
 ${tone === 'constructive' ? 'Include specific areas for improvement.' : ''}
 ${tone === 'formal' ? 'Use professional academic language.' : ''}
 ${tone === 'balanced' ? 'Acknowledge both strengths and areas to develop.' : ''}
 
-Do not include the subject name in the comment as it will be shown under the subject heading.`;
+Do not include the subject name in the comment as it will be shown under the subject heading.
+
+Examples of good comments (notice they are very short):
+- "Demonstrates excellent analytical skills"
+- "Shows steady improvement"
+- "Needs more practice here"
+- "Outstanding performance this term"`;
 
     const response = await aiClient.chat.completions.create({
       model: getCurrentModel(),
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return textFromAI(response).trim() || `Demonstrates ${effort} effort in ${subjectName}.`;
+    return textFromAI(response).trim() || `Demonstrates ${effort} effort`;
   } catch (error) {
     console.error('AI comment generation error:', error);
-    return `Shows ${effort} performance with ${score}% in ${subjectName}.`;
+    return `Shows ${effort} performance overall`;
   }
 }
 
@@ -127,58 +134,90 @@ async function generateOverallComment(
 ): Promise<string> {
   const aiClient = getAIClient();
   if (!aiClient) {
+    // Fallback template-based comment (3-6 sentences, comprehensive)
     const avgScore = data.subjectScores.reduce((sum, s) => sum + s.score, 0) / data.subjectScores.length;
+    const strongSubjects = data.subjectScores.filter(s => s.score >= 70);
+    const weakSubjects = data.subjectScores.filter(s => s.score < 50);
+    
     let comment = `${studentName} has `;
     
     if (avgScore >= 75) {
       comment += 'demonstrated excellent academic performance this term. ';
     } else if (avgScore >= 60) {
-      comment += 'shown good progress this term. ';
+      comment += 'shown good progress across most subjects this term. ';
     } else {
-      comment += 'worked on developing their academic skills. ';
+      comment += 'worked on developing foundational academic skills. ';
     }
 
-    if (data.attendanceRate && data.attendanceRate >= 90) {
-      comment += 'Attendance has been excellent. ';
+    if (strongSubjects.length > 0) {
+      comment += `Particular strengths are evident in ${strongSubjects.slice(0, 2).map(s => s.subjectName).join(' and ')}. `;
     }
 
-    return comment + 'Keep up the good work!';
+    if (weakSubjects.length > 0) {
+      comment += `Additional support would benefit performance in ${weakSubjects[0].subjectName}. `;
+    }
+
+    if (data.attendanceRate) {
+      if (data.attendanceRate >= 90) {
+        comment += 'Attendance has been excellent. ';
+      } else if (data.attendanceRate < 80) {
+        comment += 'More consistent attendance would support learning. ';
+      }
+    }
+
+    comment += 'Continue working hard next term!';
+    return comment;
   }
 
   try {
     const avgScore = data.subjectScores.reduce((sum, s) => sum + s.score, 0) / data.subjectScores.length;
     const strongSubjects = data.subjectScores.filter(s => s.score >= 70).map(s => s.subjectName);
     const weakSubjects = data.subjectScores.filter(s => s.score < 50).map(s => s.subjectName);
+    const improving = data.subjectScores.filter(s => s.previousScore && s.score > s.previousScore + 5).map(s => s.subjectName);
+    const declining = data.subjectScores.filter(s => s.previousScore && s.score < s.previousScore - 5).map(s => s.subjectName);
 
     const lengthGuide = {
-      brief: '2-3 sentences',
+      brief: '3-4 sentences',
       standard: '4-5 sentences',
-      detailed: '6-8 sentences',
+      detailed: '5-6 sentences',
     };
 
-    const prompt = `You are a teacher writing an overall term report comment.
+    const prompt = `You are a school principal writing an overall term report comment (this is the principal's comment, not a teacher's subject comment).
 
 Student: ${studentName}
 Average Score: ${avgScore.toFixed(1)}%
-Strong Subjects: ${strongSubjects.join(', ') || 'Building foundation across subjects'}
-Areas Needing Support: ${weakSubjects.join(', ') || 'None identified'}
-Attendance Rate: ${data.attendanceRate ? `${data.attendanceRate}%` : 'Not recorded'}
+Strong Subjects: ${strongSubjects.length > 0 ? strongSubjects.join(', ') : 'Building foundation across subjects'}
+Areas Needing Support: ${weakSubjects.length > 0 ? weakSubjects.join(', ') : 'None identified'}
+${improving.length > 0 ? `Improving In: ${improving.join(', ')}` : ''}
+${declining.length > 0 ? `Declining In: ${declining.join(', ')}` : ''}
+${data.attendanceRate ? `Attendance Rate: ${data.attendanceRate}%` : ''}
 ${data.participationLevel ? `Class Participation: ${data.participationLevel}` : ''}
+${data.behaviorNotes && data.behaviorNotes.length > 0 ? `Behavior Notes: ${data.behaviorNotes.join('; ')}` : ''}
 
-Write a ${tone} overall term comment (${lengthGuide[length as keyof typeof lengthGuide]}) that:
-1. Summarizes the student's overall performance
-2. Highlights key strengths
-3. Identifies areas for growth
-4. Provides encouragement and next steps
+STRICT FORMATTING RULES - YOU MUST FOLLOW THESE:
+- Write ${lengthGuide[length as keyof typeof lengthGuide]} total
+- Make this BROADER and MORE EXPANSIVE than individual subject comments
+- This should reflect the student's OVERALL performance across the full result
+- Cover relevant aspects from:
+  * Subject performance patterns (strengths/weaknesses across subjects)
+  * Consistency of performance
+  * Improvement or decline trends
+  * Attitude and effort (if data suggests it)
+  * Behavior (ONLY if behavior notes are provided above)
+  * Attendance/punctuality (ONLY if attendance data is provided above)
+  * Clear next steps or recommendations
+- DO NOT repeat the same phrases across many students - keep comments natural and specific to THIS student's actual data
+- If data is missing for a component (e.g., no behavior notes), do NOT invent it - simply omit that reference
+- Be ${tone} in tone
 
-Tone: ${tone}`;
+Write a comprehensive principal's comment that reflects this student's overall academic journey this term.`;
 
     const response = await aiClient.chat.completions.create({
       model: getCurrentModel(),
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return textFromAI(response).trim() || `${studentName} has made progress this term and should continue to work hard.`;
+    return textFromAI(response).trim() || `${studentName} has made progress this term and should continue working diligently.`;
   } catch (error) {
     console.error('AI overall comment generation error:', error);
     return `${studentName} has completed the term with consistent effort across all subjects.`;
