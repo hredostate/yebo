@@ -1271,6 +1271,65 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         </div>
                     </div>
 
+                    {/* Academic Goal Section */}
+                    {(reportDetails?.academicGoal || reportDetails?.goalAnalysis) && (
+                        <div className="mb-8 border border-black p-4">
+                            <p className="font-bold uppercase text-xs border-b border-black mb-3">Academic Goal & Achievement Analysis</p>
+                            
+                            {reportDetails.academicGoal && (
+                                <div className="mb-4">
+                                    <p className="text-xs font-bold mb-1">Goal Statement:</p>
+                                    <p className="italic text-sm mb-2">&ldquo;{reportDetails.academicGoal.goalText}&rdquo;</p>
+                                    
+                                    {(reportDetails.academicGoal.targetAverage || reportDetails.academicGoal.targetPosition || reportDetails.academicGoal.targetSubjects) && (
+                                        <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                                            {reportDetails.academicGoal.targetAverage && (
+                                                <div className="bg-gray-100 p-2">
+                                                    <p className="font-bold">Target Average:</p>
+                                                    <p>{reportDetails.academicGoal.targetAverage}%</p>
+                                                </div>
+                                            )}
+                                            {reportDetails.academicGoal.targetPosition && (
+                                                <div className="bg-gray-100 p-2">
+                                                    <p className="font-bold">Target Position:</p>
+                                                    <p>Top {reportDetails.academicGoal.targetPosition}</p>
+                                                </div>
+                                            )}
+                                            {reportDetails.academicGoal.targetSubjects && Object.keys(reportDetails.academicGoal.targetSubjects).length > 0 && (
+                                                <div className="bg-gray-100 p-2">
+                                                    <p className="font-bold">Subject Targets:</p>
+                                                    {Object.entries(reportDetails.academicGoal.targetSubjects).map(([subject, score]) => (
+                                                        <p key={subject} className="text-[10px]">{subject}: {score}%</p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {reportDetails.goalAnalysis && (
+                                <div className="mt-4 border-t border-gray-300 pt-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <p className="text-xs font-bold">Achievement Rating:</p>
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                                            reportDetails.goalAnalysis.achievementRating === 'exceeded' ? 'bg-green-600 text-white' :
+                                            reportDetails.goalAnalysis.achievementRating === 'met' ? 'bg-blue-600 text-white' :
+                                            reportDetails.goalAnalysis.achievementRating === 'partially_met' ? 'bg-yellow-600 text-white' :
+                                            'bg-red-600 text-white'
+                                        }`}>
+                                            {reportDetails.goalAnalysis.achievementRating.replaceAll('_', ' ')}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm italic">{reportDetails.goalAnalysis.report}</p>
+                                    <p className="text-[10px] text-gray-600 mt-2">
+                                        Analysis generated: {new Date(reportDetails.goalAnalysis.generatedAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="space-y-6">
                          <div>
                             <p className="font-bold uppercase text-xs border-b border-black mb-1">{teacherTitle}'s Remarks</p>

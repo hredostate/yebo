@@ -302,6 +302,8 @@ DECLARE
     v_cohort_rank INTEGER;
     v_cohort_size INTEGER;
     v_campus_percentile NUMERIC;
+    v_academic_goal JSONB;
+    v_goal_analysis JSONB;
 BEGIN
     -- 1. Student Info scoped with campus/class/arm for cohort filters
     SELECT jsonb_build_object(
@@ -492,6 +494,28 @@ BEGIN
         ) ELSE NULL END
     );
 
+    -- 10. Fetch academic goal
+    SELECT jsonb_build_object(
+        'goalText', sag.goal_text,
+        'targetAverage', sag.target_average,
+        'targetPosition', sag.target_position,
+        'targetSubjects', sag.target_subjects
+    )
+    INTO v_academic_goal
+    FROM public.student_academic_goals sag
+    WHERE sag.student_id = p_student_id AND sag.term_id = p_term_id;
+
+    -- 11. Fetch goal analysis if available
+    IF v_report_row.goal_analysis_report IS NOT NULL THEN
+        v_goal_analysis := jsonb_build_object(
+            'report', v_report_row.goal_analysis_report,
+            'achievementRating', v_report_row.goal_achievement_rating,
+            'generatedAt', v_report_row.goal_analysis_generated_at
+        );
+    ELSE
+        v_goal_analysis := NULL;
+    END IF;
+
     RETURN jsonb_build_object(
         'student', v_student,
         'term', v_term,
@@ -508,7 +532,9 @@ BEGIN
         'comments', jsonb_build_object(
             'teacher', v_report_row.teacher_comment,
             'principal', v_report_row.principal_comment
-        )
+        ),
+        'academicGoal', v_academic_goal,
+        'goalAnalysis', v_goal_analysis
     );
 END;
 $$ LANGUAGE plpgsql;

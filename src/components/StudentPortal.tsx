@@ -5,6 +5,7 @@ import type { StudentProfile, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon, BookOpenIcon, ClockIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
 import StudentWalletWidget from './StudentWalletWidget';
+import StudentAcademicGoalEditor from './StudentAcademicGoalEditor';
 
 // Lazy load TimetableView to avoid chunking warnings
 const TimetableView = React.lazy(() => import('./TimetableView'));
@@ -18,13 +19,15 @@ interface StudentPortalProps {
 }
 
 const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast, onLogout, isDarkMode, toggleTheme }) => {
-    const [activeTab, setActiveTab] = useState<'subjects' | 'timetable' | 'wallet'>('subjects');
+    const [activeTab, setActiveTab] = useState<'subjects' | 'timetable' | 'wallet' | 'goals'>('subjects');
     const [availableSubjects, setAvailableSubjects] = useState<{subject_id: number, subject_name: string, is_compulsory: boolean}[]>([]);
     const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [academicClass, setAcademicClass] = useState<AcademicClass | null>(null);
     const [hasSaved, setHasSaved] = useState(false);
+    const [activeTermId, setActiveTermId] = useState<number | null>(null);
+    const [schoolId, setSchoolId] = useState<number | null>(null);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -45,17 +48,21 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             }
 
             // 1. Get Active Term & Enrollment to find the exact AcademicClass
-            const { data: activeTerms } = await supabase.from('terms').select('id').eq('is_active', true).limit(1);
-            const activeTermId = activeTerms?.[0]?.id;
+            const { data: activeTerms } = await supabase.from('terms').select('id, school_id').eq('is_active', true).limit(1);
+            const activeTermIdLocal = activeTerms?.[0]?.id;
+            const schoolIdLocal = activeTerms?.[0]?.school_id ?? studentProfile.school_id;
+            
+            setActiveTermId(activeTermIdLocal || null);
+            setSchoolId(schoolIdLocal || null);
             
             let currentAcademicClass: AcademicClass | null = null;
 
-            if (activeTermId && studentProfile.student_record_id) {
+            if (activeTermIdLocal && studentProfile.student_record_id) {
                  const { data: enrollment } = await supabase
                     .from('academic_class_students')
                     .select('academic_class_id, academic_class:academic_classes(*)')
                     .eq('student_id', studentProfile.student_record_id)
-                    .eq('enrolled_term_id', activeTermId)
+                    .eq('enrolled_term_id', activeTermIdLocal)
                     .maybeSingle();
                  
                  if (enrollment && enrollment.academic_class) {
@@ -224,6 +231,15 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                         <BookOpenIcon className="w-4 h-4"/> My Subjects
                     </button>
                     <button 
+                        onClick={() => setActiveTab('goals')} 
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'goals' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
+                    >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" />
+                        </svg>
+                        My Goals
+                    </button>
+                    <button 
                         onClick={() => setActiveTab('timetable')} 
                         className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'timetable' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
                     >
@@ -324,6 +340,23 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                 )}
                             </div>
                         </>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'goals' && (
+                <div className="animate-fade-in">
+                    {activeTermId && schoolId && studentProfile.student_record_id ? (
+                        <StudentAcademicGoalEditor
+                            studentId={studentProfile.student_record_id}
+                            termId={activeTermId}
+                            schoolId={schoolId}
+                            addToast={addToast}
+                        />
+                    ) : (
+                        <div className="p-8 text-center text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-xl border border-dashed">
+                            Unable to load goals. Please ensure you are enrolled in an active term.
+                        </div>
                     )}
                 </div>
             )}
