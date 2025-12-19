@@ -135,6 +135,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
     }
 
     try {
+      const supabase = requireSupabaseClient();
       setIsUploadingPhoto(true);
 
       // Upload to Supabase storage

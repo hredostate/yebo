@@ -89,6 +89,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
 
 
     const handleSave = async (data: Partial<Omit<PayrollAdjustment, 'id' | 'user_id'>> & { id?: number, user_ids?: string[] }) => {
+        const supabase = requireSupabaseClient();
         const { user_ids, id, ...rest } = data;
         
         // Fix: Store all amounts as positive values to prevent double-negation bug where deductions were incorrectly added instead of subtracted during payroll calculation
@@ -153,6 +154,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
             return;
         }
         
+        const supabase = requireSupabaseClient();
         setIsBulkDeleting(true);
         const idsToDelete = Array.from(selectedIds);
         
@@ -176,6 +178,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     const handleBulkUpdate = async (updates: { adjustment_type?: 'addition' | 'deduction'; is_recurring?: boolean }) => {
         if (selectedIds.size === 0) return false;
         
+        const supabase = requireSupabaseClient();
         const idsToUpdate = Array.from(selectedIds);
         
         const { error } = await supabase

@@ -471,6 +471,7 @@ const StudentFinanceView: React.FC<{
 
     useEffect(() => {
         const loadData = async () => {
+            const supabase = requireSupabaseClient();
             setIsLoading(true);
             // Fetch base data filtering by school_id
             const schoolId = userProfile.school_id;

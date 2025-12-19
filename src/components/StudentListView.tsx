@@ -800,6 +800,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       let failCount = 0;
 
       // Get school_id once before the loop
+      const supabase = requireSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Not authenticated');
