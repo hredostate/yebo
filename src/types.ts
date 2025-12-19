@@ -2851,3 +2851,33 @@ export interface TransportManifestEntry {
     marked_at?: string;
     parent_phone?: string;
 }
+
+// Report Generation Types
+export interface SubjectComment {
+    subjectId: number;
+    subjectName: string;
+    comment: string;
+    grade: string;
+    effort: string;
+}
+
+export interface ReportGenerationRequest {
+    studentId: number;
+    termId: number;
+    subjects: number[];
+    includeAttendance: boolean;
+    includeBehavior: boolean;
+    tone: string;
+    length: string;
+}
+
+export interface GeneratedReport {
+    studentId: number;
+    subjectComments: SubjectComment[];
+    overallComment: string;
+    strengthsHighlighted: string[];
+    areasForImprovement: string[];
+    goalsForNextTerm: string[];
+    parentRecommendations: string[];
+    generatedAt: string;
+}
