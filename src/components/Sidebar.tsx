@@ -86,6 +86,16 @@ const NAV_STRUCTURE: NavGroup[] = [
     ]
   },
   {
+    id: 'transport',
+    label: 'Transport',
+    icon: UsersIcon, // Will show bus icon
+    items: [
+      { id: VIEWS.TRANSPORT_MANAGER, label: 'Transport Manager', permission: 'transport.routes.manage' },
+      { id: VIEWS.TEACHER_TRANSPORT_GROUPS, label: 'My Transport Groups', permission: 'transport.attendance.mark' },
+      { id: VIEWS.TEACHER_TRANSPORT_ATTENDANCE, label: 'Transport Attendance', permission: 'transport.attendance.mark' },
+    ]
+  },
+  {
     id: 'hr_staff',
     label: 'HR & Staff',
     icon: UserCircleIcon,
@@ -458,6 +468,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                      <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.ABSENCE_REQUESTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.ABSENCE_REQUESTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <CalendarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
                         <span>Absence Requests</span>
+                     </a>
+                </li>
+                <li>
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TRANSPORT_SIGN_UP)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.TRANSPORT_SIGN_UP ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        <span>Transport Sign-Up</span>
                      </a>
                 </li>
                 <li>
