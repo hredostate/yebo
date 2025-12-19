@@ -106,12 +106,14 @@ const TransportBusEditor: React.FC<TransportBusEditorProps> = ({ schoolId, campu
                 addToast('Bus updated successfully', 'success');
             } else {
                 // Check for duplicate bus number
-                const { data: existing } = await supabase
+                const { data: existing, error: checkError } = await supabase
                     .from('transport_buses')
                     .select('id')
                     .eq('school_id', schoolId)
                     .eq('bus_number', busData.bus_number)
-                    .single();
+                    .maybeSingle();
+
+                if (checkError) throw checkError;
 
                 if (existing) {
                     addToast('A bus with this number already exists', 'error');
@@ -206,7 +208,7 @@ const TransportBusEditor: React.FC<TransportBusEditorProps> = ({ schoolId, campu
             bus.bus_number.toLowerCase().includes(query) ||
             bus.license_plate?.toLowerCase().includes(query) ||
             bus.driver_name?.toLowerCase().includes(query) ||
-            bus.campus?.name?.toLowerCase().includes(query)
+            (bus.campus?.name && bus.campus.name.toLowerCase().includes(query))
         );
     }, [buses, searchQuery]);
 
@@ -408,6 +410,8 @@ const BusFormModal: React.FC<BusFormModalProps> = ({ bus, campuses, onSave, onCl
                     : type === 'number'
                     ? value === ''
                         ? null
+                        : isNaN(Number(value))
+                        ? prev[name as keyof TransportBus]
                         : Number(value)
                     : value,
         }));
