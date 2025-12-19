@@ -10,7 +10,8 @@ import { extractAndParseJson } from './utils/json';
 import { logAiEvent, textFromAI } from './utils/ai';
 import { askUPSSGPT } from './services/upssGPT';
 import { base64ToBlob } from './utils/file';
-import { Offline, supa as supabase, cache } from './offline/client';
+import { Offline, cache } from './offline/client';
+import { requireSupabaseClient } from './services/supabaseClient';
 import { queueStore } from './offline/db';
 import { VIEWS } from './constants';
 import { checkInToday, checkOutToday, todayISO } from './services/checkins';
@@ -558,7 +559,8 @@ const App: React.FC = () => {
 
     // Audit logging helper function
     const logAuditAction = useCallback(async (action: string, details: Record<string, unknown> = {}) => {
-        if (!userProfile || !supabase) return;
+        if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         try {
             await supabase.from('audit_log').insert({
                 school_id: userProfile.school_id,
@@ -570,10 +572,10 @@ const App: React.FC = () => {
             console.error('Failed to log audit action:', error);
             // Don't show error to user - audit logging failure shouldn't disrupt UX
         }
-    }, [userProfile, supabase]);
+    }, [userProfile]);
 
     const handleLogout = useCallback(async () => {
-        if (!supabase) return;
+        const supabase = requireSupabaseClient();
         try {
             // Terminate current session
             await terminateCurrentSession();
@@ -628,6 +630,7 @@ const App: React.FC = () => {
 
     // Check for pending policy acknowledgments
     const checkPendingPolicies = useCallback(async (profile: UserProfile | StudentProfile, userType: 'staff' | 'student') => {
+        const supabase = requireSupabaseClient();
         try {
             const targetAudience = userType === 'staff' ? 'staff' : 'student';
             
@@ -676,6 +679,7 @@ const App: React.FC = () => {
     // Handle policy acknowledgment
     const handlePolicyAcknowledgment = useCallback(async (policyId: number, acknowledgment: PolicyAcknowledgment) => {
         if (!userProfile || !userType) return;
+        const supabase = requireSupabaseClient();
 
         try {
             // Helper to get the correct table and ID based on user type
@@ -764,7 +768,7 @@ const App: React.FC = () => {
 
 
     const fetchData = useCallback(async (user: User, forceRefresh: boolean = false) => {
-        if (!supabase) return;
+        const supabase = requireSupabaseClient();
         
         // Prevent duplicate concurrent fetches
         if (isFetchingRef.current) {
@@ -2119,7 +2123,8 @@ Context: ${JSON.stringify(contextData)}`;
     }, [addToast, reports, atRiskStudents, teamPulse]);
 
     const handleUpdateSchoolSettings = useCallback(async (settingsData: Partial<SchoolSettings>): Promise<boolean> => {
-        if (!schoolSettings || !supabase) return false;
+        if (!schoolSettings) return false;
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.from('schools').update(settingsData).eq('id', schoolSettings.id).select();
         if (error) { addToast(`Failed to update school settings: ${error.message}`, 'error'); return false; }
         if (data && data.length > 0) { setSchoolSettings(data[0]); addToast('School settings updated.', 'success'); return true; }

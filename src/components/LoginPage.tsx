@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { Aurora, GridBackdrop } from './common/Background';
 import { ShieldIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -50,7 +50,7 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
     setMessage(null);
 
     try {
-      if (!supabase) throw new Error("Supabase client not initialized");
+      const supabase = requireSupabaseClient();
       if (authView === 'login') {
         const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
         if (error) throw error;
@@ -113,6 +113,7 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
     if (!pendingUserId) return;
     
     try {
+      const supabase = requireSupabaseClient();
       // Terminate oldest session
       const success = await terminateOldestSession(pendingUserId);
       if (!success) {

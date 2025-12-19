@@ -1,7 +1,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supa as supabase, Offline } from '../offline/client';
+import { Offline } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type {
   UserProfile, InventoryItem, Student, ReportRecord, Task, Announcement, Alert,
   AtRiskStudent, PositiveBehaviorRecord, StaffAward, TeamPulse, Team, TeamFeedback,
@@ -140,6 +141,7 @@ export const useAppLogic = () => {
 
   // --- Auth & Boot ---
   useEffect(() => {
+      const supabase = requireSupabaseClient();
       const init = async () => {
           const { data: { session: existingSession } } = await supabase.auth.getSession();
           setSession(existingSession);
@@ -179,6 +181,7 @@ export const useAppLogic = () => {
 
   // --- Data Fetching ---
   const fetchData = useCallback(async () => {
+      const supabase = requireSupabaseClient();
       if (userProfile && userType === 'staff') {
           try {
             const results = await Promise.allSettled([

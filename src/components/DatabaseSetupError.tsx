@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import DATABASE_SCHEMA from '../databaseSchema'; 
-import { supa } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface DatabaseSetupErrorProps {
   error: string;
@@ -27,6 +27,7 @@ const DatabaseSetupError: React.FC<DatabaseSetupErrorProps> = ({ error, onLogout
   const handleAttemptFix = async () => {
       setFixStatus('fixing');
       try {
+          const supa = requireSupabaseClient();
           const { error } = await supa.rpc('reload_schema_cache');
           if (error) throw error;
           setFixStatus('success');

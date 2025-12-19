@@ -3,7 +3,7 @@
  * Handles generation and distribution of report card links via SMS
  */
 
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from './supabaseClient';
 import { sendSmsNotification } from './smsService';
 
 interface SendReportCardParams {
@@ -48,6 +48,7 @@ interface BulkSendResult {
  */
 export async function sendReportCardToParent(params: SendReportCardParams): Promise<SendResult> {
     const { studentId, termId, schoolId, recipientPhone, studentName, termName, className } = params;
+    const supabase = requireSupabaseClient();
 
     try {
         // 1. Get or create the student term report
