@@ -4,7 +4,8 @@ import type { UserProfile, PayrollRun, PayrollItem, PayrollAdjustment, SchoolCon
 import MyPayrollView from './MyPayrollView';
 import MyAdjustmentsView from './MyAdjustmentsView';
 import PayrollPage from './PayrollPage';
-import StaffPayrollManager, { NIGERIAN_BANKS } from './StaffPayrollManager';
+import StaffPayrollManager from './StaffPayrollManager';
+import { NIGERIAN_BANKS } from '../constants/banks';
 import PayrollAdjustmentsManager from './PayrollAdjustmentsManager';
 import PayrollSettings from './PayrollSettings';
 import PayrollManager from './PayrollManager'; // For History view
