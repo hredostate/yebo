@@ -1053,6 +1053,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                      <TransportManager
                          schoolId={data.userProfile.school_id}
                          currentTermId={currentTermForTransport.id}
+                         campuses={data.campuses}
                          addToast={actions.addToast}
                      />
                  </Suspense>
