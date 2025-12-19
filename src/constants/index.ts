@@ -16,6 +16,7 @@ export const ALL_PERMISSIONS: string[] = [
   'manage-class-groups',
   'manage-curriculum',
   'manage-living-policy',
+  'manage-manuals',
   'manage-payroll',
   'manage-surveys',
   'manage-roles',
@@ -146,6 +147,8 @@ export const VIEWS = {
   STUDENT_HOMEWORK: 'My Homework',
   NOTES_COMPLIANCE: 'Notes Compliance',
   NOTIFICATION_HISTORY: 'Notification History',
+  MANUALS: 'Manuals',
+  MANUALS_COMPLIANCE: 'Manuals Compliance',
 } as const;
 
 export const STUDENT_STATUSES = [
