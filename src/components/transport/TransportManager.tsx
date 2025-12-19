@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import type { Campus } from '../../types';
+import TransportBusEditor from './TransportBusEditor';
 
 // Placeholder components - will be created next
 const TransportRouteEditor = ({ onClose }: { onClose: () => void }) => (
@@ -6,9 +8,6 @@ const TransportRouteEditor = ({ onClose }: { onClose: () => void }) => (
 );
 const TransportStopEditor = ({ onClose }: { onClose: () => void }) => (
   <div className="p-4">Stop Editor - Coming Soon</div>
-);
-const TransportBusEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Bus Editor - Coming Soon</div>
 );
 const TransportRequestsList = ({ onClose }: { onClose: () => void }) => (
   <div className="p-4">Requests List - Coming Soon</div>
@@ -26,6 +25,7 @@ const TransportTripGenerator = ({ onClose }: { onClose: () => void }) => (
 interface TransportManagerProps {
   schoolId: number;
   currentTermId: number;
+  campuses: Campus[];
   addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
@@ -34,6 +34,7 @@ type TabKey = 'routes' | 'stops' | 'buses' | 'requests' | 'subscriptions' | 'man
 export default function TransportManager({
   schoolId,
   currentTermId,
+  campuses,
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
@@ -57,7 +58,7 @@ export default function TransportManager({
       case 'stops':
         return <TransportStopEditor {...props} />;
       case 'buses':
-        return <TransportBusEditor {...props} />;
+        return <TransportBusEditor schoolId={schoolId} campuses={campuses} addToast={addToast} />;
       case 'requests':
         return <TransportRequestsList {...props} />;
       case 'subscriptions':
