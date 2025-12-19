@@ -1,21 +1,34 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseConfig } from './runtimeConfig.js';
 
-const { url: supabaseUrl, anonKey: supabaseAnonKey, error: configError } = getSupabaseConfig();
+// Lazy config import to avoid circular dependency at module load time
+let _config: { url: string; anonKey: string; error?: string } | null = null;
 
-let supabase: SupabaseClient | null = null;
-let supabaseError: string | null = null;
+function getConfig() {
+  if (!_config) {
+    // Dynamic require breaks the circular dependency
+    const { getSupabaseConfig } = require('./runtimeConfig.js');
+    _config = getSupabaseConfig();
+  }
+  return _config;
+}
+
+let _supabaseClient: SupabaseClient | null = null;
+let _supabaseError: string | null = null;
+let _initialized = false;
 
 function initializeSupabase() {
-  if (supabase || supabaseError) return;
+  if (_initialized) return;
+  _initialized = true;
 
-  if (configError) {
-    supabaseError = configError;
+  const config = getConfig();
+  
+  if (!config || config.error) {
+    _supabaseError = config?.error || 'Failed to get Supabase configuration';
     return;
   }
 
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    _supabaseClient = createClient(config.url, config.anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -29,15 +42,44 @@ function initializeSupabase() {
       },
     });
   } catch (e: any) {
-    supabaseError = `Failed to initialize Supabase client: ${e.message}`;
+    _supabaseError = `Failed to initialize Supabase client: ${e.message}`;
   }
 }
 
-initializeSupabase();
+// DO NOT call initializeSupabase() at module load time!
+// It will be called lazily on first access.
 
 export function requireSupabaseClient(): SupabaseClient {
-  if (supabase) return supabase;
-  throw new Error(supabaseError || 'Supabase client not initialized.');
+  initializeSupabase();
+  if (_supabaseClient) return _supabaseClient;
+  throw new Error(_supabaseError || 'Supabase client not initialized.');
 }
 
-export { supabase, supabaseError };
+// Lazy proxy for backward compatibility
+// This allows existing code using `supabase.from(...)` to work
+const supabaseProxy = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    initializeSupabase();
+    if (!_supabaseClient) {
+      throw new Error(_supabaseError || 'Supabase client not initialized.');
+    }
+    const value = (_supabaseClient as any)[prop];
+    // Bind functions to the client
+    if (typeof value === 'function') {
+      return value.bind(_supabaseClient);
+    }
+    return value;
+  },
+});
+
+// Export the proxy as `supabase` for backward compatibility
+export const supabase = supabaseProxy;
+
+// Export error as a getter function to avoid module-load-time evaluation
+export function getSupabaseError(): string | null {
+  initializeSupabase();
+  return _supabaseError;
+}
+
+// For backward compatibility with existing code that uses `supabaseError`
+export const supabaseError: string | null = null; // Will be null initially, use getSupabaseError() for actual value

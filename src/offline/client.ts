@@ -2,7 +2,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { cache, uploadStore, conflictsStore } from './db.js';
 import { enqueue, drain, QueuedItem } from './queue.js';
-import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient.js';
+// REMOVED: Static import that caused circular dependency
+// import { supabase as supabaseClient, supabaseError, requireSupabaseClient } from '../services/supabaseClient.js';
 
 export { cache };
 
@@ -56,21 +57,23 @@ export function applyCacheMutation<T extends Record<string, any>>(
   }
 }
 
-// Reuse the Supabase client from supabaseClient.ts to avoid multiple GoTrueClient instances
-// Lazy lookup keeps module import from throwing when env vars are missing so the app can surface the error gracefully
+// Lazy getter to avoid circular dependency
 function getSupabaseClient(): SupabaseClient {
-  try {
-    return supabaseClient || requireSupabaseClient();
-  } catch (error) {
-    const reason = (error as Error).message || supabaseError || 'Supabase client not initialized.';
-    throw new Error(reason);
-  }
+  // Use require() for lazy loading to break circular dependency
+  const { requireSupabaseClient } = require('../services/supabaseClient.js');
+  return requireSupabaseClient();
 }
 
+// Lazy proxy that defers Supabase access until actually used
 export const supa: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     const client = getSupabaseClient();
-    return (client as any)[prop as keyof SupabaseClient];
+    const value = (client as any)[prop];
+    // Bind methods to the client instance
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
   },
 });
 
