@@ -8,16 +8,19 @@ import circularDependency from 'vite-plugin-circular-dependency';
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    // Circular dependency detection (development only - warning mode)
-    ...(mode === 'development' ? [
-      circularDependency({
-        circularImportThresholds: 1,
-        exclude: ['node_modules'],
-        onDetected: ({ paths }) => {
-          console.warn('⚠️ Circular dependency detected:', paths.join(' -> '));
+    // Circular dependency detection (development AND production - throw on production)
+    circularDependency({
+      circularImportThresholds: 1,
+      exclude: /node_modules/,
+      onDetected: ({ paths }) => {
+        const message = `⚠️ Circular dependency detected: ${paths.join(' -> ')}`;
+        console.warn(message);
+        // In production build, throw error to fail the build
+        if (mode === 'production') {
+          throw new Error(message);
         }
-      })
-    ] : []),
+      }
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -86,8 +89,25 @@ export default defineConfig(({ mode }) => ({
         // Use content hash in filenames for better cache invalidation
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Manual chunks to force consistent module order
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-utils': ['localforage', 'openai'],
+        },
       }
-    }
-  }
+    },
+    chunkSizeWarningLimit: 1000,
+  },
+  optimizeDeps: {
+    // Pre-bundle these dependencies to avoid circular issues at runtime
+    include: [
+      'react',
+      'react-dom',
+      '@supabase/supabase-js',
+      'localforage',
+      'openai',
+    ],
+  },
 }));
