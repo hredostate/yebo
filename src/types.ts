@@ -976,6 +976,17 @@ export interface StudentTermReportDetails {
     };
     schoolConfig: SchoolConfig;
     classReportConfig?: ReportCardConfig;
+    academicGoal?: {
+        goalText: string;
+        targetAverage?: number | null;
+        targetPosition?: number | null;
+        targetSubjects?: Record<string, number> | null;
+    } | null;
+    goalAnalysis?: {
+        report: string;
+        achievementRating: 'exceeded' | 'met' | 'partially_met' | 'not_met';
+        generatedAt: string;
+    } | null;
 }
 
 export interface StudentTermReport {
@@ -993,6 +1004,19 @@ export interface StudentTermReport {
     token_expires_at?: string | null;
     created_at: string;
     term?: Term;
+}
+
+export interface StudentAcademicGoal {
+    id: number;
+    student_id: number;
+    term_id: number;
+    school_id: number;
+    goal_text: string;
+    target_average?: number | null;
+    target_position?: number | null;
+    target_subjects?: Record<string, number> | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface StudentTermReportSubject {
