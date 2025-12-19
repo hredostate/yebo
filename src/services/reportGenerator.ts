@@ -116,10 +116,10 @@ Examples of good comments (notice they are very short):
       messages: [{ role: 'user', content: prompt }],
     });
 
-    return textFromAI(response).trim() || `Working towards improvement`;
+    return textFromAI(response).trim() || 'Working towards improvement';
   } catch (error) {
     console.error('AI comment generation error:', error);
-    return `Consistent effort shown this term`;
+    return 'Consistent effort shown this term';
   }
 }
 
