@@ -1,27 +1,13 @@
-import React, { useState } from 'react';
-
-// Placeholder components - will be created next
-const TransportRouteEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Route Editor - Coming Soon</div>
-);
-const TransportStopEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Stop Editor - Coming Soon</div>
-);
-const TransportBusEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Bus Editor - Coming Soon</div>
-);
-const TransportRequestsList = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Requests List - Coming Soon</div>
-);
-const TransportSubscriptionsList = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Subscriptions List - Coming Soon</div>
-);
-const TransportManifest = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Manifest - Coming Soon</div>
-);
-const TransportTripGenerator = ({ onClose }: { onClose: () => void }) => (
-  <div className="p-4">Trip Generator - Coming Soon</div>
-);
+import React, { useState, useEffect } from 'react';
+import type { Campus } from '../../types';
+import { requireSupabaseClient } from '../../services/supabaseClient';
+import TransportRouteEditor from './TransportRouteEditor';
+import TransportStopEditor from './TransportStopEditor';
+import TransportBusEditor from './TransportBusEditor';
+import TransportRequestsList from './TransportRequestsList';
+import TransportSubscriptionsList from './TransportSubscriptionsList';
+import TransportManifest from './TransportManifest';
+import TransportTripGenerator from './TransportTripGenerator';
 
 interface TransportManagerProps {
   schoolId: number;
@@ -37,6 +23,28 @@ export default function TransportManager({
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+
+  useEffect(() => {
+    loadCampuses();
+  }, [schoolId]);
+
+  const loadCampuses = async () => {
+    try {
+      const supabase = requireSupabaseClient();
+      const { data, error } = await supabase
+        .from('campuses')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('name');
+
+      if (error) throw error;
+      setCampuses(data || []);
+    } catch (error: any) {
+      console.error('Error loading campuses:', error);
+      addToast(error.message || 'Failed to load campuses', 'error');
+    }
+  };
 
   const tabs = [
     { key: 'routes' as TabKey, label: 'Routes', icon: '🛣️' },
@@ -49,7 +57,12 @@ export default function TransportManager({
   ];
 
   const renderTabContent = () => {
-    const props = { onClose: () => {} }; // Placeholder for now
+    const props = {
+      schoolId,
+      currentTermId,
+      campuses,
+      addToast,
+    };
     
     switch (activeTab) {
       case 'routes':
