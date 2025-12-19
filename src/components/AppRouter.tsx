@@ -19,6 +19,7 @@ import RoleManager from './RoleManager';
 import TeamManager from './TeamManager';
 import CurriculumManager from './CurriculumManager';
 import CurriculumPlannerContainer from './CurriculumPlannerContainer';
+import TeamLessonPlanHub from './TeamLessonPlanHub';
 import TeacherGradebookView from './TeacherGradebookView';
 import TeacherScoreEntryView from './TeacherScoreEntryView';
 import AssessmentManager from './AssessmentManager';
@@ -551,6 +552,32 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 curricula={data.curricula}
                 curriculumWeeks={data.curriculumWeeks}
                 onApprove={actions.handleApproveLessonPlan}
+             />;
+        case VIEWS.TEAM_LESSON_HUB:
+             return <TeamLessonPlanHub
+               lessonPlans={data.lessonPlans}
+               teachingAssignments={data.academicAssignments}
+               teamMembers={data.teams.flatMap(t => [t.lead, ...t.members.map(m => m.profile)]).filter((p): p is any => p != null)}
+               currentUser={data.userProfile}
+               onSubmitReview={async (planId, review) => {
+                 const { default: { supabase } } = await import('../services/supabaseClient');
+                 const { error } = await supabase
+                   .from('lesson_plan_review_evidence')
+                   .insert(review);
+                 if (error) throw error;
+                 if (review.decision) {
+                   await supabase
+                     .from('lesson_plans')
+                     .update({ 
+                       status: review.decision === 'approved' ? 'approved' : 
+                              review.decision === 'rejected' ? 'rejected' : 'revision_required'
+                     })
+                     .eq('id', planId);
+                 }
+                 await actions.loadAllData();
+               }}
+               reviewEvidence={data.reviewEvidence || []}
+               coverageData={data.coverageData || []}
              />;
         case VIEWS.GRADEBOOK:
              return <TeacherGradebookView 
