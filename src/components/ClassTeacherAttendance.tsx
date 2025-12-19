@@ -249,6 +249,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
             return;
         }
 
+        const supabase = requireSupabaseClient();
         try {
             setIsSaving(true);
             await supabase.from('attendance_overrides').delete().eq('id', overrideId);
@@ -706,6 +707,7 @@ const ClassTeacherAttendance: React.FC<Props> = ({ members, onSaveRecord, school
     };
 
     const handleBulkNotify = async (statuses: AttendanceStatus[]) => {
+        const supabase = requireSupabaseClient();
         setIsNotifying(true);
         try {
             // Get current user for sent_by

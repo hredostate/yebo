@@ -291,6 +291,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
     const fetchBalance = async () => {
         if (!settings) return;
 
+        const supabase = requireSupabaseClient();
         setLoadingBalance(true);
         try {
             const { data, error } = await supabase.functions.invoke('kudisms-balance', {
@@ -331,6 +332,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
             return;
         }
 
+        const supabase = requireSupabaseClient();
         setTestResult('Sending...');
         try {
             const template = templates.find(t => t.template_name === testForm.template);

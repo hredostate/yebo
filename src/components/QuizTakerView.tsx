@@ -78,6 +78,7 @@ const QuizTakerView: React.FC<QuizTakerViewProps> = ({ quiz, onBack, addToast, o
 
 
     const handleSubmit = async () => {
+            const supabase = requireSupabaseClient();
         const unansweredQuestions = quiz.questions.filter(q => !answers[q.id!]);
         if (unansweredQuestions.length > 0) {
             addToast(`Please answer all questions. Question ${unansweredQuestions[0].position + 1} is unanswered.`, 'error');

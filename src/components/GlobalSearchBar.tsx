@@ -26,6 +26,7 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         const handler = setTimeout(async () => {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase.rpc('global_search', { p_query: query });
             if (error) {
                 console.error("Global search error:", error);

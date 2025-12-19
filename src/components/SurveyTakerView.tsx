@@ -104,6 +104,7 @@ const SurveyTakerView: React.FC<SurveyTakerViewProps> = ({ survey, onBack, addTo
 
 
     const handleSubmit = async () => {
+            const supabase = requireSupabaseClient();
         const unansweredQuestions = survey.questions.filter(q => !answers[q.id!]);
         if (unansweredQuestions.length > 0) {
             addToast(`Please answer all questions. Question ${unansweredQuestions[0].position + 1} is unanswered.`, 'error');

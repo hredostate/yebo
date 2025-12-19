@@ -32,6 +32,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     const [isBulkUpdateOpen, setIsBulkUpdateOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         setIsLoading(true);
         const { data, error } = await supabase
             .from('payroll_adjustments')
@@ -130,6 +131,7 @@ const PayrollAdjustmentsManager: React.FC<PayrollAdjustmentsManagerProps> = ({ u
     };
 
     const handleDelete = async (id: number) => {
+        const supabase = requireSupabaseClient();
         if (window.confirm('Are you sure you want to delete this unprocessed adjustment?')) {
             const { error } = await supabase.from('payroll_adjustments').delete().eq('id', id);
             if (error) {
