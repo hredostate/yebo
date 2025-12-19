@@ -795,10 +795,38 @@ export const useAppLogic = () => {
         },
         handleCreateClassAssignment: async (assign: any, group: any) => {
              if(!userProfile || !('school_id' in userProfile)) return false;
-             const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', { ...assign, school_id: userProfile.school_id });
-             if(e1 || !ag) return false;
+             
+             // Get the active term
+             const activeTerm = terms.find(t => t.is_active);
+             if (!activeTerm) {
+                 addToast('No active term found. Please set an active term first.', 'error');
+                 return false;
+             }
+             
+             // Look up subject name from subject_id
+             const subject = allSubjects.find(s => s.id === assign.subject_id);
+             if (!subject) {
+                 addToast('Invalid subject selected', 'error');
+                 return false;
+             }
+             
+             // Create teaching assignment with correct field names
+             const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', {
+                 teacher_user_id: assign.teacher_user_id,
+                 subject_name: subject.name,
+                 academic_class_id: assign.class_id,
+                 school_id: userProfile.school_id,
+                 term_id: activeTerm.id
+             });
+             if(e1 || !ag) {
+                 addToast(`Error creating assignment: ${e1?.message || 'Unknown error'}`, 'error');
+                 return false;
+             }
              const { error: e2 } = await Offline.insert('class_groups', { ...group, teaching_entity_id: ag.id, school_id: userProfile.school_id, created_by: userProfile.id });
-             if(e2) return false;
+             if(e2) {
+                 addToast(`Error creating class group: ${e2?.message || 'Unknown error'}`, 'error');
+                 return false;
+             }
              fetchData(); return true;
         },
         handleDeleteClassAssignment: async (id: number) => {
