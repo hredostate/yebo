@@ -19,6 +19,7 @@ import RoleManager from './RoleManager';
 import TeamManager from './TeamManager';
 import CurriculumManager from './CurriculumManager';
 import CurriculumPlannerContainer from './CurriculumPlannerContainer';
+import TeamLessonPlanHub from './TeamLessonPlanHub';
 import TeacherGradebookView from './TeacherGradebookView';
 import TeacherScoreEntryView from './TeacherScoreEntryView';
 import AssessmentManager from './AssessmentManager';
@@ -62,6 +63,7 @@ import StudentFinancialOverview from './StudentFinancialOverview';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 import { resolveTimetableAccess } from '../utils/timetableAccess';
+import { supabase } from '../services/supabaseClient';
 
 // Lazy load heavy components and those used dynamically elsewhere to fix build warnings and reduce chunk size
 const TimetableView = lazy(() => import('./TimetableView'));
@@ -555,6 +557,31 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 curricula={data.curricula}
                 curriculumWeeks={data.curriculumWeeks}
                 onApprove={actions.handleApproveLessonPlan}
+             />;
+        case VIEWS.TEAM_LESSON_HUB:
+             return <TeamLessonPlanHub
+               lessonPlans={data.lessonPlans}
+               teachingAssignments={data.academicAssignments}
+               teamMembers={data.teams.flatMap(t => [t.lead, ...t.members.map(m => m.profile)]).filter((p): p is any => p != null)}
+               currentUser={data.userProfile}
+               onSubmitReview={async (planId, review) => {
+                 const { error } = await supabase
+                   .from('lesson_plan_review_evidence')
+                   .insert(review);
+                 if (error) throw error;
+                 if (review.decision) {
+                   await supabase
+                     .from('lesson_plans')
+                     .update({ 
+                       status: review.decision === 'approved' ? 'approved' : 
+                              review.decision === 'rejected' ? 'rejected' : 'revision_required'
+                     })
+                     .eq('id', planId);
+                 }
+                 await actions.loadAllData();
+               }}
+               reviewEvidence={data.reviewEvidence || []}
+               coverageData={data.coverageData || []}
              />;
         case VIEWS.GRADEBOOK:
              return <TeacherGradebookView 
