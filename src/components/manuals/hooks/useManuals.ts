@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supa, Offline } from '../../../offline/client';
+import { Offline } from '../../../offline/client';
+import { requireSupabaseClient } from '../../../services/supabaseClient';
 import type { Manual, ManualFormData, ManualCategory, ManualStatus } from '../../../types/manuals';
 
 /**
@@ -22,7 +23,8 @@ export function useManuals(schoolId: number) {
       setLoading(true);
       setError(null);
 
-      let query = supa
+      const supabase = requireSupabaseClient();
+      let query = supabase
         .from('manuals')
         .select(`
           *,
@@ -59,7 +61,8 @@ export function useManuals(schoolId: number) {
    */
   const getManual = async (manualId: number): Promise<Manual | null> => {
     try {
-      const { data, error: fetchError } = await supa
+      const supabase = requireSupabaseClient();
+      const { data, error: fetchError } = await supabase
         .from('manuals')
         .select(`
           *,
@@ -121,11 +124,12 @@ export function useManuals(schoolId: number) {
         throw new Error(uploadResult.error.message);
       }
 
+      const supabase = requireSupabaseClient();
       // Get public URL
-      const { data: urlData } = supa.storage.from('manuals').getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.from('manuals').getPublicUrl(filePath);
 
       // Create manual record
-      const { data: manualData, error: insertError } = await supa
+      const { data: manualData, error: insertError } = await supabase
         .from('manuals')
         .insert({
           school_id: schoolId,
@@ -177,7 +181,8 @@ export function useManuals(schoolId: number) {
       setLoading(true);
       setError(null);
 
-      const { error: updateError } = await supa
+      const supabase = requireSupabaseClient();
+      const { error: updateError } = await supabase
         .from('manuals')
         .update({
           ...updates,
@@ -211,7 +216,8 @@ export function useManuals(schoolId: number) {
       setLoading(true);
       setError(null);
 
-      const { error: updateError } = await supa
+      const supabase = requireSupabaseClient();
+      const { error: updateError } = await supabase
         .from('manuals')
         .update({
           status: 'published',
@@ -246,7 +252,8 @@ export function useManuals(schoolId: number) {
       setLoading(true);
       setError(null);
 
-      const { error: updateError } = await supa
+      const supabase = requireSupabaseClient();
+      const { error: updateError } = await supabase
         .from('manuals')
         .update({
           status: 'archived',
@@ -285,8 +292,9 @@ export function useManuals(schoolId: number) {
         throw new Error('Manual not found');
       }
 
+      const supabase = requireSupabaseClient();
       // Delete file from storage
-      const { error: storageError } = await supa.storage
+      const { error: storageError } = await supabase.storage
         .from('manuals')
         .remove([manual.file_path]);
 
@@ -295,7 +303,7 @@ export function useManuals(schoolId: number) {
       }
 
       // Delete manual record
-      const { error: deleteError } = await supa
+      const { error: deleteError } = await supabase
         .from('manuals')
         .delete()
         .eq('id', manualId);

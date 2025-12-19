@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supa } from '../../../offline/client';
+import { requireSupabaseClient } from '../../../services/supabaseClient';
 import type { ComplianceDashboardData, CompletionStats, UserComplianceData } from '../../../types/manuals';
 
 /**
@@ -17,8 +17,9 @@ export function useComplianceStats(schoolId: number) {
       setLoading(true);
       setError(null);
 
+      const supabase = requireSupabaseClient();
       // Fetch all assignments for the school
-      const { data: assignments, error: assignmentsError } = await supa
+      const { data: assignments, error: assignmentsError } = await supabase
         .from('manual_assignments')
         .select(`
           *,
@@ -30,7 +31,7 @@ export function useComplianceStats(schoolId: number) {
       if (assignmentsError) throw assignmentsError;
 
       // Fetch all manuals
-      const { data: manuals, error: manualsError } = await supa
+      const { data: manuals, error: manualsError } = await supabase
         .from('manuals')
         .select('id, title')
         .eq('school_id', schoolId)
@@ -156,8 +157,9 @@ export function useComplianceStats(schoolId: number) {
       setLoading(true);
       setError(null);
 
+      const supabase = requireSupabaseClient();
       // Fetch user info
-      const { data: user, error: userError } = await supa
+      const { data: user, error: userError } = await supabase
         .from('user_profiles')
         .select('id, name, role')
         .eq('id', userId)
@@ -166,7 +168,7 @@ export function useComplianceStats(schoolId: number) {
       if (userError) throw userError;
 
       // Fetch user's assignments
-      const { data: assignments, error: assignmentsError } = await supa
+      const { data: assignments, error: assignmentsError } = await supabase
         .from('manual_assignments')
         .select(`
           *,
@@ -217,7 +219,8 @@ export function useComplianceStats(schoolId: number) {
       setLoading(true);
       setError(null);
 
-      const { data: manual, error: manualError } = await supa
+      const supabase = requireSupabaseClient();
+      const { data: manual, error: manualError } = await supabase
         .from('manuals')
         .select('id, title')
         .eq('id', manualId)
@@ -225,7 +228,7 @@ export function useComplianceStats(schoolId: number) {
 
       if (manualError) throw manualError;
 
-      const { data: assignments, error: assignmentsError } = await supa
+      const { data: assignments, error: assignmentsError } = await supabase
         .from('manual_assignments')
         .select('*')
         .eq('manual_id', manualId);
