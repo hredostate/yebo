@@ -180,8 +180,9 @@ const AcademicGoalsDashboard: React.FC<AcademicGoalsDashboardProps> = ({
             return filteredGoals;
         } else if (goalStatusFilter === 'no-goal') {
             // Show students without goals
+            const goalsSet = new Set(goals.map(g => g.student_id));
             return studentsInClass
-                .filter(sc => !goals.find(g => g.student_id === sc.studentId))
+                .filter(sc => !goalsSet.has(sc.studentId))
                 .map(sc => ({
                     id: 0,
                     student_id: sc.studentId,
@@ -435,7 +436,7 @@ const AcademicGoalsDashboard: React.FC<AcademicGoalsDashboardProps> = ({
                         </label>
                         <select
                             value={goalStatusFilter}
-                            onChange={(e) => setGoalStatusFilter(e.target.value as any)}
+                            onChange={(e) => setGoalStatusFilter(e.target.value as 'all' | 'has-goal' | 'no-goal')}
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                         >
                             <option value="all">All Students</option>
@@ -564,7 +565,7 @@ const AcademicGoalsDashboard: React.FC<AcademicGoalsDashboardProps> = ({
                                                                 className="p-1 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50"
                                                             >
                                                                 {generatingAnalysis.has(goal.id) ? (
-                                                                    <Spinner size="xs" />
+                                                                    <Spinner size="sm" />
                                                                 ) : (
                                                                     <WandIcon className="w-4 h-4" />
                                                                 )}
