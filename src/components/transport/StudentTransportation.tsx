@@ -631,7 +631,6 @@ export default function StudentTransportation({
             ? 'border-blue-600 text-blue-600'
             : 'border-transparent text-gray-600 hover:text-gray-900'
         }`}
-        disabled={!activeSubscription}
       >
         🚌 My Transport
       </button>
