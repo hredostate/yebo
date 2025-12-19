@@ -8,26 +8,37 @@ import type {
   Student,
   Term,
   TransportRequest,
-  TransportRequestStatus
+  TransportRequestStatus,
+  TransportSubscription,
+  TransportSubscriptionStatus
 } from '../../types';
 import BusSeatSelector from './BusSeatSelector';
 import { handleSupabaseError } from '../../utils/errorHandling';
 
-interface StudentTransportSignUpProps {
+interface StudentTransportationProps {
   student: Student;
   currentTerm: Term;
   onClose: () => void;
   addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  initialTab?: 'my-transport' | 'sign-up' | 'history';
 }
 
 type SignUpStep = 'route' | 'stop' | 'seat' | 'confirm' | 'success';
+type TabType = 'my-transport' | 'sign-up' | 'history';
 
-export default function StudentTransportSignUp({
+export default function StudentTransportation({
   student,
   currentTerm,
   onClose,
   addToast,
-}: StudentTransportSignUpProps) {
+  initialTab,
+}: StudentTransportationProps) {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab || 'sign-up');
+  const [activeSubscription, setActiveSubscription] = useState<TransportSubscription | null>(null);
+  const [transportHistory, setTransportHistory] = useState<TransportRequest[]>([]);
+  
+  // Sign-up wizard state
   const [step, setStep] = useState<SignUpStep>('route');
   const [loading, setLoading] = useState(false);
   const [routes, setRoutes] = useState<RouteAvailability[]>([]);
@@ -43,13 +54,65 @@ export default function StudentTransportSignUp({
   // Result state
   const [submittedRequest, setSubmittedRequest] = useState<TransportRequest | null>(null);
 
-  // Check if student already has a request for this term
+  // Initial data load
   useEffect(() => {
-    checkExistingRequest();
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    await Promise.all([
+      fetchActiveSubscription(),
+      fetchTransportHistory(),
+      checkExistingRequest(),
+    ]);
+  };
+
+  const fetchActiveSubscription = async () => {
+    try {
+      const supabase = requireSupabaseClient();
+      const { data, error } = await supabase
+        .from('transport_subscriptions')
+        .select('*, route:transport_routes(*), stop:transport_stops(*), assigned_bus:transport_buses(*)')
+        .eq('student_id', student.id)
+        .eq('term_id', currentTerm.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setActiveSubscription(data);
+        if (!initialTab) {
+          setActiveTab('my-transport');
+        }
+      } else if (!initialTab) {
+        setActiveTab('sign-up');
+      }
+    } catch (error) {
+      handleSupabaseError(error, addToast, 'Failed to fetch active subscription');
+    }
+  };
+
+  const fetchTransportHistory = async () => {
+    try {
+      const supabase = requireSupabaseClient();
+      const { data, error } = await supabase
+        .from('transport_requests')
+        .select('*, route:transport_routes(*), stop:transport_stops(*), preferred_bus:transport_buses(*)')
+        .eq('student_id', student.id)
+        .eq('term_id', currentTerm.id)
+        .order('requested_at', { ascending: false });
+      
+      if (error) throw error;
+      setTransportHistory(data || []);
+    } catch (error) {
+      handleSupabaseError(error, addToast, 'Failed to fetch transport history');
+    }
+  };
 
   const checkExistingRequest = async () => {
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_requests')
         .select('*, route:transport_routes(*), stop:transport_stops(*)')
@@ -97,6 +160,7 @@ export default function StudentTransportSignUp({
     // Load stops for this route
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_stops')
         .select('*')
@@ -141,6 +205,7 @@ export default function StudentTransportSignUp({
 
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_requests')
         .insert({
@@ -522,13 +587,331 @@ export default function StudentTransportSignUp({
     );
   };
 
+  const handleCancelSubscription = async () => {
+    if (!activeSubscription) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel your transport subscription? This action cannot be undone.'
+    );
+    
+    if (!confirmed) return;
+    
+    setLoading(true);
+    try {
+      const supabase = requireSupabaseClient();
+      const { error } = await supabase
+        .from('transport_subscriptions')
+        .update({
+          status: 'cancelled' as TransportSubscriptionStatus,
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: student.user_id,
+          cancellation_reason: 'Cancelled by student',
+        })
+        .eq('id', activeSubscription.id);
+      
+      if (error) throw error;
+      
+      addToast('Transport subscription cancelled successfully', 'success');
+      setActiveSubscription(null);
+      setActiveTab('sign-up');
+      await fetchTransportHistory(); // Refresh history
+    } catch (error) {
+      handleSupabaseError(error, addToast, 'Failed to cancel subscription');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderTabNavigation = () => (
+    <div className="flex border-b border-gray-200 mb-6">
+      <button
+        onClick={() => setActiveTab('my-transport')}
+        className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors ${
+          activeTab === 'my-transport'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
+        }`}
+        disabled={!activeSubscription}
+      >
+        🚌 My Transport
+      </button>
+      <button
+        onClick={() => setActiveTab('sign-up')}
+        className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors ${
+          activeTab === 'sign-up'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        📝 Sign Up
+      </button>
+      <button
+        onClick={() => setActiveTab('history')}
+        className={`flex items-center gap-2 px-4 py-2 font-medium border-b-2 transition-colors ${
+          activeTab === 'history'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        📋 History
+      </button>
+    </div>
+  );
+
+  const renderMyTransportTab = () => {
+    if (!activeSubscription) {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No Active Subscription</h3>
+          <p className="text-gray-600 mb-4">You don't have an active transport subscription.</p>
+          <button
+            onClick={() => setActiveTab('sign-up')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Sign Up for Transport
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Your Active Transport Subscription</h3>
+        
+        <div className="space-y-4">
+          {/* Subscription Status Card */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                ACTIVE
+              </span>
+              <span className="text-sm text-gray-600">
+                Since {new Date(activeSubscription.started_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Route Information */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+            <div>
+              <p className="text-sm text-gray-600">Route</p>
+              <p className="font-semibold text-lg">{activeSubscription.route?.route_name}</p>
+              {activeSubscription.route?.route_code && (
+                <p className="text-sm text-gray-600">Code: {activeSubscription.route.route_code}</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600">Your Stop</p>
+              <p className="font-semibold">{activeSubscription.stop?.stop_name}</p>
+              {activeSubscription.stop?.stop_address && (
+                <p className="text-sm text-gray-600">{activeSubscription.stop.stop_address}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {activeSubscription.stop?.pickup_time && (
+                <div>
+                  <p className="text-sm text-gray-600">Morning Pickup</p>
+                  <p className="font-semibold">{activeSubscription.stop.pickup_time}</p>
+                </div>
+              )}
+              {activeSubscription.stop?.dropoff_time && (
+                <div>
+                  <p className="text-sm text-gray-600">Afternoon Dropoff</p>
+                  <p className="font-semibold">{activeSubscription.stop.dropoff_time}</p>
+                </div>
+              )}
+            </div>
+
+            {activeSubscription.assigned_bus && (
+              <div>
+                <p className="text-sm text-gray-600">Assigned Bus</p>
+                <p className="font-semibold">Bus {activeSubscription.assigned_bus.bus_number}</p>
+                {activeSubscription.assigned_bus.license_plate && (
+                  <p className="text-sm text-gray-600">
+                    License: {activeSubscription.assigned_bus.license_plate}
+                  </p>
+                )}
+                {activeSubscription.assigned_bus.driver_name && (
+                  <p className="text-sm text-gray-600">
+                    Driver: {activeSubscription.assigned_bus.driver_name}
+                    {activeSubscription.assigned_bus.driver_phone && 
+                      ` (${activeSubscription.assigned_bus.driver_phone})`
+                    }
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeSubscription.seat_label && (
+              <div>
+                <p className="text-sm text-gray-600">Assigned Seat</p>
+                <p className="font-semibold">Seat {activeSubscription.seat_label}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Cancel Button */}
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={handleCancelSubscription}
+              disabled={loading}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? 'Cancelling...' : 'Cancel Subscription'}
+            </button>
+            <p className="text-sm text-gray-600 mt-2">
+              Note: Cancelling your subscription cannot be undone. You will need to submit a new request to re-enroll.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSignUpTab = () => {
+    if (activeSubscription) {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Already Subscribed</h3>
+          <p className="text-gray-600 mb-4">You already have an active transport subscription.</p>
+          <button
+            onClick={() => setActiveTab('my-transport')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            View My Transport
+          </button>
+        </div>
+      );
+    }
+
+    // Show the existing 4-step wizard
+    return (
+      <div>
+        {/* Step Indicator (hidden on success) */}
+        {step !== 'success' && renderStepIndicator()}
+
+        {/* Step Content */}
+        <div>
+          {step === 'route' && renderRouteSelection()}
+          {step === 'stop' && renderStopSelection()}
+          {step === 'seat' && renderSeatSelection()}
+          {step === 'confirm' && renderConfirmation()}
+          {step === 'success' && renderSuccess()}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHistoryTab = () => {
+    const statusColors = {
+      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      approved: 'bg-green-100 text-green-800 border-green-300',
+      rejected: 'bg-red-100 text-red-800 border-red-300',
+      waitlisted: 'bg-orange-100 text-orange-800 border-orange-300',
+      cancelled: 'bg-gray-100 text-gray-800 border-gray-300',
+    };
+
+    if (transportHistory.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No Transport History</h3>
+          <p className="text-gray-600">You haven't made any transport requests yet.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Transport Request History</h3>
+        
+        <div className="space-y-3">
+          {transportHistory.map((request) => (
+            <div
+              key={request.id}
+              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h4 className="font-semibold">{request.route?.route_name}</h4>
+                  <p className="text-sm text-gray-600">{request.stop?.stop_name}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[request.status]}`}>
+                  {request.status.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-600">Requested</p>
+                  <p className="font-medium">{new Date(request.requested_at).toLocaleDateString()}</p>
+                </div>
+
+                {request.reviewed_at && (
+                  <div>
+                    <p className="text-gray-600">Reviewed</p>
+                    <p className="font-medium">{new Date(request.reviewed_at).toLocaleDateString()}</p>
+                  </div>
+                )}
+
+                {request.preferred_bus && (
+                  <div>
+                    <p className="text-gray-600">Preferred Bus</p>
+                    <p className="font-medium">Bus {request.preferred_bus.bus_number}</p>
+                  </div>
+                )}
+
+                {request.preferred_seat_label && (
+                  <div>
+                    <p className="text-gray-600">Preferred Seat</p>
+                    <p className="font-medium">Seat {request.preferred_seat_label}</p>
+                  </div>
+                )}
+              </div>
+
+              {request.rejection_reason && (
+                <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm">
+                  <p className="font-semibold text-red-900">Rejection Reason:</p>
+                  <p className="text-red-800">{request.rejection_reason}</p>
+                </div>
+              )}
+
+              {request.notes && (
+                <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+                  <p className="font-semibold text-blue-900">Notes:</p>
+                  <p className="text-blue-800">{request.notes}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Transport Sign-Up</h2>
+            <h2 className="text-2xl font-bold">Transportation</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -537,16 +920,14 @@ export default function StudentTransportSignUp({
             </button>
           </div>
 
-          {/* Step Indicator (hidden on success) */}
-          {step !== 'success' && renderStepIndicator()}
+          {/* Tab Navigation */}
+          {renderTabNavigation()}
 
-          {/* Step Content */}
+          {/* Tab Content */}
           <div>
-            {step === 'route' && renderRouteSelection()}
-            {step === 'stop' && renderStopSelection()}
-            {step === 'seat' && renderSeatSelection()}
-            {step === 'confirm' && renderConfirmation()}
-            {step === 'success' && renderSuccess()}
+            {activeTab === 'my-transport' && renderMyTransportTab()}
+            {activeTab === 'sign-up' && renderSignUpTab()}
+            {activeTab === 'history' && renderHistoryTab()}
           </div>
         </div>
       </div>
