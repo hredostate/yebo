@@ -27,6 +27,7 @@ const TransportTripGenerator = ({ onClose }: { onClose: () => void }) => (
 interface TransportManagerProps {
   schoolId: number;
   currentTermId: number;
+  campuses: Campus[];
   addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
@@ -35,6 +36,7 @@ type TabKey = 'routes' | 'stops' | 'buses' | 'requests' | 'subscriptions' | 'man
 export default function TransportManager({
   schoolId,
   currentTermId,
+  campuses,
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
