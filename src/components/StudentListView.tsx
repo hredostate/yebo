@@ -632,6 +632,23 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     }
   };
 
+  // Header variations for flexible CSV matching (defined as constants to avoid recreation)
+  const CSV_HEADER_VARIATIONS = {
+    name: ['Name', 'name', 'Student Name', 'student_name', 'StudentName', 'Full Name', 'full_name', 'STUDENT NAME', 'NAME'],
+    admissionNumber: ['Admission Number', 'admission_number', 'Admission No', 'admission_no', 'AdmissionNumber', 'Adm No', 'ID', 'Student ID', 'student_id', 'ADMISSION NUMBER'],
+    email: ['Email', 'email', 'Email/Username', 'Username', 'username', 'EMAIL', 'E-mail', 'e-mail', 'Student Email'],
+    className: ['Class', 'class', 'Class Name', 'class_name', 'ClassName', 'Grade', 'grade', 'CLASS', 'Form'],
+    arm: ['Arm', 'arm', 'Arm Name', 'arm_name', 'Section', 'section', 'Stream', 'stream', 'ARM'],
+    dob: ['Date of Birth', 'date_of_birth', 'DOB', 'dob', 'Birth Date', 'birth_date', 'Birthday', 'DATE OF BIRTH', 'Date Of Birth'],
+    address: ['Address', 'address', 'Home Address', 'home_address', 'ADDRESS', 'Residential Address'],
+    status: ['Status', 'status', 'Student Status', 'STATUS'],
+    parentPhone1: ['Parent Phone 1', 'parent_phone_number_1', 'Parent Phone', 'parent_phone', 'Guardian Phone', 'Phone 1', 'phone_1', 'Phone', 'Contact', 'PARENT PHONE 1'],
+    parentPhone2: ['Parent Phone 2', 'parent_phone_number_2', 'Phone 2', 'phone_2', 'Alt Phone', 'Alternative Phone', 'PARENT PHONE 2'],
+    guardianContact: ['Guardian Contact', 'guardian_phone', 'Guardian Phone', 'guardian_contact', 'Emergency Contact', 'GUARDIAN CONTACT'],
+    fatherName: ['Father Name', 'father_name', 'Father', 'Dad Name', 'FATHER NAME', "Father's Name"],
+    motherName: ['Mother Name', 'mother_name', 'Mother', 'Mom Name', 'MOTHER NAME', "Mother's Name"]
+  };
+
   // Helper function for flexible CSV header matching
   const getColumnValue = (row: Record<string, string>, variations: string[]): string => {
     for (const variation of variations) {
@@ -646,8 +663,34 @@ const StudentListView: React.FC<StudentListViewProps> = ({
 
   // Download CSV template
   const downloadTemplate = () => {
-    const headers = ['Name', 'Admission Number', 'Email', 'Class', 'Arm', 'Date of Birth', 'Address', 'Status', 'Parent Phone 1', 'Parent Phone 2', 'Father Name', 'Mother Name'];
-    const sampleRow = ['John Doe', 'ADM001', 'john.doe@email.com', 'JSS 1', 'A', '2010-05-15', '123 Main Street', 'Active', '08012345678', '08087654321', 'Mr. Doe', 'Mrs. Doe'];
+    const headers = [
+      'Name',
+      'Admission Number',
+      'Email',
+      'Class',
+      'Arm',
+      'Date of Birth',
+      'Address',
+      'Status',
+      'Parent Phone 1',
+      'Parent Phone 2',
+      'Father Name',
+      'Mother Name'
+    ];
+    const sampleRow = [
+      'John Doe',
+      'ADM001',
+      'john.doe@email.com',
+      'JSS 1',
+      'A',
+      '2010-05-15',
+      '123 Main Street',
+      'Active',
+      '08012345678',
+      '08087654321',
+      'Mr. Doe',
+      'Mrs. Doe'
+    ];
     const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -675,21 +718,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         return;
       }
 
-      // Define header variations for flexible matching
-      const nameVariations = ['Name', 'name', 'Student Name', 'student_name', 'StudentName', 'Full Name', 'full_name', 'STUDENT NAME', 'NAME'];
-      const admissionVariations = ['Admission Number', 'admission_number', 'Admission No', 'admission_no', 'AdmissionNumber', 'Adm No', 'ID', 'Student ID', 'student_id', 'ADMISSION NUMBER'];
-      const emailVariations = ['Email', 'email', 'Email/Username', 'Username', 'username', 'EMAIL', 'E-mail', 'e-mail', 'Student Email'];
-      const classVariations = ['Class', 'class', 'Class Name', 'class_name', 'ClassName', 'Grade', 'grade', 'CLASS', 'Form'];
-      const armVariations = ['Arm', 'arm', 'Arm Name', 'arm_name', 'Section', 'section', 'Stream', 'stream', 'ARM'];
-      const dobVariations = ['Date of Birth', 'date_of_birth', 'DOB', 'dob', 'Birth Date', 'birth_date', 'Birthday', 'DATE OF BIRTH', 'Date Of Birth'];
-      const addressVariations = ['Address', 'address', 'Home Address', 'home_address', 'ADDRESS', 'Residential Address'];
-      const statusVariations = ['Status', 'status', 'Student Status', 'STATUS'];
-      const phone1Variations = ['Parent Phone 1', 'parent_phone_number_1', 'Parent Phone', 'parent_phone', 'Guardian Phone', 'Phone 1', 'phone_1', 'Phone', 'Contact', 'PARENT PHONE 1'];
-      const phone2Variations = ['Parent Phone 2', 'parent_phone_number_2', 'Phone 2', 'phone_2', 'Alt Phone', 'Alternative Phone', 'PARENT PHONE 2'];
-      const guardianVariations = ['Guardian Contact', 'guardian_phone', 'Guardian Phone', 'guardian_contact', 'Emergency Contact', 'GUARDIAN CONTACT'];
-      const fatherVariations = ['Father Name', 'father_name', 'Father', 'Dad Name', 'FATHER NAME', "Father's Name"];
-      const motherVariations = ['Mother Name', 'mother_name', 'Mother', 'Mom Name', 'MOTHER NAME', "Mother's Name"];
-
       // Process and validate student data
       const studentsToImport: any[] = [];
       const errors: string[] = [];
@@ -699,7 +727,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         const rowNum = i + 2; // +2 because: +1 for header, +1 for 0-based index
 
         // Required field: Name
-        const name = getColumnValue(row, nameVariations);
+        const name = getColumnValue(row, CSV_HEADER_VARIATIONS.name);
         if (!name) {
           errors.push(`Row ${rowNum}: Name is required`);
           continue;
@@ -709,7 +737,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         let class_id = null;
         let arm_id = null;
         
-        const className = getColumnValue(row, classVariations);
+        const className = getColumnValue(row, CSV_HEADER_VARIATIONS.className);
         if (className) {
           const foundClass = allClasses.find(c => c.name.toLowerCase() === className.toLowerCase());
           if (foundClass) {
@@ -719,7 +747,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           }
         }
 
-        const armName = getColumnValue(row, armVariations);
+        const armName = getColumnValue(row, CSV_HEADER_VARIATIONS.arm);
         if (armName) {
           const foundArm = allArms.find(a => a.name.toLowerCase() === armName.toLowerCase());
           if (foundArm) {
@@ -730,16 +758,16 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         }
 
         // Extract all fields using flexible matching
-        const admissionNumber = getColumnValue(row, admissionVariations);
-        const email = getColumnValue(row, emailVariations);
-        const dateOfBirth = getColumnValue(row, dobVariations);
-        const address = getColumnValue(row, addressVariations);
-        const status = getColumnValue(row, statusVariations) || 'Active';
-        const parentPhone1 = getColumnValue(row, phone1Variations);
-        const parentPhone2 = getColumnValue(row, phone2Variations);
-        const guardianContact = getColumnValue(row, guardianVariations);
-        const fatherName = getColumnValue(row, fatherVariations);
-        const motherName = getColumnValue(row, motherVariations);
+        const admissionNumber = getColumnValue(row, CSV_HEADER_VARIATIONS.admissionNumber);
+        const email = getColumnValue(row, CSV_HEADER_VARIATIONS.email);
+        const dateOfBirth = getColumnValue(row, CSV_HEADER_VARIATIONS.dob);
+        const address = getColumnValue(row, CSV_HEADER_VARIATIONS.address);
+        const status = getColumnValue(row, CSV_HEADER_VARIATIONS.status) || 'Active';
+        const parentPhone1 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone1);
+        const parentPhone2 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone2);
+        const guardianContact = getColumnValue(row, CSV_HEADER_VARIATIONS.guardianContact);
+        const fatherName = getColumnValue(row, CSV_HEADER_VARIATIONS.fatherName);
+        const motherName = getColumnValue(row, CSV_HEADER_VARIATIONS.motherName);
 
         const studentData: any = {
           name,
