@@ -12,7 +12,7 @@ import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
 import { type ActivationLinkResult } from '../services/activationLinks';
 import { parseCsv } from '../utils/feesCsvUtils';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface StudentListViewProps {
   students: Student[];

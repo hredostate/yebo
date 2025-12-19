@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Homework, AcademicTeachingAssignment, AcademicClass, UserProfile, HomeworkSubmission, Student } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon, TrashIcon, EditIcon, EyeIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from './common/icons';
 import NotifyParentButton from './NotifyParentButton';

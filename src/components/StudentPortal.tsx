@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon, BookOpenIcon, ClockIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';

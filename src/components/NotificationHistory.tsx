@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { WhatsAppNotification, Student, UserProfile } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, ClockIcon, BellIcon } from './common/icons';
 

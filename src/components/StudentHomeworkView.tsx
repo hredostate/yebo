@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Homework, HomeworkSubmission, StudentProfile } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, ClockIcon, UploadCloudIcon, FileTextIcon } from './common/icons';
 

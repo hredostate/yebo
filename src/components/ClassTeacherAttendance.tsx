@@ -8,7 +8,7 @@ import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import { exportToCsv } from '../utils/export';
 import { bulkSendSmsNotifications } from '../services/smsService';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface OverrideRow {
     studentId: number;

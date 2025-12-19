@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { PublicTeacher, PublicMaskedComment, PublicClass } from '../types';
 import { ShieldIcon, StarIcon } from './common/icons';
 import Spinner from './common/Spinner';

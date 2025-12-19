@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Campus, AcademicTeachingAssignment, TeacherShift } from '../types';
 import Spinner from './common/Spinner';
 import { todayISO } from '../services/checkins';

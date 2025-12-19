@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { KudiSmsSettings, SmsTemplate, NotificationChannel, NotificationType } from '../types';
 import Spinner from './common/Spinner';
 import { mapSupabaseError } from '../utils/errorHandling';

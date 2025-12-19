@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { UserProfile, TeacherRatingWeekly, MaskedTeacherRating } from '../types';
 import Spinner from './common/Spinner';
 import { isActiveEmployee } from '../utils/userHelpers';

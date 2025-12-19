@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { Student, AcademicClass, Term, StudentSubjectEnrollment, AcademicClassStudent } from '../../types';
 import Spinner from '../common/Spinner';
 import { 

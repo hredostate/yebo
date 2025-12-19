@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { PublishedLessonPlan, LearningMaterial, StudentProfile } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { BookOpenIcon, DownloadIcon, EyeIcon, FileTextIcon, DocumentTextIcon, FilmIcon, LinkIcon, CloseIcon } from './common/icons';
 

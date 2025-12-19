@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { GlobalSearchResult } from '../types';
 import { SearchIcon, UsersIcon, FileTextIcon, ClipboardListIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { NotesCheck, NotesCompliance, Student, AcademicTeachingAssignment, UserProfile } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import NotifyParentButton from './NotifyParentButton';
 import BulkNotifyButton from './BulkNotifyButton';

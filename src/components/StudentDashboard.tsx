@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, StudentDashboardStats, AbsenceRequest, StudentStrike } from '../types';
 import Spinner from './common/Spinner';
 import {

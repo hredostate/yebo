@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { aiClient } from '../services/aiClient';
 import type { SurveyWithQuestions, MultipleChoiceOption } from '../types';
 import Spinner from './common/Spinner';
