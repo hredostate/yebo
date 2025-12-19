@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supa as supabase } from '../../offline/client';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type {
   TransportDirection,
   TransportAttendanceStatus,
@@ -50,6 +50,7 @@ export default function TeacherTransportAttendance({
   const loadAttendance = async () => {
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase.rpc('get_teacher_transport_attendance', {
         p_user_id: userId,
         p_date: date,
@@ -72,6 +73,7 @@ export default function TeacherTransportAttendance({
     groupName: string
   ) => {
     try {
+      const supabase = requireSupabaseClient();
       // Find class group ID from the student data
       const student = students.find(s => s.student_id === studentId);
       if (!student) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supa as supabase } from '../../offline/client';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type { 
   TransportRoute, 
   TransportStop, 
@@ -75,6 +75,7 @@ export default function StudentTransportSignUp({
   const loadRoutes = async () => {
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase.rpc('get_route_availability', {
         p_school_id: student.school_id,
         p_term_id: currentTerm.id,

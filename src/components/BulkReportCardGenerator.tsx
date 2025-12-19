@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';

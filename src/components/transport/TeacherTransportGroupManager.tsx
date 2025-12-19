@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supa as supabase } from '../../offline/client';
+import { requireSupabaseClient } from '../../services/supabaseClient';
 import type {
   TransportClassGroup,
   TransportClassGroupMember,

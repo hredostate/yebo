@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { Aurora, GridBackdrop } from './common/Background';
 import { ShieldIcon, SunIcon, MoonIcon } from './common/icons';
 import Spinner from './common/Spinner';

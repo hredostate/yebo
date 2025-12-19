@@ -7,7 +7,7 @@ import Spinner from './common/Spinner';
 import { WandIcon, TrashIcon } from './common/icons';
 import { VIEWS } from '../constants';
 import ParentCommunicationModal from './ParentCommunicationModal';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { mapSupabaseError } from '../utils/errorHandling';
 
 interface StudentProfileViewProps {

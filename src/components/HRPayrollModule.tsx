@@ -4,7 +4,7 @@ import { LeaveRequestStatus } from '../types';
 import { NIGERIAN_BANKS } from '../constants/banks';
 import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon, SaveIcon } from './common/icons';
 import Spinner from './common/Spinner';
-import { supa as supabase } from '../offline/client';
+import { requireSupabaseClient } from '../services/supabaseClient';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { useCan } from '../security/permissions';
 
