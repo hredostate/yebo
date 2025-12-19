@@ -21,17 +21,19 @@ type TabKey = 'routes' | 'stops' | 'buses' | 'requests' | 'subscriptions' | 'man
 export default function TransportManager({
   schoolId,
   currentTermId,
-  campuses,
+  campuses: initialCampuses,
   addToast,
 }: TransportManagerProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('routes');
-  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [campuses, setCampuses] = useState<Campus[]>(initialCampuses);
+  const [loadingCampuses, setLoadingCampuses] = useState(false);
 
   useEffect(() => {
     loadCampuses();
   }, [schoolId]);
 
   const loadCampuses = async () => {
+    setLoadingCampuses(true);
     try {
       const supabase = requireSupabaseClient();
       const { data, error } = await supabase
@@ -45,6 +47,8 @@ export default function TransportManager({
     } catch (error: any) {
       console.error('Error loading campuses:', error);
       addToast(error.message || 'Failed to load campuses', 'error');
+    } finally {
+      setLoadingCampuses(false);
     }
   };
 
@@ -69,7 +73,7 @@ export default function TransportManager({
     if (loadingCampuses) {
       return (
         <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
       );
     }
