@@ -1,24 +1,27 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { UserProfile, PayrollRun, PayrollItem, PayrollAdjustment, PayrollComponent, PayrollLineItem, PensionContribution, SchoolConfig, Campus, TeacherShift, LeaveType, LeaveRequest, Team } from '../types';
 import { LeaveRequestStatus } from '../types';
-import MyPayrollView from './MyPayrollView';
-import MyAdjustmentsView from './MyAdjustmentsView';
-import PayrollPage from './PayrollPage';
-import StaffPayrollManager, { NIGERIAN_BANKS } from './StaffPayrollManager';
-import PayrollAdjustmentsManager from './PayrollAdjustmentsManager';
-import PayrollSettings from './PayrollSettings';
-import PayrollManager from './PayrollManager';
-import ShiftManager from './ShiftManager';
-import LeaveTypesManager from './LeaveTypesManager';
-import CampusesManager from './CampusesManager';
-import MyLeaveView from './MyLeaveView';
-import LeaveApprovalView from './LeaveApprovalView';
-import PensionManager from './PensionManager';
+import { NIGERIAN_BANKS } from '../constants/banks';
 import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon, SaveIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { supa as supabase } from '../offline/client';
 import { mapSupabaseError } from '../utils/errorHandling';
 import { useCan } from '../security/permissions';
+
+// Lazy load sub-components to break circular dependencies
+const MyPayrollView = lazy(() => import('./MyPayrollView'));
+const MyAdjustmentsView = lazy(() => import('./MyAdjustmentsView'));
+const PayrollPage = lazy(() => import('./PayrollPage'));
+const StaffPayrollManager = lazy(() => import('./StaffPayrollManager'));
+const PayrollAdjustmentsManager = lazy(() => import('./PayrollAdjustmentsManager'));
+const PayrollSettings = lazy(() => import('./PayrollSettings'));
+const PayrollManager = lazy(() => import('./PayrollManager'));
+const ShiftManager = lazy(() => import('./ShiftManager'));
+const LeaveTypesManager = lazy(() => import('./LeaveTypesManager'));
+const CampusesManager = lazy(() => import('./CampusesManager'));
+const MyLeaveView = lazy(() => import('./MyLeaveView'));
+const LeaveApprovalView = lazy(() => import('./LeaveApprovalView'));
+const PensionManager = lazy(() => import('./PensionManager'));
 
 
 interface HRPayrollModuleProps {
@@ -385,69 +388,119 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                 );
             case 'my_payslips':
                 return (
-                    <MyPayrollView
-                        currentUser={userProfile}
-                        payrollRuns={safePayrollRuns}
-                        payrollItems={safePayrollItems}
-                        schoolConfig={schoolConfig}
-                        pensionContributions={safePensionContributions}
-                    />
+                    <Suspense fallback={<Spinner />}>
+                        <MyPayrollView
+                            currentUser={userProfile}
+                            payrollRuns={safePayrollRuns}
+                            payrollItems={safePayrollItems}
+                            schoolConfig={schoolConfig}
+                            pensionContributions={safePensionContributions}
+                        />
+                    </Suspense>
                 );
             case 'my_leave':
-                return <MyLeaveView 
-                    currentUser={safeUserProfile} 
-                    leaveTypes={safeLeaveTypes} 
-                    leaveRequests={safeLeaveRequests} 
-                    onSave={onSubmitLeaveRequest}
-                    onDelete={handleDeleteLeaveRequest}
-                    addToast={addToast}
-                />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <MyLeaveView 
+                            currentUser={safeUserProfile} 
+                            leaveTypes={safeLeaveTypes} 
+                            leaveRequests={safeLeaveRequests} 
+                            onSave={onSubmitLeaveRequest}
+                            onDelete={handleDeleteLeaveRequest}
+                            addToast={addToast}
+                        />
+                    </Suspense>
+                );
             case 'my_adjustments':
-                return <MyAdjustmentsView 
-                    currentUser={userProfile} 
-                    adjustments={canManagePayroll 
-                        ? safePayrollAdjustments 
-                        : safePayrollAdjustments.filter(a => a.user_id === userProfile.id)
-                    } 
-                />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <MyAdjustmentsView 
+                            currentUser={userProfile} 
+                            adjustments={canManagePayroll 
+                                ? safePayrollAdjustments 
+                                : safePayrollAdjustments.filter(a => a.user_id === userProfile.id)
+                            } 
+                        />
+                    </Suspense>
+                );
             case 'run_payroll':
-                return <PayrollPage staffForPayroll={safeUsers.filter(u => u.role !== 'Student' && u.role !== 'Guardian')} adjustments={safePayrollAdjustments} onRunPayroll={onRunPayroll} campuses={safeCampuses} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollPage staffForPayroll={safeUsers.filter(u => u.role !== 'Student' && u.role !== 'Guardian')} adjustments={safePayrollAdjustments} onRunPayroll={onRunPayroll} campuses={safeCampuses} />
+                    </Suspense>
+                );
             case 'payroll_history':
-                return <PayrollManager runs={richRuns} handleGeneratePayslips={handleGeneratePayslips} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollManager runs={richRuns} handleGeneratePayslips={handleGeneratePayslips} />
+                    </Suspense>
+                );
             case 'staff_data':
-                return <StaffPayrollManager users={safeUsers} onUpdateUserPayroll={onUpdateUserPayroll} campuses={safeCampuses} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <StaffPayrollManager users={safeUsers} onUpdateUserPayroll={onUpdateUserPayroll} campuses={safeCampuses} />
+                    </Suspense>
+                );
             case 'adjustments':
-                return <PayrollAdjustmentsManager users={safeUsers} addToast={addToast} campuses={safeCampuses} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollAdjustmentsManager users={safeUsers} addToast={addToast} campuses={safeCampuses} />
+                    </Suspense>
+                );
             case 'pension':
-                return <PensionManager users={safeUsers} schoolId={safeUserProfile.school_id} addToast={addToast} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PensionManager users={safeUsers} schoolId={safeUserProfile.school_id} addToast={addToast} />
+                    </Suspense>
+                );
             case 'leave_approvals':
-                return <LeaveApprovalView 
-                    currentUser={safeUserProfile}
-                    addToast={addToast}
-                    allRequests={safeLeaveRequests}
-                    onUpdateStatus={async (requestId: number, status: LeaveRequestStatus): Promise<boolean> => {
-                        // LeaveApprovalView uses LeaveRequestStatus enum (lowercase: 'approved', 'rejected')
-                        // but the parent handler expects capitalized strings ('Approved', 'Rejected')
-                        // This conversion maintains the existing API contract
-                        const mappedStatus = status === LeaveRequestStatus.Approved ? 'Approved' : 
-                                            status === LeaveRequestStatus.Rejected ? 'Rejected' : 
-                                            null;
-                        if (!mappedStatus) {
-                            addToast('Invalid status update', 'error');
-                            return false;
-                        }
-                        return await onApproveLeaveRequest(requestId, mappedStatus);
-                    }}
-                    teams={safeTeams}
-                />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <LeaveApprovalView 
+                            currentUser={safeUserProfile}
+                            addToast={addToast}
+                            allRequests={safeLeaveRequests}
+                            onUpdateStatus={async (requestId: number, status: LeaveRequestStatus): Promise<boolean> => {
+                                // LeaveApprovalView uses LeaveRequestStatus enum (lowercase: 'approved', 'rejected')
+                                // but the parent handler expects capitalized strings ('Approved', 'Rejected')
+                                // This conversion maintains the existing API contract
+                                const mappedStatus = status === LeaveRequestStatus.Approved ? 'Approved' : 
+                                                    status === LeaveRequestStatus.Rejected ? 'Rejected' : 
+                                                    null;
+                                if (!mappedStatus) {
+                                    addToast('Invalid status update', 'error');
+                                    return false;
+                                }
+                                return await onApproveLeaveRequest(requestId, mappedStatus);
+                            }}
+                            teams={safeTeams}
+                        />
+                    </Suspense>
+                );
             case 'shifts':
-                return <ShiftManager shifts={safeTeacherShifts} users={safeUsers} onSave={onSaveShift} onDelete={onDeleteShift} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <ShiftManager shifts={safeTeacherShifts} users={safeUsers} onSave={onSaveShift} onDelete={onDeleteShift} />
+                    </Suspense>
+                );
             case 'leave_types':
-                return <LeaveTypesManager leaveTypes={safeLeaveTypes} onSave={onSaveLeaveType} onDelete={onDeleteLeaveType} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <LeaveTypesManager leaveTypes={safeLeaveTypes} onSave={onSaveLeaveType} onDelete={onDeleteLeaveType} />
+                    </Suspense>
+                );
             case 'campuses':
-                return <CampusesManager campuses={safeCampuses} onSave={onSaveCampus} onDelete={onDeleteCampus} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <CampusesManager campuses={safeCampuses} onSave={onSaveCampus} onDelete={onDeleteCampus} />
+                    </Suspense>
+                );
             case 'settings':
-                return <PayrollSettings schoolConfig={schoolConfig} onSave={onSaveSchoolConfig} />;
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollSettings schoolConfig={schoolConfig} onSave={onSaveSchoolConfig} />
+                    </Suspense>
+                );
             default:
                 return (
                     <div className="text-center py-8 text-slate-500">
