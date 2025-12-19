@@ -4752,6 +4752,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // Helper function to refresh class groups data
     const refreshClassGroups = useCallback(async () => {
+        const supabase = requireSupabaseClient();
         try {
             const { data, error } = await supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))');
             if (error) {
@@ -5017,6 +5018,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // ... (Survey handlers)
     const handleSaveSurvey = useCallback(async (surveyData: any) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return;
         const { questions, ...surveyFields } = surveyData;
         
@@ -5237,6 +5239,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // --- Score Entry Handlers ---
     const handleSaveScores = useCallback(async (scores: Partial<ScoreEntry>[]): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile || userType !== 'staff') return false;
         
         try {
@@ -5486,6 +5489,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
 
     // --- Order Handlers ---
     const handleCreateOrder = useCallback(async (items: { inventory_item_id: number; quantity: number; unit_price: number }[]) => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         
@@ -5593,6 +5597,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
     
     const handleRunPayroll = useCallback(async (staffPay: Record<string, { base_pay: string, commission: string }>) => {
+        const supabase = requireSupabaseClient();
         const items = Object.entries(staffPay).map(([userId, pay]) => ({
             user_id: userId,
             gross_amount: Number(pay.base_pay) + Number(pay.commission),
