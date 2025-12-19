@@ -112,6 +112,21 @@ If you see "column already exists", it means the migration has already been appl
 ### Error: relation does not exist
 Make sure you've run the main `database_schema.sql` file first to create all tables.
 
+### Unlock All Scores Button Not Working
+If the "Unlock All Scores" button in the Result Manager shows a loading spinner forever and never completes:
+
+1. **Verify Migration Applied**: Ensure the `20251218_add_teaching_assignments_update_policy.sql` migration has been applied to your database. This migration adds the necessary RLS (Row Level Security) policies for updating the `teaching_assignments` table.
+
+2. **Check Database Permissions**: The unlock operation requires proper permissions to update the `teaching_assignments` table. Make sure your user has the necessary permissions.
+
+3. **View SQL Editor Logs**: Check your Supabase SQL Editor or database logs for any error messages related to RLS policy violations or permission issues.
+
+**To apply the missing migration:**
+```sql
+-- Run this in your Supabase SQL Editor
+-- Find and run: supabase/migrations/20251218_add_teaching_assignments_update_policy.sql
+```
+
 ### Verifying the Fix
 
 After running the migrations, you can verify the fix by:

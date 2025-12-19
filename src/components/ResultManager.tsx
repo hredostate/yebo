@@ -309,10 +309,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setPublishingClassId(classId);
         try {
             if (onUnlockClass) {
-                const success = await onUnlockClass(classId, Number(selectedTermId));
-                if (success) {
-                    addToast(`All subjects for ${className} have been unlocked.`, 'success');
-                }
+                await onUnlockClass(classId, Number(selectedTermId));
+                // Success/error toasts are handled by useAppLogic.ts
             } else {
                 // Fallback to direct supabase call (without data refresh)
                 const { error } = await supabase
