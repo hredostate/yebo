@@ -222,17 +222,22 @@ const CoverageReportingPanel: React.FC<CoverageReportingPanelProps> = ({
                                                                         Coverage Status
                                                                     </label>
                                                                     <div className="grid grid-cols-2 gap-2">
-                                                                        {['not_started', 'Partially Covered', 'Fully Covered', 'Not Covered'].map(status => (
+                                                                        {[
+                                                                            { value: 'not_started', label: 'Not Started' },
+                                                                            { value: 'Partially Covered', label: 'Partially Covered' },
+                                                                            { value: 'Fully Covered', label: 'Fully Covered' },
+                                                                            { value: 'Not Covered', label: 'Not Covered' }
+                                                                        ].map(status => (
                                                                             <button
-                                                                                key={status}
-                                                                                onClick={() => setCoverageForm({ ...coverageForm, coverage_status: status as any })}
+                                                                                key={status.value}
+                                                                                onClick={() => setCoverageForm({ ...coverageForm, coverage_status: status.value as any })}
                                                                                 className={`py-2 px-3 rounded text-sm font-medium transition ${
-                                                                                    coverageForm.coverage_status === status
+                                                                                    coverageForm.coverage_status === status.value
                                                                                         ? 'bg-blue-600 text-white'
                                                                                         : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                                                                 }`}
                                                                             >
-                                                                                {status.replace('_', ' ')}
+                                                                                {status.label}
                                                                             </button>
                                                                         ))}
                                                                     </div>

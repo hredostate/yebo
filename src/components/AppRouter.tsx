@@ -63,6 +63,7 @@ import StudentFinancialOverview from './StudentFinancialOverview';
 import StudentSubjectChoicesView from './admin/StudentSubjectChoicesView';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
 import { resolveTimetableAccess } from '../utils/timetableAccess';
+import { supabase } from '../services/supabaseClient';
 
 // Lazy load heavy components and those used dynamically elsewhere to fix build warnings and reduce chunk size
 const TimetableView = lazy(() => import('./TimetableView'));
@@ -560,7 +561,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                teamMembers={data.teams.flatMap(t => [t.lead, ...t.members.map(m => m.profile)]).filter((p): p is any => p != null)}
                currentUser={data.userProfile}
                onSubmitReview={async (planId, review) => {
-                 const { default: { supabase } } = await import('../services/supabaseClient');
                  const { error } = await supabase
                    .from('lesson_plan_review_evidence')
                    .insert(review);

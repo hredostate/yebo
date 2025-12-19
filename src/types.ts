@@ -483,7 +483,7 @@ export interface LessonPlanReviewEvidence {
 export interface LessonPlan {
     id: number;
     school_id: number;
-    teaching_entity_id?: number; // Optional - plans now link via junction table
+    teaching_entity_id?: number; // Optional - for backward compatibility with existing plans. New plans should use the assignments array via the junction table.
     week_start_date: string;
     title: string;
     grade_level?: string;

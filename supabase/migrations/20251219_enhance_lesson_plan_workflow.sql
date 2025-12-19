@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS public.lesson_plan_review_evidence (
 -- 3. Update lesson_plans table - add subject field
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lesson_plans' AND column_name='subject') THEN
-        ALTER TABLE public.lesson_plans ADD COLUMN subject VARCHAR(255);
+        ALTER TABLE public.lesson_plans ADD COLUMN subject VARCHAR(255) DEFAULT NULL;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lesson_plans' AND column_name='grade_level') THEN
-        ALTER TABLE public.lesson_plans ADD COLUMN grade_level VARCHAR(100);
+        ALTER TABLE public.lesson_plans ADD COLUMN grade_level VARCHAR(100) DEFAULT NULL;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lesson_plans' AND column_name='sessions') THEN
-        ALTER TABLE public.lesson_plans ADD COLUMN sessions JSONB;
+        ALTER TABLE public.lesson_plans ADD COLUMN sessions JSONB DEFAULT NULL;
     END IF;
 END $$;
 
@@ -256,7 +256,7 @@ END $$;
 
 -- 12. Grant necessary permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.lesson_plan_assignments TO authenticated;
-GRANT SELECT, INSERT ON public.lesson_plan_review_evidence TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.lesson_plan_review_evidence TO authenticated;
 GRANT SELECT, INSERT ON public.student_material_access TO authenticated;
 GRANT USAGE ON SEQUENCE lesson_plan_assignments_id_seq TO authenticated;
 GRANT USAGE ON SEQUENCE lesson_plan_review_evidence_id_seq TO authenticated;

@@ -330,7 +330,7 @@ const TeamLessonPlanHub: React.FC<TeamLessonPlanHubProps> = ({
                                                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                                                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                                                 }`}>
-                                                    {review.decision.replace('_', ' ')}
+                                                    {review.decision.replaceAll('_', ' ')}
                                                 </span>
                                             </div>
                                         </div>
