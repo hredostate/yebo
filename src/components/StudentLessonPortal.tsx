@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { PublishedLessonPlan, LearningMaterial, StudentProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
-import { BookOpenIcon, DownloadIcon, EyeIcon, FileTextIcon } from './common/icons';
+import { BookOpenIcon, DownloadIcon, EyeIcon, FileTextIcon, DocumentTextIcon, FilmIcon, LinkIcon, CloseIcon } from './common/icons';
 
 interface StudentLessonPortalProps {
     studentProfile: StudentProfile;
@@ -58,12 +58,28 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
                 .from('learning_materials')
                 .select('*')
                 .eq('lesson_plan_id', lessonPlanId)
-                .eq('is_published', true);
+                .eq('is_published', true)
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
             setMaterials(data || []);
         } catch (error) {
             console.error('Error loading materials:', error);
+        }
+    };
+
+    const getMaterialIcon = (type: string) => {
+        switch (type) {
+            case 'pdf':
+            case 'document':
+                return <DocumentTextIcon className="h-5 w-5 text-blue-500" />;
+            case 'video':
+                return <FilmIcon className="h-5 w-5 text-purple-500" />;
+            case 'link':
+            case 'presentation':
+                return <LinkIcon className="h-5 w-5 text-green-500" />;
+            default:
+                return <FileTextIcon className="h-5 w-5 text-blue-500" />;
         }
     };
 
@@ -183,7 +199,7 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
                                 }}
                                 className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
-                                ✕
+                                <CloseIcon className="h-6 w-6" />
                             </button>
                         </div>
 
@@ -223,35 +239,40 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
 
                             {materials.length > 0 && (
                                 <div>
-                                    <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                                        Learning Materials
+                                    <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-3">
+                                        Learning Materials ({materials.length})
                                     </h3>
-                                    <div className="space-y-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {materials.map(material => (
                                             <div
                                                 key={material.id}
-                                                className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"
+                                                className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-750 transition"
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <FileTextIcon className="h-5 w-5 text-blue-500" />
-                                                    <div>
-                                                        <p className="font-medium text-slate-800 dark:text-white text-sm">
-                                                            {material.title}
+                                                <div className="flex-shrink-0">
+                                                    {getMaterialIcon(material.material_type)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-slate-800 dark:text-white text-sm mb-1">
+                                                        {material.title}
+                                                    </p>
+                                                    {material.description && (
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                            {material.description}
                                                         </p>
-                                                        {material.description && (
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                {material.description}
-                                                            </p>
-                                                        )}
+                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                                                            {material.material_type}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleDownloadMaterial(material)}
+                                                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                                        >
+                                                            <DownloadIcon className="h-3 w-3" />
+                                                            {material.material_type === 'link' ? 'Open' : 'Download'}
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleDownloadMaterial(material)}
-                                                    className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md"
-                                                >
-                                                    <DownloadIcon className="h-4 w-4" />
-                                                    Download
-                                                </button>
                                             </div>
                                         ))}
                                     </div>
