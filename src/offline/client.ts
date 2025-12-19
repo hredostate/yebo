@@ -78,7 +78,7 @@ export async function ensureSupabaseLoaded(): Promise<void> {
     try {
       // Dynamic import for lazy loading (Vite/Rollup handles this correctly)
       // This breaks the circular dependency by deferring the import until first use
-      _cachedSupabaseModule = await import('../services/supabaseClient.js');
+      _cachedSupabaseModule = await import('../services/supabaseClientOffline.js');
     } catch (error) {
       console.error('[Offline] Failed to load Supabase client:', error);
       throw error;
