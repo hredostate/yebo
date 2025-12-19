@@ -6,12 +6,7 @@ import { SearchIcon, BanknotesIcon, CheckCircleIcon, XCircleIcon, DownloadIcon }
 import Pagination from './common/Pagination';
 import CsvExportModal, { type CsvColumn } from './CsvExportModal';
 import { exportToCsv } from '../utils/export';
-
-const NIGERIAN_BANKS = [
-    { name: "Access Bank", code: "044" }, { name: "Guaranty Trust Bank", code: "058" },
-    { name: "First Bank of Nigeria", code: "011" }, { name: "Zenith Bank", code: "057" },
-    // ... (add full list or import)
-];
+import { NIGERIAN_BANKS } from '../constants/banks';
 
 interface PayrollPageProps {
     staffForPayroll: UserProfile[];
