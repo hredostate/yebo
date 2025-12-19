@@ -38,6 +38,7 @@ const EmergencyBroadcast: React.FC<EmergencyBroadcastProps> = ({ onSendBroadcast
 
   const sendWhatsAppToParents = async () => {
     try {
+      const supabase = requireSupabaseClient();
       // Fetch all students with parent phone numbers
       const { data: students, error } = await supabase
         .from('students')

@@ -32,6 +32,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const fetchZeroScores = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('zero_score_entries')
                 .select(`
@@ -137,6 +138,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
 
         setProcessingIds(prev => new Set(prev).add(entryId));
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('score_entries')
                 .delete()
@@ -163,6 +165,7 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const handleDeleteEntry = async (entryId: number) => {
         setProcessingIds(prev => new Set(prev).add(entryId));
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('zero_score_entries')
                 .delete()

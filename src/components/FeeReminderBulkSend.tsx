@@ -26,6 +26,7 @@ const FeeReminderBulkSend: React.FC = () => {
   const fetchStudentsWithOutstanding = async () => {
     setIsLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       // Query students with unpaid invoices
       const { data, error } = await supabase
         .from('student_invoices')
@@ -124,6 +125,7 @@ const FeeReminderBulkSend: React.FC = () => {
       return;
     }
 
+    const supabase = requireSupabaseClient();
     setIsSending(true);
     setProgress({ sent: 0, total: selectedStudents.size, errors: 0 });
 
