@@ -5,6 +5,9 @@ import Spinner from '../common/Spinner';
 import { PlusCircleIcon, TrashIcon, EditIcon, EyeIcon, SearchIcon, CloseIcon } from '../common/icons';
 import BusSeatSelector from './BusSeatSelector';
 
+const DEFAULT_SEATS_PER_ROW = 4;
+const DEFAULT_SEAT_COLUMNS = ['A', 'B', 'C', 'D'];
+
 interface TransportBusEditorProps {
   schoolId: number;
   campuses: Campus[];
@@ -241,12 +244,6 @@ export default function TransportBusEditor({
     );
   }, [buses, searchQuery]);
 
-  const getOccupiedSeatsCount = (busId: number): number => {
-    // This is a placeholder - in real use, we'd need to fetch this data
-    // For now, we'll show it as 0 since we don't have it in the bus list
-    return 0;
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -451,7 +448,7 @@ export default function TransportBusEditor({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Rows will be calculated as: {Math.ceil(formData.capacity / 4)} rows × 4 seats
+                    Rows will be calculated as: {Math.ceil(formData.capacity / DEFAULT_SEATS_PER_ROW)} rows × {DEFAULT_SEATS_PER_ROW} seats
                   </p>
                 </div>
 
@@ -602,8 +599,8 @@ export default function TransportBusEditor({
                 onSeatSelect={() => {}} // Read-only for admin view
                 occupiedSeats={seatMapSubscriptions}
                 seatLayoutConfig={{
-                  rows: Math.ceil(showSeatMapModal.capacity / 4),
-                  columns: ['A', 'B', 'C', 'D'],
+                  rows: Math.ceil(showSeatMapModal.capacity / DEFAULT_SEATS_PER_ROW),
+                  columns: DEFAULT_SEAT_COLUMNS,
                 }}
                 disabled={true} // Read-only mode
                 showOccupantInfo={true} // Show student names on hover
