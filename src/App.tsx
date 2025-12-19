@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Component } from 'react';
 import type { Session, User } from '@supabase/auth-js';
-import { supabaseError } from './services/supabaseClient';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
 import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
@@ -3153,11 +3152,8 @@ Return a JSON object with:
     }, [reports]);
 
     const handleStudentPasswordReset = useCallback(async (userId: string): Promise<string | null> => {
+        const supabase = requireSupabaseClient();
         try {
-            if (!supabase || !supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
              const { data, error } = await supabase.functions.invoke('manage-users', {
                  body: { action: 'reset_password', studentId: userId }
              });
@@ -3190,11 +3186,8 @@ Return a JSON object with:
     }, [addToast]);
 
     const handleDeleteStudentAccount = useCallback(async (userId: string): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         try {
-            if (!supabase || !supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'delete_account', studentId: userId }
             });
@@ -3231,11 +3224,8 @@ Return a JSON object with:
     }, [addToast]);
 
     const handleBulkDeleteStudentAccounts = useCallback(async (userIds: string[]): Promise<{ success: boolean; deleted: number; total: number }> => {
+        const supabase = requireSupabaseClient();
         try {
-            if (!supabase || !supabase.functions) {
-                throw new Error("Supabase client not fully initialized");
-            }
-
             console.log(`Attempting to delete ${userIds.length} student accounts`);
 
             const { data, error } = await supabase.functions.invoke('manage-users', {
@@ -6108,7 +6098,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, addToast]);
 
     const handleBulkResetStrikes = useCallback(async (): Promise<void> => {
-        if (!userProfile || !supabase) return;
+        if (!userProfile) return;
+        const supabase = requireSupabaseClient();
         try {
             // Archive all active infraction reports
             const { error: archiveError } = await supabase
@@ -6136,7 +6127,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
             console.error('Error resetting strikes:', e);
             addToast(`Error resetting strikes: ${e.message}`, 'error');
         }
-    }, [userProfile, supabase, session, addToast, logAuditAction]);
+    }, [userProfile, session, addToast, logAuditAction]);
 
     const handleLogCommunication = useCallback(async (communicationData: CommunicationLogData): Promise<boolean> => {
         if (!userProfile) return false;
