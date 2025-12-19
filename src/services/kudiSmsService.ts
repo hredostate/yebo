@@ -281,6 +281,7 @@ export async function getKudiSmsSettings(
  * Send SMS message via Kudi SMS
  */
 export async function sendSms(params: SendNotificationParams): Promise<SendResult> {
+    const supabase = requireSupabaseClient();
     const { schoolId, recipientPhone, templateName, variables } = params;
 
     try {
@@ -347,6 +348,7 @@ export async function sendSms(params: SendNotificationParams): Promise<SendResul
 export async function sendWhatsAppMessage(
     params: SendNotificationParams & { templateCode?: string }
 ): Promise<SendResult> {
+    const supabase = requireSupabaseClient();
     const { schoolId, recipientPhone, templateCode, variables, campusId } = params;
 
     try {
