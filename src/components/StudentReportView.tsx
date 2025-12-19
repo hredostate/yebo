@@ -1318,7 +1318,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                                             reportDetails.goalAnalysis.achievementRating === 'partially_met' ? 'bg-yellow-600 text-white' :
                                             'bg-red-600 text-white'
                                         }`}>
-                                            {reportDetails.goalAnalysis.achievementRating.replace('_', ' ')}
+                                            {reportDetails.goalAnalysis.achievementRating.replaceAll('_', ' ')}
                                         </span>
                                     </div>
                                     <p className="text-sm italic">{reportDetails.goalAnalysis.report}</p>

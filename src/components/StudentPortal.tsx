@@ -50,7 +50,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             // 1. Get Active Term & Enrollment to find the exact AcademicClass
             const { data: activeTerms } = await supabase.from('terms').select('id, school_id').eq('is_active', true).limit(1);
             const activeTermIdLocal = activeTerms?.[0]?.id;
-            const schoolIdLocal = activeTerms?.[0]?.school_id || studentProfile.school_id;
+            const schoolIdLocal = activeTerms?.[0]?.school_id ?? studentProfile.school_id;
             
             setActiveTermId(activeTermIdLocal || null);
             setSchoolId(schoolIdLocal || null);

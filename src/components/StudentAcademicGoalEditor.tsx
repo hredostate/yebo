@@ -110,17 +110,42 @@ const StudentAcademicGoalEditor: React.FC<StudentAcademicGoalEditorProps> = ({
 
         setSaving(true);
         try {
-            // Parse optional numeric fields
-            const parsedTargetAverage = targetAverage ? parseFloat(targetAverage) : null;
-            const parsedTargetPosition = targetPosition ? parseInt(targetPosition, 10) : null;
-
-            // Build target subjects object
-            const targetSubjectsObj: Record<string, number> = {};
-            targetSubjects.forEach(({ subject, score }) => {
-                if (subject.trim() && score) {
-                    targetSubjectsObj[subject.trim()] = parseFloat(score);
+            // Parse optional numeric fields with validation
+            let parsedTargetAverage: number | null = null;
+            if (targetAverage) {
+                const avg = parseFloat(targetAverage);
+                if (isNaN(avg) || avg < 0 || avg > 100) {
+                    addToast('Target average must be a valid number between 0 and 100', 'error');
+                    setSaving(false);
+                    return;
                 }
-            });
+                parsedTargetAverage = avg;
+            }
+
+            let parsedTargetPosition: number | null = null;
+            if (targetPosition) {
+                const pos = parseInt(targetPosition, 10);
+                if (isNaN(pos) || pos < 1) {
+                    addToast('Target position must be a valid number greater than 0', 'error');
+                    setSaving(false);
+                    return;
+                }
+                parsedTargetPosition = pos;
+            }
+
+            // Build target subjects object with validation
+            const targetSubjectsObj: Record<string, number> = {};
+            for (const { subject, score } of targetSubjects) {
+                if (subject.trim() && score) {
+                    const numScore = parseFloat(score);
+                    if (isNaN(numScore) || numScore < 0 || numScore > 100) {
+                        addToast(`Invalid score for ${subject}. Must be between 0 and 100.`, 'error');
+                        setSaving(false);
+                        return;
+                    }
+                    targetSubjectsObj[subject.trim()] = numScore;
+                }
+            }
 
             const goalData = {
                 student_id: studentId,

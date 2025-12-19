@@ -7,7 +7,7 @@ interface GoalAnalysisResult {
 }
 
 /**
- * Generates an AI-powered analysis of a student's academic goal achievement
+ * Generates a rule-based analysis of a student's academic goal achievement
  * @param studentId - The student's ID
  * @param termId - The term ID
  * @returns Analysis report and achievement rating
