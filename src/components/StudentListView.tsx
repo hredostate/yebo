@@ -632,6 +632,77 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     }
   };
 
+  // Header variations for flexible CSV matching (defined as constants to avoid recreation)
+  const CSV_HEADER_VARIATIONS = {
+    name: ['Name', 'name', 'Student Name', 'student_name', 'StudentName', 'Full Name', 'full_name', 'STUDENT NAME', 'NAME'],
+    admissionNumber: ['Admission Number', 'admission_number', 'Admission No', 'admission_no', 'AdmissionNumber', 'Adm No', 'ID', 'Student ID', 'student_id', 'ADMISSION NUMBER'],
+    email: ['Email', 'email', 'Email/Username', 'Username', 'username', 'EMAIL', 'E-mail', 'e-mail', 'Student Email'],
+    className: ['Class', 'class', 'Class Name', 'class_name', 'ClassName', 'Grade', 'grade', 'CLASS', 'Form'],
+    arm: ['Arm', 'arm', 'Arm Name', 'arm_name', 'Section', 'section', 'Stream', 'stream', 'ARM'],
+    dob: ['Date of Birth', 'date_of_birth', 'DOB', 'dob', 'Birth Date', 'birth_date', 'Birthday', 'DATE OF BIRTH', 'Date Of Birth'],
+    address: ['Address', 'address', 'Home Address', 'home_address', 'ADDRESS', 'Residential Address'],
+    status: ['Status', 'status', 'Student Status', 'STATUS'],
+    parentPhone1: ['Parent Phone 1', 'parent_phone_number_1', 'Parent Phone', 'parent_phone', 'Guardian Phone', 'Phone 1', 'phone_1', 'Phone', 'Contact', 'PARENT PHONE 1'],
+    parentPhone2: ['Parent Phone 2', 'parent_phone_number_2', 'Phone 2', 'phone_2', 'Alt Phone', 'Alternative Phone', 'PARENT PHONE 2'],
+    guardianContact: ['Guardian Contact', 'guardian_phone', 'Guardian Phone', 'guardian_contact', 'Emergency Contact', 'GUARDIAN CONTACT'],
+    fatherName: ['Father Name', 'father_name', 'Father', 'Dad Name', 'FATHER NAME', "Father's Name"],
+    motherName: ['Mother Name', 'mother_name', 'Mother', 'Mom Name', 'MOTHER NAME', "Mother's Name"]
+  };
+
+  // Helper function for flexible CSV header matching
+  const getColumnValue = (row: Record<string, string>, variations: string[]): string => {
+    for (const variation of variations) {
+      // Try exact match first
+      if (row[variation] !== undefined) return row[variation];
+      // Try case-insensitive match
+      const key = Object.keys(row).find(k => k.toLowerCase().trim() === variation.toLowerCase().trim());
+      if (key && row[key] !== undefined) return row[key];
+    }
+    return '';
+  };
+
+  // Download CSV template
+  const downloadTemplate = () => {
+    const headers = [
+      'Name',
+      'Admission Number',
+      'Email',
+      'Class',
+      'Arm',
+      'Date of Birth',
+      'Address',
+      'Status',
+      'Parent Phone 1',
+      'Parent Phone 2',
+      'Father Name',
+      'Mother Name'
+    ];
+    const sampleRow = [
+      'John Doe',
+      'ADM001',
+      'john.doe@email.com',
+      'JSS 1',
+      'A',
+      '2010-05-15',
+      '123 Main Street',
+      'Active',
+      '08012345678',
+      '08087654321',
+      'Mr. Doe',
+      'Mrs. Doe'
+    ];
+    const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'student_upload_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
   const handleCsvUpload = async () => {
     if (!uploadFile || !addToast) return;
 
@@ -643,6 +714,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       
       if (parsedCsv.rows.length === 0) {
         addToast('CSV file is empty or invalid', 'error');
+        setIsUploading(false);
         return;
       }
 
@@ -654,8 +726,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         const row = parsedCsv.rows[i];
         const rowNum = i + 2; // +2 because: +1 for header, +1 for 0-based index
 
-        // Required fields
-        const name = row['Name'] || row['name'];
+        // Required field: Name
+        const name = getColumnValue(row, CSV_HEADER_VARIATIONS.name);
         if (!name) {
           errors.push(`Row ${rowNum}: Name is required`);
           continue;
@@ -665,7 +737,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         let class_id = null;
         let arm_id = null;
         
-        const className = row['Class'] || row['class'];
+        const className = getColumnValue(row, CSV_HEADER_VARIATIONS.className);
         if (className) {
           const foundClass = allClasses.find(c => c.name.toLowerCase() === className.toLowerCase());
           if (foundClass) {
@@ -675,8 +747,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           }
         }
 
-        const armName = row['Arm'] || row['arm'];
-        if (armName && class_id) {
+        const armName = getColumnValue(row, CSV_HEADER_VARIATIONS.arm);
+        if (armName) {
           const foundArm = allArms.find(a => a.name.toLowerCase() === armName.toLowerCase());
           if (foundArm) {
             arm_id = foundArm.id;
@@ -685,21 +757,33 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           }
         }
 
+        // Extract all fields using flexible matching
+        const admissionNumber = getColumnValue(row, CSV_HEADER_VARIATIONS.admissionNumber);
+        const email = getColumnValue(row, CSV_HEADER_VARIATIONS.email);
+        const dateOfBirth = getColumnValue(row, CSV_HEADER_VARIATIONS.dob);
+        const address = getColumnValue(row, CSV_HEADER_VARIATIONS.address);
+        const status = getColumnValue(row, CSV_HEADER_VARIATIONS.status) || 'Active';
+        const parentPhone1 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone1);
+        const parentPhone2 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone2);
+        const guardianContact = getColumnValue(row, CSV_HEADER_VARIATIONS.guardianContact);
+        const fatherName = getColumnValue(row, CSV_HEADER_VARIATIONS.fatherName);
+        const motherName = getColumnValue(row, CSV_HEADER_VARIATIONS.motherName);
+
         const studentData: any = {
           name,
-          admission_number: row['Admission Number'] || row['admission_number'] || '',
-          email: row['Email/Username'] || row['Email'] || row['email'] || '',
-          date_of_birth: row['Date of Birth'] || row['date_of_birth'] || '',
-          address: row['Address'] || row['address'] || '',
-          status: row['Status'] || row['status'] || 'Active',
+          admission_number: admissionNumber,
+          email: email,
+          date_of_birth: dateOfBirth,
+          address: address,
+          status: status,
           class_id,
           arm_id,
-          parent_phone_number_1: row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
-          parent_phone_number_2: row['Parent Phone 2'] || row['parent_phone_number_2'] || '',
-          father_name: row['Father Name'] || row['father_name'] || '',
-          mother_name: row['Mother Name'] || row['mother_name'] || '',
-          // Guardian Contact can map to parent_phone_number_1 if that field is empty
-          guardian_phone: row['Guardian Contact'] || row['guardian_phone'] || row['Parent Phone 1'] || row['parent_phone_number_1'] || '',
+          parent_phone_number_1: parentPhone1,
+          parent_phone_number_2: parentPhone2,
+          father_name: fatherName,
+          mother_name: motherName,
+          // Use guardian contact if provided, otherwise fall back to parent phone 1
+          guardian_phone: guardianContact || parentPhone1,
         };
 
         studentsToImport.push(studentData);
@@ -715,25 +799,24 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       let successCount = 0;
       let failCount = 0;
 
+      // Get school_id once before the loop
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
+
       for (const studentData of studentsToImport) {
         try {
-          // Get the school_id from the first student in the list or from supabase user
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            throw new Error('Not authenticated');
-          }
-
-          // Get school_id from user profile
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('school_id')
-            .eq('id', user.id)
-            .single();
-
-          if (!profile) {
-            throw new Error('User profile not found');
-          }
-
           const success = await onAddStudent({ ...studentData, school_id: profile.school_id });
           if (success) {
             successCount++;
@@ -1318,24 +1401,43 @@ const StudentListView: React.FC<StudentListViewProps> = ({
             </div>
 
             <div className="mb-6">
-              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                Upload a CSV file containing student information. The file should include columns for:
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 mb-4">
-                <div>• Name (required)</div>
-                <div>• Admission Number</div>
-                <div>• Email/Username</div>
-                <div>• Class</div>
-                <div>• Arm</div>
-                <div>• Date of Birth</div>
-                <div>• Address</div>
-                <div>• Status</div>
-                <div>• Parent Phone 1</div>
-                <div>• Parent Phone 2</div>
-                <div>• Guardian Contact</div>
-                <div>• Father Name</div>
-                <div>• Mother Name</div>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                    Upload a CSV file containing student information. Not sure about the format?
+                  </p>
+                  <button
+                    onClick={downloadTemplate}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <DownloadIcon className="w-4 h-4" />
+                    Download Template CSV
+                  </button>
+                </div>
               </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">Supported Columns:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-400">
+                  <div>• Name (required)</div>
+                  <div>• Admission Number</div>
+                  <div>• Email/Username</div>
+                  <div>• Class</div>
+                  <div>• Arm</div>
+                  <div>• Date of Birth</div>
+                  <div>• Address</div>
+                  <div>• Status</div>
+                  <div>• Parent Phone 1</div>
+                  <div>• Parent Phone 2</div>
+                  <div>• Guardian Contact</div>
+                  <div>• Father Name</div>
+                  <div>• Mother Name</div>
+                </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                  ℹ️ Flexible headers: The system accepts various column name formats (e.g., "Student Name", "student_name", "NAME")
+                </p>
+              </div>
+              
               <p className="text-xs text-amber-600 dark:text-amber-400">
                 ⚠️ Note: Class and Arm names must match existing values in the system
               </p>
