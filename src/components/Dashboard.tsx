@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, lazy } from 'react';
+import React, { useState, useMemo, useEffect, lazy } from 'react';
 import type { UserProfile, Task, Announcement, Alert, AtRiskStudent, PositiveBehaviorRecord, StaffAward, TeamPulse, TeamFeedback, Team, Student, StudentInterventionPlan, InventoryItem, ReportRecord, AtRiskTeacher, SocialMediaAnalytics, PolicyInquiry, CurriculumReport, SuggestedTask, SIPLog, TeacherCheckin, Campus, TeacherMood } from '../types';
 import { VIEWS } from '../constants';
 import { ALL_WIDGETS } from '../dashboardWidgets';
@@ -25,10 +25,47 @@ import CustomizeDashboardModal from './CustomizeDashboardModal';
 import { CogIcon } from './common/icons';
 import DailyBriefing from './DailyBriefing';
 import SmsWalletCard from './widgets/SmsWalletCard';
-import { VIEWS } from '../constants';
 import CheckinWidget from './widgets/CheckinWidget';
+import Spinner from './common/Spinner';
 
 const TaskSuggestionsWidget = lazy(() => import('./widgets/TaskSuggestionsWidget'));
+
+// Error boundary for individual widgets
+class WidgetErrorBoundary extends React.Component<
+    {children: React.ReactNode, widgetId: string},
+    {hasError: boolean, error: Error | null}
+> {
+    constructor(props: {children: React.ReactNode, widgetId: string}) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error(`[Dashboard] Widget ${this.props.widgetId} error:`, error, errorInfo);
+    }
+    
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-4 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <p className="font-semibold">Widget Error</p>
+                    <p className="text-sm">Failed to load: {this.props.widgetId}</p>
+                </div>
+            );
+        }
+        
+        return (
+            <React.Suspense fallback={<div className="p-4 text-center"><Spinner /></div>}>
+                {this.props.children}
+            </React.Suspense>
+        );
+    }
+}
+
 
 interface DashboardProps {
   userProfile: UserProfile;
@@ -127,7 +164,36 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return config;
     }, [userProfile.dashboard_config, userProfile.role, props.userPermissions]);
 
-    const [widgetConfig, setWidgetConfig] = useState<string[]>(userWidgetConfig);
+    // Debug logging to help diagnose blank dashboard issues
+    useEffect(() => {
+        console.log('[Dashboard] Widget config:', {
+            userConfig: userProfile.dashboard_config,
+            computedConfig: userWidgetConfig,
+            userPermissions: props.userPermissions?.length || 0,
+        });
+    }, [userWidgetConfig, userProfile.dashboard_config, props.userPermissions]);
+
+    // Ensure we always have some widgets - safety fallback
+    const safeWidgetConfig = useMemo(() => {
+        if (userWidgetConfig.length === 0) {
+            console.warn('[Dashboard] No widgets in config, using fallback');
+            return ['my-tasks', 'announcements', 'alerts'];
+        }
+        return userWidgetConfig;
+    }, [userWidgetConfig]);
+
+    const [widgetConfig, setWidgetConfig] = useState<string[]>(safeWidgetConfig);
+    
+    // Sync widgetConfig when safe config changes (e.g., after profile loads)
+    // Only update if the arrays are actually different to prevent unnecessary re-renders
+    useEffect(() => {
+        const configsAreDifferent = safeWidgetConfig.length !== widgetConfig.length ||
+            safeWidgetConfig.some((widget, idx) => widget !== widgetConfig[idx]);
+        
+        if (configsAreDifferent) {
+            setWidgetConfig(safeWidgetConfig);
+        }
+    }, [safeWidgetConfig, widgetConfig]);
 
     const availableWidgets = useMemo(() => {
         const permissions = new Set(props.userPermissions);
@@ -148,52 +214,63 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     };
 
     const renderWidget = (widgetId: string) => {
-        switch (widgetId) {
-            case 'my-tasks':
-                return <MyTasksWidget tasks={props.tasks} userProfile={userProfile} onUpdateStatus={props.onUpdateTaskStatus} />;
-            case 'daily-report-status':
-                return <DailyReportStatusWidget userProfile={userProfile} reports={props.reports} onNavigate={onNavigate} />;
-            case 'daily-briefing':
-                return <DailyBriefing onProcessDailyDigest={props.onProcessDailyDigest} />;
-            case 'announcements':
-                return <AnnouncementsWidget announcements={props.announcements} userProfile={userProfile} onAddAnnouncement={props.onAddAnnouncement} userPermissions={props.userPermissions} />;
-            case 'alerts':
-                return <AlertsWidget 
-                    alerts={props.alerts} 
-                    onNavigate={props.onNavigate}
-                    onViewStudent={props.onViewStudent}
-                    students={props.students}
-                />;
-            case 'at-risk-students':
-                return <AtRiskStudentsWidget atRiskStudents={props.atRiskStudents} onViewStudent={onViewStudent} />;
-            case 'positive-trends':
-                return <PositiveTrendsWidget positiveRecords={props.positiveRecords} />;
-            case 'kudos':
-                return <KudosWidget kudos={props.staffAwards} onGenerateStaffAwards={props.onGenerateStaffAwards} userProfile={userProfile} userPermissions={props.userPermissions} />;
-            case 'team-pulse':
-                return <TeamPulseSummary teamPulse={props.teamPulse} userProfile={userProfile} teams={props.teams} teamFeedback={props.teamFeedback} onSaveTeamFeedback={props.onSaveTeamFeedback} />;
-            case 'counselor-caseload':
-                return <CounselorCaseloadWidget atRiskStudents={props.atRiskStudents} interventionPlans={props.interventionPlans} onViewIntervention={onViewIntervention} sipLogs={sipLogs} />;
-            case 'inventory':
-                return <InventoryWidget inventory={props.inventory} userProfile={userProfile} />;
-            case 'maintenance-schedule':
-                return <PreventativeMaintenanceWidget userProfile={userProfile} tasks={props.tasks} users={props.users} />;
-            case 'student-records':
-                return <StudentRecordsWidget students={props.students} onViewStudent={onViewStudent} />;
-            case 'sip-status':
-                return <SIPWidget interventionPlans={props.interventionPlans} onNavigate={onNavigate} />;
-            case 'at-risk-teachers':
-                return <AtRiskTeachersWidget atRiskTeachers={props.atRiskTeachers} onAnalyzeTeacherRisk={props.onAnalyzeTeacherRisk} />;
-            case 'social-media':
-                return <SocialMediaSummaryWidget socialMediaAnalytics={props.socialMediaAnalytics} onNavigate={onNavigate} />;
-            case 'policy-inquiry':
-                return <PolicyInquiryWidget inquiries={props.policyInquiries} onGenerate={props.onGeneratePolicyInquiries} />;
-            case 'curriculum-report':
-                return <CurriculumReportWidget report={props.curriculumReport} onGenerate={props.onGenerateCurriculumReport} />;
-            case 'sms-wallet':
-                return <SmsWalletCard />;
-            default:
-                return null;
+        try {
+            switch (widgetId) {
+                case 'my-tasks':
+                    return <MyTasksWidget tasks={props.tasks || []} userProfile={userProfile} onUpdateStatus={props.onUpdateTaskStatus} />;
+                case 'daily-report-status':
+                    return <DailyReportStatusWidget userProfile={userProfile} reports={props.reports || []} onNavigate={onNavigate} />;
+                case 'daily-briefing':
+                    return <DailyBriefing onProcessDailyDigest={props.onProcessDailyDigest} />;
+                case 'announcements':
+                    return <AnnouncementsWidget announcements={props.announcements || []} userProfile={userProfile} onAddAnnouncement={props.onAddAnnouncement} userPermissions={props.userPermissions || []} />;
+                case 'alerts':
+                    return <AlertsWidget 
+                        alerts={props.alerts || []} 
+                        onNavigate={props.onNavigate}
+                        onViewStudent={props.onViewStudent}
+                        students={props.students || []}
+                    />;
+                case 'at-risk-students':
+                    return <AtRiskStudentsWidget atRiskStudents={props.atRiskStudents || []} onViewStudent={onViewStudent} />;
+                case 'positive-trends':
+                    return <PositiveTrendsWidget positiveRecords={props.positiveRecords || []} />;
+                case 'kudos':
+                    return <KudosWidget kudos={props.staffAwards || []} onGenerateStaffAwards={props.onGenerateStaffAwards} userProfile={userProfile} userPermissions={props.userPermissions || []} />;
+                case 'team-pulse':
+                    return <TeamPulseSummary teamPulse={props.teamPulse || []} userProfile={userProfile} teams={props.teams || []} teamFeedback={props.teamFeedback || []} onSaveTeamFeedback={props.onSaveTeamFeedback} />;
+                case 'counselor-caseload':
+                    return <CounselorCaseloadWidget atRiskStudents={props.atRiskStudents || []} interventionPlans={props.interventionPlans || []} onViewIntervention={onViewIntervention} sipLogs={sipLogs || []} />;
+                case 'inventory':
+                    return <InventoryWidget inventory={props.inventory || []} userProfile={userProfile} />;
+                case 'maintenance-schedule':
+                    return <PreventativeMaintenanceWidget userProfile={userProfile} tasks={props.tasks || []} users={props.users || []} />;
+                case 'student-records':
+                    return <StudentRecordsWidget students={props.students || []} onViewStudent={onViewStudent} />;
+                case 'sip-status':
+                    return <SIPWidget interventionPlans={props.interventionPlans || []} onNavigate={onNavigate} />;
+                case 'at-risk-teachers':
+                    return <AtRiskTeachersWidget atRiskTeachers={props.atRiskTeachers || []} onAnalyzeTeacherRisk={props.onAnalyzeTeacherRisk} />;
+                case 'social-media':
+                    return <SocialMediaSummaryWidget socialMediaAnalytics={props.socialMediaAnalytics || []} onNavigate={onNavigate} />;
+                case 'policy-inquiry':
+                    return <PolicyInquiryWidget inquiries={props.policyInquiries || []} onGenerate={props.onGeneratePolicyInquiries} />;
+                case 'curriculum-report':
+                    return <CurriculumReportWidget report={props.curriculumReport} onGenerate={props.onGenerateCurriculumReport} />;
+                case 'sms-wallet':
+                    return <SmsWalletCard />;
+                default:
+                    console.warn(`[Dashboard] Unknown widget ID: ${widgetId}`);
+                    return null;
+            }
+        } catch (error) {
+            console.error(`[Dashboard] Error rendering widget ${widgetId}:`, error);
+            return (
+                <div className="p-4 text-red-500 text-center bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <p className="font-semibold">Error loading widget</p>
+                    <p className="text-sm">{widgetId}</p>
+                </div>
+            );
         }
     };
     
@@ -219,12 +296,26 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {widgetsInThisSection.map(widgetId => (
                          <div key={widgetId} className="glass-panel rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.01] flex flex-col h-full">
-                            {renderWidget(widgetId)}
+                            <WidgetErrorBoundary widgetId={widgetId}>
+                                {renderWidget(widgetId)}
+                            </WidgetErrorBoundary>
                          </div>
                     ))}
                 </div>
             </div>
         )
+    }
+
+    // Check if data is still loading
+    const isDataLoading = !userProfile || props.userPermissions == null;
+
+    if (isDataLoading) {
+        return (
+            <div className="flex flex-col justify-center items-center h-64">
+                <Spinner size="lg" />
+                <p className="ml-4 text-slate-600 dark:text-slate-300 mt-4">Loading dashboard...</p>
+            </div>
+        );
     }
 
     return (
@@ -298,11 +389,26 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             {renderSection("Operational Tools", categories["Operational Tools"])}
             
             {displayedWidgets.length === 0 && (
-                <div className="col-span-full text-center py-20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <p className="text-slate-500 text-lg">Your dashboard is empty!</p>
-                    <button onClick={() => setIsCustomizeModalOpen(true)} className="text-blue-600 font-semibold hover:underline mt-2">
-                        Customize your dashboard to add widgets.
+                <div className="col-span-full text-center py-20 rounded-2xl border-2 border-dashed border-orange-300 dark:border-orange-700 bg-orange-50/50 dark:bg-orange-900/20">
+                    <div className="text-4xl mb-4">📊</div>
+                    <p className="text-slate-700 dark:text-slate-300 text-lg font-semibold">No widgets configured</p>
+                    <p className="text-slate-500 text-sm mt-2">
+                        Your dashboard is empty. This might be due to:
+                    </p>
+                    <ul className="text-slate-500 text-sm mt-2 list-disc list-inside">
+                        <li>No dashboard configuration saved</li>
+                        <li>Missing permissions for available widgets</li>
+                    </ul>
+                    <button 
+                        onClick={() => setIsCustomizeModalOpen(true)} 
+                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    >
+                        Customize Dashboard
                     </button>
+                    <p className="text-xs text-slate-400 mt-4">
+                        Debug: Permissions count: {props.userPermissions?.length || 0}, 
+                        Available widgets: {availableWidgets.length}
+                    </p>
                 </div>
             )}
             
