@@ -391,6 +391,7 @@ export const useAppLogic = () => {
   // Roles
   const handleSaveRole = useCallback(async (roleData: RoleDetails) => {
        if(!userProfile || !('school_id' in userProfile)) return;
+       const supabase = requireSupabaseClient();
        const { id, ...rest } = roleData;
        let error;
        if (id && id > 0) {
@@ -403,6 +404,7 @@ export const useAppLogic = () => {
   }, [userProfile, addToast, fetchData]);
 
   const handleUpdateRoleAssignments = useCallback(async (roleId: number, userIds: string[]) => {
+        const supabase = requireSupabaseClient();
         await supabase.from('user_role_assignments').delete().eq('role_id', roleId);
         if (userIds.length > 0) {
             await supabase.from('user_role_assignments').insert(userIds.map(uid => ({ role_id: roleId, user_id: uid, school_id: userProfile?.school_id })));
@@ -418,6 +420,7 @@ export const useAppLogic = () => {
 
   const handleDeactivateUser = useCallback(async (userId: string, isActive: boolean) => {
       if (!isActive && window.confirm("Deactivate user?")) {
+          const supabase = requireSupabaseClient();
           const { error } = await supabase.from('user_profiles').delete().eq('id', userId);
           if (error) addToast(error.message, 'error');
           else { addToast('User deactivated', 'success'); fetchData(); }
@@ -425,6 +428,7 @@ export const useAppLogic = () => {
   }, [addToast, fetchData]);
 
   const handleUpdateUserCampus = useCallback(async (userId: string, campusId: number | null) => {
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('user_profiles').update({ campus_id: campusId }).eq('id', userId);
       if (error) addToast(error.message, 'error');
       else { addToast('Campus updated', 'success'); fetchData(); }
@@ -433,6 +437,7 @@ export const useAppLogic = () => {
   // Teams
   const handleCreateTeam = useCallback(async (teamData: any) => {
       if(!userProfile || !('school_id' in userProfile)) return null;
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase.from('teams').insert({ ...teamData, school_id: userProfile.school_id }).select().single();
       if (error) { addToast(error.message, 'error'); return null; }
       addToast('Team created', 'success');
@@ -441,6 +446,7 @@ export const useAppLogic = () => {
   }, [userProfile, addToast, fetchData]);
 
   const handleUpdateTeam = useCallback(async (teamId: number, teamData: any) => {
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('teams').update(teamData).eq('id', teamId);
       if (error) { addToast(error.message, 'error'); return false; }
       addToast('Team updated', 'success');
@@ -449,6 +455,7 @@ export const useAppLogic = () => {
   }, [addToast, fetchData]);
 
   const handleDeleteTeam = useCallback(async (teamId: number) => {
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('teams').delete().eq('id', teamId);
       if (error) { addToast(error.message, 'error'); return false; }
       addToast('Team deleted', 'success');
@@ -457,6 +464,7 @@ export const useAppLogic = () => {
   }, [addToast, fetchData]);
 
   const handleUpdateTeamMembers = useCallback(async (teamId: number, memberIds: string[]) => {
+       const supabase = requireSupabaseClient();
        await supabase.from('team_assignments').delete().eq('team_id', teamId);
        if (memberIds.length > 0) {
            await supabase.from('team_assignments').insert(memberIds.map(uid => ({ team_id: teamId, user_id: uid })));
@@ -468,18 +476,21 @@ export const useAppLogic = () => {
   // Calendar
   const handleSaveCalendarEvent = useCallback(async (event: any) => {
       if(!userProfile || !('school_id' in userProfile)) return;
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('calendar_events').insert({ ...event, school_id: userProfile.school_id, created_by: userProfile.id });
       if (error) addToast(error.message, 'error');
       else { addToast('Event saved', 'success'); fetchData(); }
   }, [userProfile, addToast, fetchData]);
 
   const handleUpdateCalendarEvent = useCallback(async (eventId: number, data: any) => {
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('calendar_events').update(data).eq('id', eventId);
       if (error) addToast(error.message, 'error');
       else { addToast('Event updated', 'success'); fetchData(); }
   }, [addToast, fetchData]);
 
   const handleDeleteCalendarEvent = useCallback(async (eventId: number) => {
+       const supabase = requireSupabaseClient();
        const { error } = await supabase.from('calendar_events').delete().eq('id', eventId);
        if (error) addToast(error.message, 'error');
        else { addToast('Event deleted', 'success'); fetchData(); }
@@ -537,6 +548,7 @@ export const useAppLogic = () => {
 
   const handleBulkCreateStudentAccounts = useCallback(async (studentIds: number[]) => {
       try {
+          const supabase = requireSupabaseClient();
           const { data, error } = await supabase.functions.invoke('manage-users', {
               body: { action: 'bulk_create_for_existing', studentIds }
           });
@@ -552,6 +564,7 @@ export const useAppLogic = () => {
 
   const handleResetStudentStrikes = useCallback(async () => {
       // Logic: Archive all 'Infraction' reports
+      const supabase = requireSupabaseClient();
       const { error } = await supabase.from('reports').update({ archived: true }).eq('report_type', 'Teacher Infraction'); // Assuming this maps to strike
       if (error) addToast(error.message, 'error');
       else { addToast('Strikes reset (reports archived)', 'success'); fetchData(); }
@@ -560,6 +573,7 @@ export const useAppLogic = () => {
   // Reports
   const handleAddReport = useCallback(async (data: any) => {
       if (!userProfile || !('school_id' in userProfile)) return;
+      const supabase = requireSupabaseClient();
       
       let imageUrl = null;
       if (data.image_data) {
@@ -619,6 +633,7 @@ export const useAppLogic = () => {
   
   // Payroll
   const handleRunPayroll = useCallback(async (staffPay: any) => {
+      const supabase = requireSupabaseClient();
       const items = Object.entries(staffPay).map(([userId, pay]: any) => ({
           user_id: userId,
           gross_amount: Number(pay.base_pay) + Number(pay.commission),
@@ -635,6 +650,7 @@ export const useAppLogic = () => {
   }, [payrollAdjustments, addToast, fetchData]);
   
   const handleUpdateUserPayroll = useCallback(async (userId: string, data: any) => {
+       const supabase = requireSupabaseClient();
        const { error } = await supabase.from('user_profiles').update(data).eq('id', userId);
        if (error) addToast(error.message, 'error');
        else { addToast('Payroll details updated', 'success'); fetchData(); }
