@@ -25,7 +25,6 @@ import CustomizeDashboardModal from './CustomizeDashboardModal';
 import { CogIcon } from './common/icons';
 import DailyBriefing from './DailyBriefing';
 import SmsWalletCard from './widgets/SmsWalletCard';
-import { VIEWS } from '../constants';
 import CheckinWidget from './widgets/CheckinWidget';
 import Spinner from './common/Spinner';
 
@@ -185,10 +184,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
     const [widgetConfig, setWidgetConfig] = useState<string[]>(safeWidgetConfig);
     
-    // Sync widgetConfig when user profile changes (but not when manually customized)
+    // Sync widgetConfig when safe config changes (e.g., after profile loads)
+    // Only update if the arrays are actually different to prevent unnecessary re-renders
     useEffect(() => {
-        setWidgetConfig(safeWidgetConfig);
-    }, [safeWidgetConfig]);
+        const configsAreDifferent = safeWidgetConfig.length !== widgetConfig.length ||
+            safeWidgetConfig.some((widget, idx) => widget !== widgetConfig[idx]);
+        
+        if (configsAreDifferent) {
+            setWidgetConfig(safeWidgetConfig);
+        }
+    }, [safeWidgetConfig, widgetConfig]);
 
     const availableWidgets = useMemo(() => {
         const permissions = new Set(props.userPermissions);
@@ -302,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
 
     // Check if data is still loading
-    const isDataLoading = !userProfile || props.userPermissions === undefined;
+    const isDataLoading = !userProfile || props.userPermissions == null;
 
     if (isDataLoading) {
         return (
