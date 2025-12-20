@@ -15,6 +15,8 @@ import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 import TeacherCommentModal from './TeacherCommentModal';
+import TeacherCommentEditor from './TeacherCommentEditor';
+import AICommentToggle from './common/AICommentToggle';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -88,6 +90,24 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
+    
+    // State for AI comment toggle - persisted in localStorage
+    const [useAIComments, setUseAIComments] = useState<boolean>(() => {
+        const saved = localStorage.getItem('yebo_ai_comments_enabled');
+        return saved !== 'false'; // Default to true (AI mode) for backward compatibility
+    });
+    
+    // Persist AI toggle state to localStorage when it changes
+    const handleAIToggleChange = (enabled: boolean) => {
+        setUseAIComments(enabled);
+        localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
+        addToast(
+            enabled 
+                ? 'Switched to AI mode - comments will use AI service' 
+                : 'Switched to Offline mode - comments will use offline bank', 
+            'info'
+        );
+    };
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -716,7 +736,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!selectedTermId) return;
 
         setIsGeneratingComments(9998); // Using a dummy ID for loading state
-        addToast(`Generating teacher comments ${useAI ? 'with AI' : 'using rule-based approach'}...`, 'info');
+        const modeText = useAI ? 'with AI' : 'using offline comment bank';
+        addToast(`Generating teacher comments ${modeText}...`, 'info');
 
         try {
             const supabase = requireSupabaseClient();
@@ -752,9 +773,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     // Get class size for position context
                     const classSize = studentsInClass.length;
 
-                    // Generate comment
+                    // Generate comment based on toggle state
                     let comment: string;
                     if (useAI) {
+                        const { generateTeacherComment } = await import('../services/reportGenerator');
                         comment = await generateTeacherComment(
                             student.name,
                             report.average_score || 0,
@@ -799,7 +821,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             }
 
             if (errorCount === 0) {
-                addToast(`Successfully generated ${successCount} teacher comment(s)!`, 'success');
+                addToast(`Successfully generated ${successCount} teacher comment(s) using ${modeText}!`, 'success');
             } else {
                 addToast(`Generated ${successCount} comment(s). ${errorCount} failed.`, 'warning');
             }

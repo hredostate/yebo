@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Student, StudentTermReport } from '../types';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, WandIcon } from './common/icons';
+import AICommentToggle from './common/AICommentToggle';
 
 interface TeacherCommentEditorProps {
   students: Student[];
@@ -38,6 +39,18 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
   const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // State for AI comment toggle - persisted in localStorage
+  const [useAIComments, setUseAIComments] = useState<boolean>(() => {
+    const saved = localStorage.getItem('yebo_ai_comments_enabled');
+    return saved !== 'false'; // Default to true (AI mode)
+  });
+  
+  // Persist AI toggle state to localStorage when it changes
+  const handleAIToggleChange = (enabled: boolean) => {
+    setUseAIComments(enabled);
+    localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
+  };
 
   // Get students with their reports
   const studentsWithReports = students.map(student => {
@@ -128,12 +141,12 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
     }
   };
 
-  const handleGenerateComments = async (useAI: boolean) => {
+  const handleGenerateComments = async () => {
     if (!onGenerateComments) return;
 
     setIsGenerating(true);
     try {
-      await onGenerateComments(classId, termId, useAI);
+      await onGenerateComments(classId, termId, useAIComments);
     } finally {
       setIsGenerating(false);
     }
@@ -161,7 +174,7 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
             </button>
           </div>
 
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             {/* Search */}
             <input
               type="text"
@@ -171,26 +184,26 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
               className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
             />
 
-            {/* Generate Buttons */}
+            {/* AI Comment Toggle */}
             {onGenerateComments && (
-              <>
-                <button
-                  onClick={() => handleGenerateComments(false)}
-                  disabled={isGenerating}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                >
-                  {isGenerating ? <Spinner size="sm" /> : <WandIcon className="w-4 h-4" />}
-                  Generate (Rule-Based)
-                </button>
-                <button
-                  onClick={() => handleGenerateComments(true)}
-                  disabled={isGenerating}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {isGenerating ? <Spinner size="sm" /> : <WandIcon className="w-4 h-4" />}
-                  Generate (AI)
-                </button>
-              </>
+              <AICommentToggle
+                enabled={useAIComments}
+                onChange={handleAIToggleChange}
+                disabled={isGenerating}
+                showLabels={true}
+              />
+            )}
+
+            {/* Generate Button */}
+            {onGenerateComments && (
+              <button
+                onClick={handleGenerateComments}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isGenerating ? <Spinner size="sm" /> : <WandIcon className="w-4 h-4" />}
+                Generate Comments
+              </button>
             )}
 
             {/* Save All */}
