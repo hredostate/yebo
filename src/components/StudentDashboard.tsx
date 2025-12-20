@@ -52,6 +52,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     try {
       setIsLoading(true);
 
+      const supabase = requireSupabaseClient();
+
       // Fetch student data to get reward points
       const { data: studentData } = await supabase
         .from('students')

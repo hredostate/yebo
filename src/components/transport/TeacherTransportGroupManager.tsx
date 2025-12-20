@@ -51,6 +51,7 @@ export default function TeacherTransportGroupManager({
   const loadGroups = async () => {
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_class_groups')
         .select('*, route:transport_routes(*), term:terms(*)')
@@ -70,6 +71,7 @@ export default function TeacherTransportGroupManager({
 
   const loadRoutes = async () => {
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_routes')
         .select('*')
@@ -86,6 +88,7 @@ export default function TeacherTransportGroupManager({
 
   const loadGroupMembers = async (groupId: number) => {
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_class_group_members')
         .select(`
@@ -142,6 +145,7 @@ export default function TeacherTransportGroupManager({
 
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_class_groups')
         .insert({
@@ -176,6 +180,7 @@ export default function TeacherTransportGroupManager({
 
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       // Get the student's subscription
       const { data: subscription, error: subError } = await supabase
         .from('transport_subscriptions')
@@ -214,6 +219,7 @@ export default function TeacherTransportGroupManager({
 
     setLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       const { error } = await supabase
         .from('transport_class_group_members')
         .delete()
