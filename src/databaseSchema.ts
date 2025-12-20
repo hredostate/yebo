@@ -443,12 +443,41 @@ BEGIN
     );
 
     -- 9. Apply overrides when present for this class/term/student
+    -- Strategy 1: Try exact match with class_teacher group
     IF v_class_group_id IS NOT NULL THEN
         SELECT * INTO v_override
         FROM public.attendance_overrides ao
         WHERE ao.student_id = p_student_id
           AND ao.term_id = p_term_id
           AND ao.group_id = v_class_group_id
+        ORDER BY ao.updated_at DESC
+        LIMIT 1;
+        IF FOUND THEN
+            v_override_found := true;
+        END IF;
+    END IF;
+
+    -- Strategy 2: If not found, try any group the student belongs to
+    IF NOT v_override_found THEN
+        SELECT ao.* INTO v_override
+        FROM public.attendance_overrides ao
+        INNER JOIN public.class_group_members cgm ON cgm.group_id = ao.group_id
+        WHERE ao.student_id = p_student_id
+          AND ao.term_id = p_term_id
+          AND cgm.student_id = p_student_id
+        ORDER BY ao.updated_at DESC
+        LIMIT 1;
+        IF FOUND THEN
+            v_override_found := true;
+        END IF;
+    END IF;
+
+    -- Strategy 3: If still not found, try matching just student_id and term_id (backwards compatibility)
+    IF NOT v_override_found THEN
+        SELECT * INTO v_override
+        FROM public.attendance_overrides ao
+        WHERE ao.student_id = p_student_id
+          AND ao.term_id = p_term_id
         ORDER BY ao.updated_at DESC
         LIMIT 1;
         IF FOUND THEN
