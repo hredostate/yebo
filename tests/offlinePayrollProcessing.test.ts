@@ -48,7 +48,8 @@ function testOfflineProcessingResponseFormat() {
 function testBankTransferCSVFormat() {
   console.log("\nTest 3: Bank Transfer CSV Format");
   
-  const mockPayslips = [
+  // Mock payslips for CSV generation demonstration
+  const _mockPayslips = [
     {
       staff: {
         name: 'John Doe',
@@ -128,7 +129,8 @@ function testStatusTransitions() {
 function testPayrollItemsCreation() {
   console.log("\nTest 6: Payroll Items Creation");
   
-  const mockPayslip = {
+  // Mock payslip showing line items structure
+  const _mockPayslip = {
     staff_id: 'user-123',
     gross_pay: 100000,
     total_deductions: 15000,
@@ -141,7 +143,8 @@ function testPayrollItemsCreation() {
     ]
   };
   
-  const expectedPayrollItem = {
+  // Expected transformation for payroll_items table
+  const _expectedPayrollItem = {
     user_id: 'user-123',
     gross_amount: 100000,
     net_amount: 85000,
