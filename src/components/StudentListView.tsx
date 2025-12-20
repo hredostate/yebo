@@ -825,25 +825,28 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           
           // Attempt to match existing student if update is enabled
           if (updateExistingStudents && onUpdateStudent) {
+            // Normalize search values once for performance
+            const normalizedAdmissionNumber = studentData.admission_number?.trim().toLowerCase();
+            const normalizedEmail = studentData.email?.trim().toLowerCase();
+            
             // First, try to match by admission_number if provided and non-empty
-            if (studentData.admission_number?.trim()) {
+            if (normalizedAdmissionNumber) {
               existingStudent = students.find(s => 
-                s.admission_number?.trim() && 
-                s.admission_number.toLowerCase().trim() === studentData.admission_number.toLowerCase().trim()
+                s.admission_number?.trim().toLowerCase() === normalizedAdmissionNumber
               );
             }
             
             // If no match by admission_number, try matching by email
-            if (!existingStudent && studentData.email?.trim()) {
+            if (!existingStudent && normalizedEmail) {
               existingStudent = students.find(s => 
-                s.email?.trim() && 
-                s.email.toLowerCase().trim() === studentData.email.toLowerCase().trim()
+                s.email?.trim().toLowerCase() === normalizedEmail
               );
             }
           }
 
           if (existingStudent) {
-            // Update existing student - remove school_id as it shouldn't be updated
+            // Update existing student
+            // Note: Remove school_id to prevent changing the student's school assignment
             const { school_id, ...updateData } = studentData;
             const success = await onUpdateStudent(existingStudent.id, updateData);
             if (success) {

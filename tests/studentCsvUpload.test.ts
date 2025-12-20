@@ -155,20 +155,22 @@ const findExistingStudent = (
   students: Student[],
   csvData: { admission_number?: string; email?: string }
 ): Student | undefined => {
+  // Normalize search values once for performance
+  const normalizedAdmissionNumber = csvData.admission_number?.trim().toLowerCase();
+  const normalizedEmail = csvData.email?.trim().toLowerCase();
+  
   // First, try to match by admission_number if provided and non-empty
-  if (csvData.admission_number?.trim()) {
+  if (normalizedAdmissionNumber) {
     const byAdmission = students.find(s => 
-      s.admission_number?.trim() && 
-      s.admission_number.toLowerCase().trim() === csvData.admission_number!.toLowerCase().trim()
+      s.admission_number?.trim().toLowerCase() === normalizedAdmissionNumber
     );
     if (byAdmission) return byAdmission;
   }
   
   // If no match, try by email
-  if (csvData.email?.trim()) {
+  if (normalizedEmail) {
     const byEmail = students.find(s => 
-      s.email?.trim() && 
-      s.email.toLowerCase().trim() === csvData.email!.toLowerCase().trim()
+      s.email?.trim().toLowerCase() === normalizedEmail
     );
     if (byEmail) return byEmail;
   }
