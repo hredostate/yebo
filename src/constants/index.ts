@@ -75,10 +75,14 @@ export const ALL_PERMISSIONS: string[] = [
 export const VIEWS = {
   DASHBOARD: 'Dashboard',
   STUDENT_PORTAL: 'Student Portal',
+  STUDENT_DASHBOARD: 'Student Dashboard',
   MY_SUBJECTS: 'My Subjects',
   RATE_MY_TEACHER: 'Rate My Teacher',
   STUDENT_REPORTS: 'Student Reports',
   STUDENT_SURVEYS: 'Student Surveys',
+  STUDENT_PROFILE_EDIT: 'Student Profile Edit',
+  STUDENT_STRIKES: 'My Strikes & Appeals',
+  STUDENT_FINANCES: 'Student Finances',
   TAKE_QUIZ: 'Take Quiz',
   TAKE_SURVEY: 'Take Survey',
   SUBMIT_REPORT: 'Submit Report',
@@ -139,6 +143,8 @@ export const VIEWS = {
   PREDICTIVE_ANALYTICS: 'Predictive Analytics',
   SCORE_REVIEW: 'Score Review', // Team Lead/Admin view of all scores
   CAMPUS_STATISTICS: 'Campus Statistics',
+  ZERO_SCORE_MONITOR: 'Zero Score Monitor',
+  PAYROLL: 'Payroll',
   // Lesson Plan Enhancement Views
   COVERAGE_DASHBOARD: 'Coverage Dashboard',
   REVIEW_DASHBOARD: 'Review Dashboard',

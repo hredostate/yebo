@@ -41,6 +41,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
 
     try {
       setIsLoading(true);
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('students')
         .select(`
@@ -95,6 +96,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
 
     try {
       setIsSaving(true);
+      const supabase = requireSupabaseClient();
 
       const { error } = await supabase
         .from('students')
@@ -179,6 +181,7 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
 
     try {
       setIsUploadingPhoto(true);
+      const supabase = requireSupabaseClient();
 
       const { error } = await supabase
         .from('students')

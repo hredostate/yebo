@@ -34,6 +34,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
 
     const loadChecks = async () => {
         setLoading(true);
+        const supabase = requireSupabaseClient();
         try {
             const { data, error } = await supabase
                 .from('notes_checks')
@@ -60,6 +61,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
 
     const selectCheck = async (check: NotesCheck) => {
         setSelectedCheck(check);
+        const supabase = requireSupabaseClient();
         try {
             // Load compliance records
             const { data: complianceData, error: complianceError } = await supabase
@@ -91,6 +93,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
             return;
         }
 
+        const supabase = requireSupabaseClient();
         try {
             const assignment = (teachingAssignments || []).find(a => a.id === parseInt(newCheck.teaching_assignment_id));
             
@@ -126,6 +129,7 @@ const NotesComplianceTracker: React.FC<NotesComplianceTrackerProps> = ({
     const markCompliance = async (studentId: number, status: 'complete' | 'incomplete' | 'partial') => {
         if (!selectedCheck) return;
 
+        const supabase = requireSupabaseClient();
         try {
             const existing = compliance.find(c => c.student_id === studentId);
 
