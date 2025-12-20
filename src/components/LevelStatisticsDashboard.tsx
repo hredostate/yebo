@@ -17,7 +17,7 @@ import ArmComparisonChart from './ArmComparisonChart';
 import StudentRankingTable from './StudentRankingTable';
 import { aggregateResultStatistics, rankCohort, type ResultScope } from '../utils/resultAnalytics';
 import { exportToCsv } from '../utils/export';
-import { DownloadIcon } from './common/icons';
+import { DownloadIcon, RefreshIcon } from './common/icons';
 
 interface LevelStatisticsDashboardProps {
     termId: number;
@@ -43,6 +43,7 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
     const [viewMode, setViewMode] = useState<ViewMode>('per-level');
     const [selectedLevel, setSelectedLevel] = useState<string>('');
     const [selectedArmId, setSelectedArmId] = useState<number | null>(null);
+    const [refreshKey, setRefreshKey] = useState<number>(0);
 
     // Helper function to check if student is active - MUST be defined before use
     const isActiveStudent = (student: Student) => {
@@ -254,27 +255,60 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             grade_distribution: calculateGradeDistribution(scores),
             arms: armStats
         };
-    }, [selectedLevel, classesForLevel, studentTermReports, students, academicClassStudents, termId, academicClasses]);
+    }, [selectedLevel, classesForLevel, studentTermReports, students, academicClassStudents, termId, academicClasses, refreshKey]);
 
     // Calculate rankings
     const rankings = useMemo((): StudentRanking[] => {
         if (!selectedLevel) return [];
-        const classIds = viewMode === 'per-arm' && selectedArmId
-            ? [selectedArmId]
-            : classesForLevel.map(c => c.id);
-
-        const allRankings: StudentRanking[] = [];
-
-        classIds.forEach(classId => {
-            const scope = buildScopeForClass(classId);
-            const cohortRanks = rankCohort(studentTermReports, scope, students, academicClasses);
-            const scopedReports = filterReportsForScope(scope);
-
+        
+        // For per-level mode, rank all students across all arms together
+        // For per-arm mode, rank students within a single arm
+        if (viewMode === 'per-level') {
+            // Build a scope that covers the entire level (not specific to any class)
+            const firstClass = classesForLevel[0];
+            if (!firstClass) return [];
+            
+            const enrolledIds = academicClassStudents
+                .filter(acs => 
+                    classesForLevel.some(c => c.id === acs.academic_class_id) && 
+                    acs.enrolled_term_id === termId
+                )
+                .map(acs => acs.student_id);
+            
+            const campusId = students.find(s => enrolledIds.includes(s.id) && s.campus_id != null)?.campus_id ?? undefined;
+            
+            // Create a level-wide scope without academicClassId
+            const levelScope: ResultScope = {
+                campusId,
+                termId,
+                sessionLabel: firstClass.session_label,
+                academicClassId: undefined, // No specific class - cover entire level
+                armName: undefined // No specific arm - cover entire level
+            };
+            
+            // Get all reports for the level and rank them together
+            const levelReports = studentTermReports.filter(r => {
+                if (r.term_id !== termId) return false;
+                const academicClass = academicClasses.find(c => c.id === r.academic_class_id);
+                if (!academicClass || academicClass.level !== selectedLevel) return false;
+                if (levelScope.sessionLabel && academicClass.session_label !== levelScope.sessionLabel) return false;
+                
+                const student = students.find(s => s.id === r.student_id);
+                if (!student || !isActiveStudent(student)) return false;
+                if (campusId != null && student.campus_id != null && student.campus_id !== campusId) return false;
+                
+                return true;
+            });
+            
+            // Rank all students in the level together
+            const cohortRanks = rankCohort(levelReports, levelScope, students, academicClasses);
+            
+            const allRankings: StudentRanking[] = [];
             cohortRanks.forEach(rank => {
-                const report = scopedReports.find(r => r.student_id === rank.studentId);
+                const report = levelReports.find(r => r.student_id === rank.studentId);
                 if (!report) return;
                 const student = students.find(s => s.id === rank.studentId);
-                const academicClass = academicClasses.find(ac => ac.id === (scope.academicClassId ?? report.academic_class_id));
+                const academicClass = academicClasses.find(ac => ac.id === report.academic_class_id);
 
                 allRankings.push({
                     rank: rank.rank,
@@ -290,10 +324,41 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
                     position_change: undefined
                 });
             });
-        });
+            
+            return allRankings.sort((a, b) => a.rank - b.rank);
+        } else {
+            // Per-arm mode: rank students within selected arm only
+            if (!selectedArmId) return [];
+            
+            const scope = buildScopeForClass(selectedArmId);
+            const cohortRanks = rankCohort(studentTermReports, scope, students, academicClasses);
+            const scopedReports = filterReportsForScope(scope);
 
-        return allRankings.sort((a, b) => a.rank - b.rank);
-    }, [selectedLevel, viewMode, selectedArmId, classesForLevel, studentTermReports, students, academicClassStudents, academicClasses, termId]);
+            const allRankings: StudentRanking[] = [];
+            cohortRanks.forEach(rank => {
+                const report = scopedReports.find(r => r.student_id === rank.studentId);
+                if (!report) return;
+                const student = students.find(s => s.id === rank.studentId);
+                const academicClass = academicClasses.find(ac => ac.id === selectedArmId);
+
+                allRankings.push({
+                    rank: rank.rank,
+                    student_id: rank.studentId,
+                    student_name: student?.name || 'Unknown',
+                    admission_number: student?.admission_number,
+                    class_name: academicClass?.level || 'Unknown',
+                    arm_name: academicClass?.arm || 'Unknown',
+                    average_score: report.average_score,
+                    total_score: report.total_score,
+                    grade_label: getGradeFromScore(report.average_score),
+                    position_in_class: rank.rank,
+                    position_change: undefined
+                });
+            });
+
+            return allRankings.sort((a, b) => a.rank - b.rank);
+        }
+    }, [selectedLevel, viewMode, selectedArmId, classesForLevel, studentTermReports, students, academicClassStudents, academicClasses, termId, refreshKey]);
 
 
 
@@ -355,7 +420,7 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         });
 
         return stats.sort((a, b) => b.averageScore - a.averageScore);
-    }, [selectedLevel, viewMode, selectedArmId, scoreEntries, termId, students, academicClasses, classesForLevel, isActiveStudent]);
+    }, [selectedLevel, viewMode, selectedArmId, scoreEntries, termId, students, academicClasses, classesForLevel, isActiveStudent, refreshKey]);
 
     // CSV Export handlers
     const handleExportStatistics = () => {
@@ -489,6 +554,17 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
                                 </select>
                             </div>
                         )}
+                        
+                        <div className="flex items-end">
+                            <button
+                                onClick={() => setRefreshKey(prev => prev + 1)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                                title="Refresh statistics to reflect latest data"
+                            >
+                                <RefreshIcon className="w-4 h-4" />
+                                Refresh
+                            </button>
+                        </div>
                     </>
                 )}
             </div>

@@ -2,7 +2,7 @@
  * Test for teacher comment generation
  */
 
-import { generateRuleBasedTeacherComment } from '../src/services/reportGenerator';
+import { generateRuleBasedTeacherComment } from '../src/services/reportGenerator.js';
 
 console.log('=== Teacher Comment Generation Tests ===\n');
 
