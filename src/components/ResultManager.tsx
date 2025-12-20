@@ -87,7 +87,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
-    const [selectedClassForComments, setSelectedClassForComments] = useState<{ id: number; name: string } | null>(null);
+    const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -708,7 +708,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     };
 
     const handleOpenCommentEditor = (classId: number, className: string) => {
-        setSelectedClassForComments({ id: classId, name: className });
+        setSelectedClassForEditor({ id: classId, name: className });
         setShowCommentEditor(true);
     };
 
@@ -1576,23 +1576,23 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             )}
 
             {/* Teacher Comment Editor Modal */}
-            {showCommentEditor && selectedClassForComments && selectedTermId && (
+            {showCommentEditor && selectedClassForEditor && selectedTermId && (
                 <TeacherCommentEditor
                     students={students.filter(s =>
                         academicClassStudents.some(acs =>
-                            acs.academic_class_id === selectedClassForComments.id &&
+                            acs.academic_class_id === selectedClassForEditor.id &&
                             acs.student_id === s.id
                         )
                     )}
                     termId={Number(selectedTermId)}
-                    classId={selectedClassForComments.id}
-                    className={selectedClassForComments.name}
+                    classId={selectedClassForEditor.id}
+                    className={selectedClassForEditor.name}
                     termName={terms.find(t => t.id === selectedTermId)?.term_label || ''}
                     studentTermReports={studentTermReports}
                     onSave={onUpdateComments}
                     onClose={() => {
                         setShowCommentEditor(false);
-                        setSelectedClassForComments(null);
+                        setSelectedClassForEditor(null);
                     }}
                     onGenerateComments={handleGenerateTeacherComments}
                     addToast={addToast}
