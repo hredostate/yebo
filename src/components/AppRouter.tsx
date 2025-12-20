@@ -359,7 +359,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
         case VIEWS.STUDENT_ROSTER:
             return <StudentListView 
                 students={data.students} 
-                onAddStudent={actions.handleAddStudent} 
+                onAddStudent={actions.handleAddStudent}
+                onUpdateStudent={actions.handleUpdateStudent}
                 onViewStudent={actions.setSelectedStudent} 
                 onAddPositive={actions.setIsPositiveModalOpen} 
                 onGenerateStudentAwards={actions.handleGenerateStudentAwards} 

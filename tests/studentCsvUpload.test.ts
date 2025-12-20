@@ -142,4 +142,167 @@ test('getColumnValue works with partial data', () => {
   assert.equal(className, '');
 });
 
+// Upsert logic tests
+type Student = {
+  id: number;
+  name: string;
+  admission_number?: string;
+  email?: string;
+  class_id?: number;
+};
+
+const findExistingStudent = (
+  students: Student[],
+  csvData: { admission_number?: string; email?: string }
+): Student | undefined => {
+  // Normalize search values once for performance
+  const normalizedAdmissionNumber = csvData.admission_number?.trim().toLowerCase();
+  const normalizedEmail = csvData.email?.trim().toLowerCase();
+  
+  // First, try to match by admission_number if provided and non-empty
+  if (normalizedAdmissionNumber) {
+    const byAdmission = students.find(s => 
+      s.admission_number?.trim().toLowerCase() === normalizedAdmissionNumber
+    );
+    if (byAdmission) return byAdmission;
+  }
+  
+  // If no match, try by email
+  if (normalizedEmail) {
+    const byEmail = students.find(s => 
+      s.email?.trim().toLowerCase() === normalizedEmail
+    );
+    if (byEmail) return byEmail;
+  }
+  
+  return undefined;
+};
+
+test('findExistingStudent matches by admission_number', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', admission_number: 'ADM001', email: 'john@example.com' },
+    { id: 2, name: 'Jane Smith', admission_number: 'ADM002', email: 'jane@example.com' },
+  ];
+  
+  const csvData = { admission_number: 'ADM001', email: 'different@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student');
+  assert.equal(found!.id, 1);
+  assert.equal(found!.name, 'John Doe');
+});
+
+test('findExistingStudent matches by admission_number case-insensitive', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', admission_number: 'ADM001', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: 'adm001' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student with case-insensitive match');
+  assert.equal(found!.id, 1);
+});
+
+test('findExistingStudent falls back to email when admission_number not matched', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', admission_number: 'ADM001', email: 'john@example.com' },
+    { id: 2, name: 'Jane Smith', admission_number: 'ADM002', email: 'jane@example.com' },
+  ];
+  
+  const csvData = { admission_number: 'ADM999', email: 'jane@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email');
+  assert.equal(found!.id, 2);
+  assert.equal(found!.name, 'Jane Smith');
+});
+
+test('findExistingStudent matches by email when admission_number not provided', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+    { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
+  ];
+  
+  const csvData = { email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email only');
+  assert.equal(found!.id, 1);
+});
+
+test('findExistingStudent matches email case-insensitive', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'John@Example.com' },
+  ];
+  
+  const csvData = { email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student with case-insensitive email match');
+  assert.equal(found!.id, 1);
+});
+
+test('findExistingStudent returns undefined when no match', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', admission_number: 'ADM001', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: 'ADM999', email: 'notfound@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.equal(found, undefined, 'Should not find any student');
+});
+
+test('findExistingStudent handles students without admission_number or email', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe' },
+    { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
+  ];
+  
+  const csvData = { admission_number: 'ADM001', email: 'jane@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email');
+  assert.equal(found!.id, 2);
+});
+
+test('findExistingStudent prioritizes admission_number over email', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', admission_number: 'ADM001', email: 'john@example.com' },
+    { id: 2, name: 'Jane Smith', admission_number: 'ADM002', email: 'john@example.com' }, // Same email
+  ];
+  
+  const csvData = { admission_number: 'ADM002', email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student');
+  assert.equal(found!.id, 2, 'Should prioritize admission_number match over email');
+  assert.equal(found!.name, 'Jane Smith');
+});
+
+test('findExistingStudent handles empty string admission_number', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: '', email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email when admission_number is empty string');
+  assert.equal(found!.id, 1);
+});
+
+test('findExistingStudent handles whitespace-only admission_number', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: '   ', email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email when admission_number is whitespace');
+  assert.equal(found!.id, 1);
+});
+
 console.log('\nAll student CSV upload tests passed! ✓');

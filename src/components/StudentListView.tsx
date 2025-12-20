@@ -17,6 +17,7 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 interface StudentListViewProps {
   students: Student[];
   onAddStudent: (studentData: any) => Promise<boolean>;
+  onUpdateStudent?: (studentId: number, studentData: Partial<Student>) => Promise<boolean>;
   onViewStudent: (student: Student) => void;
   onAddPositive: (student: Student) => void;
   onGenerateStudentAwards: () => Promise<void>;
@@ -136,7 +137,7 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
 };
 
 const StudentListView: React.FC<StudentListViewProps> = ({
-    students, onAddStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
+    students, onAddStudent, onUpdateStudent, onViewStudent, onAddPositive, onGenerateStudentAwards, userPermissions,
     onOpenCreateStudentAccountModal, allClasses, allArms, users, teachingAssignments, onBulkCreateStudentAccounts, onBulkResetStrikes, onBulkDeleteAccounts, onBulkRetrievePasswords, onDeleteStudent, onBulkDeleteStudents, addToast,
     onGenerateActivationLinks
 }) => {
@@ -187,6 +188,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [updateExistingStudents, setUpdateExistingStudents] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageStudents = userPermissions.includes('manage-students') || userPermissions.includes('*');
@@ -795,8 +797,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         return;
       }
 
-      // Import students
-      let successCount = 0;
+      // Import students with upsert logic
+      let addedCount = 0;
+      let updatedCount = 0;
       let failCount = 0;
 
       // Get school_id once before the loop
@@ -818,22 +821,65 @@ const StudentListView: React.FC<StudentListViewProps> = ({
 
       for (const studentData of studentsToImport) {
         try {
-          const success = await onAddStudent({ ...studentData, school_id: profile.school_id });
-          if (success) {
-            successCount++;
+          let existingStudent: Student | undefined = undefined;
+          
+          // Attempt to match existing student if update is enabled
+          if (updateExistingStudents && onUpdateStudent) {
+            // Normalize search values once for performance
+            const normalizedAdmissionNumber = studentData.admission_number?.trim().toLowerCase();
+            const normalizedEmail = studentData.email?.trim().toLowerCase();
+            
+            // First, try to match by admission_number if provided and non-empty
+            if (normalizedAdmissionNumber) {
+              existingStudent = students.find(s => 
+                s.admission_number?.trim().toLowerCase() === normalizedAdmissionNumber
+              );
+            }
+            
+            // If no match by admission_number, try matching by email
+            if (!existingStudent && normalizedEmail) {
+              existingStudent = students.find(s => 
+                s.email?.trim().toLowerCase() === normalizedEmail
+              );
+            }
+          }
+
+          if (existingStudent) {
+            // Update existing student
+            // Note: Remove school_id to prevent changing the student's school assignment
+            const { school_id, ...updateData } = studentData;
+            const success = await onUpdateStudent(existingStudent.id, updateData);
+            if (success) {
+              updatedCount++;
+            } else {
+              failCount++;
+            }
           } else {
-            failCount++;
+            // Add new student
+            const success = await onAddStudent({ ...studentData, school_id: profile.school_id });
+            if (success) {
+              addedCount++;
+            } else {
+              failCount++;
+            }
           }
         } catch (err) {
-          console.error('Error adding student:', err);
+          console.error('Error processing student:', err);
           failCount++;
         }
       }
 
-      if (errors.length > 0) {
-        addToast(`Partial upload: ${successCount} students added, ${failCount} failed, ${errors.length} validation errors`, 'info');
-      } else if (successCount > 0) {
-        addToast(`Successfully imported ${successCount} student${successCount !== 1 ? 's' : ''}!`, 'success');
+      // Build success message with detailed summary
+      const successParts: string[] = [];
+      if (addedCount > 0) successParts.push(`${addedCount} student${addedCount !== 1 ? 's' : ''} added`);
+      if (updatedCount > 0) successParts.push(`${updatedCount} student${updatedCount !== 1 ? 's' : ''} updated`);
+      if (failCount > 0) successParts.push(`${failCount} failed`);
+      if (errors.length > 0) successParts.push(`${errors.length} validation error${errors.length !== 1 ? 's' : ''}`);
+
+      if (successParts.length > 0) {
+        const messageType = (failCount > 0 || errors.length > 0) ? 'info' : 'success';
+        const summaryMessage = successParts.join(', ');
+        addToast(`Upload complete: ${summaryMessage}`, messageType);
       }
 
       setShowUploadModal(false);
@@ -1405,7 +1451,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
-                    Upload a CSV file containing student information. Not sure about the format?
+                    Upload a CSV file to add new students or update existing ones. The system will match by admission number or email. Not sure about the format?
                   </p>
                   <button
                     onClick={downloadTemplate}
@@ -1439,9 +1485,21 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                 </p>
               </div>
               
-              <p className="text-xs text-amber-600 dark:text-amber-400">
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
                 ⚠️ Note: Class and Arm names must match existing values in the system
               </p>
+
+              {/* Update existing students checkbox */}
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={updateExistingStudents}
+                  onChange={(e) => setUpdateExistingStudents(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+                />
+                <span className="font-semibold">Update existing students</span>
+                <span className="text-xs text-slate-500">(matches by admission number or email)</span>
+              </label>
             </div>
 
             <div className="mb-6">
