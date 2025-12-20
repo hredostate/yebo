@@ -226,7 +226,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                     </Suspense>
                 );
             case VIEWS.TRANSPORT_SIGN_UP:
-                const currentTerm = data.terms?.find((t: any) => t.is_current);
+                const currentTerm = data.terms?.find((t: any) => t.is_active);
                 if (!currentTerm) {
                     return <div className="p-6 text-center text-gray-600">No active term found</div>;
                 }
@@ -1044,7 +1044,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users}
              />;
         case VIEWS.TRANSPORT_MANAGER:
-             const currentTermForTransport = data.terms?.find((t: any) => t.is_current);
+             const currentTermForTransport = data.terms?.find((t: any) => t.is_active);
              if (!currentTermForTransport) {
                  return <div className="p-6 text-center text-gray-600">No active term found</div>;
              }
@@ -1059,7 +1059,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                  </Suspense>
              );
         case VIEWS.TEACHER_TRANSPORT_GROUPS:
-             const currentTermForGroups = data.terms?.find((t: any) => t.is_current);
+             const currentTermForGroups = data.terms?.find((t: any) => t.is_active);
              if (!currentTermForGroups) {
                  return <div className="p-6 text-center text-gray-600">No active term found</div>;
              }
