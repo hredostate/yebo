@@ -12,7 +12,7 @@ import { base64ToBlob } from './utils/file';
 import { Offline, cache } from './offline/client';
 import { requireSupabaseClient } from './services/supabaseClient';
 import { queueStore } from './offline/db';
-import { VIEWS, CLASS_TEACHER_SUBJECT_PLACEHOLDER } from './constants';
+import { VIEWS } from './constants';
 import { checkInToday, checkOutToday, todayISO } from './services/checkins';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { fetchAllStudents } from './utils/studentPagination';
