@@ -165,6 +165,8 @@ export const VIEWS = {
   STUDENT_HOMEWORK: 'My Homework',
   NOTES_COMPLIANCE: 'Notes Compliance',
   NOTIFICATION_HISTORY: 'Notification History',
+  MANUALS: 'Manuals',
+  MANUALS_COMPLIANCE: 'Manuals Compliance',
   ABSENCE_REQUESTS: 'Absence Requests',
   STUDENT_SUBJECT_CHOICES_ADMIN: 'Student Subject Choices',
   STUDENT_SUBJECT_ENROLLMENT_MANAGER: 'Student Subject Enrollment',
