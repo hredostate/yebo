@@ -98,11 +98,9 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const fetchStudentData = async () => {
     setIsLoading(true);
     try {
+      const supabase = requireSupabaseClient();
+      
       // Get students in this class
-      if (!supabase) {
-        throw new Error('Database connection not available');
-      }
-
       const { data: enrollments, error: enrollError } = await supabase
         .from('academic_class_students')
         .select('student_id')
@@ -566,6 +564,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const results: Array<{ studentName: string; link?: string; error?: string }> = [];
 
     try {
+      const supabase = requireSupabaseClient();
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + shareExpiryHours);
 
