@@ -667,7 +667,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/20">
                                     {student.className}
                                 </span>
-                                {!isPublished && (
+                                {!isPublished && !isStudentUser && (
                                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-200 text-amber-900 border border-yellow-300">Unpublished Preview</span>
                                 )}
                             </div>
@@ -815,7 +815,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   );
 
   const SignatoriesSection = () => (
-    <div className={`grid ${orientation === 'landscape' ? 'grid-cols-2' : 'grid-cols-1'} gap-6 px-6 pb-8 mt-6`}>
+    <div className={`grid ${orientation === 'landscape' ? 'grid-cols-2' : 'grid-cols-1'} gap-6 px-6 pb-8 mt-6 page-break-inside-avoid`}>
         <div className={`p-4 border rounded-lg h-full flex flex-col ${layout === 'pastel' ? 'border-slate-200 bg-slate-50/50' : 'border-slate-300'}`}>
             <h4 className="font-bold text-slate-700 mb-2 border-b pb-1">{teacherTitle}'s Remark</h4>
             <p className="text-sm text-slate-600 italic flex-grow min-h-[3em]">{comments.teacher || "No comment provided."}</p>
@@ -1074,7 +1074,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
             &larr; Back
           </button>
           <div className="flex gap-2">
-            {!isPublished && <span className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg font-bold border border-yellow-300">Unpublished Preview</span>}
+            {!isPublished && !isStudentUser && <span className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg font-bold border border-yellow-300">Unpublished Preview</span>}
             {smsSent && <span className="px-3 py-2 bg-green-100 text-green-800 rounded-lg font-medium border border-green-300">✓ Sent to Parent</span>}
             {!isStudentUser && reportDetails?.student?.parent_phone_number_1 && (
               <button 
@@ -1333,7 +1333,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         </div>
                     )}
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 page-break-inside-avoid">
                          <div>
                             <p className="font-bold uppercase text-xs border-b border-black mb-1">{teacherTitle}'s Remarks</p>
                             <p className="italic text-sm">{comments.teacher}</p>
@@ -1344,7 +1344,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         </div>
                     </div>
                     
-                    <div className="mt-12 flex justify-between items-end">
+                    <div className="mt-12 flex justify-between items-end page-break-inside-avoid">
                         <div className="text-center">
                             <div className="w-48 border-b border-black mb-1"></div>
                             <p className="text-xs uppercase">{principalNameOverride || principalTitle}</p>
