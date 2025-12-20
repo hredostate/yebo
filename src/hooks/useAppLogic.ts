@@ -831,15 +831,73 @@ export const useAppLogic = () => {
              // Find the matching academic_class for the current session
              // Note: This relies on exact string matching between academic_classes.level/arm 
              // and the names in classes/arms tables as per the database design
-             const academicClass = academicClasses.find(ac => 
+             console.log('[handleCreateClassAssignment] Looking for academic class:', {
+                 level: classRecord.name,
+                 arm: armRecord.name,
+                 session: activeTerm.session_label,
+                 availableClasses: academicClasses.length
+             });
+             
+             let academicClass = academicClasses.find(ac => 
                  ac.level === classRecord.name && 
                  ac.arm === armRecord.name &&
                  ac.session_label === activeTerm.session_label
              );
              
+             console.log('[handleCreateClassAssignment] Found in local state:', {
+                 foundId: academicClass?.id,
+                 foundName: academicClass?.name
+             });
+             
+             let academicClassId: number | null = null;
+             
+             // If not found in local state, try direct database lookup as fallback
              if (!academicClass) {
-                 addToast(`No academic class found for ${classRecord.name} ${armRecord.name} in session ${activeTerm.session_label}. Please create the academic class first.`, 'error');
-                 return false;
+                 console.log('[handleCreateClassAssignment] Not found in local state, trying database lookup...');
+                 const supabase = requireSupabaseClient();
+                 const { data: dbClass, error: lookupError } = await supabase
+                     .from('academic_classes')
+                     .select('id')
+                     .eq('level', classRecord.name)
+                     .eq('arm', armRecord.name)
+                     .eq('session_label', activeTerm.session_label)
+                     .single();
+                 
+                 if (lookupError) {
+                     console.warn('[handleCreateClassAssignment] Database lookup error:', lookupError);
+                 }
+                 
+                 if (dbClass) {
+                     console.log('[handleCreateClassAssignment] Found in database:', dbClass.id);
+                     academicClassId = dbClass.id;
+                     // Refresh data to sync local state
+                     await fetchData();
+                 } else {
+                     addToast(`No academic class found for ${classRecord.name} ${armRecord.name} in session ${activeTerm.session_label}. Please create the academic class first.`, 'error');
+                     return false;
+                 }
+             } else {
+                 // Verify the academic class exists in the database
+                 const supabase = requireSupabaseClient();
+                 const { data: dbAcademicClass, error: verifyError } = await supabase
+                     .from('academic_classes')
+                     .select('id')
+                     .eq('id', academicClass.id)
+                     .single();
+                 
+                 if (verifyError || !dbAcademicClass) {
+                     console.warn('[handleCreateClassAssignment] Academic class not found in database, refreshing data...', {
+                         academicClassId: academicClass.id,
+                         error: verifyError
+                     });
+                     // Refresh data and notify user to retry
+                     await fetchData();
+                     addToast('Data was out of sync. Please try again.', 'warning');
+                     return false;
+                 }
+                 
+                 console.log('[handleCreateClassAssignment] Verified academic class exists in database:', dbAcademicClass.id);
+                 academicClassId = academicClass.id;
              }
              
              // Handle subject - required for Subject Teacher Groups, optional for Class Teacher Groups
@@ -867,7 +925,7 @@ export const useAppLogic = () => {
              const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', {
                  teacher_user_id: assign.teacher_user_id,
                  subject_name: subjectName,
-                 academic_class_id: academicClass.id,
+                 academic_class_id: academicClassId,
                  school_id: userProfile.school_id,
                  term_id: activeTerm.id
              });
