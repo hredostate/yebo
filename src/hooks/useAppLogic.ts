@@ -827,6 +827,8 @@ export const useAppLogic = () => {
              }
              
              // Find the matching academic_class for the current session
+             // Note: This relies on exact string matching between academic_classes.level/arm 
+             // and the names in classes/arms tables as per the database design
              const academicClass = academicClasses.find(ac => 
                  ac.level === classRecord.name && 
                  ac.arm === armRecord.name &&
@@ -840,19 +842,23 @@ export const useAppLogic = () => {
              
              // Handle subject - required for Subject Teacher Groups, optional for Class Teacher Groups
              let subjectName = CLASS_TEACHER_SUBJECT_PLACEHOLDER; // Default for Class Teacher Groups
-             if (group.group_type === 'subject_teacher') {
+             
+             if (assign.subject_id) {
                  const subject = allSubjects.find(s => s.id === assign.subject_id);
                  if (!subject) {
-                     addToast('Subject is required for Subject Teacher Groups', 'error');
-                     return false;
-                 }
-                 subjectName = subject.name;
-             } else if (assign.subject_id) {
-                 // If subject is provided for Class Teacher Group, use it
-                 const subject = allSubjects.find(s => s.id === assign.subject_id);
-                 if (subject) {
+                     if (group.group_type === 'subject_teacher') {
+                         // Subject is required for Subject Teacher Groups
+                         addToast('Subject is required for Subject Teacher Groups', 'error');
+                         return false;
+                     }
+                     // For Class Teacher Groups, invalid subject_id is ignored
+                 } else {
                      subjectName = subject.name;
                  }
+             } else if (group.group_type === 'subject_teacher') {
+                 // No subject provided but required for Subject Teacher Groups
+                 addToast('Subject is required for Subject Teacher Groups', 'error');
+                 return false;
              }
              
              // Create teaching assignment with correct academic_class_id
