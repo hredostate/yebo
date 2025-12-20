@@ -34,6 +34,7 @@ const StudentStrikeAppeals: React.FC<StudentStrikeAppealsProps> = ({
 
     try {
       setIsLoading(true);
+      const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('student_strikes')
         .select(`
@@ -79,6 +80,7 @@ const StudentStrikeAppeals: React.FC<StudentStrikeAppealsProps> = ({
 
     try {
       setIsSubmitting(true);
+      const supabase = requireSupabaseClient();
 
       const { error } = await supabase
         .from('strike_appeals')

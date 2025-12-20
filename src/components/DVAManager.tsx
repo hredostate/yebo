@@ -28,6 +28,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
 
     const loadData = async () => {
         setLoading(true);
+        const supabase = requireSupabaseClient();
         try {
             // Fetch API settings for this campus or default
             const { data: settingsData, error: settingsError } = await supabase
@@ -102,6 +103,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
         }
 
         setCreating(true);
+        const supabase = requireSupabaseClient();
         try {
             // Create or get Paystack customer
             const customerId = await paystackService.createOrGetPaystackCustomer(
