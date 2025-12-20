@@ -57,10 +57,7 @@ export default function TeacherTransportAttendance({
         p_direction: direction,
       });
 
-      if (error) {
-        console.error('Error loading attendance:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       setStudents(data || []);
       
@@ -71,20 +68,8 @@ export default function TeacherTransportAttendance({
           'info'
         );
       }
-    } catch (error: any) {
-      console.error('Failed to load attendance:', error);
-      const errorMessage = error?.message || 'An unknown error occurred';
-      
-      // Provide specific guidance based on the error
-      let userMessage = `Failed to load attendance: ${errorMessage}`;
-      
-      if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-        userMessage = 'Failed to load attendance: You do not have permission to view this data. Please contact your administrator.';
-      } else if (errorMessage.includes('group') || errorMessage.includes('route')) {
-        userMessage = 'Failed to load attendance: Please make sure you have created transport groups first.';
-      }
-      
-      addToast(userMessage, 'error');
+    } catch (error) {
+      handleSupabaseError(error, addToast, 'Failed to load attendance');
     } finally {
       setLoading(false);
     }
