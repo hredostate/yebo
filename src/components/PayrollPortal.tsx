@@ -9,6 +9,9 @@ import { NIGERIAN_BANKS } from '../constants/banks';
 import PayrollAdjustmentsManager from './PayrollAdjustmentsManager';
 import PayrollSettings from './PayrollSettings';
 import PayrollManager from './PayrollManager'; // For History view
+import PayrollPreRunManager from './PayrollPreRunManager';
+import StaffPayslipReview from './StaffPayslipReview';
+import PayrollApprovalDashboard from './PayrollApprovalDashboard';
 import { BanknotesIcon, EditIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { useCan } from '../security/permissions';
@@ -148,7 +151,10 @@ const PayrollPortal: React.FC<PayrollPortalProps> = ({
 
     const tabs = [
         { id: 'slips', label: 'My Payslips', show: true },
+        { id: 'payslip_review', label: 'Review Payslip', show: true },
         { id: 'my_adjustments', label: 'My Adjustments', show: true },
+        { id: 'pre_run', label: 'Pre-Run Manager', show: canManage },
+        { id: 'approvals', label: 'Approval Dashboard', show: canManage },
         { id: 'run', label: 'Run Payroll', show: canManage },
         { id: 'history', label: 'Payroll History', show: canManage },
         { id: 'staff', label: 'Staff Data', show: canManage },
@@ -214,6 +220,12 @@ const PayrollPortal: React.FC<PayrollPortalProps> = ({
                         payrollItems={payrollItems} 
                     />
                 )}
+                {activeTab === 'payslip_review' && (
+                    <StaffPayslipReview
+                        userProfile={userProfile}
+                        addToast={addToast}
+                    />
+                )}
                 {activeTab === 'my_adjustments' && (
                     <MyAdjustmentsView 
                         currentUser={userProfile} 
@@ -221,6 +233,18 @@ const PayrollPortal: React.FC<PayrollPortalProps> = ({
                             ? payrollAdjustments 
                             : payrollAdjustments.filter(a => a.user_id === userProfile.id)
                         } 
+                    />
+                )}
+                {activeTab === 'pre_run' && canManage && (
+                    <PayrollPreRunManager
+                        userProfile={userProfile}
+                        addToast={addToast}
+                    />
+                )}
+                {activeTab === 'approvals' && canManage && (
+                    <PayrollApprovalDashboard
+                        userProfile={userProfile}
+                        addToast={addToast}
                     />
                 )}
                 {activeTab === 'run' && canManage && (

@@ -727,7 +727,7 @@ export interface AttendanceRecord {
 export interface AttendanceOverride {
     id: number;
     student_id: number;
-    class_group_id: number;
+    group_id: number;
     term_id: number;
     session_label?: string | null;
     total_days: number;
