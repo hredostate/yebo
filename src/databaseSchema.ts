@@ -2440,4 +2440,97 @@ CREATE INDEX IF NOT EXISTS idx_students_campus_status ON public.students(campus_
 NOTIFY pgrst, 'reload config';
 `;
 
+/**
+ * Report Card Refactoring SQL
+ * Adds tables for audit trail, template management, and enhanced grading
+ */
+export const REPORT_CARD_REFACTOR_SQL = `
+-- Results Publishing Audit Log
+CREATE TABLE IF NOT EXISTS public.results_publish_log (
+    id SERIAL PRIMARY KEY,
+    term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
+    academic_class_id INTEGER REFERENCES public.academic_classes(id) ON DELETE CASCADE,
+    published_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    version INTEGER DEFAULT 1,
+    checksum TEXT,
+    UNIQUE(term_id, academic_class_id, version)
+);
+
+-- Subject-Specific Grade Overrides
+CREATE TABLE IF NOT EXISTS public.grading_scheme_overrides (
+    id SERIAL PRIMARY KEY,
+    grading_scheme_id INTEGER REFERENCES public.grading_schemes(id) ON DELETE CASCADE,
+    subject_name TEXT NOT NULL,
+    min_score NUMERIC NOT NULL,
+    max_score NUMERIC NOT NULL,
+    grade_label TEXT NOT NULL,
+    remark TEXT,
+    UNIQUE(grading_scheme_id, subject_name, min_score)
+);
+
+-- Report Templates
+CREATE TABLE IF NOT EXISTS public.report_templates (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    html_template TEXT,
+    css_styles TEXT,
+    supported_sections TEXT[] DEFAULT ARRAY['header', 'subjects', 'summary', 'comments', 'attendance'],
+    max_subjects_per_page INTEGER DEFAULT 15,
+    version INTEGER DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Template Assignments
+CREATE TABLE IF NOT EXISTS public.template_assignments (
+    id SERIAL PRIMARY KEY,
+    campus_id INTEGER REFERENCES public.campuses(id) ON DELETE CASCADE,
+    class_group_id INTEGER REFERENCES public.academic_classes(id) ON DELETE CASCADE,
+    template_id INTEGER REFERENCES public.report_templates(id) ON DELETE CASCADE,
+    UNIQUE(campus_id, class_group_id)
+);
+
+-- Add branding and template to school_config
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='school_config' AND column_name='report_card_branding'
+    ) THEN
+        ALTER TABLE public.school_config ADD COLUMN report_card_branding JSONB DEFAULT '{
+            "watermark_url": null,
+            "signature_principal": null,
+            "signature_class_teacher": null,
+            "primary_color": "#1e40af",
+            "secondary_color": "#3b82f6",
+            "show_school_logo": true,
+            "footer_text": null
+        }';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='school_config' AND column_name='default_template_id'
+    ) THEN
+        ALTER TABLE public.school_config ADD COLUMN default_template_id INTEGER 
+        REFERENCES public.report_templates(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_results_publish_log_term_class ON public.results_publish_log(term_id, academic_class_id);
+CREATE INDEX IF NOT EXISTS idx_grading_scheme_overrides_scheme ON public.grading_scheme_overrides(grading_scheme_id);
+CREATE INDEX IF NOT EXISTS idx_grading_scheme_overrides_subject ON public.grading_scheme_overrides(grading_scheme_id, subject_name);
+CREATE INDEX IF NOT EXISTS idx_report_templates_school ON public.report_templates(school_id);
+CREATE INDEX IF NOT EXISTS idx_report_templates_active ON public.report_templates(school_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_template_assignments_campus ON public.template_assignments(campus_id);
+CREATE INDEX IF NOT EXISTS idx_template_assignments_class ON public.template_assignments(class_group_id);
+
+NOTIFY pgrst, 'reload config';
+`;
+
 export default DATABASE_SCHEMA;
