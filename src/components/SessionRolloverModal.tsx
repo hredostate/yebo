@@ -74,6 +74,7 @@ const SessionRolloverModal: React.FC<SessionRolloverModalProps> = ({ isOpen, onC
         setIsImporting(true);
 
         try {
+            const supabase = requireSupabaseClient();
             const sourceTerm = terms.find(t => String(t.id) === sourceTermId)!;
             const targetTerm = terms.find(t => String(t.id) === targetTermId)!;
             const isNewSession = sourceTerm.session_label !== targetTerm.session_label;
