@@ -7275,6 +7275,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleCopyLessonPlan,
                                     handleApproveLessonPlan,
                                     handleSaveScores,
+                                    handleUpdateScore,
                                     handleSubmitScoresForReview,
                                     handleSaveAssessment,
                                     handleDeleteAssessment,
