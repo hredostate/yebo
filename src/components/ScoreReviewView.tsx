@@ -77,8 +77,17 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
     const [editingValues, setEditingValues] = useState<Record<string, any>>({});
     const [isSaving, setIsSaving] = useState(false);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 50;
+
     const canEdit = safeUserPermissions.includes('score_entries.edit_all') || safeUserPermissions.includes('*');
     const canView = canEdit || safeUserPermissions.includes('score_entries.view_all');
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedTermId, selectedClassId, selectedSubject, selectedTeacherId, searchQuery]);
 
     // Parse navigation context filters from sessionStorage
     useEffect(() => {
@@ -249,6 +258,15 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
             return (a.student?.name || '').localeCompare(b.student?.name || '');
         });
     }, [enrichedScores, selectedTermId, selectedClassId, selectedSubject, selectedTeacherId, searchQuery]);
+
+    // Paginate the filtered scores
+    const paginatedScores = useMemo(() => {
+        const startIndex = (currentPage - 1) * PAGE_SIZE;
+        const endIndex = startIndex + PAGE_SIZE;
+        return filteredScores.slice(startIndex, endIndex);
+    }, [filteredScores, currentPage]);
+
+    const totalPages = Math.ceil(filteredScores.length / PAGE_SIZE);
 
     const handleStartEdit = (score: any) => {
         setEditingScoreId(score.id);
@@ -433,7 +451,9 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
             {/* Results Summary */}
             <div className="mb-4 flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="text-sm text-slate-600 dark:text-slate-400">
-                    Showing <span className="font-semibold text-blue-700 dark:text-blue-300">{filteredScores.length}</span> score {filteredScores.length === 1 ? 'entry' : 'entries'}
+                    Showing <span className="font-semibold text-blue-700 dark:text-blue-300">
+                        {filteredScores.length > 0 ? ((currentPage - 1) * PAGE_SIZE) + 1 : 0} - {Math.min(currentPage * PAGE_SIZE, filteredScores.length)}
+                    </span> of <span className="font-semibold text-blue-700 dark:text-blue-300">{filteredScores.length}</span> score {filteredScores.length === 1 ? 'entry' : 'entries'}
                     {filteredScores.length !== safeScoreEntries.length && (
                         <span className="ml-2 text-xs">
                             (Total in system: <span className="font-semibold">{safeScoreEntries.length}</span>)
@@ -498,7 +518,7 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                                     </td>
                                 </tr>
                             ) : (
-                                filteredScores.map((score) => {
+                                paginatedScores.map((score) => {
                                     const isEditing = editingScoreId === score.id;
                                     
                                     return (
@@ -610,6 +630,48 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {filteredScores.length > PAGE_SIZE && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Showing {((currentPage - 1) * PAGE_SIZE) + 1} - {Math.min(currentPage * PAGE_SIZE, filteredScores.length)} of {filteredScores.length} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                First
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Previous
+                            </button>
+                            <span className="px-3 py-1 text-sm text-slate-700 dark:text-slate-300">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Last
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
