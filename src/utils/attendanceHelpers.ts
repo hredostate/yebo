@@ -84,7 +84,7 @@ export interface AttendanceData extends AttendanceSnapshot {
     overrideApplied?: boolean;
     computed?: AttendanceSnapshot;
     overrideMeta?: {
-        class_group_id?: number | null;
+        group_id?: number | null;
         comment?: string | null;
         updated_by?: string | null;
         updated_at?: string | null;

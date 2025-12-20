@@ -82,7 +82,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
             const { data: overrideData, error: overrideError } = await supabase
                 .from('attendance_overrides')
                 .select('*')
-                .eq('class_group_id', groupId)
+                .eq('group_id', groupId)
                 .eq('term_id', termId);
 
             if (overrideError) throw overrideError;
@@ -221,7 +221,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
         try {
             const payload = rowsToSave.map(row => ({
                 student_id: row.studentId,
-                class_group_id: groupId,
+                group_id: groupId,
                 term_id: selectedTermId,
                 session_label: selectedTerm?.session_label || null,
                 total_days: row.overrideTotal ?? 0,
@@ -233,7 +233,7 @@ const ManualAttendanceOverridePanel: React.FC<ManualOverrideProps> = ({
 
             const { error: upsertError } = await supabase
                 .from('attendance_overrides')
-                .upsert(payload, { onConflict: 'student_id,class_group_id,term_id' });
+                .upsert(payload, { onConflict: 'student_id,group_id,term_id' });
 
             if (upsertError) throw upsertError;
 
