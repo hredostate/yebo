@@ -268,9 +268,14 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             const firstClass = classesForLevel[0];
             if (!firstClass) return [];
             
+            // Create lookup maps for better performance
+            const academicClassMap = new Map(academicClasses.map(c => [c.id, c]));
+            const studentMap = new Map(students.map(s => [s.id, s]));
+            const classIdsInLevel = new Set(classesForLevel.map(c => c.id));
+            
             const enrolledIds = academicClassStudents
                 .filter(acs => 
-                    classesForLevel.some(c => c.id === acs.academic_class_id) && 
+                    classIdsInLevel.has(acs.academic_class_id) && 
                     acs.enrolled_term_id === termId
                 )
                 .map(acs => acs.student_id);
@@ -289,11 +294,11 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             // Get all reports for the level and rank them together
             const levelReports = studentTermReports.filter(r => {
                 if (r.term_id !== termId) return false;
-                const academicClass = academicClasses.find(c => c.id === r.academic_class_id);
+                const academicClass = academicClassMap.get(r.academic_class_id);
                 if (!academicClass || academicClass.level !== selectedLevel) return false;
                 if (levelScope.sessionLabel && academicClass.session_label !== levelScope.sessionLabel) return false;
                 
-                const student = students.find(s => s.id === r.student_id);
+                const student = studentMap.get(r.student_id);
                 if (!student || !isActiveStudent(student)) return false;
                 if (campusId != null && student.campus_id != null && student.campus_id !== campusId) return false;
                 
@@ -304,11 +309,13 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             const cohortRanks = rankCohort(levelReports, levelScope, students, academicClasses);
             
             const allRankings: StudentRanking[] = [];
+            const levelReportMap = new Map(levelReports.map(r => [r.student_id, r]));
+            
             cohortRanks.forEach(rank => {
-                const report = levelReports.find(r => r.student_id === rank.studentId);
+                const report = levelReportMap.get(rank.studentId);
                 if (!report) return;
-                const student = students.find(s => s.id === rank.studentId);
-                const academicClass = academicClasses.find(ac => ac.id === report.academic_class_id);
+                const student = studentMap.get(rank.studentId);
+                const academicClass = academicClassMap.get(report.academic_class_id);
 
                 allRankings.push({
                     rank: rank.rank,
@@ -335,11 +342,14 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
             const scopedReports = filterReportsForScope(scope);
 
             const allRankings: StudentRanking[] = [];
+            const scopedReportMap = new Map(scopedReports.map(r => [r.student_id, r]));
+            const studentMap = new Map(students.map(s => [s.id, s]));
+            const academicClass = academicClasses.find(ac => ac.id === selectedArmId);
+            
             cohortRanks.forEach(rank => {
-                const report = scopedReports.find(r => r.student_id === rank.studentId);
+                const report = scopedReportMap.get(rank.studentId);
                 if (!report) return;
-                const student = students.find(s => s.id === rank.studentId);
-                const academicClass = academicClasses.find(ac => ac.id === selectedArmId);
+                const student = studentMap.get(rank.studentId);
 
                 allRankings.push({
                     rank: rank.rank,
