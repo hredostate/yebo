@@ -58,7 +58,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const [includeCoverSheet, setIncludeCoverSheet] = useState(true);
   const [includeCsvSummary, setIncludeCsvSummary] = useState(false);
   const [watermarkChoice, setWatermarkChoice] = useState<'NONE' | 'DRAFT' | 'FINAL'>('NONE');
-  const [templateChoice, setTemplateChoice] = useState<'classic' | 'modern' | 'pastel' | 'professional'>('classic');
+  // Template choice removed - now fetched from school_config or class config
   const [previewing, setPreviewing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'validating' | 'generating' | 'packaging' | 'completed' | 'failed'>('idle');
@@ -97,6 +97,46 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   useEffect(() => {
     fetchStudentData();
   }, [classId, termId, students]);
+
+  /**
+   * Get template layout from centralized config
+   * Priority: class-level override > school default > fallback to 'classic'
+   */
+  const getTemplateForClass = async (): Promise<string> => {
+    try {
+      const supabase = requireSupabaseClient();
+      
+      // First check class-level override
+      const { data: classData } = await supabase
+        .from('academic_classes')
+        .select('report_config')
+        .eq('id', classId)
+        .maybeSingle();
+      
+      if (classData?.report_config?.layout) {
+        return classData.report_config.layout;
+      }
+      
+      // Fall back to school default
+      if (schoolConfig?.default_template_id) {
+        const { data: template } = await supabase
+          .from('report_templates')
+          .select('name')
+          .eq('id', schoolConfig.default_template_id)
+          .maybeSingle();
+        
+        if (template?.name) {
+          return template.name.toLowerCase();
+        }
+      }
+      
+      return 'classic'; // Ultimate fallback
+    } catch (error) {
+      console.error('Error fetching template config:', error);
+      return 'classic';
+    }
+  };
+
 
   useEffect(() => {
     return () => {
@@ -227,7 +267,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       setPreviewUrl(null);
     }
 
-    const result = await generateStudentReportPDF(targetStudent, templateChoice, watermarkChoice === 'NONE' ? undefined : watermarkChoice);
+    const template = await getTemplateForClass();
+    const result = await generateStudentReportPDF(targetStudent, template, watermarkChoice === 'NONE' ? undefined : watermarkChoice);
     if (result) {
       const url = URL.createObjectURL(result.blob);
       setPreviewUrl(url);
@@ -268,7 +309,13 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     return Math.max(1, Math.ceil(imgHeight / safeHeight));
   };
 
-  const renderReportCanvas = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string) => {
+  // Maximum subjects per page to avoid truncation
+  const MAX_SUBJECTS_PER_PAGE = 15;
+
+  /**
+   * Renders multiple canvases for a student report, splitting subjects across pages if needed
+   */
+  const renderReportCanvases = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string): Promise<HTMLCanvasElement[]> => {
     try {
       const supabase = requireSupabaseClient();
       const { data: reportData, error: reportError } = await supabase.rpc('get_student_term_report_details', {
@@ -279,7 +326,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       if (reportError || !reportData) {
         console.error(`Error fetching report for student ${student.name}:`, reportError);
         addToast(`Failed to fetch report for ${student.name}`, 'error');
-        return null;
+        return [];
       }
 
       let classReportConfig = null;
@@ -324,7 +371,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       }
 
       // Normalize data to UnifiedReportCardData format
-      const unifiedData = buildUnifiedReportData(
+      const baseUnifiedData = buildUnifiedReportData(
         reportData,
         schoolConfig,
         student.admission_number || 'N/A',
@@ -332,51 +379,86 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         classReportConfig ? { report_config: classReportConfig } : null
       );
 
-      // Create temporary container off-screen
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '0';
-      tempContainer.style.width = '794px'; // A4 width at 96dpi
-      tempContainer.style.height = '1123px'; // A4 height at 96dpi
-      document.body.appendChild(tempContainer);
+      // Split subjects into pages if needed
+      const subjects = baseUnifiedData.subjects || [];
+      const pages: any[][] = [];
+      
+      if (subjects.length <= MAX_SUBJECTS_PER_PAGE) {
+        // Single page - render as-is
+        pages.push(subjects);
+      } else {
+        // Multiple pages - split subjects
+        for (let i = 0; i < subjects.length; i += MAX_SUBJECTS_PER_PAGE) {
+          pages.push(subjects.slice(i, i + MAX_SUBJECTS_PER_PAGE));
+        }
+      }
 
-      // Render UnifiedReportCard component
-      const root = ReactDOM.createRoot(tempContainer);
+      // Render each page
+      const canvases: HTMLCanvasElement[] = [];
       const watermark: WatermarkType = watermarkText === 'DRAFT' ? 'DRAFT' : watermarkText === 'FINAL' ? 'FINAL' : 'NONE';
-      
-      root.render(<UnifiedReportCard data={unifiedData} watermark={watermark} />);
 
-      // Wait for render to complete
-      await new Promise(resolve => setTimeout(resolve, 200));
+      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+        const pageData = {
+          ...baseUnifiedData,
+          subjects: pages[pageIndex],
+        };
 
-      // Capture as canvas
-      const canvas = await html2canvas(tempContainer, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: 794,
-        height: 1123,
-        windowWidth: 794,
-        windowHeight: 1123,
-      });
+        // Create temporary container off-screen
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.width = '794px'; // A4 width at 96dpi
+        tempContainer.style.height = '1123px'; // A4 height at 96dpi
+        document.body.appendChild(tempContainer);
 
-      // Cleanup
-      root.unmount();
-      document.body.removeChild(tempContainer);
-      
-      return canvas;
+        // Render UnifiedReportCard component
+        const root = ReactDOM.createRoot(tempContainer);
+        
+        root.render(<UnifiedReportCard data={pageData} watermark={watermark} />);
+
+        // Wait for render to complete
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Capture as canvas
+        const canvas = await html2canvas(tempContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: 794,
+          height: 1123,
+          windowWidth: 794,
+          windowHeight: 1123,
+        });
+
+        // Cleanup
+        root.unmount();
+        document.body.removeChild(tempContainer);
+        
+        canvases.push(canvas);
+      }
+
+      return canvases;
     } catch (error) {
-      console.error(`Error preparing canvas for ${student.name}:`, error);
-      return null;
+      console.error(`Error preparing canvases for ${student.name}:`, error);
+      return [];
     }
+  };
+
+  /**
+   * Legacy single-canvas renderer for backwards compatibility
+   * @deprecated Use renderReportCanvases instead for multi-page support
+   */
+  const renderReportCanvas = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string): Promise<HTMLCanvasElement | null> => {
+    const canvases = await renderReportCanvases(student, layoutOverride, watermarkText);
+    return canvases.length > 0 ? canvases[0] : null;
   };
 
   const generateStudentReportPDF = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string): Promise<{ blob: Blob; pagesAdded: number } | null> => {
     try {
-      const canvas = await renderReportCanvas(student, layoutOverride, watermarkText);
-      if (!canvas) return null;
+      const canvases = await renderReportCanvases(student, layoutOverride, watermarkText);
+      if (!canvases || canvases.length === 0) return null;
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -384,8 +466,13 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         format: 'a4',
       });
 
-      const pagesAdded = appendCanvasToPdf(pdf, canvas, false);
-      return { blob: pdf.output('blob'), pagesAdded };
+      let totalPages = 0;
+      for (let i = 0; i < canvases.length; i++) {
+        const pagesAdded = appendCanvasToPdf(pdf, canvases[i], i > 0);
+        totalPages += pagesAdded;
+      }
+
+      return { blob: pdf.output('blob'), pagesAdded: totalPages };
     } catch (error) {
       console.error(`Error generating PDF for student ${student.name}:`, error);
       return null;
@@ -407,7 +494,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
   };
 
-  const addCoverSheet = (pdf: jsPDF, totalStudents: number) => {
+  const addCoverSheet = (pdf: jsPDF, totalStudents: number, template: string) => {
     const margin = 14;
     pdf.setFontSize(20);
     pdf.text('Class Report Pack', margin, 28);
@@ -416,7 +503,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     pdf.setFontSize(11);
     pdf.text(`Total students queued: ${totalStudents}`, margin, 52);
     pdf.text(`Watermark: ${watermarkChoice === 'NONE' ? 'None' : watermarkChoice}`, margin, 60);
-    pdf.text(`Template: ${templateChoice}`, margin, 68);
+    pdf.text(`Template: ${template}`, margin, 68);
     pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, 76);
   };
 
@@ -487,6 +574,9 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const failures: { name: string; reason: string }[] = [];
     const watermarkValue = watermarkChoice === 'NONE' ? undefined : watermarkChoice;
 
+    // Fetch template from centralized config
+    const template = await getTemplateForClass();
+
     try {
       // Generate goal analyses for all selected students before creating PDFs
       addToast('Generating goal analyses...', 'info');
@@ -496,7 +586,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       });
 
       if (outputMode === 'combined' && includeCoverSheet) {
-        addCoverSheet(combinedPdf, selectedStudents.length);
+        addCoverSheet(combinedPdf, selectedStudents.length, template);
         combinedStarted = true;
       }
 
@@ -505,8 +595,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         setJobStatus('generating');
         setGenerationProgress({ current: i + 1, total: selectedStudents.length });
 
-        const canvas = await renderReportCanvas(student, templateChoice, watermarkValue);
-        if (!canvas) {
+        const canvases = await renderReportCanvases(student, template, watermarkValue);
+        if (!canvases || canvases.length === 0) {
           failCount++;
           failures.push({ name: student.name, reason: 'Render failed' });
           continue;
@@ -514,7 +604,12 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
         try {
           const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          appendCanvasToPdf(pdf, canvas, false);
+          
+          // Add all canvases to the PDF
+          for (let canvasIndex = 0; canvasIndex < canvases.length; canvasIndex++) {
+            appendCanvasToPdf(pdf, canvases[canvasIndex], canvasIndex > 0);
+          }
+          
           const pdfBlob = pdf.output('blob');
 
           const safeName = sanitizeString(student.name);
@@ -525,8 +620,11 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           if (outputMode === 'zip') {
             zip.file(filename, pdfBlob);
           } else {
-            appendCanvasToPdf(combinedPdf, canvas, combinedStarted);
-            combinedStarted = true;
+            // For combined PDF, add each canvas
+            for (let canvasIndex = 0; canvasIndex < canvases.length; canvasIndex++) {
+              appendCanvasToPdf(combinedPdf, canvases[canvasIndex], combinedStarted || canvasIndex > 0);
+              combinedStarted = true;
+            }
           }
 
           successCount++;
@@ -802,28 +900,19 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                         </label>
                       </div>
 
-                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Template & watermark</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={templateChoice}
-                          onChange={(e) => setTemplateChoice(e.target.value as any)}
-                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
-                        >
-                          <option value="classic">Classic (balanced)</option>
-                          <option value="modern">Modern gradient</option>
-                          <option value="pastel">Pastel</option>
-                          <option value="professional">Professional</option>
-                        </select>
-                        <select
-                          value={watermarkChoice}
-                          onChange={(e) => setWatermarkChoice(e.target.value as any)}
-                          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
-                        >
-                          <option value="NONE">No watermark</option>
-                          <option value="DRAFT">Watermark: Draft</option>
-                          <option value="FINAL">Watermark: Final</option>
-                        </select>
-                      </div>
+                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Watermark</label>
+                      <select
+                        value={watermarkChoice}
+                        onChange={(e) => setWatermarkChoice(e.target.value as any)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                      >
+                        <option value="NONE">No watermark</option>
+                        <option value="DRAFT">Watermark: Draft</option>
+                        <option value="FINAL">Watermark: Final</option>
+                      </select>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Template is auto-selected from school/class configuration
+                      </p>
 
                       <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
                         <label className="flex items-center gap-2">
