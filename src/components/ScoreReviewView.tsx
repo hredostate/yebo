@@ -14,6 +14,8 @@ import { SearchIcon, FilterIcon, EditIcon, CheckCircleIcon, XCircleIcon, UserCir
 import { usePersistedState, getUserPersistedKey } from '../hooks/usePersistedState';
 import { getCurrentUserId } from '../utils/userHelpers';
 
+const PAGE_SIZE = 50;
+
 interface ScoreReviewViewProps {
     scoreEntries: ScoreEntry[];
     students: Student[];
@@ -79,7 +81,6 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
-    const PAGE_SIZE = 50;
 
     const canEdit = safeUserPermissions.includes('score_entries.edit_all') || safeUserPermissions.includes('*');
     const canView = canEdit || safeUserPermissions.includes('score_entries.view_all');
@@ -268,6 +269,13 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
 
     const totalPages = Math.ceil(filteredScores.length / PAGE_SIZE);
 
+    // Calculate pagination display range
+    const paginationRange = useMemo(() => {
+        const start = filteredScores.length > 0 ? ((currentPage - 1) * PAGE_SIZE) + 1 : 0;
+        const end = Math.min(currentPage * PAGE_SIZE, filteredScores.length);
+        return { start, end };
+    }, [filteredScores.length, currentPage]);
+
     const handleStartEdit = (score: any) => {
         setEditingScoreId(score.id);
         setEditingValues({
@@ -452,7 +460,7 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
             <div className="mb-4 flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="text-sm text-slate-600 dark:text-slate-400">
                     Showing <span className="font-semibold text-blue-700 dark:text-blue-300">
-                        {filteredScores.length > 0 ? ((currentPage - 1) * PAGE_SIZE) + 1 : 0} - {Math.min(currentPage * PAGE_SIZE, filteredScores.length)}
+                        {paginationRange.start} - {paginationRange.end}
                     </span> of <span className="font-semibold text-blue-700 dark:text-blue-300">{filteredScores.length}</span> score {filteredScores.length === 1 ? 'entry' : 'entries'}
                     {filteredScores.length !== safeScoreEntries.length && (
                         <span className="ml-2 text-xs">
@@ -635,7 +643,7 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                 {filteredScores.length > PAGE_SIZE && (
                     <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                         <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Showing {((currentPage - 1) * PAGE_SIZE) + 1} - {Math.min(currentPage * PAGE_SIZE, filteredScores.length)} of {filteredScores.length} entries
+                            Showing {paginationRange.start} - {paginationRange.end} of {filteredScores.length} entries
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -657,14 +665,14 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
                             </span>
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage >= totalPages}
+                                disabled={currentPage === totalPages}
                                 className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Next
                             </button>
                             <button
                                 onClick={() => setCurrentPage(totalPages)}
-                                disabled={currentPage >= totalPages}
+                                disabled={currentPage === totalPages}
                                 className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Last
