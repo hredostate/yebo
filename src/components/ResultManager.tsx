@@ -100,9 +100,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             filtered = filtered.filter(a => 
-                a.academic_class?.name.toLowerCase().includes(q) ||
-                a.subject_name.toLowerCase().includes(q) ||
-                a.teacher?.name.toLowerCase().includes(q)
+                a.academic_class?.name?.toLowerCase().includes(q) ||
+                a.subject_name?.toLowerCase().includes(q) ||
+                a.teacher?.name?.toLowerCase().includes(q)
             );
         }
         
