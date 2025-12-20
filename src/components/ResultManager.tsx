@@ -315,6 +315,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                 // Success/error toasts are handled by useAppLogic.ts
             } else {
                 // Fallback to direct supabase call (without data refresh)
+                const supabase = requireSupabaseClient();
                 const { error } = await supabase
                     .from('teaching_assignments')
                     .update({ is_locked: false })
