@@ -46,6 +46,7 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
+      const supabase = requireSupabaseClient();
 
       // Fetch classes
       const { data: classesData } = await supabase
