@@ -10,6 +10,7 @@ import {
     processPaystackPayment,
     resolvePayslipQuery
 } from '../services/payrollPreRunService';
+import { generateBankTransferCSV, downloadCSV } from '../utils/bankCodes';
 import Spinner from './common/Spinner';
 
 interface PayrollApprovalDashboardProps {
@@ -29,6 +30,8 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
     const [selectedQuery, setSelectedQuery] = useState<PayslipQuery | null>(null);
     const [showQueryModal, setShowQueryModal] = useState(false);
     const [adminResponse, setAdminResponse] = useState('');
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [processingData, setProcessingData] = useState<any>(null);
 
     useEffect(() => {
         loadRuns();
@@ -48,7 +51,7 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                 .from('payroll_runs_v2')
                 .select('*')
                 .eq('school_id', userProfile.school_id)
-                .in('status', ['PRE_RUN_PUBLISHED', 'FINALIZED'])
+                .in('status', ['PRE_RUN_PUBLISHED', 'FINALIZED', 'PROCESSED_OFFLINE'])
                 .order('created_at', { ascending: false })
                 .limit(10);
 
@@ -106,10 +109,25 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
     const handleProcessPayment = async () => {
         if (!selectedRun) return;
 
+        // Show confirmation dialog for offline processing
+        if (processingMethod === 'OFFLINE') {
+            setShowConfirmDialog(true);
+            return;
+        }
+
+        // Process Paystack directly (no confirmation needed)
+        await executePaymentProcessing();
+    };
+
+    const executePaymentProcessing = async () => {
+        if (!selectedRun) return;
+
+        setShowConfirmDialog(false);
         setIsProcessing(true);
         try {
             if (processingMethod === 'OFFLINE') {
-                await processOfflinePayment(selectedRun.id, userProfile.id);
+                const result = await processOfflinePayment(selectedRun.id, userProfile.id);
+                setProcessingData(result);
                 addToast('Marked as processed offline. Complete bank transfers manually.', 'success');
             } else {
                 await processPaystackPayment(selectedRun.id, userProfile.id);
@@ -146,6 +164,39 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
             addToast(error.message, 'error');
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const handleDownloadBankTransferSheet = async () => {
+        if (!selectedRun) return;
+
+        try {
+            const supabase = requireSupabaseClient();
+            const { data: payslips, error } = await supabase
+                .from('payslips')
+                .select(`
+                    id,
+                    staff_id,
+                    net_pay,
+                    staff:user_profiles(name, account_number, bank_code, account_name)
+                `)
+                .eq('payroll_run_id', selectedRun.id)
+                .eq('status', 'FINAL');
+
+            if (error) throw error;
+
+            if (!payslips || payslips.length === 0) {
+                addToast('No finalized payslips found', 'error');
+                return;
+            }
+
+            const csvContent = generateBankTransferCSV(payslips, selectedRun.period_key);
+            const filename = `bank-transfer-${selectedRun.period_key.replace(/\s+/g, '-')}-${Date.now()}.csv`;
+            downloadCSV(csvContent, filename);
+            
+            addToast('Bank transfer sheet downloaded successfully!', 'success');
+        } catch (error: any) {
+            addToast(`Failed to download: ${error.message}`, 'error');
         }
     };
 
@@ -357,6 +408,25 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                             </button>
                         </div>
                     )}
+
+                    {selectedRun.status === 'PROCESSED_OFFLINE' && (
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                                <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
+                                    ✅ Processed Offline
+                                </h3>
+                                <p className="text-green-700 dark:text-green-300 mb-4">
+                                    This payroll has been marked as processed offline. Complete the bank transfers manually using the download below.
+                                </p>
+                                <button
+                                    onClick={handleDownloadBankTransferSheet}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                                >
+                                    📥 Download Bank Transfer Sheet
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -480,6 +550,52 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                             >
                                 {isProcessing ? <Spinner size="sm" /> : null}
                                 Resolve Query
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Offline Processing Confirmation Dialog */}
+            {showConfirmDialog && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 m-4">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">
+                            Confirm Offline Processing
+                        </h2>
+                        
+                        <div className="mb-6">
+                            <p className="text-slate-700 dark:text-slate-300 mb-4">
+                                You are about to mark this payroll as processed offline. This will:
+                            </p>
+                            <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 mb-4">
+                                <li>Create payroll records in the system</li>
+                                <li>Mark the run as "PROCESSED_OFFLINE"</li>
+                                <li>Allow you to download a bank transfer sheet</li>
+                                <li><strong>NOT</strong> process any automated payments</li>
+                            </ul>
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                                <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                                    ⚠️ You will need to manually complete bank transfers for all staff members.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowConfirmDialog(false)}
+                                disabled={isProcessing}
+                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={executePaymentProcessing}
+                                disabled={isProcessing}
+                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 font-semibold flex items-center justify-center gap-2"
+                            >
+                                {isProcessing ? <Spinner size="sm" /> : '✓'}
+                                Confirm Offline Processing
                             </button>
                         </div>
                     </div>
