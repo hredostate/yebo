@@ -81,6 +81,9 @@ export const ALL_PERMISSIONS: string[] = [
   'transport.view', // View transport information
 ];
 
+// Teaching assignment constants
+export const CLASS_TEACHER_SUBJECT_PLACEHOLDER = 'Class Teacher';
+
 export const VIEWS = {
   DASHBOARD: 'Dashboard',
   STUDENT_PORTAL: 'Student Portal',

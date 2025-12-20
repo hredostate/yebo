@@ -20,7 +20,7 @@ import type {
   CoverageVote, CreatedCredential, RoleTitle, TaskStatus, StudentProfile,
   UserRoleAssignment, StudentTermReportSubject, ScoreEntry, AtRiskTeacher
 } from '../types';
-import { VIEWS } from '../constants';
+import { VIEWS, CLASS_TEACHER_SUBJECT_PLACEHOLDER } from '../constants';
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_SOCIAL_ANALYTICS } from '../services/mockData';
 import { todayISO, checkInToday, checkOutToday, uploadCheckinPhoto } from '../services/checkins';
 import { getAIClient, getCurrentModel } from '../services/aiClient';
@@ -839,7 +839,7 @@ export const useAppLogic = () => {
              }
              
              // Handle subject - required for Subject Teacher Groups, optional for Class Teacher Groups
-             let subjectName = 'Class Teacher'; // Default for Class Teacher Groups
+             let subjectName = CLASS_TEACHER_SUBJECT_PLACEHOLDER; // Default for Class Teacher Groups
              if (group.group_type === 'subject_teacher') {
                  const subject = allSubjects.find(s => s.id === assign.subject_id);
                  if (!subject) {
