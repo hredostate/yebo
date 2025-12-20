@@ -357,6 +357,7 @@ export const useAppLogic = () => {
   // --- Actions Implementation ---
 
   const handleLogout = useCallback(async () => {
+      const supabase = requireSupabaseClient();
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
@@ -786,6 +787,7 @@ export const useAppLogic = () => {
         handleUpdateSIP: async () => true,
         handleRunWeeklyComplianceCheck: async () => {},
         handleUpdateClassGroupMembers: async (gid: number, mids: number[]) => {
+             const supabase = requireSupabaseClient();
              await supabase.from('class_group_members').delete().eq('group_id', gid);
              await supabase.from('class_group_members').insert(mids.map(id => ({ group_id: gid, student_id: id })));
              fetchData(); return true;
@@ -885,6 +887,7 @@ export const useAppLogic = () => {
              if(!error) fetchData(); return !error;
         },
         handleSaveSurvey: async (data: any) => {
+             const supabase = requireSupabaseClient();
              // Survey save logic (questions relation)
              // Simplified:
              const { questions, ...rest } = data;
@@ -908,6 +911,7 @@ export const useAppLogic = () => {
         handleCopyLessonPlan: async () => true,
         handleApproveLessonPlan: async () => {},
         handleSaveScores: async (scores: any[]) => {
+             const supabase = requireSupabaseClient();
              // Bulk upsert scores
              const { error } = await supabase.from('score_entries').upsert(scores, { onConflict: 'term_id,academic_class_id,subject_name,student_id' });
              return !error;
@@ -924,6 +928,7 @@ export const useAppLogic = () => {
         handleSaveAssessmentScores: async () => true,
         handleCopyAssessment: async () => true,
         handleLockScores: async (assignmentId: number, zeroScoreCallback?: (students: any[]) => Promise<'unenroll' | 'keep' | 'cancel'>) => {
+            const supabase = requireSupabaseClient();
             try {
                 // 1. Detect zero total scores
                 const { data: zeroScoreStudents, error: detectError } = await supabase
@@ -982,6 +987,7 @@ export const useAppLogic = () => {
             }
         },
         handleUnlockClass: async (classId: number, termId: number) => {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('teaching_assignments')
                 .update({ is_locked: false })
