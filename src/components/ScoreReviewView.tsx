@@ -267,7 +267,10 @@ const ScoreReviewView: React.FC<ScoreReviewViewProps> = ({
         return filteredScores.slice(startIndex, endIndex);
     }, [filteredScores, currentPage]);
 
-    const totalPages = Math.ceil(filteredScores.length / PAGE_SIZE);
+    const totalPages = useMemo(() => 
+        Math.ceil(filteredScores.length / PAGE_SIZE),
+        [filteredScores.length]
+    );
 
     // Calculate pagination display range
     const paginationRange = useMemo(() => {
