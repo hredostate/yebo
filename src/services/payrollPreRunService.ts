@@ -428,14 +428,17 @@ export async function processPaystackPayment(runId: string, actorId: string): Pr
         }
         
         // 3. Transform payslip data into the format expected by run-payroll edge function
-        // Note: We use net_pay as gross_amount since adjustments are already calculated and approved in the payslip.
+        // IMPORTANT: We use net_pay as gross_amount since adjustments are already calculated and approved in the payslip.
+        // This is semantically confusing but correct: the edge function's "gross_amount" parameter represents
+        // the base amount before pension deductions (which are NOT included in V2 payslips).
         // We pass empty adjustment_ids to prevent double-application of adjustments.
-        // The edge function will still calculate and deduct pension contributions.
+        // The edge function will still calculate and deduct pension contributions from this amount.
         const items = payslips
             .filter((payslip) => {
                 const staff = payslip.staff as any;
                 // Skip staff without bank details
                 if (!staff || !staff.account_number || !staff.bank_code) {
+                    // Note: Using console.warn for consistency with existing logging in the codebase
                     console.warn(`Skipping payslip for staff ${staff?.name || payslip.staff_id}: missing bank details`);
                     return false;
                 }

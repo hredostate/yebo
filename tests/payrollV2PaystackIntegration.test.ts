@@ -58,6 +58,8 @@ function testPayloadTransformation() {
   const periodKey = '2025-01';
   
   // Transform logic (mimics the implementation in processPaystackPayment)
+  // Note: This duplicates the logic intentionally for test isolation and validation.
+  // If the implementation changes, this test should be updated to match.
   const items = mockPayslips
     .filter((payslip) => {
       const staff = payslip.staff as any;
