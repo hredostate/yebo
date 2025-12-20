@@ -263,7 +263,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
 
         setIsSaving(true);
         const success = await onSave(
-            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId as number },
+            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId! },
             { name: groupName, description, group_type: groupType }
         );
         if (success) {

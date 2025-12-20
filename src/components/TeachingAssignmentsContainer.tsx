@@ -90,7 +90,7 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
         teacher_user_id: as.teacher_user_id,
         subject_id: subject.id,
         class_id: classRecord.id,
-        arm_id: armRecord.id,
+        arm_id: armRecord!.id,
     };
     
     const groupData = {
