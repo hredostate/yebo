@@ -3,10 +3,10 @@ import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass, ZeroScoreStudent } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon, PaperAirplaneIcon } from './common/icons';
-import { aiClient } from '../services/aiClient';
+import { aiClient, getAIClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment, generateTeacherComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -14,7 +14,7 @@ import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
-import TeacherCommentEditor from './TeacherCommentEditor';
+import TeacherCommentModal from './TeacherCommentModal';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -60,6 +60,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [showBulkSender, setShowBulkSender] = useState(false);
     const [selectedClassForSender, setSelectedClassForSender] = useState<{ id: number; name: string } | null>(null);
     
+    // State for teacher comment editing modal
+    const [showTeacherCommentModal, setShowTeacherCommentModal] = useState(false);
+    const [selectedClassForComments, setSelectedClassForComments] = useState<{ id: number; name: string } | null>(null);
+    const [isGeneratingTeacherComments, setIsGeneratingTeacherComments] = useState(false);
+    
     // State for inline score preview modal
     const [showScorePreview, setShowScorePreview] = useState(false);
     const [scorePreviewFilters, setScorePreviewFilters] = useState<{
@@ -96,6 +101,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         { id: 'executive-dark', name: 'Executive Dark', description: 'Dark theme professional design' },
         { id: 'minimalist-clean', name: 'Minimalist Clean', description: 'Clean typography-focused layout' },
     ];
+
 
     const assignmentsForTerm = useMemo(() => {
         if (!selectedTermId) return [];
@@ -215,6 +221,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!window.confirm(`Are you sure you want to PUBLISH all results for ${className}? Students will be able to see their reports immediately.`)) return;
 
         setPublishingClassId(classId);
+        const supabase = requireSupabaseClient();
         try {
             // Get all students in this class
             const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
@@ -249,6 +256,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!window.confirm(`Are you sure you want to UNPUBLISH results for ${className}? Students will no longer be able to see their reports.`)) return;
 
         setPublishingClassId(classId);
+        const supabase = requireSupabaseClient();
         try {
             const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
             const studentIds = studentsInClass.map(s => s.student_id);
@@ -422,6 +430,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
         
         setIsGeneratingComments(assignment.id);
+        const supabase = requireSupabaseClient();
         
         try {
             // Find scores for this assignment
@@ -432,7 +441,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             );
 
             if (relevantScores.length === 0) {
-                addToast('No scores found for this subject.', 'warning');
+                addToast('No scores found for this subject.', 'info');
                 return;
             }
 
@@ -445,7 +454,13 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             const EXCELLENT_THRESHOLD = 80;
             const GOOD_THRESHOLD = 65;
             const SATISFACTORY_THRESHOLD = 50;
-            const RATE_LIMIT_DELAY_MS = 500;
+            
+            // Check if AI is available BEFORE the loop
+            const aiClient = getAIClient();
+            const useAI = !!aiClient;
+            
+            // Only apply rate limiting if using AI
+            const RATE_LIMIT_DELAY_MS = useAI ? 500 : 0;
 
             // Generate and save comments for each student
             for (const scoreEntry of relevantScores) {
@@ -485,8 +500,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         successCount++;
                     }
 
-                    // Small delay to avoid rate limiting
-                    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+                    // Only delay if using AI to avoid rate limiting
+                    if (useAI && RATE_LIMIT_DELAY_MS > 0) {
+                        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+                    }
 
                 } catch (err) {
                     console.error(`Error generating comment for ${student.name}:`, err);
@@ -497,7 +514,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             if (errorCount === 0) {
                 addToast(`Successfully generated comments for ${successCount} students!`, 'success');
             } else {
-                addToast(`Generated ${successCount} comments. ${errorCount} failed.`, 'warning');
+                addToast(`Generated ${successCount} comments. ${errorCount} failed.`, 'info');
             }
 
         } catch (e: any) {
@@ -513,6 +530,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!window.confirm("Are you sure you want to PUBLISH results for this term? Students will be able to see their reports immediately.")) return;
 
         setIsPublishing(true);
+        const supabase = requireSupabaseClient();
         try {
             const { error } = await supabase
                 .from('student_term_reports')
@@ -534,6 +552,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!window.confirm("Are you sure you want to UNPUBLISH all results for this term? Students will no longer be able to see their reports.")) return;
 
         setIsPublishing(true);
+        const supabase = requireSupabaseClient();
         try {
             const { error } = await supabase
                 .from('student_term_reports')
@@ -595,6 +614,86 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast(`Error: ${e.message}`, "error");
         } finally {
             setIsGeneratingComments(null);
+        }
+    };
+
+    const handleOpenTeacherCommentModal = (classId: number, className: string) => {
+        setSelectedClassForComments({ id: classId, name: className });
+        setShowTeacherCommentModal(true);
+    };
+
+    const handleBulkGenerateTeacherComments = async (classId: number, overwrite: boolean = false) => {
+        if (!selectedTermId) return;
+        
+        setIsGeneratingTeacherComments(true);
+        try {
+            // Get all students in this class
+            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
+            const studentIds = studentsInClass.map(s => s.student_id);
+
+            if (studentIds.length === 0) {
+                addToast('No students found in this class.', 'error');
+                return;
+            }
+
+            // Get reports for these students
+            const reportsToProcess = studentTermReports.filter(r => 
+                r.term_id === selectedTermId && 
+                studentIds.includes(r.student_id)
+            );
+
+            if (reportsToProcess.length === 0) {
+                addToast('No reports found for this class/term.', 'info');
+                return;
+            }
+
+            addToast(`Generating teacher comments for ${reportsToProcess.length} students...`, 'info');
+
+            let successCount = 0;
+            let skippedCount = 0;
+
+            for (const report of reportsToProcess) {
+                try {
+                    // Skip if already has a comment and not overwriting
+                    if (!overwrite && report.teacher_comment && report.teacher_comment.trim() !== '') {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Get student details
+                    const student = students.find(s => s.id === report.student_id);
+                    if (!student) continue;
+
+                    // Extract first name
+                    const firstName = student.name.split(' ')[0];
+
+                    // Generate rule-based comment
+                    const comment = generateRuleBasedTeacherComment(
+                        firstName,
+                        report.average_score || 0,
+                        report.position_in_class || studentsInClass.length,
+                        studentsInClass.length
+                    );
+
+                    // Save to database
+                    await onUpdateComments(report.id, comment, report.principal_comment || '');
+                    successCount++;
+
+                } catch (err) {
+                    console.error(`Error generating comment for report ${report.id}:`, err);
+                }
+            }
+
+            if (successCount > 0) {
+                addToast(`Successfully generated ${successCount} teacher comments!${skippedCount > 0 ? ` (${skippedCount} skipped - already have comments)` : ''}`, 'success');
+            } else {
+                addToast(`No new comments generated. ${skippedCount} students already have comments.`, 'info');
+            }
+
+        } catch (e: any) {
+            addToast(`Error generating comments: ${e.message}`, 'error');
+        } finally {
+            setIsGeneratingTeacherComments(false);
         }
     };
 
@@ -1110,10 +1209,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     
                                     {/* Edit Teacher Comments Button */}
                                     <button
-                                        onClick={() => handleOpenCommentEditor(c.id, c.name)}
+                                        onClick={() => handleOpenTeacherCommentModal(c.id, c.name)}
                                         disabled={c.reportsCount === 0}
                                         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher comments for this class"}
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher comments for students"}
                                     >
                                         <EditIcon className="w-4 h-4" />
                                         Edit Teacher Comments
@@ -1428,6 +1527,36 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     onClose={() => {
                         setShowBulkSender(false);
                         setSelectedClassForSender(null);
+                    }}
+                    addToast={addToast}
+                />
+            )}
+
+            {/* Teacher Comment Editing Modal */}
+            {showTeacherCommentModal && selectedClassForComments && selectedTermId && (
+                <TeacherCommentModal
+                    classId={selectedClassForComments.id}
+                    className={selectedClassForComments.name}
+                    termId={Number(selectedTermId)}
+                    students={students.filter(s => 
+                        academicClassStudents.some(acs => 
+                            acs.academic_class_id === selectedClassForComments.id && 
+                            acs.student_id === s.id
+                        )
+                    )}
+                    studentTermReports={studentTermReports.filter(r => 
+                        r.term_id === selectedTermId &&
+                        academicClassStudents.some(acs => 
+                            acs.academic_class_id === selectedClassForComments.id && 
+                            acs.student_id === r.student_id
+                        )
+                    )}
+                    onUpdateComment={onUpdateComments}
+                    onBulkGenerate={(overwrite) => handleBulkGenerateTeacherComments(selectedClassForComments.id, overwrite)}
+                    isGenerating={isGeneratingTeacherComments}
+                    onClose={() => {
+                        setShowTeacherCommentModal(false);
+                        setSelectedClassForComments(null);
                     }}
                     addToast={addToast}
                 />
