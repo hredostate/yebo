@@ -4,6 +4,8 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, SettingsIcon } from './common/icons';
 
+const PAGE_SIZE = 50;
+
 interface ZeroScoreMonitorViewProps {
     userProfile: UserProfile;
     onBack: () => void;
@@ -13,7 +15,7 @@ interface ZeroScoreMonitorViewProps {
 const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile, onBack, addToast }) => {
     const [zeroScores, setZeroScores] = useState<ZeroScoreEntry[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterReviewed, setFilterReviewed] = useState<'all' | 'reviewed' | 'unreviewed'>('all');
+    const [filterReviewed, setFilterReviewed] = useState<'all' | 'reviewed' | 'unreviewed'>('unreviewed');
     const [filterTeacher, setFilterTeacher] = useState<string>('all');
     const [filterSubject, setFilterSubject] = useState<string>('all');
     const [filterTerm, setFilterTerm] = useState<string>('all');
@@ -22,16 +24,84 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const [selectedEntry, setSelectedEntry] = useState<ZeroScoreEntry | null>(null);
     const [reviewNotes, setReviewNotes] = useState('');
     const [isReviewing, setIsReviewing] = useState(false);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [allTeachers, setAllTeachers] = useState<UserProfile[]>([]);
+    const [allSubjects, setAllSubjects] = useState<string[]>([]);
+    const [allTerms, setAllTerms] = useState<Term[]>([]);
 
     useEffect(() => {
         fetchZeroScores();
+    }, [userProfile.school_id, page, filterReviewed, filterTeacher, filterTerm, filterDateFrom, filterDateTo]);
+
+    useEffect(() => {
+        fetchFilterOptions();
     }, [userProfile.school_id]);
+
+    // Reset page to 1 when server-side filters change
+    useEffect(() => {
+        setPage(1);
+    }, [filterReviewed, filterTeacher, filterTerm, filterDateFrom, filterDateTo]);
+
+    const fetchFilterOptions = async () => {
+        try {
+            const supabase = requireSupabaseClient();
+            
+            // Fetch all unique teachers
+            const { data: teacherData, error: teacherError } = await supabase
+                .from('zero_score_entries')
+                .select('teacher_user_id, teacher:user_profiles!teacher_user_id(id, name)')
+                .eq('school_id', userProfile.school_id)
+                .not('teacher_user_id', 'is', null);
+            
+            if (teacherError) throw teacherError;
+            
+            // Get unique teachers
+            const seenTeacherIds = new Set<string>();
+            const uniqueTeachers = (teacherData || [])
+                .map(entry => entry.teacher)
+                .filter(t => t && !seenTeacherIds.has(t.id) && seenTeacherIds.add(t.id)) as UserProfile[];
+            setAllTeachers(uniqueTeachers);
+            
+            // Fetch all unique subjects
+            const { data: subjectData, error: subjectError } = await supabase
+                .from('zero_score_entries')
+                .select('subject_name')
+                .eq('school_id', userProfile.school_id);
+            
+            if (subjectError) throw subjectError;
+            
+            const uniqueSubjects = [...new Set((subjectData || []).map(s => s.subject_name))].sort();
+            setAllSubjects(uniqueSubjects);
+            
+            // Fetch all unique terms
+            const { data: termData, error: termError } = await supabase
+                .from('zero_score_entries')
+                .select('term_id, term:terms(id, name)')
+                .eq('school_id', userProfile.school_id)
+                .not('term_id', 'is', null);
+            
+            if (termError) throw termError;
+            
+            // Get unique terms
+            const seenTermIds = new Set<number>();
+            const uniqueTerms = (termData || [])
+                .map(entry => entry.term)
+                .filter(t => t && !seenTermIds.has(t.id) && seenTermIds.add(t.id)) as Term[];
+            setAllTerms(uniqueTerms);
+        } catch (error: any) {
+            // Silently fail for filter options - they're not critical
+            console.error('Error fetching filter options:', error);
+        }
+    };
 
     const fetchZeroScores = async () => {
         setLoading(true);
         try {
             const supabase = requireSupabaseClient();
-            const { data, error } = await supabase
+            
+            // Build query with server-side filters
+            let query = supabase
                 .from('zero_score_entries')
                 .select(`
                     *,
@@ -39,12 +109,39 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
                     teacher:user_profiles!teacher_user_id(*),
                     academic_class:academic_classes(*),
                     term:terms(*)
-                `)
+                `, { count: 'exact' })
                 .eq('school_id', userProfile.school_id)
-                .order('entry_date', { ascending: false });
+                .order('entry_date', { ascending: false })
+                .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+            // Apply server-side filters
+            if (filterReviewed === 'reviewed') {
+                query = query.eq('reviewed', true);
+            } else if (filterReviewed === 'unreviewed') {
+                query = query.eq('reviewed', false);
+            }
+            
+            if (filterTeacher !== 'all') {
+                query = query.eq('teacher_user_id', filterTeacher);
+            }
+            
+            if (filterTerm !== 'all') {
+                query = query.eq('term_id', Number(filterTerm));
+            }
+            
+            if (filterDateFrom) {
+                query = query.gte('entry_date', filterDateFrom);
+            }
+            
+            if (filterDateTo) {
+                query = query.lte('entry_date', filterDateTo);
+            }
+
+            const { data, error, count } = await query;
 
             if (error) throw error;
             setZeroScores(data || []);
+            setTotalCount(count || 0);
         } catch (error: any) {
             addToast(`Error loading zero score entries: ${error.message}`, 'error');
         } finally {
@@ -82,66 +179,32 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const filteredEntries = useMemo(() => {
         let filtered = [...zeroScores];
 
-        // Filter by review status
-        if (filterReviewed === 'reviewed') {
-            filtered = filtered.filter(e => e.reviewed);
-        } else if (filterReviewed === 'unreviewed') {
-            filtered = filtered.filter(e => !e.reviewed);
-        }
-
-        // Filter by teacher
-        if (filterTeacher !== 'all') {
-            filtered = filtered.filter(e => e.teacher_user_id === filterTeacher);
-        }
-
-        // Filter by subject
+        // Filter by subject (client-side only, since it's not in the database structure)
         if (filterSubject !== 'all') {
             filtered = filtered.filter(e => e.subject_name === filterSubject);
         }
 
-        // Filter by term
-        if (filterTerm !== 'all') {
-            const termId = Number(filterTerm);
-            if (!isNaN(termId)) {
-                filtered = filtered.filter(e => e.term_id === termId);
-            }
-        }
-
-        // Filter by date range
-        if (filterDateFrom) {
-            filtered = filtered.filter(e => new Date(e.entry_date) >= new Date(filterDateFrom));
-        }
-        if (filterDateTo) {
-            filtered = filtered.filter(e => new Date(e.entry_date) <= new Date(filterDateTo));
-        }
-
         return filtered;
-    }, [zeroScores, filterReviewed, filterTeacher, filterSubject, filterTerm, filterDateFrom, filterDateTo]);
+    }, [zeroScores, filterSubject]);
 
     const uniqueTeachers = useMemo(() => {
-        const seenIds = new Set<string>();
-        return zeroScores
-            .map(z => z.teacher)
-            .filter(t => t && !seenIds.has(t.id) && seenIds.add(t.id)) as UserProfile[];
-    }, [zeroScores]);
+        return allTeachers;
+    }, [allTeachers]);
 
     const uniqueSubjects = useMemo(() => {
-        return [...new Set(zeroScores.map(z => z.subject_name))].sort();
-    }, [zeroScores]);
+        return allSubjects;
+    }, [allSubjects]);
 
     const uniqueTerms = useMemo(() => {
-        const seenIds = new Set<number>();
-        return zeroScores
-            .map(z => z.term)
-            .filter(t => t && !seenIds.has(t.id) && seenIds.add(t.id)) as Term[];
-    }, [zeroScores]);
+        return allTerms;
+    }, [allTerms]);
 
     const stats = useMemo(() => {
-        const total = zeroScores.length;
-        const reviewed = zeroScores.filter(z => z.reviewed).length;
-        const unreviewed = total - reviewed;
-        return { total, reviewed, unreviewed };
-    }, [zeroScores]);
+        // Stats now reflect the total counts from the server
+        // Note: reviewed/unreviewed counts are not available with pagination
+        // Would require additional queries to fetch these accurately
+        return { total: totalCount };
+    }, [totalCount]);
 
     if (loading) {
         return (
@@ -167,18 +230,13 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
             </div>
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 gap-4 mb-6">
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Zero Scores</h3>
+                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Matching Zero Scores</h3>
                     <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.total}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Unreviewed</h3>
-                    <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mt-2">{stats.unreviewed}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Reviewed</h3>
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{stats.reviewed}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Based on current filter settings
+                    </p>
                 </div>
             </div>
 
@@ -362,6 +420,32 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
                             )}
                         </tbody>
                     </table>
+                </div>
+                
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                        Showing {totalCount === 0 ? 0 : ((page - 1) * PAGE_SIZE) + 1} - {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} entries
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="px-3 py-1 border border-slate-300 dark:border-slate-600 rounded text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            Previous
+                        </button>
+                        <span className="px-3 py-1 text-slate-700 dark:text-slate-300">
+                            Page {page} of {Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}
+                        </span>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={page * PAGE_SIZE >= totalCount}
+                            className="px-3 py-1 border border-slate-300 dark:border-slate-600 rounded text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
 
