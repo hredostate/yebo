@@ -145,6 +145,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         const fetchUserEmail = async () => {
             if (student.user_id) {
                 try {
+                    const supabase = requireSupabaseClient();
                     const { data, error } = await supabase
                         .from('user_profiles')
                         .select('email')
