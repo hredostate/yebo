@@ -12,6 +12,7 @@ import Pagination from './common/Pagination';
 import { isActiveEmployee } from '../utils/userHelpers';
 import { type ActivationLinkResult } from '../services/activationLinks';
 import { parseCsv } from '../utils/feesCsvUtils';
+import { generateAdmissionNumber } from '../utils/admissionNumber';
 import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface StudentListViewProps {
@@ -718,6 +719,36 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         return;
       }
 
+      // Get school_id and fetch existing admission numbers once before processing
+      const supabase = requireSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
+
+      // Fetch all existing admission numbers for admission number generation
+      const { data: existingStudents, error: fetchError } = await supabase
+        .from('students')
+        .select('admission_number')
+        .eq('school_id', profile.school_id);
+      
+      const existingAdmissionNumbers = existingStudents
+        ? existingStudents.map(s => s.admission_number).filter((num): num is string => !!num)
+        : [];
+      
+      // Track generated numbers in this batch to avoid duplicates
+      const generatedInBatch: string[] = [];
+
       // Process and validate student data
       const studentsToImport: any[] = [];
       const errors: string[] = [];
@@ -758,7 +789,22 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         }
 
         // Extract all fields using flexible matching
-        const admissionNumber = getColumnValue(row, CSV_HEADER_VARIATIONS.admissionNumber);
+        let admissionNumber = getColumnValue(row, CSV_HEADER_VARIATIONS.admissionNumber);
+        
+        // Generate admission number if not provided and class is available
+        if (!admissionNumber && className) {
+          try {
+            const allExistingNumbers = [...existingAdmissionNumbers, ...generatedInBatch];
+            const generated = generateAdmissionNumber(className, allExistingNumbers);
+            if (generated) {
+              admissionNumber = generated;
+              generatedInBatch.push(generated);
+            }
+          } catch (err) {
+            console.warn(`Row ${rowNum}: Failed to generate admission number:`, err);
+          }
+        }
+        
         const email = getColumnValue(row, CSV_HEADER_VARIATIONS.email);
         const dateOfBirth = getColumnValue(row, CSV_HEADER_VARIATIONS.dob);
         const address = getColumnValue(row, CSV_HEADER_VARIATIONS.address);
@@ -798,23 +844,6 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       // Import students
       let successCount = 0;
       let failCount = 0;
-
-      // Get school_id once before the loop
-      const supabase = requireSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('school_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile) {
-        throw new Error('User profile not found');
-      }
 
       for (const studentData of studentsToImport) {
         try {
