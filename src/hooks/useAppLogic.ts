@@ -806,18 +806,60 @@ export const useAppLogic = () => {
                  return false;
              }
              
-             // Look up subject name from subject_id
-             const subject = allSubjects.find(s => s.id === assign.subject_id);
-             if (!subject) {
-                 addToast('Invalid subject selected', 'error');
+             // Validate required arm_id
+             if (!assign.arm_id) {
+                 addToast('Arm is required for all class groups', 'error');
                  return false;
              }
              
-             // Create teaching assignment with correct field names
+             // Look up class name from class_id
+             const classRecord = allClasses.find(c => c.id === assign.class_id);
+             if (!classRecord) {
+                 addToast('Invalid class selected', 'error');
+                 return false;
+             }
+             
+             // Look up arm name from arm_id
+             const armRecord = allArms.find(a => a.id === assign.arm_id);
+             if (!armRecord) {
+                 addToast('Invalid arm selected', 'error');
+                 return false;
+             }
+             
+             // Find the matching academic_class for the current session
+             const academicClass = academicClasses.find(ac => 
+                 ac.level === classRecord.name && 
+                 ac.arm === armRecord.name &&
+                 ac.session_label === activeTerm.session_label
+             );
+             
+             if (!academicClass) {
+                 addToast(`No academic class found for ${classRecord.name} ${armRecord.name} in session ${activeTerm.session_label}. Please create the academic class first.`, 'error');
+                 return false;
+             }
+             
+             // Handle subject - required for Subject Teacher Groups, optional for Class Teacher Groups
+             let subjectName = 'Class Teacher'; // Default for Class Teacher Groups
+             if (group.group_type === 'subject_teacher') {
+                 const subject = allSubjects.find(s => s.id === assign.subject_id);
+                 if (!subject) {
+                     addToast('Subject is required for Subject Teacher Groups', 'error');
+                     return false;
+                 }
+                 subjectName = subject.name;
+             } else if (assign.subject_id) {
+                 // If subject is provided for Class Teacher Group, use it
+                 const subject = allSubjects.find(s => s.id === assign.subject_id);
+                 if (subject) {
+                     subjectName = subject.name;
+                 }
+             }
+             
+             // Create teaching assignment with correct academic_class_id
              const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', {
                  teacher_user_id: assign.teacher_user_id,
-                 subject_name: subject.name,
-                 academic_class_id: assign.class_id,
+                 subject_name: subjectName,
+                 academic_class_id: academicClass.id,
                  school_id: userProfile.school_id,
                  term_id: activeTerm.id
              });
