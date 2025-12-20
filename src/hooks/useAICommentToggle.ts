@@ -6,13 +6,22 @@ import { useState } from 'react';
  */
 export function useAICommentToggle() {
   const [useAIComments, setUseAIComments] = useState<boolean>(() => {
-    const saved = localStorage.getItem('yebo_ai_comments_enabled');
-    return saved !== 'false'; // Default to true (AI mode) for backward compatibility
+    try {
+      const saved = localStorage.getItem('yebo_ai_comments_enabled');
+      return saved !== 'false'; // Default to true (AI mode) for backward compatibility
+    } catch (error) {
+      console.warn('Failed to read AI comments preference from localStorage:', error);
+      return true; // Default to true if localStorage is not available
+    }
   });
 
   const handleAIToggleChange = (enabled: boolean) => {
     setUseAIComments(enabled);
-    localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
+    try {
+      localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
+    } catch (error) {
+      console.warn('Failed to save AI comments preference to localStorage:', error);
+    }
   };
 
   return {

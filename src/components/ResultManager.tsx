@@ -6,7 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintB
 import { aiClient, getAIClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateRuleBasedTeacherComment, generateTeacherComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -757,7 +757,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     // Generate comment based on toggle state
                     let comment: string;
                     if (useAI) {
-                        const { generateTeacherComment } = await import('../services/reportGenerator');
                         comment = await generateTeacherComment(
                             student.name,
                             report.average_score || 0,

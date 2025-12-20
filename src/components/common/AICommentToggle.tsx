@@ -41,6 +41,10 @@ const AICommentToggle: React.FC<AICommentToggleProps> = ({
         }`}
         role="switch"
         aria-checked={enabled}
+        aria-label={enabled 
+          ? 'AI Mode enabled - uses AI for personalized comments' 
+          : 'Offline Mode enabled - uses offline comment bank'
+        }
         title={enabled 
           ? 'AI Mode: Uses AI for personalized comments (requires internet)' 
           : 'Offline Mode: Uses offline comment bank (instant, no internet needed)'
