@@ -103,20 +103,22 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
     let successCount = 0;
     let errorCount = 0;
 
+    // Set all IDs as saving at once
+    const allIds = editArray.map(e => e.reportId);
+    setSavingIds(new Set(allIds));
+
     for (const edit of editArray) {
-      setSavingIds(new Set(savingIds.add(edit.reportId)));
       try {
         await onSave(edit.reportId, edit.teacherComment, edit.principalComment);
         successCount++;
       } catch (error) {
         console.error('Error saving comment:', error);
         errorCount++;
-      } finally {
-        const newSaving = new Set(savingIds);
-        newSaving.delete(edit.reportId);
-        setSavingIds(newSaving);
       }
     }
+
+    // Clear all saving IDs at once
+    setSavingIds(new Set());
 
     if (errorCount === 0) {
       addToast(`Successfully saved ${successCount} comment(s)!`, 'success');

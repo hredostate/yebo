@@ -6,7 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintB
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateTeacherComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -645,9 +645,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             let successCount = 0;
             let errorCount = 0;
 
-            // Import the generation function
-            const { generateTeacherComment, generateRuleBasedTeacherComment } = await import('../services/reportGenerator');
-
             for (const report of reportsToProcess) {
                 try {
                     const student = students.find(s => s.id === report.student_id);
@@ -691,6 +688,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     }
 
                     // Small delay to avoid rate limiting (especially for AI)
+                    // Note: 500ms delay is conservative for API rate limits.
+                    // For very large classes, consider making this configurable or using a rate limiter.
                     if (useAI) {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }

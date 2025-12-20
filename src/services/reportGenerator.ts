@@ -455,7 +455,7 @@ export function generateRuleBasedTeacherComment(
   classSize: number,
   attendanceRate?: number
 ): string {
-  const firstName = studentName.split(' ')[0];
+  const firstName = studentName ? studentName.split(' ')[0] : 'Student';
   
   // Excellent performance (80+)
   if (average >= 80) {
@@ -519,7 +519,7 @@ export async function generateTeacherComment(
   }
   
   try {
-    const firstName = studentName.split(' ')[0];
+    const firstName = studentName ? studentName.split(' ')[0] : 'Student';
     
     // Simple, short prompt for teacher comments (cheaper than principal)
     const prompt = `You are a class teacher writing a brief term report comment.
