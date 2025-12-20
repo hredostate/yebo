@@ -1211,7 +1211,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     
                                     {/* Edit Teacher Comments Button */}
                                     <button
-                                        onClick={() => handleOpenTeacherCommentModal(c.id, c.name)}
+                                        onClick={() => handleOpenCommentEditor(c.id, c.name)}
                                         disabled={c.reportsCount === 0}
                                         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher comments for students"}
