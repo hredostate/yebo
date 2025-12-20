@@ -308,7 +308,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
                     </div>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Generated Group Name</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Generated Group Name *</label>
                     <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} required className={`w-full p-2 border rounded-md mt-1 ${commonClasses}`} />
                 </div>
                 <textarea placeholder="Description (optional)" value={description} onChange={e => setDescription(e.target.value)} className={`w-full p-2 border rounded-md ${commonClasses}`} rows={2}></textarea>
