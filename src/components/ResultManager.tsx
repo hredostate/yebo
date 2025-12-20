@@ -37,7 +37,7 @@ interface ResultManagerProps {
     schoolConfig: SchoolConfig | null;
     onUpdateComments: (reportId: number, teacherComment: string, principalComment: string) => Promise<void>;
     onGenerateReportComment?: (studentId: number, termId: number, commentType: 'teacher' | 'principal') => Promise<string | null>;
-    addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     onNavigate?: (view: string) => void;
     userProfile?: UserProfile;
 }

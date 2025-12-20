@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Student, StudentTermReport } from '../types';
 import Spinner from './common/Spinner';
-import { EditIcon, CheckCircleIcon, WandIcon } from './common/icons';
+import { CheckCircleIcon, WandIcon } from './common/icons';
 
 interface TeacherCommentEditorProps {
   students: Student[];
@@ -13,7 +13,7 @@ interface TeacherCommentEditorProps {
   onSave: (reportId: number, teacherComment: string, principalComment: string) => Promise<void>;
   onClose: () => void;
   onGenerateComments?: (classId: number, termId: number, useAI: boolean) => Promise<void>;
-  addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 interface CommentEdit {
