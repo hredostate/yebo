@@ -4,6 +4,8 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, SettingsIcon } from './common/icons';
 
+const PAGE_SIZE = 50;
+
 interface ZeroScoreMonitorViewProps {
     userProfile: UserProfile;
     onBack: () => void;
@@ -24,7 +26,6 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const [isReviewing, setIsReviewing] = useState(false);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const PAGE_SIZE = 50;
     const [allTeachers, setAllTeachers] = useState<UserProfile[]>([]);
     const [allSubjects, setAllSubjects] = useState<string[]>([]);
     const [allTerms, setAllTerms] = useState<Term[]>([]);
@@ -199,11 +200,10 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     }, [allTerms]);
 
     const stats = useMemo(() => {
-        // Stats now reflect the total counts from the server, not filtered entries
-        const total = totalCount;
-        // We can't calculate reviewed/unreviewed here since we only have the current page
-        // These would need separate queries if needed
-        return { total, reviewed: 0, unreviewed: 0 };
+        // Stats now reflect the total counts from the server
+        // Note: reviewed/unreviewed counts are not available with pagination
+        // Would require additional queries to fetch these accurately
+        return { total: totalCount };
     }, [totalCount]);
 
     if (loading) {
@@ -230,18 +230,13 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
             </div>
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 gap-4 mb-6">
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Zero Scores</h3>
+                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Matching Zero Scores</h3>
                     <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.total}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Unreviewed</h3>
-                    <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mt-2">{stats.unreviewed}</p>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Reviewed</h3>
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{stats.reviewed}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Based on current filter settings
+                    </p>
                 </div>
             </div>
 

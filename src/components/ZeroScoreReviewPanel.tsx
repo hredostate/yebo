@@ -4,6 +4,8 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, XCircleIcon, TrashIcon, UserCircleIcon, FilterIcon } from './common/icons';
 
+const PAGE_SIZE = 50;
+
 interface ZeroScoreReviewPanelProps {
     termId: number;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -26,7 +28,6 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     } | null>(null);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const PAGE_SIZE = 50;
     const [allClasses, setAllClasses] = useState<Array<{ id: number; name: string }>>([]);
     const [allSubjects, setAllSubjects] = useState<string[]>([]);
 
