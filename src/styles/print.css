@@ -109,7 +109,8 @@
   .report-card .student-info,
   .report-card .remarks,
   .report-card .signatures,
-  .report-card .print-break-avoid {
+  .report-card .print-break-avoid,
+  .page-break-inside-avoid {
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -131,6 +132,7 @@
   table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Prevent table overflow */
   }
 
   table th,
@@ -138,6 +140,8 @@
     border: 1px solid #000 !important;
     padding: 8px;
     text-align: left;
+    word-wrap: break-word; /* Wrap long text */
+    overflow-wrap: break-word;
   }
 
   table thead {
@@ -146,6 +150,13 @@
 
   table tbody {
     display: table-row-group;
+  }
+
+  /* Ensure tables don't overflow A4 width */
+  .report-card table,
+  .a4-print-safe-area table {
+    max-width: 100% !important;
+    overflow: hidden !important;
   }
 
   /* Images */

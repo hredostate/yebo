@@ -86,26 +86,46 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
       // Fetch real attendance data
       let attendancePercentage = 0;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[StudentDashboard] Fetching attendance data for student:', studentProfile.student_record_id);
+      }
 
       // Step 1: Fetch active term
-      const { data: activeTerm } = await supabase
+      const { data: activeTerm, error: termError } = await supabase
         .from('terms')
         .select('id, start_date, end_date')
         .eq('school_id', studentProfile.school_id)
         .eq('is_active', true)
         .maybeSingle();
 
+      if (termError) {
+        console.error('[StudentDashboard] Error fetching active term:', termError);
+      }
+
       if (activeTerm) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[StudentDashboard] Active term found:', activeTerm.id);
+        }
+        
         // Step 2: Get student's class group membership
-        const { data: membership } = await supabase
+        const { data: membership, error: membershipError } = await supabase
           .from('class_group_members')
           .select('id, group_id')
           .eq('student_id', studentProfile.student_record_id)
           .maybeSingle();
 
+        if (membershipError) {
+          console.error('[StudentDashboard] Error fetching membership:', membershipError);
+        }
+
         if (membership) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[StudentDashboard] Membership found:', membership.id, 'group:', membership.group_id);
+          }
+          
           // Step 3: Check for attendance override
-          const { data: override } = await supabase
+          const { data: override, error: overrideError } = await supabase
             .from('attendance_overrides')
             .select('days_present, total_days')
             .eq('student_id', studentProfile.student_record_id)
@@ -113,29 +133,59 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             .eq('group_id', membership.group_id)
             .maybeSingle();
 
+          if (overrideError) {
+            console.error('[StudentDashboard] Error fetching override:', overrideError);
+          }
+
           if (override) {
             // Use override values
             const total = override.total_days || 0;
             attendancePercentage = total > 0 ? Math.round((override.days_present / total) * 100) : 0;
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[StudentDashboard] Using override:', override.days_present, '/', total, '=', attendancePercentage + '%');
+            }
           } else {
             // Step 4: Compute from attendance records
-            const { data: records } = await supabase
+            const { data: records, error: recordsError } = await supabase
               .from('attendance_records')
               .select('status, session_date')
               .eq('member_id', membership.id)
               .gte('session_date', activeTerm.start_date)
               .lte('session_date', activeTerm.end_date);
 
-            const presentCount = records?.filter(r => 
-              r.status && ['present', 'p'].includes(r.status.toLowerCase())
-            ).length || 0;
+            if (recordsError) {
+              console.error('[StudentDashboard] Error fetching attendance records:', recordsError);
+            }
+
+            // Enhanced status checking - case insensitive, handles variations
+            const presentCount = records?.filter(r => {
+              if (!r.status) return false;
+              const status = r.status.toLowerCase().trim();
+              return ['present', 'p'].includes(status);
+            }).length || 0;
             const totalRecords = records?.length || 0;
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[StudentDashboard] Attendance records:', presentCount, 'present out of', totalRecords, 'total');
+            }
 
             // Step 5: Calculate attendance percentage
             if (totalRecords > 0) {
               attendancePercentage = Math.round((presentCount / totalRecords) * 100);
+            } else {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[StudentDashboard] No attendance records found for this term');
+              }
             }
           }
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[StudentDashboard] Student not enrolled in any class group');
+          }
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[StudentDashboard] No active term found');
         }
       }
 
