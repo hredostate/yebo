@@ -357,6 +357,7 @@ export const useAppLogic = () => {
   // --- Actions Implementation ---
 
   const handleLogout = useCallback(async () => {
+      const supabase = requireSupabaseClient();
       await supabase.auth.signOut();
       setUserProfile(null);
       setSession(null);
@@ -876,6 +877,7 @@ export const useAppLogic = () => {
         handleSaveAssessmentScores: async () => true,
         handleCopyAssessment: async () => true,
         handleLockScores: async (assignmentId: number, zeroScoreCallback?: (students: any[]) => Promise<'unenroll' | 'keep' | 'cancel'>) => {
+            const supabase = requireSupabaseClient();
             try {
                 // 1. Detect zero total scores
                 const { data: zeroScoreStudents, error: detectError } = await supabase
@@ -934,6 +936,7 @@ export const useAppLogic = () => {
             }
         },
         handleUnlockClass: async (classId: number, termId: number) => {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('teaching_assignments')
                 .update({ is_locked: false })
