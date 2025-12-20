@@ -3764,6 +3764,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         zeroScoreCallback?: (students: ZeroScoreStudent[]) => Promise<'unenroll' | 'keep' | 'cancel'>
     ): Promise<boolean> => {
         try {
+            const supabase = requireSupabaseClient();
+            
             // 1. Detect zero total scores
             const { data: zeroScoreStudents, error: detectError } = await supabase
                 .rpc('detect_zero_total_scores', { p_assignment_id: assignmentId });
