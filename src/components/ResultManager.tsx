@@ -16,7 +16,6 @@ import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 import TeacherCommentModal from './TeacherCommentModal';
 import TeacherCommentEditor from './TeacherCommentEditor';
-import AICommentToggle from './common/AICommentToggle';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -90,24 +89,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
-    
-    // State for AI comment toggle - persisted in localStorage
-    const [useAIComments, setUseAIComments] = useState<boolean>(() => {
-        const saved = localStorage.getItem('yebo_ai_comments_enabled');
-        return saved !== 'false'; // Default to true (AI mode) for backward compatibility
-    });
-    
-    // Persist AI toggle state to localStorage when it changes
-    const handleAIToggleChange = (enabled: boolean) => {
-        setUseAIComments(enabled);
-        localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
-        addToast(
-            enabled 
-                ? 'Switched to AI mode - comments will use AI service' 
-                : 'Switched to Offline mode - comments will use offline bank', 
-            'info'
-        );
-    };
     
     // Result sheet design options
     const resultSheetOptions = [

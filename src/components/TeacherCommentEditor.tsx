@@ -3,6 +3,7 @@ import type { Student, StudentTermReport } from '../types';
 import Spinner from './common/Spinner';
 import { CheckCircleIcon, WandIcon } from './common/icons';
 import AICommentToggle from './common/AICommentToggle';
+import { useAICommentToggle } from '../hooks/useAICommentToggle';
 
 interface TeacherCommentEditorProps {
   students: Student[];
@@ -40,17 +41,8 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // State for AI comment toggle - persisted in localStorage
-  const [useAIComments, setUseAIComments] = useState<boolean>(() => {
-    const saved = localStorage.getItem('yebo_ai_comments_enabled');
-    return saved !== 'false'; // Default to true (AI mode)
-  });
-  
-  // Persist AI toggle state to localStorage when it changes
-  const handleAIToggleChange = (enabled: boolean) => {
-    setUseAIComments(enabled);
-    localStorage.setItem('yebo_ai_comments_enabled', String(enabled));
-  };
+  // Use custom hook for AI comment toggle
+  const { useAIComments, setUseAIComments } = useAICommentToggle();
 
   // Get students with their reports
   const studentsWithReports = students.map(student => {
@@ -188,7 +180,7 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
             {onGenerateComments && (
               <AICommentToggle
                 enabled={useAIComments}
-                onChange={handleAIToggleChange}
+                onChange={setUseAIComments}
                 disabled={isGenerating}
                 showLabels={true}
               />
