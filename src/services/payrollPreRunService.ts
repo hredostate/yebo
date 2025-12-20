@@ -35,6 +35,16 @@ async function logAudit(action: string, actor: string | null, metadata: Record<s
 
 export async function publishPayrollPreRun(runId: string, actorId: string | null) {
     const supabase = requireSupabaseClient();
+    
+    // Get run details including school_id
+    const { data: runData, error: fetchError } = await supabase
+        .from('payroll_runs_v2')
+        .select('school_id')
+        .eq('id', runId)
+        .single();
+    
+    if (fetchError) throw fetchError;
+    
     const { error } = await supabase
         .from('payroll_runs_v2')
         .update({ status: 'PRE_RUN_PUBLISHED' as PayrollRunV2Status, published_at: new Date().toISOString(), published_by: actorId })
@@ -50,6 +60,16 @@ export async function publishPayrollPreRun(runId: string, actorId: string | null
         .eq('status', 'DRAFT');
     
     await logAudit(AUDIT_ACTIONS.publish, actorId, { run_id: runId, status: 'PRE_RUN_PUBLISHED' });
+    
+    // Send SMS notifications to all staff (non-blocking)
+    if (runData?.school_id) {
+        const { notifyAllStaffPayslipsPublished } = await import('./payrollSmsService');
+        notifyAllStaffPayslipsPublished(runId, runData.school_id).then(result => {
+            console.log(`Payslip notifications sent: ${result.sent} success, ${result.failed} failed`);
+        }).catch(err => {
+            console.error('Failed to send payslip notifications:', err);
+        });
+    }
 }
 
 export async function approvePayslip(payslipId: string, actorId: string | null) {

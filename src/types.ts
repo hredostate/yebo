@@ -1939,6 +1939,7 @@ export type NotificationType =
     'emergency_broadcast' | 
     'student_credentials' | 
     'password_reset' | 
+    'payslip_published' | 
     'general';
 
 export interface NotificationChannelConfig {
@@ -1956,6 +1957,7 @@ export interface NotificationChannelConfig {
     emergency_broadcast: NotificationChannel;
     student_credentials: NotificationChannel;
     password_reset: NotificationChannel;
+    payslip_published: NotificationChannel;
 }
 
 export interface WhatsAppTemplateCodes {
@@ -1973,6 +1975,7 @@ export interface WhatsAppTemplateCodes {
     emergency_broadcast?: string;
     student_credentials?: string;
     password_reset?: string;
+    payslip_published?: string;
 }
 
 export interface KudiSmsSettings {
