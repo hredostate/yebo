@@ -25,15 +25,74 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const PAGE_SIZE = 50;
+    const [allTeachers, setAllTeachers] = useState<UserProfile[]>([]);
+    const [allSubjects, setAllSubjects] = useState<string[]>([]);
+    const [allTerms, setAllTerms] = useState<Term[]>([]);
 
     useEffect(() => {
         fetchZeroScores();
     }, [userProfile.school_id, page, filterReviewed, filterTeacher, filterTerm, filterDateFrom, filterDateTo]);
 
-    // Reset page to 1 when filters change
+    useEffect(() => {
+        fetchFilterOptions();
+    }, [userProfile.school_id]);
+
+    // Reset page to 1 when server-side filters change
     useEffect(() => {
         setPage(1);
-    }, [filterReviewed, filterTeacher, filterTerm, filterSubject, filterDateFrom, filterDateTo]);
+    }, [filterReviewed, filterTeacher, filterTerm, filterDateFrom, filterDateTo]);
+
+    const fetchFilterOptions = async () => {
+        try {
+            const supabase = requireSupabaseClient();
+            
+            // Fetch all unique teachers
+            const { data: teacherData, error: teacherError } = await supabase
+                .from('zero_score_entries')
+                .select('teacher_user_id, teacher:user_profiles!teacher_user_id(id, name)')
+                .eq('school_id', userProfile.school_id)
+                .not('teacher_user_id', 'is', null);
+            
+            if (teacherError) throw teacherError;
+            
+            // Get unique teachers
+            const seenTeacherIds = new Set<string>();
+            const uniqueTeachers = (teacherData || [])
+                .map(entry => entry.teacher)
+                .filter(t => t && !seenTeacherIds.has(t.id) && seenTeacherIds.add(t.id)) as UserProfile[];
+            setAllTeachers(uniqueTeachers);
+            
+            // Fetch all unique subjects
+            const { data: subjectData, error: subjectError } = await supabase
+                .from('zero_score_entries')
+                .select('subject_name')
+                .eq('school_id', userProfile.school_id);
+            
+            if (subjectError) throw subjectError;
+            
+            const uniqueSubjects = [...new Set((subjectData || []).map(s => s.subject_name))].sort();
+            setAllSubjects(uniqueSubjects);
+            
+            // Fetch all unique terms
+            const { data: termData, error: termError } = await supabase
+                .from('zero_score_entries')
+                .select('term_id, term:terms(id, name)')
+                .eq('school_id', userProfile.school_id)
+                .not('term_id', 'is', null);
+            
+            if (termError) throw termError;
+            
+            // Get unique terms
+            const seenTermIds = new Set<number>();
+            const uniqueTerms = (termData || [])
+                .map(entry => entry.term)
+                .filter(t => t && !seenTermIds.has(t.id) && seenTermIds.add(t.id)) as Term[];
+            setAllTerms(uniqueTerms);
+        } catch (error: any) {
+            // Silently fail for filter options - they're not critical
+            console.error('Error fetching filter options:', error);
+        }
+    };
 
     const fetchZeroScores = async () => {
         setLoading(true);
@@ -128,22 +187,16 @@ const ZeroScoreMonitorView: React.FC<ZeroScoreMonitorViewProps> = ({ userProfile
     }, [zeroScores, filterSubject]);
 
     const uniqueTeachers = useMemo(() => {
-        const seenIds = new Set<string>();
-        return zeroScores
-            .map(z => z.teacher)
-            .filter(t => t && !seenIds.has(t.id) && seenIds.add(t.id)) as UserProfile[];
-    }, [zeroScores]);
+        return allTeachers;
+    }, [allTeachers]);
 
     const uniqueSubjects = useMemo(() => {
-        return [...new Set(zeroScores.map(z => z.subject_name))].sort();
-    }, [zeroScores]);
+        return allSubjects;
+    }, [allSubjects]);
 
     const uniqueTerms = useMemo(() => {
-        const seenIds = new Set<number>();
-        return zeroScores
-            .map(z => z.term)
-            .filter(t => t && !seenIds.has(t.id) && seenIds.add(t.id)) as Term[];
-    }, [zeroScores]);
+        return allTerms;
+    }, [allTerms]);
 
     const stats = useMemo(() => {
         // Stats now reflect the total counts from the server, not filtered entries

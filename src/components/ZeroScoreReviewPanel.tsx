@@ -27,15 +27,59 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const PAGE_SIZE = 50;
+    const [allClasses, setAllClasses] = useState<Array<{ id: number; name: string }>>([]);
+    const [allSubjects, setAllSubjects] = useState<string[]>([]);
 
     useEffect(() => {
         fetchZeroScores();
     }, [termId, page, filterClass, filterReviewed]);
 
-    // Reset page to 1 when filters change
+    useEffect(() => {
+        fetchFilterOptions();
+    }, [termId]);
+
+    // Reset page to 1 when server-side filters change
     useEffect(() => {
         setPage(1);
-    }, [filterClass, filterSubject, filterReviewed]);
+    }, [filterClass, filterReviewed]);
+
+    const fetchFilterOptions = async () => {
+        try {
+            const supabase = requireSupabaseClient();
+            
+            // Fetch all unique classes
+            const { data: classData, error: classError } = await supabase
+                .from('zero_score_entries')
+                .select('academic_class_id, academic_class:academic_classes(name)')
+                .eq('term_id', termId)
+                .not('academic_class_id', 'is', null);
+            
+            if (classError) throw classError;
+            
+            const classMap = new Map();
+            (classData || []).forEach(z => {
+                if (z.academic_class?.name && !classMap.has(z.academic_class_id)) {
+                    classMap.set(z.academic_class_id, z.academic_class.name);
+                }
+            });
+            const uniqueClasses = Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
+            setAllClasses(uniqueClasses);
+            
+            // Fetch all unique subjects
+            const { data: subjectData, error: subjectError } = await supabase
+                .from('zero_score_entries')
+                .select('subject_name')
+                .eq('term_id', termId);
+            
+            if (subjectError) throw subjectError;
+            
+            const uniqueSubjects = [...new Set((subjectData || []).map(s => s.subject_name))].sort();
+            setAllSubjects(uniqueSubjects);
+        } catch (error: any) {
+            // Silently fail for filter options - they're not critical
+            console.error('Error fetching filter options:', error);
+        }
+    };
 
     const fetchZeroScores = async () => {
         setLoading(true);
@@ -223,18 +267,12 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     }, [zeroScores, filterSubject]);
 
     const uniqueClasses = useMemo(() => {
-        const classMap = new Map();
-        zeroScores.forEach(z => {
-            if (z.academic_class?.name && !classMap.has(z.academic_class_id)) {
-                classMap.set(z.academic_class_id, z.academic_class.name);
-            }
-        });
-        return Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
-    }, [zeroScores]);
+        return allClasses;
+    }, [allClasses]);
 
     const uniqueSubjects = useMemo(() => {
-        return [...new Set(zeroScores.map(z => z.subject_name))].sort();
-    }, [zeroScores]);
+        return allSubjects;
+    }, [allSubjects]);
 
     const stats = useMemo(() => {
         const total = filteredEntries.length;
