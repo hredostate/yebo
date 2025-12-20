@@ -6,7 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintB
 import { aiClient, getAIClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateRuleBasedTeacherComment, generateTeacherComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -15,6 +15,7 @@ import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 import TeacherCommentModal from './TeacherCommentModal';
+import TeacherCommentEditor from './TeacherCommentEditor';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -716,7 +717,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (!selectedTermId) return;
 
         setIsGeneratingComments(9998); // Using a dummy ID for loading state
-        addToast(`Generating teacher comments ${useAI ? 'with AI' : 'using rule-based approach'}...`, 'info');
+        const modeText = useAI ? 'with AI' : 'using offline comment bank';
+        addToast(`Generating teacher comments ${modeText}...`, 'info');
 
         try {
             const supabase = requireSupabaseClient();
@@ -752,7 +754,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     // Get class size for position context
                     const classSize = studentsInClass.length;
 
-                    // Generate comment
+                    // Generate comment based on toggle state
                     let comment: string;
                     if (useAI) {
                         comment = await generateTeacherComment(
@@ -799,7 +801,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             }
 
             if (errorCount === 0) {
-                addToast(`Successfully generated ${successCount} teacher comment(s)!`, 'success');
+                addToast(`Successfully generated ${successCount} teacher comment(s) using ${modeText}!`, 'success');
             } else {
                 addToast(`Generated ${successCount} comment(s). ${errorCount} failed.`, 'warning');
             }
