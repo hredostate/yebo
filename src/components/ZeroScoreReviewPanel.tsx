@@ -24,28 +24,52 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
         studentName: string;
         subject: string;
     } | null>(null);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const PAGE_SIZE = 50;
 
     useEffect(() => {
         fetchZeroScores();
-    }, [termId]);
+    }, [termId, page, filterClass, filterReviewed]);
+
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [filterClass, filterSubject, filterReviewed]);
 
     const fetchZeroScores = async () => {
         setLoading(true);
         try {
             const supabase = requireSupabaseClient();
-            const { data, error } = await supabase
+            
+            let query = supabase
                 .from('zero_score_entries')
                 .select(`
                     *,
                     student:students(name),
                     academic_class:academic_classes(name),
                     teacher:user_profiles!teacher_user_id(name)
-                `)
+                `, { count: 'exact' })
                 .eq('term_id', termId)
-                .order('entry_date', { ascending: false });
+                .order('entry_date', { ascending: false })
+                .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+            // Apply server-side filters
+            if (filterReviewed === 'reviewed') {
+                query = query.eq('reviewed', true);
+            } else if (filterReviewed === 'unreviewed') {
+                query = query.eq('reviewed', false);
+            }
+            
+            if (filterClass !== 'all') {
+                query = query.eq('academic_class_id', Number(filterClass));
+            }
+
+            const { data, error, count } = await query;
 
             if (error) throw error;
             setZeroScores(data || []);
+            setTotalCount(count || 0);
         } catch (error: any) {
             addToast(`Error loading zero score entries: ${error.message}`, 'error');
         } finally {
@@ -190,22 +214,13 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
     const filteredEntries = useMemo(() => {
         let filtered = [...zeroScores];
 
-        if (filterClass !== 'all') {
-            filtered = filtered.filter(e => e.academic_class_id === Number(filterClass));
-        }
-
+        // Filter by subject (client-side only, since it's not in the database structure for efficient filtering)
         if (filterSubject !== 'all') {
             filtered = filtered.filter(e => e.subject_name === filterSubject);
         }
 
-        if (filterReviewed === 'reviewed') {
-            filtered = filtered.filter(e => e.reviewed);
-        } else if (filterReviewed === 'unreviewed') {
-            filtered = filtered.filter(e => !e.reviewed);
-        }
-
         return filtered;
-    }, [zeroScores, filterClass, filterSubject, filterReviewed]);
+    }, [zeroScores, filterSubject]);
 
     const uniqueClasses = useMemo(() => {
         const classMap = new Map();
@@ -533,6 +548,32 @@ const ZeroScoreReviewPanel: React.FC<ZeroScoreReviewPanelProps> = ({ termId, add
                             )}
                         </tbody>
                     </table>
+                </div>
+                
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                        Showing {totalCount === 0 ? 0 : ((page - 1) * PAGE_SIZE) + 1} - {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} entries
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="px-3 py-1 border border-slate-300 dark:border-slate-600 rounded text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            Previous
+                        </button>
+                        <span className="px-3 py-1 text-slate-700 dark:text-slate-300">
+                            Page {page} of {Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}
+                        </span>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={page * PAGE_SIZE >= totalCount}
+                            className="px-3 py-1 border border-slate-300 dark:border-slate-600 rounded text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
 
