@@ -203,7 +203,7 @@ interface AssignmentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (
-        assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
+        assignmentData: { teacher_user_id: string; subject_id: number | null; class_id: number; arm_id: number },
         groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
     ) => Promise<boolean>;
     users: UserProfile[];
@@ -250,20 +250,20 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
         e.preventDefault();
         // Validate based on group type
         if (groupType === ClassGroupType.SubjectTeacher) {
-            if (!teacherUserId || !subjectId || !classId || !groupName) {
-                alert('Please fill all required fields (Teacher, Subject, Class, and Group Name).');
+            if (!teacherUserId || !subjectId || !classId || !armId || !groupName) {
+                alert('Please fill all required fields (Teacher, Subject, Class, Arm, and Group Name).');
                 return;
             }
         } else if (groupType === ClassGroupType.ClassTeacher) {
-            if (!teacherUserId || !classId || !groupName) {
-                alert('Please fill all required fields (Teacher, Class, and Group Name).');
+            if (!teacherUserId || !classId || !armId || !groupName) {
+                alert('Please fill all required fields (Teacher, Class, Arm, and Group Name).');
                 return;
             }
         }
 
         setIsSaving(true);
         const success = await onSave(
-            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId },
+            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId! },
             { name: groupName, description, group_type: groupType }
         );
         if (success) {
@@ -303,7 +303,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
                         <SearchableSelect options={classes.map(t => ({value: t.id, label: t.name}))} value={classId} onChange={(v) => setClassId(v as number)} placeholder="Select Class" />
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Arm (Optional)</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Arm *</label>
                         <SearchableSelect options={arms.map(t => ({value: t.id, label: t.name}))} value={armId} onChange={(v) => setArmId(v as number)} placeholder="Select Arm" />
                     </div>
                 </div>
@@ -331,7 +331,7 @@ interface ClassGroupManagerProps {
   onDeleteSchedule: (scheduleId: number) => Promise<boolean>;
   onSaveRecord: (record: Partial<AttendanceRecord> & { member_id: number; session_date: string; }) => Promise<boolean>;
   onCreateClassAssignment: (
-    assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
+    assignmentData: { teacher_user_id: string; subject_id: number | null; class_id: number; arm_id: number },
     groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
   ) => Promise<boolean>;
   onDeleteClassAssignment: (groupId: number) => Promise<boolean>;

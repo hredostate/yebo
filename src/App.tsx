@@ -4796,7 +4796,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [addToast]);
 
     const handleCreateClassAssignment = useCallback(async (
-        assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
+        assignmentData: { teacher_user_id: string; subject_id: number | null; class_id: number; arm_id: number },
         groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
     ): Promise<boolean> => {
         if (!userProfile || userType !== 'staff') return false;
@@ -4810,18 +4810,32 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
                 return false;
             }
             
-            // Look up subject name from subject_id
-            const subject = allSubjects.find(s => s.id === assignmentData.subject_id);
-            if (!subject) {
-                addToast('Invalid subject selected', 'error');
+            // Validate arm is provided
+            if (!assignmentData.arm_id) {
+                addToast('Arm is required for all class groups', 'error');
                 return false;
+            }
+            
+            // For Subject Teacher groups, subject is required
+            let subjectName: string | null = null;
+            if (groupData.group_type === 'subject_teacher') {
+                if (!assignmentData.subject_id) {
+                    addToast('Subject is required for Subject Teacher groups', 'error');
+                    return false;
+                }
+                const subject = allSubjects.find(s => s.id === assignmentData.subject_id);
+                if (!subject) {
+                    addToast('Invalid subject selected', 'error');
+                    return false;
+                }
+                subjectName = subject.name;
             }
             
             // Create teaching assignment with correct field names
             // Note: class_id parameter maps to academic_class_id in database (schema naming difference)
             const { data: assignment, error: assignmentError } = await Offline.insert('teaching_assignments', {
                 teacher_user_id: assignmentData.teacher_user_id,
-                subject_name: subject.name,
+                subject_name: subjectName,
                 academic_class_id: assignmentData.class_id,
                 school_id: staffProfile.school_id,
                 term_id: activeTerm.id

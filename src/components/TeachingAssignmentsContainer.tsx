@@ -19,7 +19,7 @@ type Props = {
   academicClassStudents: AcademicClassStudent[];
   userProfile?: UserProfile;  // Current user's profile for filtering
   onCreateAssignment: (
-    assignmentData: { teacher_user_id: string; subject_id: number; class_id: number; arm_id: number | null },
+    assignmentData: { teacher_user_id: string; subject_id: number | null; class_id: number; arm_id: number },
     groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
   ) => Promise<boolean>;
   onDeleteAssignment: (groupId: number) => Promise<boolean>;
@@ -78,6 +78,11 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
         console.error(`Could not find a base 'class' matching level: ${academicClass.level}`);
         return false;
     }
+    
+    if (!armRecord) {
+        console.error(`Could not find arm record for: ${academicClass.arm}`);
+        return false;
+    }
 
     const groupName = `${subject.name} - ${academicClass.name}`;
 
@@ -85,7 +90,7 @@ const TeachingAssignmentsContainer: React.FC<Props> = ({
         teacher_user_id: as.teacher_user_id,
         subject_id: subject.id,
         class_id: classRecord.id,
-        arm_id: armRecord ? armRecord.id : null,
+        arm_id: armRecord.id,
     };
     
     const groupData = {
