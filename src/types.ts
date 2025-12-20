@@ -1939,6 +1939,7 @@ export type NotificationType =
     'emergency_broadcast' | 
     'student_credentials' | 
     'password_reset' | 
+    'payslip_published' | 
     'general';
 
 export interface NotificationChannelConfig {
