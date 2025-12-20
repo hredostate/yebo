@@ -10,7 +10,7 @@
     "package": "npm run build && ./create-deployment-package.sh",
     "check:circular": "node scripts/check-circular-deps.cjs",
     "test": "npm run test:unit",
-    "test:unit": "tsc -p tsconfig.tests.json && node build-tests/tests/runtimeConfig.test.js && node build-tests/tests/timetableScheduler.test.js && node build-tests/tests/cacheInvalidation.test.js && node build-tests/tests/resultAnalytics.test.js && node build-tests/tests/comprehensive-orphan-test.js && node build-tests/tests/permissions.test.js && node build-tests/tests/payrollAdjustmentsQuery.test.js && node build-tests/tests/aiRateLimit.test.js && node build-tests/tests/kudismsPhoneValidation.test.js && node build-tests/tests/studentAttendance.test.js && node build-tests/tests/offlineClientAsyncInit.test.js"
+    "test:unit": "tsc -p tsconfig.tests.json && node build-tests/tests/runtimeConfig.test.js && node build-tests/tests/timetableScheduler.test.js && node build-tests/tests/cacheInvalidation.test.js && node build-tests/tests/resultAnalytics.test.js && node build-tests/tests/comprehensive-orphan-test.js && node build-tests/tests/permissions.test.js && node build-tests/tests/payrollAdjustmentsQuery.test.js && node build-tests/tests/aiRateLimit.test.js && node build-tests/tests/kudismsPhoneValidation.test.js && node build-tests/tests/studentAttendance.test.js && node build-tests/tests/offlineClientAsyncInit.test.js && node build-tests/tests/admissionNumberGenerator.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",

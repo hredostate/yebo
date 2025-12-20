@@ -13,6 +13,7 @@
   "include": [
     "src/services/runtimeConfig.ts",
     "src/hooks/useInitialView.ts",
+    "src/utils/admissionNumber.ts",
     "tests/**/*.ts"
   ]
 }

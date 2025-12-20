@@ -9,6 +9,7 @@ import { extractAndParseJson } from './utils/json';
 import { logAiEvent, textFromAI } from './utils/ai';
 import { askUPSSGPT } from './services/upssGPT';
 import { base64ToBlob } from './utils/file';
+import { generateAdmissionNumber } from './utils/admissionNumber';
 import { Offline, cache } from './offline/client';
 import { requireSupabaseClient } from './services/supabaseClient';
 import { queueStore } from './offline/db';
@@ -3467,7 +3468,42 @@ Return a JSON object with:
 
     const handleAddStudent = useCallback(async (studentData: StudentFormData): Promise<boolean> => {
         if (!userProfile) return false;
-        const { error, data } = await Offline.insert('students', { ...studentData, school_id: userProfile.school_id });
+        
+        // Generate admission number if not provided and class_id is available
+        let finalStudentData = { ...studentData, school_id: userProfile.school_id };
+        
+        if (!studentData.admission_number && studentData.class_id) {
+            try {
+                const supabase = requireSupabaseClient();
+                
+                // Get class name from class_id
+                const selectedClass = allClasses.find(c => c.id === studentData.class_id);
+                if (selectedClass) {
+                    // Fetch all existing admission numbers for this school
+                    const { data: existingStudents, error: fetchError } = await supabase
+                        .from('students')
+                        .select('admission_number')
+                        .eq('school_id', userProfile.school_id);
+                    
+                    if (!fetchError && existingStudents) {
+                        const existingNumbers = existingStudents
+                            .map(s => s.admission_number)
+                            .filter((num): num is string => !!num);
+                        
+                        const generatedNumber = generateAdmissionNumber(selectedClass.name, existingNumbers);
+                        
+                        if (generatedNumber) {
+                            finalStudentData.admission_number = generatedNumber;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to generate admission number:', error);
+                // Continue without admission number - it's not critical
+            }
+        }
+        
+        const { error, data } = await Offline.insert('students', finalStudentData);
         if (error) {
             addToast(error.message, 'error');
             return false;
@@ -3475,7 +3511,7 @@ Return a JSON object with:
         if(data) addItem(setStudents, data);
         addToast('Student record created (No login).', 'success');
         return true;
-    }, [userProfile, addToast]);
+    }, [userProfile, addToast, allClasses]);
 
     const handleCreateStudentAccount = useCallback(async (studentId: number): Promise<CreatedCredential | null> => {
         const supabase = requireSupabaseClient();
