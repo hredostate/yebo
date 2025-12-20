@@ -86,7 +86,13 @@ serve(async (req) => {
     const permissionSet = await collectUserPermissions(supabaseClient, user.id, userProfile.role);
     const hasPayrollAccess = permissionSet.has('*') || permissionSet.has('manage-payroll') || permissionSet.has('manage-finance');
     if (!hasPayrollAccess) {
-      return new Response(JSON.stringify({ error: 'Forbidden: insufficient permissions' }), { status: 403, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: insufficient permissions' }), 
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Use Service Role for backend operations
@@ -415,10 +421,14 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+  } catch (error: any) {
+    console.error('Error processing payroll:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }), 
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400 
+      }
+    );
   }
 });

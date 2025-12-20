@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { UserProfile, PayrollRun, PayrollItem, PayrollAdjustment, PayrollComponent, PayrollLineItem, PensionContribution, SchoolConfig, Campus, TeacherShift, LeaveType, LeaveRequest, Team } from '../types';
 import { LeaveRequestStatus } from '../types';
 import { NIGERIAN_BANKS } from '../constants/banks';
-import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon, SaveIcon } from './common/icons';
+import { BanknotesIcon, UsersIcon, CalendarIcon, BuildingIcon, ClockIcon, EditIcon, ChartBarIcon, SaveIcon, CheckCircleIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import { mapSupabaseError } from '../utils/errorHandling';
@@ -22,6 +22,8 @@ const CampusesManager = lazy(() => import('./CampusesManager'));
 const MyLeaveView = lazy(() => import('./MyLeaveView'));
 const LeaveApprovalView = lazy(() => import('./LeaveApprovalView'));
 const PensionManager = lazy(() => import('./PensionManager'));
+const PayrollPreRunManager = lazy(() => import('./PayrollPreRunManager'));
+const PayrollApprovalDashboard = lazy(() => import('./PayrollApprovalDashboard'));
 
 
 interface HRPayrollModuleProps {
@@ -135,7 +137,7 @@ const BankDetailsModal: React.FC<{
     );
 };
 
-type ModuleSection = 'overview' | 'my_payslips' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'payroll_history' | 'staff_data' | 'adjustments' | 'pension' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
+type ModuleSection = 'overview' | 'my_payslips' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'pre_run' | 'approvals' | 'payroll_history' | 'staff_data' | 'adjustments' | 'pension' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
 
 const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     userProfile,
@@ -270,6 +272,8 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
         { id: 'my_leave' as const, label: 'My Leave', icon: CalendarIcon, show: true },
         { id: 'my_adjustments' as const, label: 'My Adjustments', icon: EditIcon, show: true },
         { id: 'run_payroll' as const, label: 'Run Payroll', icon: BanknotesIcon, show: canManagePayroll, divider: true },
+        { id: 'pre_run' as const, label: 'Pre-Run Manager', icon: ClockIcon, show: canManagePayroll },
+        { id: 'approvals' as const, label: 'Approval Dashboard', icon: CheckCircleIcon, show: canManagePayroll },
         { id: 'payroll_history' as const, label: 'Payroll History', icon: ClockIcon, show: canManagePayroll },
         { id: 'staff_data' as const, label: 'Staff Data', icon: UsersIcon, show: canManagePayroll },
         { id: 'adjustments' as const, label: 'Manage Adjustments', icon: EditIcon, show: canManagePayroll },
@@ -422,6 +426,24 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                 return (
                     <Suspense fallback={<Spinner />}>
                         <PayrollPage staffForPayroll={safeUsers.filter(u => u.role !== 'Student' && u.role !== 'Guardian')} adjustments={safePayrollAdjustments} onRunPayroll={onRunPayroll} campuses={safeCampuses} />
+                    </Suspense>
+                );
+            case 'pre_run':
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollPreRunManager
+                            userProfile={safeUserProfile}
+                            addToast={addToast}
+                        />
+                    </Suspense>
+                );
+            case 'approvals':
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <PayrollApprovalDashboard
+                            userProfile={safeUserProfile}
+                            addToast={addToast}
+                        />
                     </Suspense>
                 );
             case 'payroll_history':
