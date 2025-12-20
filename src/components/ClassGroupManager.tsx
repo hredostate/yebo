@@ -224,6 +224,13 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
 
     const teachers = useMemo(() => users.filter(u => ['Teacher', 'Team Lead'].includes(u.role)), [users]);
 
+    // Clear subject when switching to ClassTeacher mode
+    useEffect(() => {
+        if (groupType === ClassGroupType.ClassTeacher) {
+            setSubjectId(null);
+        }
+    }, [groupType]);
+
     useEffect(() => {
         const teacher = users.find(u => u.id === teacherUserId);
         const subject = subjects.find(s => s.id === subjectId);
@@ -241,9 +248,17 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!teacherUserId || !subjectId || !classId || !groupName) {
-            alert('Please fill all required fields.');
-            return;
+        // Validate based on group type
+        if (groupType === ClassGroupType.SubjectTeacher) {
+            if (!teacherUserId || !subjectId || !classId || !groupName) {
+                alert('Please fill all required fields (Teacher, Subject, Class, and Group Name).');
+                return;
+            }
+        } else if (groupType === ClassGroupType.ClassTeacher) {
+            if (!teacherUserId || !classId || !groupName) {
+                alert('Please fill all required fields (Teacher, Class, and Group Name).');
+                return;
+            }
         }
 
         setIsSaving(true);
@@ -274,15 +289,17 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Teacher</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Teacher *</label>
                         <SearchableSelect options={teachers.map(t => ({value: t.id, label: t.name}))} value={teacherUserId} onChange={(v) => setTeacherUserId(v as string)} placeholder="Select Teacher" />
                     </div>
+                     {groupType === ClassGroupType.SubjectTeacher && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subject *</label>
+                            <SearchableSelect options={subjects.map(t => ({value: t.id, label: t.name}))} value={subjectId} onChange={(v) => setSubjectId(v as number)} placeholder="Select Subject" />
+                        </div>
+                     )}
                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subject</label>
-                        <SearchableSelect options={subjects.map(t => ({value: t.id, label: t.name}))} value={subjectId} onChange={(v) => setSubjectId(v as number)} placeholder="Select Subject" />
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Class</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Class *</label>
                         <SearchableSelect options={classes.map(t => ({value: t.id, label: t.name}))} value={classId} onChange={(v) => setClassId(v as number)} placeholder="Select Class" />
                     </div>
                      <div>
@@ -291,7 +308,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
                     </div>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Generated Group Name</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Generated Group Name *</label>
                     <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)} required className={`w-full p-2 border rounded-md mt-1 ${commonClasses}`} />
                 </div>
                 <textarea placeholder="Description (optional)" value={description} onChange={e => setDescription(e.target.value)} className={`w-full p-2 border rounded-md ${commonClasses}`} rows={2}></textarea>
