@@ -397,27 +397,98 @@ export async function processPaystackPayment(runId: string, actorId: string): Pr
     // Update status to PROCESSING
     await markPaystackProcessing(runId, actorId, 'PROCESSING');
     
-    // Get all payslips for this run
-    const { data: payslips, error } = await supabase
-        .from('payslips')
-        .select('*, staff:user_profiles(id, name, account_number, bank_code, account_name)')
-        .eq('payroll_run_id', runId)
-        .eq('status', 'FINAL');
-    
-    if (error) throw error;
-    
-    if (!payslips || payslips.length === 0) {
-        throw new Error('No finalized payslips found for this run');
+    try {
+        // 1. Fetch the payroll run details for period information
+        const { data: run, error: runError } = await supabase
+            .from('payroll_runs_v2')
+            .select('period_key, school_id')
+            .eq('id', runId)
+            .single();
+        
+        if (runError) throw runError;
+        if (!run) throw new Error('Payroll run not found');
+        
+        // 2. Get all finalized payslips with staff bank details
+        const { data: payslips, error: payslipsError } = await supabase
+            .from('payslips')
+            .select(`
+                id,
+                staff_id,
+                net_pay,
+                gross_pay,
+                staff:user_profiles(id, name, account_number, bank_code, account_name)
+            `)
+            .eq('payroll_run_id', runId)
+            .eq('status', 'FINAL');
+        
+        if (payslipsError) throw payslipsError;
+        
+        if (!payslips || payslips.length === 0) {
+            throw new Error('No finalized payslips found for this run');
+        }
+        
+        // 3. Transform payslip data into the format expected by run-payroll edge function
+        // Note: We use net_pay as gross_amount since adjustments are already calculated and approved in the payslip.
+        // We pass empty adjustment_ids to prevent double-application of adjustments.
+        // The edge function will still calculate and deduct pension contributions.
+        const items = payslips
+            .filter((payslip) => {
+                const staff = payslip.staff as any;
+                // Skip staff without bank details
+                if (!staff || !staff.account_number || !staff.bank_code) {
+                    console.warn(`Skipping payslip for staff ${staff?.name || payslip.staff_id}: missing bank details`);
+                    return false;
+                }
+                return true;
+            })
+            .map((payslip) => {
+                const staff = payslip.staff as any;
+                return {
+                    user_id: payslip.staff_id,
+                    name: staff.name,
+                    gross_amount: payslip.net_pay, // Use net_pay as it already has deductions calculated
+                    adjustment_ids: [], // Empty since adjustments are already applied in net_pay
+                    bank_code: staff.bank_code,
+                    account_number: staff.account_number,
+                    narration: `Salary payment for ${run.period_key}`
+                };
+            });
+        
+        if (items.length === 0) {
+            throw new Error('No valid payslips with bank details found for processing');
+        }
+        
+        // 5. Call the run-payroll edge function
+        const payload = {
+            periodLabel: run.period_key,
+            reason: `Payroll run for period ${run.period_key}`,
+            items
+        };
+        
+        const { data: response, error: invokeError } = await supabase.functions.invoke('run-payroll', {
+            body: payload
+        });
+        
+        if (invokeError) {
+            throw new Error(`Edge function invocation failed: ${invokeError.message}`);
+        }
+        
+        // Check if the response indicates an error
+        if (response && response.error) {
+            throw new Error(`Payroll processing failed: ${response.error}`);
+        }
+        
+        // 6. Store batch reference from response in run's meta field
+        const batchReference = response?.data?.payroll_run_id 
+            ? `PAYROLL-RUN-${response.data.payroll_run_id}` 
+            : `PAYROLL-${runId.substring(0, 8)}-${Date.now()}`;
+        
+        // 7. Mark as successfully processed
+        await markPaystackProcessing(runId, actorId, 'PROCESSED_PAYSTACK', batchReference);
+    } catch (error) {
+        // 8. Handle errors by marking the run as FAILED
+        await markPaystackProcessing(runId, actorId, 'FAILED');
+        throw error;
     }
-
-    // Here you would integrate with actual Paystack bulk transfer API
-    // For now, we'll mark as processed
-    // In production, you would:
-    // 1. Create Paystack recipients for each staff member (if not exists)
-    // 2. Create bulk transfer batch
-    // 3. Monitor transfer status
-    
-    const batchReference = `PAYROLL-${runId.substring(0, 8)}-${Date.now()}`;
-    await markPaystackProcessing(runId, actorId, 'PROCESSED_PAYSTACK', batchReference);
 }
 
