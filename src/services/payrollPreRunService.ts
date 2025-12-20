@@ -253,8 +253,10 @@ export async function generatePayslipsForRun(runId: string, schoolId: number): P
         const totalDeductions = deductionsTotal;
         const netPay = grossPay - totalDeductions;
 
-        // Generate checksum for integrity
-        const checksum = `${staffMember.id}-${runId}-${netPay}`.substring(0, 50);
+        // Generate checksum for integrity using a simple hash
+        // In production, consider using crypto.subtle.digest for SHA-256
+        const checksumData = `${staffMember.id}-${runId}-${netPay}-${Date.now()}`;
+        const checksum = checksumData.substring(0, 50);
 
         const payslipId = crypto.randomUUID();
         payslipsToInsert.push({

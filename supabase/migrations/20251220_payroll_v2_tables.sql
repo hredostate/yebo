@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS public.payroll_runs_v2 (
     published_at TIMESTAMPTZ,
     finalized_at TIMESTAMPTZ,
     meta JSONB DEFAULT '{}'::jsonb,
+    -- Unique constraint prevents duplicate payroll runs for the same period
+    -- If a run fails, delete it before creating a new one for the same period
     UNIQUE(school_id, period_key)
 );
 
