@@ -69,6 +69,7 @@ const PublicReportView: React.FC = () => {
         }
 
         try {
+            const supabase = requireSupabaseClient();
             // Fetch report by token
             const { data: report, error: reportError } = await supabase
                 .from('student_term_reports')
