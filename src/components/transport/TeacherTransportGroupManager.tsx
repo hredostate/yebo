@@ -60,10 +60,18 @@ export default function TeacherTransportGroupManager({
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading groups:', error);
+        throw error;
+      }
       setGroups(data || []);
-    } catch (error) {
-      handleSupabaseError(error, addToast, 'Failed to load groups');
+    } catch (error: any) {
+      console.error('Failed to load groups:', error);
+      const errorMessage = error?.message || 'An unknown error occurred';
+      addToast(
+        `Failed to load groups: ${errorMessage}. Please check your permissions and try again.`,
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -160,7 +168,18 @@ export default function TeacherTransportGroupManager({
         .select('*')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating group:', error);
+        // Check for unique constraint violation
+        if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          addToast(
+            `A group named "${groupName}" already exists for this term. Please choose a different name.`,
+            'warning'
+          );
+          return;
+        }
+        throw error;
+      }
       
       addToast('Group created successfully', 'success');
       setShowCreateModal(false);
@@ -168,8 +187,13 @@ export default function TeacherTransportGroupManager({
       setSelectedRouteId(null);
       setDescription('');
       loadGroups();
-    } catch (error) {
-      handleSupabaseError(error, addToast, 'Failed to create group');
+    } catch (error: any) {
+      console.error('Failed to create group:', error);
+      const errorMessage = error?.message || 'An unknown error occurred';
+      addToast(
+        `Failed to create group: ${errorMessage}`,
+        'error'
+      );
     } finally {
       setLoading(false);
     }
