@@ -1077,7 +1077,24 @@ export const useAppLogic = () => {
             addToast('Class unlocked successfully', 'success');
             return true;
         },
-        handleUpdateReportComments: async () => {},
+        handleUpdateReportComments: async (reportId: number, teacherComment: string, principalComment: string) => {
+            const supabase = requireSupabaseClient();
+            const { error } = await supabase
+                .from('student_term_reports')
+                .update({ 
+                    teacher_comment: teacherComment, 
+                    principal_comment: principalComment 
+                })
+                .eq('id', reportId);
+            
+            if (error) {
+                addToast(`Error saving comments: ${error.message}`, 'error');
+                return;
+            }
+            
+            fetchData(); // Refresh data
+            addToast('Comments saved successfully!', 'success');
+        },
         handleAddPolicySnippet: async (content: string) => {
              await Offline.insert('living_policy_snippets', { content, school_id: userProfile?.school_id, author_id: userProfile?.id });
              fetchData();

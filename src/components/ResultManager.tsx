@@ -6,7 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintB
 import { aiClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateTeacherComment, generateRuleBasedTeacherComment } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -14,6 +14,7 @@ import BulkReportCardSender from './BulkReportCardSender';
 import ZeroScoreReviewPanel from './ZeroScoreReviewPanel';
 import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
+import TeacherCommentEditor from './TeacherCommentEditor';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -36,7 +37,7 @@ interface ResultManagerProps {
     schoolConfig: SchoolConfig | null;
     onUpdateComments: (reportId: number, teacherComment: string, principalComment: string) => Promise<void>;
     onGenerateReportComment?: (studentId: number, termId: number, commentType: 'teacher' | 'principal') => Promise<string | null>;
-    addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     onNavigate?: (view: string) => void;
     userProfile?: UserProfile;
 }
@@ -78,6 +79,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     } | null>(null);
     const [isProcessingZeroScores, setIsProcessingZeroScores] = useState(false);
     const [zeroScoreResolver, setZeroScoreResolver] = useState<((choice: 'unenroll' | 'keep' | 'cancel') => void) | null>(null);
+    
+    // State for teacher comment editor modal
+    const [showCommentEditor, setShowCommentEditor] = useState(false);
+    const [selectedClassForComments, setSelectedClassForComments] = useState<{ id: number; name: string } | null>(null);
     
     // Result sheet design options
     const resultSheetOptions = [
@@ -603,6 +608,110 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setShowBulkSender(true);
     };
 
+    const handleOpenCommentEditor = (classId: number, className: string) => {
+        setSelectedClassForComments({ id: classId, name: className });
+        setShowCommentEditor(true);
+    };
+
+    const handleGenerateTeacherComments = async (classId: number, termId: number, useAI: boolean) => {
+        if (!selectedTermId) return;
+
+        setIsGeneratingComments(9998); // Using a dummy ID for loading state
+        addToast(`Generating teacher comments ${useAI ? 'with AI' : 'using rule-based approach'}...`, 'info');
+
+        try {
+            const supabase = requireSupabaseClient();
+
+            // Get all students in this class
+            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
+            const studentIds = studentsInClass.map(s => s.student_id);
+
+            if (studentIds.length === 0) {
+                throw new Error('No students found in this class');
+            }
+
+            // Get reports for these students
+            const reportsToProcess = studentTermReports.filter(r => 
+                r.term_id === termId && 
+                studentIds.includes(r.student_id) &&
+                (!r.teacher_comment || r.teacher_comment.trim() === '')
+            );
+
+            if (reportsToProcess.length === 0) {
+                addToast('All students already have teacher comments', 'info');
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const report of reportsToProcess) {
+                try {
+                    const student = students.find(s => s.id === report.student_id);
+                    if (!student) continue;
+
+                    // Get class size for position context
+                    const classSize = studentsInClass.length;
+
+                    // Generate comment
+                    let comment: string;
+                    if (useAI) {
+                        comment = await generateTeacherComment(
+                            student.name,
+                            report.average_score || 0,
+                            report.position_in_class || classSize,
+                            classSize,
+                            undefined, // attendance rate (could be added later)
+                            true
+                        );
+                    } else {
+                        comment = generateRuleBasedTeacherComment(
+                            student.name,
+                            report.average_score || 0,
+                            report.position_in_class || classSize,
+                            classSize,
+                            undefined // attendance rate
+                        );
+                    }
+
+                    // Save to database
+                    const { error: updateError } = await supabase
+                        .from('student_term_reports')
+                        .update({ teacher_comment: comment })
+                        .eq('id', report.id);
+
+                    if (updateError) {
+                        console.error(`Failed to save comment for ${student.name}:`, updateError);
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+
+                    // Small delay to avoid rate limiting (especially for AI)
+                    // Note: 500ms delay is conservative for API rate limits.
+                    // For very large classes, consider making this configurable or using a rate limiter.
+                    if (useAI) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (err) {
+                    console.error('Error generating comment:', err);
+                    errorCount++;
+                }
+            }
+
+            if (errorCount === 0) {
+                addToast(`Successfully generated ${successCount} teacher comment(s)!`, 'success');
+            } else {
+                addToast(`Generated ${successCount} comment(s). ${errorCount} failed.`, 'warning');
+            }
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+        } finally {
+            setIsGeneratingComments(null);
+        }
+    };
+
+
     const handleCloseBulkGenerator = () => {
         setShowBulkGenerator(false);
         setSelectedClassForBulk(null);
@@ -999,6 +1108,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         </button>
                                     )}
                                     
+                                    {/* Edit Teacher Comments Button */}
+                                    <button
+                                        onClick={() => handleOpenCommentEditor(c.id, c.name)}
+                                        disabled={c.reportsCount === 0}
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher comments for this class"}
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                        Edit Teacher Comments
+                                    </button>
+                                    
                                     {/* View and Edit Scores Buttons */}
                                     <div className="flex gap-2">
                                         <button
@@ -1323,6 +1443,30 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     onUnenrollAndLock={handleZeroScoreUnenrollAndLock}
                     onKeepAndLock={handleZeroScoreKeepAndLock}
                     onCancel={handleZeroScoreCancel}
+                />
+            )}
+
+            {/* Teacher Comment Editor Modal */}
+            {showCommentEditor && selectedClassForComments && selectedTermId && (
+                <TeacherCommentEditor
+                    students={students.filter(s =>
+                        academicClassStudents.some(acs =>
+                            acs.academic_class_id === selectedClassForComments.id &&
+                            acs.student_id === s.id
+                        )
+                    )}
+                    termId={Number(selectedTermId)}
+                    classId={selectedClassForComments.id}
+                    className={selectedClassForComments.name}
+                    termName={terms.find(t => t.id === selectedTermId)?.term_label || ''}
+                    studentTermReports={studentTermReports}
+                    onSave={onUpdateComments}
+                    onClose={() => {
+                        setShowCommentEditor(false);
+                        setSelectedClassForComments(null);
+                    }}
+                    onGenerateComments={handleGenerateTeacherComments}
+                    addToast={addToast}
                 />
             )}
         </div>

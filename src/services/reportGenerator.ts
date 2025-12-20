@@ -443,3 +443,109 @@ export function customizeComment(
 
   return customized;
 }
+
+/**
+ * Generate rule-based teacher comment (no AI, instant, free)
+ * This is simpler and cheaper than principal comments
+ */
+export function generateRuleBasedTeacherComment(
+  studentName: string,
+  average: number,
+  position: number,
+  classSize: number,
+  attendanceRate?: number
+): string {
+  const firstName = studentName ? studentName.split(' ')[0] : 'Student';
+  
+  // Excellent performance (80+)
+  if (average >= 80) {
+    if (position <= 3) {
+      return `${firstName} has demonstrated outstanding academic excellence this term. Keep up the exceptional work!`;
+    }
+    return `${firstName} has shown excellent performance across subjects. Continue this impressive effort!`;
+  }
+  
+  // Good performance (70-79)
+  if (average >= 70) {
+    if (attendanceRate && attendanceRate < 85) {
+      return `${firstName} shows good ability but attendance needs improvement. More consistency would help achieve better results.`;
+    }
+    return `${firstName} has shown good effort and achieved commendable results. Continue striving for excellence.`;
+  }
+  
+  // Satisfactory performance (60-69)
+  if (average >= 60) {
+    if (attendanceRate && attendanceRate < 85) {
+      return `${firstName} has made satisfactory progress but irregular attendance is affecting performance. Consistent presence is important.`;
+    }
+    return `${firstName} has made satisfactory progress this term. With more consistent effort, better results are achievable.`;
+  }
+  
+  // Below average (50-59)
+  if (average >= 50) {
+    if (position > classSize * 0.75) {
+      return `${firstName} needs to put in significantly more effort to improve. Extra study time and seeking help when needed is recommended.`;
+    }
+    return `${firstName} needs to put in more effort to improve academic performance. Additional support and practice is recommended.`;
+  }
+  
+  // Poor performance (below 50)
+  if (attendanceRate && attendanceRate < 75) {
+    return `${firstName} requires significant improvement. Poor attendance is severely affecting learning. Parent-teacher consultation is urgently advised.`;
+  }
+  return `${firstName} requires significant improvement in academic work. Parent-teacher consultation and extra support are strongly advised.`;
+}
+
+/**
+ * Generate AI-powered teacher comment (optional, more personalized)
+ * Falls back to rule-based if AI is not available
+ */
+export async function generateTeacherComment(
+  studentName: string,
+  average: number,
+  position: number,
+  classSize: number,
+  attendanceRate?: number,
+  useAI: boolean = false
+): Promise<string> {
+  // If AI not requested or not available, use rule-based
+  if (!useAI) {
+    return generateRuleBasedTeacherComment(studentName, average, position, classSize, attendanceRate);
+  }
+  
+  const aiClient = getAIClient();
+  if (!aiClient) {
+    return generateRuleBasedTeacherComment(studentName, average, position, classSize, attendanceRate);
+  }
+  
+  try {
+    const firstName = studentName ? studentName.split(' ')[0] : 'Student';
+    
+    // Simple, short prompt for teacher comments (cheaper than principal)
+    const prompt = `You are a class teacher writing a brief term report comment.
+
+Student: ${firstName}
+Average Score: ${average.toFixed(1)}%
+Position: ${position} of ${classSize}
+${attendanceRate ? `Attendance: ${attendanceRate.toFixed(1)}%` : ''}
+
+Write a SHORT comment (3-4 sentences) that:
+1. Acknowledges effort level based on the score
+2. Mentions one specific strength or area of concern
+3. Provides brief, actionable advice for improvement or encouragement
+
+Keep it natural, personal, and constructive. Focus on the student's journey this term.`;
+
+    const response = await aiClient.chat.completions.create({
+      model: getCurrentModel(),
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const comment = textFromAI(response).trim();
+    return comment || generateRuleBasedTeacherComment(studentName, average, position, classSize, attendanceRate);
+  } catch (error) {
+    console.error('AI teacher comment generation error:', error);
+    // Fallback to rule-based
+    return generateRuleBasedTeacherComment(studentName, average, position, classSize, attendanceRate);
+  }
+}
