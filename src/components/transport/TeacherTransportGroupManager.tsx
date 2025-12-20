@@ -160,7 +160,17 @@ export default function TeacherTransportGroupManager({
         .select('*')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Check for unique constraint violation
+        if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          addToast(
+            `A group named "${groupName}" already exists for this term. Please choose a different name.`,
+            'warning'
+          );
+          return;
+        }
+        throw error;
+      }
       
       addToast('Group created successfully', 'success');
       setShowCreateModal(false);

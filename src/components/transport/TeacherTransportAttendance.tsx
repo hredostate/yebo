@@ -58,7 +58,16 @@ export default function TeacherTransportAttendance({
       });
 
       if (error) throw error;
+      
       setStudents(data || []);
+      
+      // Show helpful message if no students found
+      if (!data || data.length === 0) {
+        addToast(
+          'No students found. Make sure you have created transport groups with students assigned.',
+          'info'
+        );
+      }
     } catch (error) {
       handleSupabaseError(error, addToast, 'Failed to load attendance');
     } finally {
@@ -228,8 +237,21 @@ export default function TeacherTransportAttendance({
         {loading ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : filteredStudents.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            No students found for this date and direction.
+          <div className="text-center py-12">
+            <div className="text-gray-500 mb-4">
+              No students found for this date and direction.
+            </div>
+            <div className="text-sm text-gray-400 max-w-md mx-auto">
+              <p className="mb-2">This could be because:</p>
+              <ul className="text-left list-disc list-inside space-y-1">
+                <li>You haven't created any transport groups yet</li>
+                <li>No students have been added to your groups</li>
+                <li>Students don't have active transport subscriptions</li>
+              </ul>
+              <p className="mt-4">
+                Go to <strong>Transport Class Groups</strong> to create groups and add students.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
