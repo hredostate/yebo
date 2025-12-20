@@ -11,6 +11,13 @@ import { UnifiedReportCard } from './reports/UnifiedReportCard';
 import { buildUnifiedReportData } from '../utils/buildUnifiedReportData';
 import type { WatermarkType } from '../types/reportCardPrint';
 import { generateBulkGoalAnalyses } from '../services/goalAnalysisService';
+import { 
+  validateBulkReportCardData, 
+  allValidationsPassed, 
+  getValidationSummary,
+  formatValidationError,
+  type ValidationResult
+} from '../services/reportCardValidationService';
 
 interface BulkReportCardGeneratorProps {
   classId: number;
@@ -54,10 +61,14 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const [templateChoice, setTemplateChoice] = useState<'classic' | 'modern' | 'pastel' | 'professional'>('classic');
   const [previewing, setPreviewing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'generating' | 'packaging' | 'completed' | 'failed'>('idle');
+  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'validating' | 'generating' | 'packaging' | 'completed' | 'failed'>('idle');
   const [jobReport, setJobReport] = useState<{ successes: string[]; failures: { name: string; reason: string }[] }>({ successes: [], failures: [] });
   const [samplePreviewIds, setSamplePreviewIds] = useState<Set<number>>(new Set());
   const reportContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Validation state
+  const [validationResults, setValidationResults] = useState<Map<number, ValidationResult>>(new Map());
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   // Sharing state
   const [showSharingModal, setShowSharingModal] = useState(false);
@@ -418,10 +429,55 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const selectedStudents = studentsWithDebt.filter((s) => selectedStudentIds.has(s.id));
     setIsGenerating(true);
     setWizardStep(3);
-    setJobStatus('queued');
+    setJobStatus('validating');
     setJobReport({ successes: [], failures: [] });
     setGenerationProgress({ current: 0, total: selectedStudents.length });
 
+    try {
+      // VALIDATION STEP: Validate all selected students before generation
+      addToast('Validating report card data...', 'info');
+      const studentIds = selectedStudents.map(s => s.id);
+      const validations = await validateBulkReportCardData(studentIds, termId);
+      setValidationResults(validations);
+
+      // Check if all validations passed
+      if (!allValidationsPassed(validations)) {
+        const summary = getValidationSummary(validations);
+        const failedStudents = selectedStudents.filter(s => {
+          const result = validations.get(s.id);
+          return result && result.status !== 'success';
+        });
+
+        // Build detailed failure report
+        const failures: { name: string; reason: string }[] = failedStudents.map(student => {
+          const result = validations.get(student.id);
+          const reason = result ? formatValidationError(result) : 'Unknown validation error';
+          return { name: student.name, reason };
+        });
+
+        setJobReport({ successes: [], failures });
+        setJobStatus('failed');
+        setShowValidationErrors(true);
+        setIsGenerating(false);
+        setGenerationProgress(null);
+        
+        addToast(
+          `Validation failed for ${summary.failed} student(s). Cannot generate report cards with incomplete data.`,
+          'error'
+        );
+        return;
+      }
+
+      addToast('Validation passed. Generating report cards...', 'success');
+    } catch (validationError: any) {
+      addToast(`Validation error: ${validationError.message}`, 'error');
+      setJobStatus('failed');
+      setIsGenerating(false);
+      setGenerationProgress(null);
+      return;
+    }
+
+    setJobStatus('queued');
     const zip = new JSZip();
     const combinedPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     let combinedStarted = false;
@@ -827,13 +883,21 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                     <li>Watermarks, cover sheet, and CSV export options recorded in the job report.</li>
                   </ul>
                   {jobReport.failures.length > 0 && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                      <p className="font-semibold mb-1">Failures</p>
+                    <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400">
+                      <p className="font-semibold mb-1">
+                        {showValidationErrors ? 'Validation Failures' : 'Generation Failures'}
+                      </p>
                       <ul className="space-y-1 max-h-24 overflow-y-auto">
-                        {jobReport.failures.map((failure) => (
-                          <li key={failure.name}>{failure.name}: {failure.reason}</li>
+                        {jobReport.failures.map((failure, index) => (
+                          <li key={`${failure.name}-${index}`}>{failure.name}: {failure.reason}</li>
                         ))}
                       </ul>
+                      {showValidationErrors && (
+                        <p className="mt-2 text-xs">
+                          Report cards cannot be generated when data is incomplete. 
+                          Please fix the issues above and try again.
+                        </p>
+                      )}
                     </div>
                   )}
                   {jobReport.successes.length > 0 && (
@@ -945,7 +1009,12 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           {generationProgress && (
             <div className="mb-4">
               <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mb-2">
-                <span>{jobStatus === 'completed' ? 'Job completed' : 'Generating report cards...'}</span>
+                <span>
+                  {jobStatus === 'completed' ? 'Job completed' : 
+                   jobStatus === 'validating' ? 'Validating data...' :
+                   jobStatus === 'failed' ? 'Validation/Generation failed' :
+                   'Generating report cards...'}
+                </span>
                 <span>
                   {generationProgress.current} of {generationProgress.total}
                 </span>

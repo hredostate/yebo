@@ -187,6 +187,9 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
         return null;
     };
 
+    // NOTE: This is a preview-only grade calculation for the UI during score entry.
+    // The actual grade used in reports is computed server-side via the compute_grade RPC function.
+    // This ensures a single source of truth and prevents UI/PDF/database discrepancies.
     const calculateGrade = (total: number) => {
         const scheme = getGradingScheme();
         if (!scheme) return 'N/A';

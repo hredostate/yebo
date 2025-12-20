@@ -68,7 +68,9 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         return academicClasses.filter(ac => ac.level === selectedLevel && ac.is_active);
     }, [selectedLevel, academicClasses]);
 
-    // Helper function to get grade from score using grading scheme
+    // NOTE: These grade calculations are for statistics display only.
+    // For report cards, grades are computed server-side via the compute_grade RPC function.
+    // This ensures consistency between statistics and report cards.
     const getGradeFromScore = (score: number): string => {
         if (!gradingScheme || !gradingScheme.rules) return 'N/A';
         
