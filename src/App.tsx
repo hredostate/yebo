@@ -1205,7 +1205,7 @@ const App: React.FC = () => {
                             supabase.from('team_feedback').select('*'),
                             supabase.from('curriculum').select('*'),
                             supabase.from('curriculum_weeks').select('*'),
-                            supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').eq('school_id', sp.school_id),
+                            supabase.from('class_groups').select('*, members:class_group_members(*, student:students(id, name), schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').eq('school_id', sp.school_id),
                             supabase.from('school_config').select('*').eq('school_id', sp.school_id).limit(1).maybeSingle(),
                             supabase.from('terms').select('*'),
                             supabase.from('academic_classes').select('*, assessment_structure:assessment_structures(*)'),
@@ -1355,7 +1355,15 @@ const App: React.FC = () => {
                             setCurriculumWeeks(getData(22));
                             const classGroupsData = getData(23);
                             console.log('Class groups fetched:', classGroupsData);
-                            setClassGroups(classGroupsData);
+                            // Map student_name from joined student data
+                            const transformedClassGroups = classGroupsData.map((group: any) => ({
+                                ...group,
+                                members: group.members?.map((member: any) => ({
+                                    ...member,
+                                    student_name: member.student?.name || null
+                                })) || []
+                            }));
+                            setClassGroups(transformedClassGroups);
                             setSchoolConfig(getSingleData(24));
                             setTerms(getData(25));
                             setAcademicClasses(getData(26));
@@ -4688,9 +4696,17 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         
         // Refresh
         // Updated query to fetch teaching_assignments
-        const { data } = await supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').eq('id', groupId).single();
+        const { data } = await supabase.from('class_groups').select('*, members:class_group_members(*, student:students(id, name), schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))').eq('id', groupId).single();
         if (data) {
-             setClassGroups(prev => prev.map(g => g.id === groupId ? data : g));
+             // Transform to map student_name from joined student data
+             const transformedData = {
+                 ...data,
+                 members: data.members?.map((member: any) => ({
+                     ...member,
+                     student_name: member.student?.name || null
+                 })) || []
+             };
+             setClassGroups(prev => prev.map(g => g.id === groupId ? transformedData : g));
         }
         addToast('Class group members updated.', 'success');
         return true;
@@ -4754,14 +4770,22 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     const refreshClassGroups = useCallback(async () => {
         const supabase = requireSupabaseClient();
         try {
-            const { data, error } = await supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))');
+            const { data, error } = await supabase.from('class_groups').select('*, members:class_group_members(*, student:students(id, name), schedules:attendance_schedules(*), records:attendance_records(*)), teaching_entity:teaching_assignments!teaching_entity_id(*, teacher:user_profiles!teacher_user_id(name), academic_class:academic_classes!academic_class_id(name))');
             if (error) {
                 console.error('Error refreshing class groups:', error);
                 addToast('Failed to refresh class groups data', 'warning');
                 return;
             }
             if (data) {
-                setClassGroups(data);
+                // Transform to map student_name from joined student data
+                const transformedData = data.map((group: any) => ({
+                    ...group,
+                    members: group.members?.map((member: any) => ({
+                        ...member,
+                        student_name: member.student?.name || null
+                    })) || []
+                }));
+                setClassGroups(transformedData);
             }
         } catch (error: any) {
             console.error('Error refreshing class groups:', error);
