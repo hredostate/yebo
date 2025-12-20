@@ -32,34 +32,40 @@ import Spinner from './common/Spinner';
 const TaskSuggestionsWidget = lazy(() => import('./widgets/TaskSuggestionsWidget'));
 
 // Error boundary for individual widgets
-const WidgetErrorBoundary: React.FC<{children: React.ReactNode, widgetId: string}> = ({children, widgetId}) => {
-    const [hasError, setHasError] = React.useState(false);
-    
-    React.useEffect(() => {
-        const errorHandler = (error: ErrorEvent) => {
-            console.error(`[Dashboard] Widget ${widgetId} error:`, error);
-            setHasError(true);
-        };
-        
-        window.addEventListener('error', errorHandler);
-        return () => window.removeEventListener('error', errorHandler);
-    }, [widgetId]);
-    
-    if (hasError) {
-        return (
-            <div className="p-4 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <p className="font-semibold">Widget Error</p>
-                <p className="text-sm">Failed to load: {widgetId}</p>
-            </div>
-        );
+class WidgetErrorBoundary extends React.Component<
+    {children: React.ReactNode, widgetId: string},
+    {hasError: boolean, error: Error | null}
+> {
+    constructor(props: {children: React.ReactNode, widgetId: string}) {
+        super(props);
+        this.state = { hasError: false, error: null };
     }
     
-    return (
-        <React.Suspense fallback={<div className="p-4 text-center"><Spinner /></div>}>
-            {children}
-        </React.Suspense>
-    );
-};
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error(`[Dashboard] Widget ${this.props.widgetId} error:`, error, errorInfo);
+    }
+    
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-4 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <p className="font-semibold">Widget Error</p>
+                    <p className="text-sm">Failed to load: {this.props.widgetId}</p>
+                </div>
+            );
+        }
+        
+        return (
+            <React.Suspense fallback={<div className="p-4 text-center"><Spinner /></div>}>
+                {this.props.children}
+            </React.Suspense>
+        );
+    }
+}
 
 
 interface DashboardProps {
@@ -178,8 +184,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }, [userWidgetConfig]);
 
     const [widgetConfig, setWidgetConfig] = useState<string[]>(safeWidgetConfig);
-
-    // Sync widgetConfig with safeWidgetConfig when it changes
+    
+    // Sync widgetConfig when user profile changes (but not when manually customized)
     useEffect(() => {
         setWidgetConfig(safeWidgetConfig);
     }, [safeWidgetConfig]);
