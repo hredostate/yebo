@@ -849,6 +849,8 @@ export const useAppLogic = () => {
                  foundName: academicClass?.name
              });
              
+             let academicClassId: number | null = null;
+             
              // If not found in local state, try direct database lookup as fallback
              if (!academicClass) {
                  console.log('[handleCreateClassAssignment] Not found in local state, trying database lookup...');
@@ -867,7 +869,7 @@ export const useAppLogic = () => {
                  
                  if (dbClass) {
                      console.log('[handleCreateClassAssignment] Found in database:', dbClass.id);
-                     academicClass = { id: dbClass.id } as AcademicClass;
+                     academicClassId = dbClass.id;
                      // Refresh data to sync local state
                      await fetchData();
                  } else {
@@ -895,6 +897,7 @@ export const useAppLogic = () => {
                  }
                  
                  console.log('[handleCreateClassAssignment] Verified academic class exists in database:', dbAcademicClass.id);
+                 academicClassId = academicClass.id;
              }
              
              // Handle subject - required for Subject Teacher Groups, optional for Class Teacher Groups
@@ -922,7 +925,7 @@ export const useAppLogic = () => {
              const { data: ag, error: e1 } = await Offline.insert('teaching_assignments', {
                  teacher_user_id: assign.teacher_user_id,
                  subject_name: subjectName,
-                 academic_class_id: academicClass.id,
+                 academic_class_id: academicClassId,
                  school_id: userProfile.school_id,
                  term_id: activeTerm.id
              });
