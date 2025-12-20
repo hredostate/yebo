@@ -15,7 +15,7 @@ import GradeDistributionChart from './GradeDistributionChart';
 import ArmComparisonChart from './ArmComparisonChart';
 import EnhancedRankingTable from './EnhancedRankingTable';
 import SubjectAnalyticsPanel from './SubjectAnalyticsPanel';
-import { DownloadIcon } from './common/icons';
+import { DownloadIcon, RefreshIcon } from './common/icons';
 
 interface EnhancedStatisticsDashboardProps {
     termId: number;
@@ -37,6 +37,7 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
     const [selectedArmId, setSelectedArmId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState<number>(0);
     
     // Data from RPC calls
     const [levelStats, setLevelStats] = useState<LevelStatisticsResult | null>(null);
@@ -116,7 +117,7 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
         };
         
         fetchData();
-    }, [selectedLevel, termId, schoolId, classesForLevel]);
+    }, [selectedLevel, termId, schoolId, classesForLevel, refreshKey]);
 
     // Fetch arm rankings when arm is selected
     useEffect(() => {
@@ -149,7 +150,7 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
         };
         
         fetchArmRankings();
-    }, [viewMode, selectedArmId, termId, schoolId]);
+    }, [viewMode, selectedArmId, termId, schoolId, refreshKey]);
 
     // Convert arm rankings to level ranking format for display
     const displayRankings = useMemo(() => {
@@ -288,6 +289,17 @@ const EnhancedStatisticsDashboard: React.FC<EnhancedStatisticsDashboardProps> = 
                                 </select>
                             </div>
                         )}
+                        
+                        <div className="flex items-end">
+                            <button
+                                onClick={() => setRefreshKey(prev => prev + 1)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                                title="Refresh statistics to reflect latest data"
+                            >
+                                <RefreshIcon className="w-4 h-4" />
+                                Refresh
+                            </button>
+                        </div>
                     </>
                 )}
             </div>
