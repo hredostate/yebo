@@ -104,3 +104,34 @@ export interface UnifiedReportCardData {
 }
 
 export type WatermarkType = 'DRAFT' | 'FINAL' | 'NONE';
+
+/**
+ * Validation-related types
+ */
+
+export interface ValidationError {
+  student_id?: number;
+  subject?: string;
+  missing?: string | string[];
+  error?: string;
+}
+
+export interface ReportCardValidationResult {
+  status: 'success' | 'blocked';
+  reason?: 'STUDENT_NOT_FOUND' | 'NOT_ENROLLED' | 'RESULTS_NOT_PUBLISHED' | 'MISSING_GRADING_SCHEME' | 'MISSING_SCORES';
+  details?: ValidationError[];
+  data?: UnifiedReportCardData;
+}
+
+/**
+ * Branding configuration from school_config
+ */
+export interface ReportCardBranding {
+  watermark_url?: string | null;
+  signature_principal?: string | null;
+  signature_class_teacher?: string | null;
+  primary_color?: string;
+  secondary_color?: string;
+  show_school_logo?: boolean;
+  footer_text?: string | null;
+}
