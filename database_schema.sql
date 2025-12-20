@@ -599,7 +599,7 @@ CREATE TABLE IF NOT EXISTS public.attendance_records (
 CREATE TABLE IF NOT EXISTS public.attendance_overrides (
     id SERIAL PRIMARY KEY,
     student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
-    class_group_id INTEGER REFERENCES public.class_groups(id) ON DELETE CASCADE,
+    group_id INTEGER REFERENCES public.class_groups(id) ON DELETE CASCADE,
     term_id INTEGER REFERENCES public.terms(id) ON DELETE CASCADE,
     session_label TEXT,
     total_days INTEGER DEFAULT 0,
@@ -609,10 +609,10 @@ CREATE TABLE IF NOT EXISTS public.attendance_overrides (
     updated_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(student_id, class_group_id, term_id),
+    UNIQUE(student_id, group_id, term_id),
     CHECK (days_present <= total_days)
 );
-CREATE INDEX IF NOT EXISTS attendance_overrides_term_idx ON public.attendance_overrides(term_id, class_group_id);
+CREATE INDEX IF NOT EXISTS attendance_overrides_term_idx ON public.attendance_overrides(term_id, group_id);
 -- Teaching Entities (Legacy support / alternative to teaching_assignments)
 CREATE TABLE IF NOT EXISTS public.teaching_entities (
     id SERIAL PRIMARY KEY,
@@ -1480,7 +1480,7 @@ BEGIN
             OR EXISTS (
                 SELECT 1 FROM public.class_groups cg
                 JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
-                WHERE cg.id = attendance_overrides.class_group_id
+                WHERE cg.id = attendance_overrides.group_id
                   AND ta.teacher_user_id = auth.uid()
             )
         );
@@ -1495,7 +1495,7 @@ BEGIN
             OR EXISTS (
                 SELECT 1 FROM public.class_groups cg
                 JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
-                WHERE cg.id = attendance_overrides.class_group_id
+                WHERE cg.id = attendance_overrides.group_id
                   AND ta.teacher_user_id = auth.uid()
             )
         )
@@ -1507,7 +1507,7 @@ BEGIN
             OR EXISTS (
                 SELECT 1 FROM public.class_groups cg
                 JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
-                WHERE cg.id = attendance_overrides.class_group_id
+                WHERE cg.id = attendance_overrides.group_id
                   AND ta.teacher_user_id = auth.uid()
             )
         );
@@ -1522,7 +1522,7 @@ BEGIN
             OR EXISTS (
                 SELECT 1 FROM public.class_groups cg
                 JOIN public.teaching_assignments ta ON cg.teaching_entity_id = ta.id
-                WHERE cg.id = attendance_overrides.class_group_id
+                WHERE cg.id = attendance_overrides.group_id
                   AND ta.teacher_user_id = auth.uid()
             )
         );
@@ -1956,7 +1956,7 @@ BEGIN
         FROM public.attendance_overrides ao
         WHERE ao.student_id = p_student_id
           AND ao.term_id = p_term_id
-          AND ao.class_group_id = v_class_group_id
+          AND ao.group_id = v_class_group_id
         ORDER BY ao.updated_at DESC
         LIMIT 1;
         IF FOUND THEN
@@ -2001,7 +2001,7 @@ BEGIN
         'overrideApplied', (v_attendance_source = 'override'),
         'computed', v_computed_attendance,
         'overrideMeta', CASE WHEN v_attendance_source = 'override' THEN jsonb_build_object(
-            'class_group_id', v_override.class_group_id,
+            'group_id', v_override.group_id,
             'comment', v_override.comment,
             'updated_by', v_override.updated_by,
             'updated_at', v_override.updated_at

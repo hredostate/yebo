@@ -110,7 +110,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             .select('days_present, total_days')
             .eq('student_id', studentProfile.student_record_id)
             .eq('term_id', activeTerm.id)
-            .eq('class_group_id', membership.group_id)
+            .eq('group_id', membership.group_id)
             .maybeSingle();
 
           if (override) {
