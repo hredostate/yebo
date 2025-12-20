@@ -11,49 +11,6 @@ import type {
  * Generates automated teacher comments using AI
  */
 
-/**
- * Generate a class teacher comment using rule-based logic (FREE - no API calls)
- */
-export function generateRuleBasedTeacherComment(
-    studentFirstName: string,
-    averageScore: number,
-    positionInClass: number,
-    classSize: number,
-    attendanceRate?: number
-): string {
-    // Top performers (top 10%)
-    if (positionInClass <= Math.ceil(classSize * 0.1)) {
-        if (averageScore >= 80) {
-            return `${studentFirstName} has demonstrated exceptional academic excellence this term. Outstanding performance across all subjects. Keep up the excellent work!`;
-        }
-        return `${studentFirstName} is among the top performers in the class. Commendable effort and dedication shown throughout the term.`;
-    }
-    
-    // Above average (top 30%)
-    if (positionInClass <= Math.ceil(classSize * 0.3)) {
-        if (averageScore >= 70) {
-            return `${studentFirstName} has shown very good academic performance this term. Continue striving for excellence.`;
-        }
-        return `${studentFirstName} has made good progress this term. With continued effort, even better results are achievable.`;
-    }
-    
-    // Average performers (middle 40%)
-    if (positionInClass <= Math.ceil(classSize * 0.7)) {
-        if (averageScore >= 60) {
-            return `${studentFirstName} has shown satisfactory progress this term. More consistent effort will lead to improved results.`;
-        }
-        return `${studentFirstName} has potential to do better. Regular study habits and more focus on weak areas are recommended.`;
-    }
-    
-    // Below average (bottom 30%)
-    if (averageScore >= 50) {
-        return `${studentFirstName} needs to put in more effort to improve academic performance. Extra attention to studies and seeking help when needed is advised.`;
-    }
-    
-    // Struggling students
-    return `${studentFirstName} requires significant improvement in academic work. A parent-teacher meeting is recommended to discuss support strategies.`;
-}
-
 interface StudentReportData {
   studentName: string;
   subjectScores: { 
