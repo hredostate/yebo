@@ -405,9 +405,24 @@ export async function canFinalizeRun(runId: string): Promise<boolean> {
     return summary.total > 0 && summary.approved === summary.total;
 }
 
-// Process offline payment (just updates status)
+// Process offline payment (calls edge function to create legacy records)
 export async function processOfflinePayment(runId: string, actorId: string): Promise<void> {
-    await processPayrollOffline(runId, actorId);
+    const supabase = requireSupabaseClient();
+    
+    // Call the offline processing edge function
+    const { data, error } = await supabase.functions.invoke('process-payroll-offline', {
+        body: { runId }
+    });
+    
+    if (error) {
+        throw new Error(error.message || 'Failed to process offline payroll');
+    }
+    
+    if (!data?.success) {
+        throw new Error(data?.error || 'Offline payroll processing failed');
+    }
+    
+    await logAudit(AUDIT_ACTIONS.processOffline, actorId, { run_id: runId });
 }
 
 // Process Paystack payment (calls existing Paystack integration)
