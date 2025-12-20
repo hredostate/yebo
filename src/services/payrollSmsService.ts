@@ -19,7 +19,7 @@ export async function notifyStaffPayslipPublished(params: {
     }
 
     try {
-        const result = await sendNotificationWithChannel('payslip_published' as any, {
+        const result = await sendNotificationWithChannel('payslip_published', {
             schoolId,
             recipientPhone: staffPhone,
             templateName: 'payslip_published',
