@@ -155,19 +155,19 @@ const findExistingStudent = (
   students: Student[],
   csvData: { admission_number?: string; email?: string }
 ): Student | undefined => {
-  // First, try to match by admission_number
-  if (csvData.admission_number) {
+  // First, try to match by admission_number if provided and non-empty
+  if (csvData.admission_number?.trim()) {
     const byAdmission = students.find(s => 
-      s.admission_number && 
+      s.admission_number?.trim() && 
       s.admission_number.toLowerCase().trim() === csvData.admission_number!.toLowerCase().trim()
     );
     if (byAdmission) return byAdmission;
   }
   
   // If no match, try by email
-  if (csvData.email) {
+  if (csvData.email?.trim()) {
     const byEmail = students.find(s => 
-      s.email && 
+      s.email?.trim() && 
       s.email.toLowerCase().trim() === csvData.email!.toLowerCase().trim()
     );
     if (byEmail) return byEmail;
@@ -277,6 +277,30 @@ test('findExistingStudent prioritizes admission_number over email', () => {
   assert.ok(found, 'Should find student');
   assert.equal(found!.id, 2, 'Should prioritize admission_number match over email');
   assert.equal(found!.name, 'Jane Smith');
+});
+
+test('findExistingStudent handles empty string admission_number', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: '', email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email when admission_number is empty string');
+  assert.equal(found!.id, 1);
+});
+
+test('findExistingStudent handles whitespace-only admission_number', () => {
+  const students: Student[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+  ];
+  
+  const csvData = { admission_number: '   ', email: 'john@example.com' };
+  const found = findExistingStudent(students, csvData);
+  
+  assert.ok(found, 'Should find student by email when admission_number is whitespace');
+  assert.equal(found!.id, 1);
 });
 
 console.log('\nAll student CSV upload tests passed! ✓');
