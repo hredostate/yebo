@@ -1,14 +1,10 @@
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
-import { SunIcon, MoonIcon, BookOpenIcon, ClockIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
-import StudentWalletWidget from './StudentWalletWidget';
+import { SunIcon, MoonIcon, BookOpenIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
 import StudentAcademicGoalEditor from './StudentAcademicGoalEditor';
-
-// Lazy load TimetableView to avoid chunking warnings
-const TimetableView = React.lazy(() => import('./TimetableView'));
 
 interface StudentPortalProps {
     studentProfile: StudentProfile;
@@ -19,7 +15,7 @@ interface StudentPortalProps {
 }
 
 const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast, onLogout, isDarkMode, toggleTheme }) => {
-    const [activeTab, setActiveTab] = useState<'subjects' | 'timetable' | 'wallet' | 'goals'>('subjects');
+    const [activeTab, setActiveTab] = useState<'subjects' | 'goals'>('subjects');
     const [availableSubjects, setAvailableSubjects] = useState<{subject_id: number, subject_name: string, is_compulsory: boolean}[]>([]);
     const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
@@ -240,22 +236,6 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                         </svg>
                         My Goals
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('timetable')} 
-                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'timetable' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
-                    >
-                        <ClockIcon className="w-4 h-4"/> Timetable
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('wallet')} 
-                        className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'wallet' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
-                    >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/>
-                        </svg>
-                        My Wallet
-                    </button>
                 </div>
             </div>
 
@@ -359,29 +339,6 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                             Unable to load goals. Please ensure you are enrolled in an active term.
                         </div>
                     )}
-                </div>
-            )}
-
-            {activeTab === 'timetable' && (
-                <div className="animate-fade-in">
-                     {academicClass ? (
-                        <Suspense fallback={<div className="flex justify-center p-8"><Spinner size="lg" /></div>}>
-                            <TimetableView 
-                                addToast={addToast} 
-                                studentViewClassId={academicClass.id}
-                            />
-                        </Suspense>
-                     ) : (
-                        <div className="p-8 text-center text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-xl border border-dashed">
-                            You are not currently enrolled in an active academic class for this term. Please contact your administrator.
-                        </div>
-                     )}
-                </div>
-            )}
-
-            {activeTab === 'wallet' && studentProfile.student_record_id && (
-                <div className="animate-fade-in">
-                    <StudentWalletWidget studentRecordId={studentProfile.student_record_id} />
                 </div>
             )}
         </div>
