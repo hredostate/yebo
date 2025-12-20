@@ -149,6 +149,15 @@ export const VIEWS = {
   NOTIFICATION_HISTORY: 'Notification History',
   MANUALS: 'Manuals',
   MANUALS_COMPLIANCE: 'Manuals Compliance',
+  TEAM_LESSON_HUB: 'Team Lesson Hub',
+  ABSENCE_REQUESTS: 'Absence Requests',
+  STUDENT_SUBJECT_CHOICES_ADMIN: 'Student Subject Choices',
+  STUDENT_SUBJECT_ENROLLMENT_MANAGER: 'Student Subject Enrollment',
+  // Transport Views
+  TRANSPORT_MANAGER: 'Transport Manager',
+  TRANSPORT_SIGN_UP: 'Transport Sign-Up',
+  TEACHER_TRANSPORT_GROUPS: 'Transport Groups',
+  TEACHER_TRANSPORT_ATTENDANCE: 'Transport Attendance',
 } as const;
 
 export const STUDENT_STATUSES = [

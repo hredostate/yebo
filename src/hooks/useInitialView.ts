@@ -18,6 +18,7 @@ export const STUDENT_ALLOWED_VIEWS = [
   'My Homework',
   'Absence Requests',
   'School Store',
+  'Transport Sign-Up',
 ];
 
 // Helper: Check if a view is allowed for students
