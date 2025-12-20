@@ -261,9 +261,15 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, onSa
             }
         }
 
+        // Additional safety check for arm (required for all group types)
+        if (!armId) {
+            alert('Arm is required for all group types.');
+            return;
+        }
+
         setIsSaving(true);
         const success = await onSave(
-            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId! },
+            { teacher_user_id: teacherUserId, subject_id: subjectId, class_id: classId, arm_id: armId },
             { name: groupName, description, group_type: groupType }
         );
         if (success) {
