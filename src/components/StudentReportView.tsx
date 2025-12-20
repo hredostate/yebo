@@ -373,6 +373,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   }, [studentId, termId]);
 
   const calculateComposite = async (currentReport: StudentTermReportDetails, weights: { term1: number, term2: number, term3: number }) => {
+      const supabase = requireSupabaseClient();
       // 1. Find sibling terms in the same session
       const { data: allTerms } = await supabase
         .from('terms')

@@ -1107,6 +1107,7 @@ const App: React.FC = () => {
                     try {
                         // Reusable fetchers
                         const fetchUsers = async () => {
+                            const supabase = requireSupabaseClient();
                             const { data, error } = await supabase.from('user_profiles').select('*');
                             if (error) throw error;
                             return data ?? [];
@@ -1118,6 +1119,7 @@ const App: React.FC = () => {
                         };
                         
                         const fetchOrders = async () => {
+                            const supabase = requireSupabaseClient();
                             // Try full orders query with order_notes, fallback to simpler one if it fails
                             // Note: This pattern is duplicated in handleCreateOrder due to scope limitations.
                             // fetchOrders is defined inside this IIFE and not accessible from other handlers.
@@ -3448,6 +3450,7 @@ Return a JSON object with:
         options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
     ) => {
         if (!userProfile) return { success: false, results: [], expires_at: '' };
+        const supabase = requireSupabaseClient();
         const { data, error } = await supabase.functions.invoke('activation-links', {
             body: {
                 action: 'generate',

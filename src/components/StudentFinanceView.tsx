@@ -496,6 +496,7 @@ const StudentFinanceView: React.FC<{
     }, [userProfile.school_id]);
 
     const handleSaveFee = async (item: Partial<FeeItem>) => {
+        const supabase = requireSupabaseClient();
         const payload = { ...item, school_id: userProfile.school_id };
         if (item.id) {
             await supabase.from('fee_items').update(payload).eq('id', item.id);
@@ -509,6 +510,7 @@ const StudentFinanceView: React.FC<{
 
     const handleDeleteFee = async (id: number) => {
         if (window.confirm('Delete this fee item?')) {
+            const supabase = requireSupabaseClient();
             await supabase.from('fee_items').delete().eq('id', id);
             setFeeItems(prev => prev.filter(i => i.id !== id));
             addToast('Fee item deleted.', 'success');
@@ -516,6 +518,7 @@ const StudentFinanceView: React.FC<{
     };
 
     const handleGenerateInvoices = async (studentIds: number[], termId: number, feeItemIds: number[], dueDate: string) => {
+        const supabase = requireSupabaseClient();
         // Fetch fee details
         const fees = feeItems.filter(f => feeItemIds.includes(f.id));
         const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0);
@@ -551,6 +554,7 @@ const StudentFinanceView: React.FC<{
     };
 
     const handleRecordPayment = async (invoiceId: number, amount: number, method: string, reference: string) => {
+        const supabase = requireSupabaseClient();
         const invoice = invoices.find(i => i.id === invoiceId);
         if (!invoice) return;
         
@@ -587,6 +591,7 @@ const StudentFinanceView: React.FC<{
     };
 
     const handleImportFees = async (fees: Partial<FeeItem>[]) => {
+        const supabase = requireSupabaseClient();
         const schoolId = userProfile.school_id;
         
         for (const fee of fees) {
@@ -620,6 +625,7 @@ const StudentFinanceView: React.FC<{
     };
 
     const handleImportInvoices = async (invoicesData: Partial<StudentInvoice>[]) => {
+        const supabase = requireSupabaseClient();
         const schoolId = userProfile.school_id;
         
         // Validate we have at least one term
