@@ -34,6 +34,7 @@ const GroqSettings: React.FC<GroqSettingsProps> = ({ schoolId }) => {
     }, [schoolId]);
 
     const fetchSettings = async () => {
+        const supabase = requireSupabaseClient();
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -77,6 +78,7 @@ const GroqSettings: React.FC<GroqSettingsProps> = ({ schoolId }) => {
     };
 
     const handleSave = async () => {
+        const supabase = requireSupabaseClient();
         if (!formData.groq_api_key && !formData.is_configured) {
             alert('Please enter your Groq API key');
             return;
@@ -121,6 +123,7 @@ const GroqSettings: React.FC<GroqSettingsProps> = ({ schoolId }) => {
     };
 
     const handleTestConnection = async () => {
+        const supabase = requireSupabaseClient();
         if (!formData.groq_api_key && !formData.is_configured) {
             setTestResult({ success: false, message: 'Please enter an API key first' });
             return;
