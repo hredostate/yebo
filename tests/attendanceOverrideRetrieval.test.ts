@@ -146,8 +146,8 @@ assert.strictEqual(result3?.id, 3, 'Should find override even if saved with non-
 assert.strictEqual(result3?.days_present, 90, 'Should return correct days_present');
 console.log('✅ Test 3 passed');
 
-// Test Case 4: Override without group_id (backwards compatibility)
-console.log('\nTest 4: Override without specific group (backwards compatibility)...');
+// Test Case 4: Override with group student doesn't belong to (fallback to student+term match)
+console.log('\nTest 4: Override with unrelated group (backwards compatibility fallback)...');
 const overrides4: AttendanceOverride[] = [
   {
     id: 4,
