@@ -317,6 +317,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                     onDeleteScheme={onDeleteGradingScheme} 
                     onSetActiveScheme={onSetActiveGradingScheme} 
                     onSaveSchoolConfig={onSaveSchoolConfig}
+                    addToast={addToast}
                 />;
             case 'Inventory':
                 return <InventoryManager inventory={inventory} onSave={onSaveInventoryItem} onDelete={onDeleteInventoryItem} />;
