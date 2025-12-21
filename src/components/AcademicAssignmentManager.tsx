@@ -163,9 +163,9 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({ a
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             data = data.filter(a => 
-                a.subject_name.toLowerCase().includes(q) ||
-                a.teacher?.name.toLowerCase().includes(q) ||
-                a.academic_class?.name.toLowerCase().includes(q)
+                a.subject_name?.toLowerCase().includes(q) ||
+                a.teacher?.name?.toLowerCase().includes(q) ||
+                a.academic_class?.name?.toLowerCase().includes(q)
             );
         }
         return data.sort((a, b) => (a.academic_class?.name || '').localeCompare(b.academic_class?.name || ''));
