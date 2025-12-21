@@ -5550,6 +5550,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         if (!userProfile || userType !== 'staff') return false;
         const staffProfile = userProfile as UserProfile;
         
+        const supabase = requireSupabaseClient();
+        
         try {
             // Update the score entry
             const { error } = await supabase
