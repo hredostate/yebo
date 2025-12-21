@@ -24,6 +24,7 @@ const LeaveApprovalView = lazy(() => import('./LeaveApprovalView'));
 const PensionManager = lazy(() => import('./PensionManager'));
 const PayrollPreRunManager = lazy(() => import('./PayrollPreRunManager'));
 const PayrollApprovalDashboard = lazy(() => import('./PayrollApprovalDashboard'));
+const StaffPayslipReview = lazy(() => import('./StaffPayslipReview'));
 
 
 interface HRPayrollModuleProps {
@@ -137,7 +138,7 @@ const BankDetailsModal: React.FC<{
     );
 };
 
-type ModuleSection = 'overview' | 'my_payslips' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'pre_run' | 'approvals' | 'payroll_history' | 'staff_data' | 'adjustments' | 'pension' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
+type ModuleSection = 'overview' | 'my_payslips' | 'payslip_review' | 'my_leave' | 'my_adjustments' | 'run_payroll' | 'pre_run' | 'approvals' | 'payroll_history' | 'staff_data' | 'adjustments' | 'pension' | 'leave_approvals' | 'shifts' | 'leave_types' | 'campuses' | 'settings';
 
 const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     userProfile,
@@ -269,6 +270,7 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
     const navSections = [
         { id: 'overview' as const, label: 'Overview', icon: ChartBarIcon, show: canManagePayroll || canManageHR },
         { id: 'my_payslips' as const, label: 'My Payslips', icon: BanknotesIcon, show: true },
+        { id: 'payslip_review' as const, label: 'Review Payslip', icon: CheckCircleIcon, show: true },
         { id: 'my_leave' as const, label: 'My Leave', icon: CalendarIcon, show: true },
         { id: 'my_adjustments' as const, label: 'My Adjustments', icon: EditIcon, show: true },
         { id: 'run_payroll' as const, label: 'Run Payroll', icon: BanknotesIcon, show: canManagePayroll, divider: true },
@@ -394,6 +396,15 @@ const HRPayrollModule: React.FC<HRPayrollModuleProps> = ({
                             payrollItems={safePayrollItems}
                             schoolConfig={schoolConfig}
                             pensionContributions={safePensionContributions}
+                        />
+                    </Suspense>
+                );
+            case 'payslip_review':
+                return (
+                    <Suspense fallback={<Spinner />}>
+                        <StaffPayslipReview
+                            userProfile={safeUserProfile}
+                            addToast={addToast}
                         />
                     </Suspense>
                 );
