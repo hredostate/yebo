@@ -22,6 +22,7 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
     const loadPublishedPlans = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Get student's enrollment info
             const { data: student, error: studentError } = await supabase
                 .from('students')
@@ -54,6 +55,7 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
 
     const loadMaterials = async (lessonPlanId: number) => {
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('learning_materials')
                 .select('*')
@@ -85,6 +87,7 @@ const StudentLessonPortal: React.FC<StudentLessonPortalProps> = ({ studentProfil
 
     const trackMaterialAccess = async (materialId: number) => {
         try {
+            const supabase = requireSupabaseClient();
             await supabase
                 .from('student_material_access')
                 .insert({

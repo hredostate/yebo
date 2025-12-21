@@ -22,6 +22,7 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({ studentProfil
     const loadHomework = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Get student's academic class
             const { data: student, error: studentError } = await supabase
                 .from('students')
@@ -74,6 +75,7 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({ studentProfil
 
         setSubmitting(true);
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('homework_submissions')
                 .insert({

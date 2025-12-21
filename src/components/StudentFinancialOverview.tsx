@@ -24,6 +24,7 @@ const StudentFinancialOverview: React.FC<StudentFinancialOverviewProps> = ({ stu
     const loadFinanceData = async () => {
       try {
         setIsLoading(true);
+        const supabase = requireSupabaseClient();
         const { data: invoiceData, error } = await supabase
           .from('student_invoices')
           .select('*, term:terms(term_label, session_label)')

@@ -18,6 +18,7 @@ const StudentWalletWidget: React.FC<StudentWalletWidgetProps> = ({ studentRecord
     const loadDVA = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('dedicated_virtual_accounts')
                 .select('*')
