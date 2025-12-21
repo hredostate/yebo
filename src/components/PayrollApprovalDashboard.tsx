@@ -397,7 +397,7 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                                     className="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 font-semibold flex items-center justify-center gap-2 border-2 border-orange-700"
                                 >
                                     {isProcessing ? <Spinner size="sm" /> : '⚠️'}
-                                    Override &amp; Process Offline
+                                    Override & Process Offline
                                 </button>
                             )}
                         </div>
@@ -692,6 +692,5 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
         </div>
     );
 };
-
 
 export default PayrollApprovalDashboard;
