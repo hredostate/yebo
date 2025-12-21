@@ -155,37 +155,9 @@ BEGIN
             'component_scores', COALESCE(se.component_scores, '{}'::jsonb),
             'totalScore', se.total_score,
             'total_score', se.total_score,
-            'gradeLabel', COALESCE(
-                (SELECT gsr.grade_label 
-                 FROM public.grading_scheme_rules gsr
-                 WHERE gsr.grading_scheme_id = v_grading_scheme_id
-                   AND se.total_score >= gsr.min_score
-                   AND se.total_score <= gsr.max_score
-                 ORDER BY gsr.min_score DESC
-                 LIMIT 1),
-                'F'
-            ),
-            'grade', COALESCE(
-                (SELECT gsr.grade_label 
-                 FROM public.grading_scheme_rules gsr
-                 WHERE gsr.grading_scheme_id = v_grading_scheme_id
-                   AND se.total_score >= gsr.min_score
-                   AND se.total_score <= gsr.max_score
-                 ORDER BY gsr.min_score DESC
-                 LIMIT 1),
-                'F'
-            ),
-            'remark', COALESCE(
-                (SELECT gsr.remark 
-                 FROM public.grading_scheme_rules gsr
-                 WHERE gsr.grading_scheme_id = v_grading_scheme_id
-                   AND se.total_score >= gsr.min_score
-                   AND se.total_score <= gsr.max_score
-                 ORDER BY gsr.min_score DESC
-                 LIMIT 1),
-                se.remark,
-                '-'
-            ),
+            'gradeLabel', COALESCE(gsr.grade_label, 'F'),
+            'grade', COALESCE(gsr.grade_label, 'F'),
+            'remark', COALESCE(gsr.remark, se.remark, '-'),
             'subjectPosition', (
                 SELECT COUNT(*) + 1
                 FROM public.score_entries se2
@@ -208,6 +180,15 @@ BEGIN
             )
         ) AS subj_data
         FROM public.score_entries se
+        LEFT JOIN LATERAL (
+            SELECT grade_label, remark
+            FROM public.grading_scheme_rules gsr
+            WHERE gsr.grading_scheme_id = v_grading_scheme_id
+              AND se.total_score >= gsr.min_score
+              AND se.total_score <= gsr.max_score
+            ORDER BY gsr.min_score DESC
+            LIMIT 1
+        ) gsr ON true
         WHERE se.student_id = p_student_id AND se.term_id = p_term_id
     ) subquery;
 
