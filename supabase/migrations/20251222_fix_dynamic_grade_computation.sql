@@ -1,6 +1,7 @@
--- Fix Report Card Grades: Compute dynamically from grading_scheme_rules
--- This migration updates get_student_term_report_details to compute grades
--- from the current grading scheme instead of reading stored grade_label values.
+-- Fix Report Card Grades and Rankings: Compute dynamically from grading_scheme_rules and score_entries
+-- This migration updates get_student_term_report_details to:
+-- 1. Compute grades from the current grading scheme instead of reading stored grade_label values
+-- 2. Compute rankings from dynamic averages in score_entries instead of stale student_term_reports.average_score
 
 CREATE OR REPLACE FUNCTION public.get_student_term_report_details(p_student_id INT, p_term_id INT)
 RETURNS JSONB AS $$
@@ -88,36 +89,47 @@ BEGIN
       AND acs.enrolled_term_id = p_term_id
     LIMIT 1;
 
-    -- 5. Cohort-level ranking (campus + session + term + class + arm) and Level-wide ranking
-    WITH cohort AS (
+    -- 5. Cohort-level ranking with DYNAMIC AVERAGES from score_entries
+    WITH student_averages AS (
+        -- Compute average score for each student from their score_entries
+        SELECT 
+            se.student_id,
+            se.term_id,
+            se.academic_class_id,
+            AVG(se.total_score) as computed_average
+        FROM public.score_entries se
+        WHERE se.term_id = p_term_id
+        GROUP BY se.student_id, se.term_id, se.academic_class_id
+    ),
+    cohort AS (
         SELECT
-            str.student_id,
+            sa.student_id,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id, str.academic_class_id, ac.arm
-                ORDER BY COALESCE(str.average_score, 0) DESC
+                PARTITION BY s.campus_id, t.session_label, sa.term_id, sa.academic_class_id, ac.arm
+                ORDER BY COALESCE(sa.computed_average, 0) DESC
             ) AS cohort_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id, str.academic_class_id, ac.arm
+                PARTITION BY s.campus_id, t.session_label, sa.term_id, sa.academic_class_id, ac.arm
             ) AS cohort_size,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id, ac.level
-                ORDER BY COALESCE(str.average_score, 0) DESC
+                PARTITION BY s.campus_id, t.session_label, sa.term_id, ac.level
+                ORDER BY COALESCE(sa.computed_average, 0) DESC
             ) AS level_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id, ac.level
+                PARTITION BY s.campus_id, t.session_label, sa.term_id, ac.level
             ) AS level_size,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id
-                ORDER BY COALESCE(str.average_score, 0) DESC
+                PARTITION BY s.campus_id, t.session_label, sa.term_id
+                ORDER BY COALESCE(sa.computed_average, 0) DESC
             ) AS campus_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, str.term_id
+                PARTITION BY s.campus_id, t.session_label, sa.term_id
             ) AS campus_total
-        FROM public.student_term_reports str
-        JOIN public.students s ON str.student_id = s.id
-        JOIN public.terms t ON t.id = str.term_id
-        LEFT JOIN public.academic_classes ac ON ac.id = str.academic_class_id
-        WHERE str.term_id = p_term_id
+        FROM student_averages sa
+        JOIN public.students s ON sa.student_id = s.id
+        JOIN public.terms t ON t.id = sa.term_id
+        LEFT JOIN public.academic_classes ac ON ac.id = sa.academic_class_id
+        WHERE sa.term_id = p_term_id
           AND COALESCE(s.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
     )
     SELECT
@@ -374,6 +386,8 @@ $$ LANGUAGE plpgsql;
 
 -- Add comment explaining the fix
 COMMENT ON FUNCTION public.get_student_term_report_details IS 
-'Returns student term report details with grades computed dynamically from grading_scheme_rules table.
-This ensures report cards always reflect the current grading scheme, not stale stored values.
-Fixed in migration 20251222 to address grade discrepancy between statistics and report cards.';
+'Returns student term report details with:
+1. Rankings computed dynamically from score_entries averages (not stale student_term_reports.average_score)
+2. Grades computed dynamically from grading_scheme_rules table
+This ensures report cards always reflect current data, not stale stored values.
+Fixed in migration 20251222 to address grade and ranking discrepancies between statistics and report cards.';
