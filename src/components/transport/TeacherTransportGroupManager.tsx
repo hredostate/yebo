@@ -54,7 +54,7 @@ export default function TeacherTransportGroupManager({
       const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_class_groups')
-        .select('*, route:transport_routes(*), term:terms(*)')
+        .select('*, route:transport_routes!route_id(*), term:terms!term_id(*)')
         .eq('created_by', userId)
         .eq('term_id', currentTerm.id)
         .eq('is_active', true)
