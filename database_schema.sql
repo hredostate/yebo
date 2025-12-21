@@ -1994,28 +1994,21 @@ BEGIN
             'gradeLabel', COALESCE(gsr.grade_label, 'F'),
             'grade', COALESCE(gsr.grade_label, 'F'),
             'remark', COALESCE(gsr.remark, se.remark, '-'),
-            'subjectPosition', (
-                SELECT COUNT(*) + 1
-                FROM public.score_entries se2
-                JOIN public.students s2 ON s2.id = se2.student_id
-                WHERE se2.term_id = p_term_id
-                  AND se2.academic_class_id = se.academic_class_id
-                  AND se2.subject_name = se.subject_name
-                  AND se2.total_score > se.total_score
-                  AND COALESCE(s2.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
-            ),
-            'subject_position', (
-                SELECT COUNT(*) + 1
-                FROM public.score_entries se2
-                JOIN public.students s2 ON s2.id = se2.student_id
-                WHERE se2.term_id = p_term_id
-                  AND se2.academic_class_id = se.academic_class_id
-                  AND se2.subject_name = se.subject_name
-                  AND se2.total_score > se.total_score
-                  AND COALESCE(s2.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
-            )
+            'subjectPosition', subject_rank,
+            'subject_position', subject_rank
         ) AS subj_data
-        FROM public.score_entries se
+        FROM (
+            SELECT 
+                se.*,
+                DENSE_RANK() OVER (
+                    PARTITION BY se.academic_class_id, se.subject_name
+                    ORDER BY se.total_score DESC
+                ) as subject_rank
+            FROM public.score_entries se
+            JOIN public.students s ON s.id = se.student_id
+            WHERE se.term_id = p_term_id
+              AND COALESCE(s.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
+        ) se
         LEFT JOIN LATERAL (
             SELECT grade_label, remark
             FROM public.grading_scheme_rules gsr
@@ -2025,7 +2018,7 @@ BEGIN
             ORDER BY gsr.min_score DESC
             LIMIT 1
         ) gsr ON true
-        WHERE se.student_id = p_student_id AND se.term_id = p_term_id
+        WHERE se.student_id = p_student_id
     ) subquery;
 
     -- 7. Identify the student's class group for this term (class teacher groups take precedence)
