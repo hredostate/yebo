@@ -187,6 +187,14 @@ export const useAppLogic = () => {
       const supabase = requireSupabaseClient();
       if (userProfile && userType === 'staff') {
           try {
+            // Determine if user has payroll management permission
+            const hasPayrollManagePermission = userPermissions.includes('manage-payroll') || userPermissions.includes('*');
+            
+            // Build payroll adjustments query with appropriate filtering
+            const payrollAdjustmentsQuery = hasPayrollManagePermission
+                ? supabase.from('payroll_adjustments').select('*, user:user_profiles(name)')
+                : supabase.from('payroll_adjustments').select('*, user:user_profiles(name)').eq('user_id', userProfile.id);
+            
             const results = await Promise.allSettled([
                 supabase.from('roles').select('*'),
                 supabase.from('user_role_assignments').select('*'),
@@ -226,7 +234,7 @@ export const useAppLogic = () => {
                 supabase.from('attendance_records').select('*').limit(50000),
                 supabase.from('class_groups').select('*, members:class_group_members(*, schedules:attendance_schedules(*), records:attendance_records(*))'),
                 supabase.from('payroll_runs').select('*, items:payroll_items(*, user:user_profiles(*))'),
-                supabase.from('payroll_adjustments').select('*, user:user_profiles(name)'),
+                payrollAdjustmentsQuery,
                 supabase.from('rewards_store_items').select('*'),
                 supabase.from('orders').select('*, user:user_profiles!user_id(name, email), items:order_items(*, inventory_item:inventory_items!inventory_item_id(name, image_url)), notes:order_notes(*, author:user_profiles!author_id(name))'),
                 supabase.from('living_policy_snippets').select('*, author:user_profiles(name)'),
@@ -360,7 +368,7 @@ export const useAppLogic = () => {
                  setAnnouncements(getData(3));
              } catch (e) { console.error(e); }
       }
-  }, [userProfile, userType]);
+  }, [userProfile, userType, userPermissions]);
 
   useEffect(() => {
       fetchData();
