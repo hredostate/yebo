@@ -40,6 +40,9 @@ DECLARE
     v_present_str INTEGER;
     v_absent_str INTEGER;
     v_grading_scheme_id INTEGER;
+    v_computed_total_score NUMERIC := 0;
+    v_computed_average_score NUMERIC := 0;
+    v_subject_count INTEGER := 0;
 BEGIN
     -- 1. Student Info scoped with campus/class/arm/level for cohort filters
     SELECT jsonb_build_object(
@@ -195,6 +198,17 @@ BEGIN
         WHERE se.student_id = p_student_id AND se.term_id = p_term_id
     ) subquery;
 
+    -- 6b. Calculate total and average from subjects
+    SELECT 
+        COALESCE(SUM((subj->>'totalScore')::NUMERIC), 0),
+        COUNT(*),
+        CASE WHEN COUNT(*) > 0 
+             THEN ROUND(COALESCE(SUM((subj->>'totalScore')::NUMERIC), 0) / COUNT(*), 2)
+             ELSE 0 
+        END
+    INTO v_computed_total_score, v_subject_count, v_computed_average_score
+    FROM jsonb_array_elements(COALESCE(v_subjects, '[]'::jsonb)) AS subj;
+
     -- 7. Identify the student's class group for this term (class teacher groups take precedence)
     SELECT cgm.group_id
     INTO v_class_group_id
@@ -322,7 +336,10 @@ BEGIN
         'schoolConfig', v_school_config,
         'subjects', COALESCE(v_subjects, '[]'::jsonb),
         'summary', jsonb_build_object(
-            'average', v_report_row.average_score,
+            'average', v_computed_average_score,
+            'totalScore', v_computed_total_score,
+            'total_score', v_computed_total_score,
+            'subjectCount', v_subject_count,
             'positionInArm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
             'position_in_arm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
             'position_in_class', COALESCE(v_cohort_rank, v_report_row.position_in_class),
