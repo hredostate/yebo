@@ -16,11 +16,6 @@ export function computeDerivedCoverageStatus(coverageRecords: LessonPlanCoverage
   
   const statuses = coverageRecords.map(r => r.coverage_status);
   
-  // If all records are not_started or Pending, return Pending
-  if (statuses.every(s => s === 'not_started' || s === 'Pending')) {
-    return 'Pending';
-  }
-  
   // If all are fully covered
   if (statuses.every(s => s === 'Fully Covered')) {
     return 'Fully Covered';
@@ -31,11 +26,17 @@ export function computeDerivedCoverageStatus(coverageRecords: LessonPlanCoverage
     return 'Not Covered';
   }
   
-  // If any is partially covered or fully covered (mixed state)
-  if (statuses.some(s => s === 'Partially Covered' || s === 'Fully Covered')) {
+  // If any is partially covered or some are fully covered (mixed state)
+  if (statuses.some(s => s === 'Partially Covered')) {
     return 'Partially Covered';
   }
   
+  // If some are fully covered but not all (mixed with not_started or Pending)
+  if (statuses.some(s => s === 'Fully Covered')) {
+    return 'Partially Covered';
+  }
+  
+  // All remaining are either not_started or Pending
   return 'Pending';
 }
 
