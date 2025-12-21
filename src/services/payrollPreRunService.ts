@@ -20,7 +20,8 @@ const AUDIT_ACTIONS = {
     finalize: 'payroll.run.finalize',
     processOffline: 'payroll.run.process_offline',
     processPaystack: 'payroll.run.process_paystack',
-    generate: 'payroll.payslips.generate'
+    generate: 'payroll.payslips.generate',
+    overrideApproval: 'payroll.run.override_approval'
 };
 
 async function logAudit(action: string, actor: string | null, metadata: Record<string, any>) {
@@ -528,5 +529,51 @@ export async function processPaystackPayment(runId: string, actorId: string): Pr
         await markPaystackProcessing(runId, actorId, 'FAILED');
         throw error;
     }
+}
+
+// Override approval and process offline in one action
+export async function overrideApproveAndProcessOffline(runId: string, actorId: string): Promise<void> {
+    const supabase = requireSupabaseClient();
+    
+    // Get current run and payslips
+    const { data: run, error: runError } = await supabase
+        .from('payroll_runs_v2')
+        .select('school_id')
+        .eq('id', runId)
+        .single();
+    
+    if (runError) throw runError;
+    
+    // Get approval summary before changes
+    const summaryBefore = await getApprovalSummary(runId);
+    
+    // Auto-approve all payslips that are not already approved
+    // This includes: DRAFT, AWAITING_APPROVAL, QUERY_RAISED, and RESOLVED statuses
+    const { error: approveError } = await supabase
+        .from('payslips')
+        .update({ 
+            status: 'APPROVED' as PayslipStatus, 
+            updated_at: new Date().toISOString() 
+        })
+        .eq('payroll_run_id', runId)
+        .in('status', ['DRAFT', 'AWAITING_APPROVAL', 'QUERY_RAISED', 'RESOLVED']);
+    
+    if (approveError) throw approveError;
+    
+    // Finalize the payroll run with OFFLINE processing method
+    await finalizePayroll(runId, actorId, 'OFFLINE');
+    
+    // Process offline payment (calls edge function)
+    await processOfflinePayment(runId, actorId);
+    
+    // Log the override action in audit trail
+    await logAudit(AUDIT_ACTIONS.overrideApproval, actorId, {
+        run_id: runId,
+        school_id: run?.school_id,
+        override_used: true,
+        payslips_auto_approved: summaryBefore.pending + summaryBefore.queried,
+        summary_before: summaryBefore,
+        processing_method: 'OFFLINE'
+    });
 }
 
