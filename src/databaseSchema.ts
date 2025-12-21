@@ -1251,7 +1251,23 @@ CREATE TABLE IF NOT EXISTS public.student_subject_choices (
     student_id INTEGER REFERENCES public.students(id) ON DELETE CASCADE,
     subject_id INTEGER REFERENCES public.subjects(id) ON DELETE CASCADE,
     locked BOOLEAN DEFAULT FALSE,
+    locked_at TIMESTAMPTZ DEFAULT NULL,
+    locked_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(student_id, subject_id)
+);
+
+-- Elective subject capacity limits (optional per class/arm/subject)
+CREATE TABLE IF NOT EXISTS public.elective_subject_limits (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+    arm_id INTEGER REFERENCES public.arms(id) ON DELETE CASCADE,
+    subject_id INTEGER NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+    max_students INTEGER DEFAULT NULL,  -- NULL means unlimited
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(school_id, class_id, arm_id, subject_id)
 );
 
 -- 8) Assessments & Scores
