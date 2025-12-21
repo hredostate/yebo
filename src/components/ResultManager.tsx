@@ -480,7 +480,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             [], // weaknessTags (not used here)
                             usedRemarks
                         );
-                        // Add to Set to prevent reuse for subsequent students
+                        // Add to Set to ensure uniqueness across all students in this batch
                         usedRemarks.add(comment);
                     } else {
                         // Generate AI comment
