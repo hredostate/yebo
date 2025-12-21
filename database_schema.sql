@@ -315,6 +315,16 @@ CREATE TABLE IF NOT EXISTS public.grading_scheme_rules (
     gpa_value NUMERIC,
     remark TEXT
 );
+CREATE TABLE IF NOT EXISTS public.grading_scheme_overrides (
+    id SERIAL PRIMARY KEY,
+    grading_scheme_id INTEGER REFERENCES public.grading_schemes(id) ON DELETE CASCADE,
+    subject_name TEXT NOT NULL,
+    min_score NUMERIC NOT NULL,
+    max_score NUMERIC NOT NULL,
+    grade_label TEXT NOT NULL,
+    remark TEXT,
+    UNIQUE(grading_scheme_id, subject_name, min_score)
+);
 CREATE TABLE IF NOT EXISTS public.school_config (
     school_id INTEGER PRIMARY KEY REFERENCES public.schools(id) ON DELETE CASCADE,
     display_name TEXT,
