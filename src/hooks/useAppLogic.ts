@@ -18,7 +18,8 @@ import type {
   Assessment, AssessmentScore, ClassGroup, SurveyWithQuestions,
   CalendarEvent, LivingPolicySnippet, NavigationContext, StudentAward,
   CoverageVote, CreatedCredential, RoleTitle, TaskStatus, StudentProfile,
-  UserRoleAssignment, StudentTermReportSubject, ScoreEntry, AtRiskTeacher
+  UserRoleAssignment, StudentTermReportSubject, ScoreEntry, AtRiskTeacher,
+  LessonPlanCoverage, LessonPlanReviewEvidence
 } from '../types';
 import { VIEWS, CLASS_TEACHER_SUBJECT_PLACEHOLDER } from '../constants';
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_SOCIAL_ANALYTICS } from '../services/mockData';
@@ -110,6 +111,8 @@ export const useAppLogic = () => {
   const [terms, setTerms] = useState<Term[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [coverageData, setCoverageData] = useState<LessonPlanCoverage[]>([]);
+  const [reviewEvidence, setReviewEvidence] = useState<LessonPlanReviewEvidence[]>([]);
   
   // UI States passed to children
   const [isPositiveModalOpen, setIsPositiveModalOpen] = useState(false);
@@ -211,7 +214,12 @@ export const useAppLogic = () => {
                 supabase.from('leave_requests').select('*, requester:user_profiles(name), leave_type:leave_types(name)'),
                 supabase.from('leave_types').select('*'),
                 supabase.from('quizzes').select('*, questions:quiz_questions(*)'), // Surveys
-                supabase.from('lesson_plans').select('*, author:user_profiles(name), teaching_entity:teaching_assignments(*)').limit(10000),
+                supabase.from('lesson_plans').select(`
+                    *, 
+                    author:user_profiles(name), 
+                    teaching_entity:teaching_assignments(*),
+                    assignments:lesson_plan_assignments(*, teaching_entity:academic_teaching_assignments(*, academic_class:academic_classes(name)))
+                `).limit(10000),
                 supabase.from('assessments').select('*'),
                 supabase.from('assessment_scores').select('*'),
                 supabase.from('score_entries').select('*').limit(50000),
@@ -228,6 +236,8 @@ export const useAppLogic = () => {
                 supabase.from('student_awards').select('*, student:students(name)').limit(10000),
                 supabase.from('staff_awards').select('*'),
                 supabase.from('academic_class_students').select('*').limit(10000),
+                supabase.from('lesson_plan_coverage').select('*'),
+                supabase.from('lesson_plan_review_evidence').select('*, reviewer:user_profiles(name)'),
             ]);
 
             // Helper to safely extract data from result - always returns array for array types
@@ -314,6 +324,8 @@ export const useAppLogic = () => {
             setStudentAwards(getData(35));
             setStaffAwards(getData(36));
             setAcademicClassStudents(getData(37));
+            setCoverageData(getData(38));
+            setReviewEvidence(getData(39));
             
             // Mock Data for things not yet fully DB driven or for demo
             setSocialMediaAnalytics(MOCK_SOCIAL_ANALYTICS);
@@ -670,7 +682,7 @@ export const useAppLogic = () => {
         payrollRuns, payrollItems, payrollAdjustments, leaveRequests, orders, socialAccounts, checkinAnomalies, weeklyRatings,
         scoreEntries, studentTermReportSubjects, coverageVotes, curricula, curriculumWeeks, lessonPlans, assessments, assessmentScores,
         classGroups, surveys, roles, terms, academicClasses, schoolSettings, isPositiveModalOpen, isTourOpen, isAIBulkResponseModalOpen,
-        selectedStudent
+        selectedStudent, coverageData, reviewEvidence
     },
     actions: {
         setCurrentView,
@@ -980,10 +992,121 @@ export const useAppLogic = () => {
         handleDeleteSurvey: async (id: number) => { await Offline.del('quizzes', { id }); fetchData(); },
         handleNavigation: (ctx: any) => { setCurrentView(ctx.targetView); setNavContext(ctx); },
         handleSaveCurriculum: async () => true,
-        handleSaveLessonPlan: async () => null,
+        handleSaveLessonPlan: async (plan: Partial<LessonPlan>, generateWithAi: boolean, file: File | null): Promise<LessonPlan | null> => {
+            const supabase = requireSupabaseClient();
+            if (!userProfile || !('school_id' in userProfile)) return null;
+            
+            try {
+                let file_url = plan.file_url;
+                
+                // Upload file if provided
+                if (file) {
+                    // Sanitize filename to prevent path traversal attacks
+                    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const fileName = `${userProfile.school_id}/${Date.now()}_${sanitizedName}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('lesson_plans')
+                        .upload(fileName, file);
+                    
+                    if (uploadError) {
+                        addToast(`Error uploading file: ${uploadError.message}`, 'error');
+                        return null;
+                    }
+                    
+                    const { data: publicUrlData } = supabase.storage
+                        .from('lesson_plans')
+                        .getPublicUrl(fileName);
+                    
+                    file_url = publicUrlData.publicUrl;
+                }
+                
+                // Remove relation fields that shouldn't be sent to database
+                const { author, teaching_entity, ai_analysis, assignments, review_evidence, ...cleanPlanData } = plan;
+                
+                const lessonPlanData = {
+                    ...cleanPlanData,
+                    file_url,
+                    school_id: userProfile.school_id,
+                    author_id: userProfile.id,
+                    updated_at: new Date().toISOString(),
+                };
+                
+                if (plan.id) {
+                    // Update existing lesson plan
+                    const { data, error } = await supabase
+                        .from('lesson_plans')
+                        .update(lessonPlanData)
+                        .eq('id', plan.id)
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        addToast(`Error updating lesson plan: ${error.message}`, 'error');
+                        return null;
+                    }
+                    
+                    addToast('Lesson plan updated successfully!', 'success');
+                    fetchData();
+                    return data as LessonPlan;
+                } else {
+                    // Create new lesson plan
+                    const newLessonPlanData = {
+                        ...lessonPlanData,
+                        created_at: new Date().toISOString(),
+                    };
+                    
+                    const { data, error } = await supabase
+                        .from('lesson_plans')
+                        .insert(newLessonPlanData)
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        addToast(`Error creating lesson plan: ${error.message}`, 'error');
+                        return null;
+                    }
+                    
+                    addToast('Lesson plan created successfully!', 'success');
+                    fetchData();
+                    return data as LessonPlan;
+                }
+            } catch (error: any) {
+                addToast(`Error saving lesson plan: ${error.message}`, 'error');
+                return null;
+            }
+        },
         handleAnalyzeLessonPlan: async () => null,
         handleCopyLessonPlan: async () => true,
         handleApproveLessonPlan: async () => {},
+        handleUpdateCoverage: async (coverage: Partial<LessonPlanCoverage>) => {
+            const supabase = requireSupabaseClient();
+            try {
+                if (coverage.id) {
+                    const { error } = await supabase
+                        .from('lesson_plan_coverage')
+                        .update({
+                            ...coverage,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', coverage.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase
+                        .from('lesson_plan_coverage')
+                        .insert({
+                            ...coverage,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        });
+                    if (error) throw error;
+                }
+                addToast('Coverage updated successfully!', 'success');
+                fetchData();
+            } catch (error: any) {
+                addToast(`Error updating coverage: ${error.message}`, 'error');
+                throw error;
+            }
+        },
         handleSaveScores: async (scores: any[]) => {
              const supabase = requireSupabaseClient();
              // Bulk upsert scores

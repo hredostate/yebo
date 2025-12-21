@@ -158,6 +158,7 @@ export const VIEWS = {
   CAMPUS_STATISTICS: 'Campus Statistics',
   // Lesson Plan Enhancement Views
   COVERAGE_DASHBOARD: 'Coverage Dashboard',
+  COVERAGE_REPORTING: 'Coverage Reporting',
   REVIEW_DASHBOARD: 'Review Dashboard',
   TEAM_LESSON_HUB: 'Team Lesson Hub',
   STUDENT_LESSON_PORTAL: 'Student Lessons',
