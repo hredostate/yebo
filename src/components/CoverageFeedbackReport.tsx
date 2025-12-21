@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import type { LessonPlan, CoverageVote, UserProfile, Team } from '../types';
+import type { LessonPlan, CoverageVote, UserProfile, Team, LessonPlanCoverage } from '../types';
 import { UsersIcon } from './common/icons';
+import { getDerivedCoverageStatus } from '../utils/coverageHelpers';
 
 interface CoverageFeedbackReportProps {
   lessonPlans: LessonPlan[];
@@ -8,9 +9,10 @@ interface CoverageFeedbackReportProps {
   users: UserProfile[];
   teams: Team[];
   currentUser: UserProfile;
+  coverageData: LessonPlanCoverage[];
 }
 
-const CoverageFeedbackReport: React.FC<CoverageFeedbackReportProps> = ({ lessonPlans, coverageVotes, users, teams, currentUser }) => {
+const CoverageFeedbackReport: React.FC<CoverageFeedbackReportProps> = ({ lessonPlans, coverageVotes, users, teams, currentUser, coverageData }) => {
     
     const relevantPlans = useMemo(() => {
         const isAdmin = ['Admin', 'Principal'].includes(currentUser.role);
@@ -74,7 +76,7 @@ const CoverageFeedbackReport: React.FC<CoverageFeedbackReportProps> = ({ lessonP
                                     <td className="px-6 py-4">{new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString()}</td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-700">
-                                            {plan.coverage_status || 'Not Set'}
+                                            {getDerivedCoverageStatus(plan.id, coverageData)}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
