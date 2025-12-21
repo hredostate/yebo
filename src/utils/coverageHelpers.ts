@@ -36,7 +36,7 @@ export function computeDerivedCoverageStatus(coverageRecords: LessonPlanCoverage
     return 'Partially Covered';
   }
   
-  // All remaining are either not_started or Pending
+  // All remaining must be either not_started or Pending (no progress yet)
   return 'Pending';
 }
 
