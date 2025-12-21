@@ -261,20 +261,21 @@ serve(async (req) => {
                 }
 
                 // Generate username and password
-                // Username format: admission number or name-based with school prefix
+                // Username format: admission number or name-based with student ID for guaranteed uniqueness
                 const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
                 const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+                
+                // For new students in bulk_create, we need to insert first to get the ID
+                // So we'll use a temporary unique identifier and update after insertion
+                // Use timestamp + random to ensure uniqueness even for simultaneous creations
+                const tempSuffix = `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
+                let tempUsername = cleanAdmission || `${cleanName}${tempSuffix}`;
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
-                // Use provided email (case-insensitive) or generate one with @upsshub.com domain
-                // Email is still needed for Supabase Auth but username will be primary for students
-                const emailPrefix = cleanAdmission || cleanName || 'student';
-                const timestamp = Date.now().toString().slice(-6);
-                const random = Math.floor(Math.random() * 1000);
-                const email = providedEmail || `${emailPrefix}.${timestamp}${random}@upsshub.com`;
+                // Use provided email or generate one using temp username
+                const email = providedEmail || `${tempUsername}@upsshub.com`;
 
-                console.log(`Student ${studentName}: username = "${username}", email = "${email}"`);
+                console.log(`Student ${studentName}: temp_username = "${tempUsername}", email = "${email}"`);
 
                 console.log(`Creating auth user with email: ${email}`);
 
@@ -284,7 +285,7 @@ serve(async (req) => {
                     email_confirm: true,
                     user_metadata: {
                         name: studentName,
-                        username: username, // Store username in metadata
+                        username: tempUsername, // Store temp username in metadata, will update after getting student ID
                         user_type: 'student',
                         class_id: student.class_id,
                         arm_id: student.arm_id,
@@ -308,6 +309,7 @@ serve(async (req) => {
                 console.log(`Successfully created auth user for ${studentName}, ID: ${newUser.user.id}`);
 
                 // Link auth user to student record
+                let finalStudentId: number | null = null;
                 if (existingStudent) {
                     // Update existing student record with new user_id
                     const { error: updateError } = await supabaseAdmin
@@ -321,6 +323,8 @@ serve(async (req) => {
                     
                     if (updateError) {
                         console.error(`Failed to update student record for ${studentName}:`, updateError);
+                    } else {
+                        finalStudentId = existingStudent.id;
                     }
 
                     // Update student_profiles to link student_record_id
@@ -354,6 +358,8 @@ serve(async (req) => {
                     if (insertError) {
                         console.error(`Failed to create student record for ${studentName}:`, insertError);
                     } else if (newStudent) {
+                        finalStudentId = newStudent.id;
+                        
                         // Update student_profiles to link student_record_id
                         const { error: profileLinkError } = await supabaseAdmin
                             .from('student_profiles')
@@ -366,7 +372,36 @@ serve(async (req) => {
                     }
                 }
 
-                results.push({ name: studentName, username: username, email: email, password: password, status: 'Success' });
+                // Now update username using the student ID for guaranteed uniqueness
+                const finalUsername = cleanAdmission || `${cleanName}${finalStudentId}`;
+                const finalEmail = providedEmail || `${finalUsername}@upsshub.com`;
+                
+                // Update auth user with final username and email
+                if (finalStudentId && !providedEmail) {
+                    const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
+                        newUser.user.id,
+                        {
+                            email: finalEmail,
+                            email_confirm: true,
+                            user_metadata: {
+                                ...newUser.user.user_metadata,
+                                username: finalUsername
+                            }
+                        }
+                    );
+                    
+                    if (updateAuthError) {
+                        console.error(`Failed to update auth user with final username for ${studentName}:`, updateAuthError);
+                    } else {
+                        // Also update student record email if it was generated
+                        await supabaseAdmin
+                            .from('students')
+                            .update({ email: finalEmail })
+                            .eq('id', finalStudentId);
+                    }
+                }
+
+                results.push({ name: studentName, username: finalUsername, email: finalEmail, password: password, status: 'Success' });
                 
             } catch (innerError: any) {
                 console.error(`Crash processing student ${student.name}:`, innerError);
@@ -400,10 +435,9 @@ serve(async (req) => {
 
         const cleanAdmission = studentRecord.admission_number ? studentRecord.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
         const cleanName = studentRecord.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+        const username = cleanAdmission || `${cleanName}${studentId}`; // Use student DB id for uniqueness
         const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-        const emailPrefix = cleanAdmission || cleanName;
-        const email = studentRecord.email || `${emailPrefix}.${Math.floor(Math.random() * 1000)}@upsshub.com`;
+        const email = studentRecord.email || `${username}@upsshub.com`; // Email matches username
 
         const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
@@ -482,10 +516,9 @@ serve(async (req) => {
 
              const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
              const cleanName = student.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-             const username = cleanAdmission || `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+             const username = cleanAdmission || `${cleanName}${id}`; // Use student DB id for uniqueness
              const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-             const emailPrefix = cleanAdmission || cleanName;
-             const email = student.email || `${emailPrefix}.${Math.floor(Math.random() * 1000)}@upsshub.com`;
+             const email = student.email || `${username}@upsshub.com`; // Email matches username
 
              const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
                 email: email,
