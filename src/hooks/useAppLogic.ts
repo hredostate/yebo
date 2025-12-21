@@ -1225,7 +1225,10 @@ export const useAppLogic = () => {
                 }
 
                 // 4. Lock the assignment
-                const { error: lockError } = await Offline.update('teaching_assignments', { is_locked: true }, { id: assignmentId });
+                const { error: lockError } = await supabase
+                    .from('teaching_assignments')
+                    .update({ is_locked: true })
+                    .eq('id', assignmentId);
                 
                 if (lockError) {
                     addToast(`Error locking scores: ${lockError.message}`, 'error');
