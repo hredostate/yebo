@@ -68,6 +68,7 @@ const TeacherScoreEntryView: React.FC<TeacherScoreEntryViewProps> = ({
             
             setIsLoadingEnrollments(true);
             try {
+                const supabase = requireSupabaseClient();
                 const { data, error } = await supabase
                     .from('student_subject_enrollments')
                     .select('id, school_id, student_id, subject_id, academic_class_id, term_id, is_enrolled, created_at, updated_at')
