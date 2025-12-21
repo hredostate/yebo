@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AcademicTeachingAssignment, AcademicClassStudent, ScoreEntry, UserProfile, Student, StudentTermReport, GradingScheme, SchoolConfig, AcademicClass, ZeroScoreStudent } from '../types';
 import Spinner from './common/Spinner';
-import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, PaintBrushIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon, PaperAirplaneIcon } from './common/icons';
+import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, SearchIcon, DownloadIcon, RefreshIcon, EyeIcon, EditIcon, PaperAirplaneIcon } from './common/icons';
 import { aiClient, getAIClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
@@ -53,8 +53,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [isPublishing, setIsPublishing] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('by-class');
     const [publishingClassId, setPublishingClassId] = useState<number | null>(null);
-    const [showDesignPicker, setShowDesignPicker] = useState(false);
-    const [selectedResultSheet, setSelectedResultSheet] = useState<string>('default');
     const [searchQuery, setSearchQuery] = useState('');
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
@@ -89,19 +87,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
-    
-    // Result sheet design options
-    const resultSheetOptions = [
-        { id: 'classic', name: 'Classic', description: 'Standard table layout' },
-        { id: 'modern', name: 'Modern', description: 'Colored headers layout' },
-        { id: 'compact', name: 'Compact', description: 'Space-efficient layout' },
-        { id: 'professional', name: 'Professional', description: 'Minimalist formal layout' },
-        { id: 'pastel', name: 'Pastel', description: 'Colorful friendly layout' },
-        { id: 'modern-gradient', name: 'Modern Gradient', description: 'Card-based with gradient accents' },
-        { id: 'banded-rows', name: 'Banded Rows', description: 'Formal table with alternating rows' },
-        { id: 'executive-dark', name: 'Executive Dark', description: 'Dark theme professional design' },
-        { id: 'minimalist-clean', name: 'Minimalist Clean', description: 'Clean typography-focused layout' },
-    ];
 
 
     const assignmentsForTerm = useMemo(() => {
@@ -1033,31 +1018,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             >
                                 Academic Goals
                             </button>
-                        </div>
-                        {/* Result Sheet Design Selector */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => setShowDesignPicker(!showDesignPicker)}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700"
-                            >
-                                <PaintBrushIcon className="w-5 h-5" />
-                                Result Sheet Design
-                            </button>
-                            {showDesignPicker && (
-                                <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 p-2">
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1 mb-1">Select Result Sheet Design:</p>
-                                    {resultSheetOptions.map(opt => (
-                                        <button
-                                            key={opt.id}
-                                            onClick={() => { setSelectedResultSheet(opt.id); setShowDesignPicker(false); addToast(`Result sheet design changed to "${opt.name}"`, 'success'); }}
-                                            className={`w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition ${selectedResultSheet === opt.id ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700' : ''}`}
-                                        >
-                                            <p className="font-medium text-sm">{opt.name}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{opt.description}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
                         </div>
                         <button 
                             onClick={handleGeneratePrincipalComments} 
