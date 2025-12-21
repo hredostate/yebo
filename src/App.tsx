@@ -5582,6 +5582,8 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         if (!userProfile || userType !== 'staff') return false;
         const staffProfile = userProfile as UserProfile;
         
+        const supabase = requireSupabaseClient();
+        
         try {
             const { error } = await Offline.update('teaching_assignments', 
                 { submitted_at: new Date().toISOString() }, 
