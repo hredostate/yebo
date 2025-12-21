@@ -267,7 +267,9 @@ serve(async (req) => {
                 
                 // For new students in bulk_create, we need to insert first to get the ID
                 // So we'll use a temporary unique identifier and update after insertion
-                let tempUsername = cleanAdmission || `${cleanName}${Date.now().toString().slice(-6)}`;
+                // Use timestamp + random to ensure uniqueness even for simultaneous creations
+                const tempSuffix = `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
+                let tempUsername = cleanAdmission || `${cleanName}${tempSuffix}`;
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
                 // Use provided email or generate one using temp username
