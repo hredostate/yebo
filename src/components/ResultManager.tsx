@@ -53,6 +53,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const [isPublishing, setIsPublishing] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('by-class');
     const [publishingClassId, setPublishingClassId] = useState<number | null>(null);
+    const [generatingPrincipalClassId, setGeneratingPrincipalClassId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showBulkGenerator, setShowBulkGenerator] = useState(false);
     const [selectedClassForBulk, setSelectedClassForBulk] = useState<{ id: number; name: string } | null>(null);
@@ -664,6 +665,62 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
+    const handleGeneratePrincipalCommentsForClass = async (classId: number, className: string) => {
+        if (!selectedTermId || !onGenerateReportComment) {
+            addToast("AI comment generation not available.", "error");
+            return;
+        }
+
+        setGeneratingPrincipalClassId(classId);
+        addToast(`Generating Principal's comments for ${className}...`, "info");
+
+        try {
+            // Get students in this class
+            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
+            const studentIds = studentsInClass.map(s => s.student_id);
+
+            // Get reports for these students in this term that don't have principal comments
+            const reportsToProcess = studentTermReports.filter(r => 
+                r.term_id === selectedTermId && 
+                studentIds.includes(r.student_id) &&
+                (!r.principal_comment || r.principal_comment.trim() === '')
+            );
+
+            if (reportsToProcess.length === 0) {
+                addToast(`All students in ${className} already have principal comments.`, "info");
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const report of reportsToProcess) {
+                try {
+                    const comment = await onGenerateReportComment(report.student_id, selectedTermId, 'principal');
+                    if (comment) {
+                        await onUpdateComments(report.id, report.teacher_comment || '', comment);
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (e) {
+                    console.error(`Failed to generate principal comment for student ${report.student_id}:`, e);
+                    errorCount++;
+                }
+            }
+
+            addToast(
+                `${className}: ${successCount} principal comment(s) generated${errorCount > 0 ? `, ${errorCount} failed` : ''}`, 
+                successCount > 0 ? "success" : "error"
+            );
+
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, "error");
+        } finally {
+            setGeneratingPrincipalClassId(null);
+        }
+    };
+
     const handleOpenTeacherCommentModal = (classId: number, className: string) => {
         setSelectedClassForComments({ id: classId, name: className });
         setShowTeacherCommentModal(true);
@@ -1239,6 +1296,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     >
                                         <EditIcon className="w-4 h-4" />
                                         Edit Teacher Comments
+                                    </button>
+                                    
+                                    {/* Gen. Principal Comments Button */}
+                                    <button
+                                        onClick={() => handleGeneratePrincipalCommentsForClass(c.id, c.name)}
+                                        disabled={c.reportsCount === 0 || generatingPrincipalClassId === c.id}
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Generate AI principal comments for students"}
+                                    >
+                                        {generatingPrincipalClassId === c.id ? <Spinner size="sm" /> : <WandIcon className="w-4 h-4" />}
+                                        Gen. Principal Comments
                                     </button>
                                     
                                     {/* View and Edit Scores Buttons */}
