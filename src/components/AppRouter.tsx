@@ -27,6 +27,7 @@ import TeachingAssignmentsContainer from './TeachingAssignmentsContainer';
 import ResultManager from './ResultManager';
 import ScoreReviewView from './ScoreReviewView';
 import CoverageFeedbackReport from './CoverageFeedbackReport';
+import CoverageReportingPanel from './CoverageReportingPanel';
 import DataUploader from './DataUploader';
 import LivingPolicyManager from './LivingPolicyManager';
 import EmergencyBroadcast from './EmergencyBroadcast';
@@ -713,6 +714,12 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users} 
                 teams={data.teams} 
                 currentUser={data.userProfile} 
+             />;
+        case VIEWS.COVERAGE_REPORTING:
+             return <CoverageReportingPanel
+                lessonPlans={data.lessonPlans}
+                coverageData={data.coverageData || []}
+                onUpdateCoverage={actions.handleUpdateCoverage}
              />;
         case VIEWS.DATA_UPLOAD:
              return <DataUploader 
