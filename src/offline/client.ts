@@ -96,7 +96,15 @@ function getSupabaseClient(): SupabaseClient {
       'Supabase client module not loaded. Call ensureSupabaseLoaded() during app initialization.'
     );
   }
-  return _cachedSupabaseModule.requireSupabaseClient();
+  try {
+    return _cachedSupabaseModule.requireSupabaseClient();
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(
+      `Failed to initialize Supabase client: ${errorMessage}. ` +
+      'Please check your Supabase configuration (URL and anon key) in the application settings.'
+    );
+  }
 }
 
 // Lazy proxy that defers Supabase access until actually used
