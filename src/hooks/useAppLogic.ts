@@ -682,6 +682,31 @@ export const useAppLogic = () => {
        else { addToast('Payroll details updated', 'success'); fetchData(); }
   }, [addToast, fetchData]);
 
+  const handleUpdateScore = useCallback(async (scoreId: number, updates: Partial<ScoreEntry>): Promise<boolean> => {
+      const supabase = requireSupabaseClient();
+      try {
+          const { error } = await supabase
+              .from('score_entries')
+              .update({
+                  ...updates,
+                  updated_at: new Date().toISOString()
+              })
+              .eq('id', scoreId);
+          
+          if (error) {
+              addToast(`Error updating score: ${error.message}`, 'error');
+              return false;
+          }
+          
+          addToast('Score updated successfully', 'success');
+          fetchData();
+          return true;
+      } catch (error: any) {
+          addToast(`Error: ${error.message}`, 'error');
+          return false;
+      }
+  }, [addToast, fetchData]);
+
   // ... (Implement other handlers similarly using Offline or supabase directly)
   // For brevity, I will implement the remaining critical ones and genericize the rest in the return.
 
@@ -1127,6 +1152,7 @@ export const useAppLogic = () => {
              const { error } = await supabase.from('score_entries').upsert(scores, { onConflict: 'term_id,academic_class_id,subject_name,student_id' });
              return !error;
         },
+        handleUpdateScore,
         handleSubmitScoresForReview: async (id: number) => {
              const { error } = await Offline.update('teaching_assignments', { submitted_at: new Date().toISOString() }, { id });
              fetchData(); return !error;
