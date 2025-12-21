@@ -1154,8 +1154,26 @@ export const useAppLogic = () => {
         },
         handleUpdateScore,
         handleSubmitScoresForReview: async (id: number) => {
-             const { error } = await Offline.update('teaching_assignments', { submitted_at: new Date().toISOString() }, { id });
-             fetchData(); return !error;
+             try {
+                 const supabase = requireSupabaseClient();
+                 const { error } = await supabase
+                     .from('teaching_assignments')
+                     .update({ submitted_at: new Date().toISOString() })
+                     .eq('id', id);
+                 
+                 if (error) {
+                     console.error('Error submitting scores for review:', error);
+                     addToast(`Error submitting scores: ${error.message}`, 'error');
+                     return false;
+                 }
+                 
+                 fetchData();
+                 return true;
+             } catch (error: any) {
+                 console.error('Error in handleSubmitScoresForReview:', error);
+                 addToast(`Error: ${error.message || 'Failed to submit scores for review'}`, 'error');
+                 return false;
+             }
         },
         handleSaveAssessment: async (data: any) => {
              // ...
