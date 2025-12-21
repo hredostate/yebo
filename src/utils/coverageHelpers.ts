@@ -16,6 +16,11 @@ export function computeDerivedCoverageStatus(coverageRecords: LessonPlanCoverage
   
   const statuses = coverageRecords.map(r => r.coverage_status);
   
+  // If all records are not_started or Pending, return Pending
+  if (statuses.every(s => s === 'not_started' || s === 'Pending')) {
+    return 'Pending';
+  }
+  
   // If all are fully covered
   if (statuses.every(s => s === 'Fully Covered')) {
     return 'Fully Covered';
