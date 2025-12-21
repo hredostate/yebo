@@ -8,8 +8,16 @@ import {
   SearchIcon, 
   FilterIcon,
   BookOpenIcon,
-  UsersIcon
+  UsersIcon,
+  LockClosedIcon,
+  LockOpenIcon
 } from '../common/icons';
+import { 
+  lockStudentChoices, 
+  unlockStudentChoices, 
+  bulkLockChoices, 
+  bulkUnlockChoices 
+} from '../../services/studentSubjectChoiceService';
 
 interface StudentSubjectChoice {
   student_id: number;
@@ -22,6 +30,8 @@ interface StudentSubjectChoice {
     elective: string[];
   };
   date_selected?: string;
+  is_locked: boolean;
+  locked_at?: string | null;
 }
 
 interface StudentSubjectChoicesViewProps {
@@ -42,6 +52,9 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
   const [filterClass, setFilterClass] = useState<number | 'all'>('all');
   const [filterArm, setFilterArm] = useState<number | 'all'>('all');
   const [filterSubject, setFilterSubject] = useState<number | 'all'>('all');
+  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState<'lock' | 'unlock' | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,6 +107,8 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
           student_id,
           subject_id,
           created_at,
+          locked,
+          locked_at,
           subjects(id, name)
         `)
         .in('student_id', studentIds);
@@ -120,9 +135,19 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
 
         const compulsorySubjects: string[] = [];
         const electiveSubjects: string[] = [];
+        let isLocked = false;
+        let lockedAt: string | null = null;
 
         studentChoicesRecords.forEach(choice => {
           const subjectName = choice.subjects?.name || 'Unknown';
+          // Check lock status (if any choice is locked, student is considered locked)
+          if (choice.locked) {
+            isLocked = true;
+            if (choice.locked_at && (!lockedAt || choice.locked_at > lockedAt)) {
+              lockedAt = choice.locked_at;
+            }
+          }
+          
           if (compulsorySubjectIds.includes(choice.subject_id)) {
             compulsorySubjects.push(subjectName);
           } else {
@@ -140,7 +165,9 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
             compulsory: compulsorySubjects.sort(),
             elective: electiveSubjects.sort()
           },
-          date_selected: studentChoicesRecords[0]?.created_at
+          date_selected: studentChoicesRecords[0]?.created_at,
+          is_locked: isLocked,
+          locked_at: lockedAt
         });
       });
 
@@ -201,14 +228,125 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
     });
   }, [studentChoices, searchTerm, filterClass, filterArm, filterSubject, classes, arms, allSubjects]);
 
+  // Handler functions for lock/unlock
+  const handleLockStudent = async (studentId: number) => {
+    setIsProcessing(true);
+    const supabase = requireSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const result = await lockStudentChoices(studentId, user?.id);
+    
+    if (result.success) {
+      addToast(result.message, 'success');
+      await fetchData(); // Refresh data
+    } else {
+      addToast(result.message, 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  const handleUnlockStudent = async (studentId: number) => {
+    setIsProcessing(true);
+    const supabase = requireSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user?.id) {
+      addToast('Authentication error', 'error');
+      setIsProcessing(false);
+      return;
+    }
+    
+    const result = await unlockStudentChoices(studentId, user.id);
+    
+    if (result.success) {
+      addToast(result.message, 'success');
+      await fetchData(); // Refresh data
+    } else {
+      addToast(result.message, 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  const handleBulkLock = async () => {
+    if (selectedStudents.size === 0) {
+      addToast('No students selected', 'error');
+      return;
+    }
+    
+    setShowBulkConfirm('lock');
+  };
+
+  const handleBulkUnlock = async () => {
+    if (selectedStudents.size === 0) {
+      addToast('No students selected', 'error');
+      return;
+    }
+    
+    setShowBulkConfirm('unlock');
+  };
+
+  const confirmBulkAction = async () => {
+    if (!showBulkConfirm) return;
+    
+    setIsProcessing(true);
+    const supabase = requireSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user?.id && showBulkConfirm === 'unlock') {
+      addToast('Authentication error', 'error');
+      setIsProcessing(false);
+      setShowBulkConfirm(null);
+      return;
+    }
+    
+    const studentIds = Array.from(selectedStudents);
+    let result;
+    
+    if (showBulkConfirm === 'lock') {
+      result = await bulkLockChoices(studentIds, user?.id);
+    } else {
+      result = await bulkUnlockChoices(studentIds, user!.id);
+    }
+    
+    if (result.success) {
+      addToast(result.message, 'success');
+      setSelectedStudents(new Set()); // Clear selection
+      await fetchData(); // Refresh data
+    } else {
+      addToast(result.message, 'error');
+    }
+    
+    setIsProcessing(false);
+    setShowBulkConfirm(null);
+  };
+
+  const toggleStudentSelection = (studentId: number) => {
+    const newSelection = new Set(selectedStudents);
+    if (newSelection.has(studentId)) {
+      newSelection.delete(studentId);
+    } else {
+      newSelection.add(studentId);
+    }
+    setSelectedStudents(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStudents.size === filteredChoices.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredChoices.map(c => c.student_id)));
+    }
+  };
+
   const exportToCSV = () => {
     try {
-      const headers = ['Student Name', 'Admission Number', 'Class', 'Arm', 'Compulsory Subjects', 'Elective Subjects', 'Date Selected'];
+      const headers = ['Student Name', 'Admission Number', 'Class', 'Arm', 'Lock Status', 'Compulsory Subjects', 'Elective Subjects', 'Date Selected'];
       const rows = filteredChoices.map(choice => [
         choice.student_name,
         choice.admission_number || '',
         choice.class_name || '',
         choice.arm_name || '',
+        choice.is_locked ? 'Locked' : 'Unlocked',
         choice.subjects.compulsory.join('; '),
         choice.subjects.elective.join('; '),
         choice.date_selected ? new Date(choice.date_selected).toLocaleDateString() : ''
@@ -360,29 +498,132 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
         </div>
       </div>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedStudents.size > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+            {selectedStudents.size} student(s) selected
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleBulkLock}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              {isProcessing ? <Spinner size="sm" /> : <LockClosedIcon className="h-4 w-4" />}
+              Lock All
+            </button>
+            <button
+              onClick={handleBulkUnlock}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              {isProcessing ? <Spinner size="sm" /> : <LockOpenIcon className="h-4 w-4" />}
+              Unlock All
+            </button>
+            <button
+              onClick={() => setSelectedStudents(new Set())}
+              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg font-medium transition-colors"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Action Confirmation Dialog */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+              Confirm {showBulkConfirm === 'lock' ? 'Lock' : 'Unlock'}
+            </h3>
+            <p className="text-slate-600 dark:text-slate-300 mb-4">
+              Are you sure you want to {showBulkConfirm} subject choices for {selectedStudents.size} student(s)?
+              {showBulkConfirm === 'lock' && ' This will prevent them from making changes.'}
+              {showBulkConfirm === 'unlock' && ' This will allow them to modify their selections.'}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowBulkConfirm(null)}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkAction}
+                disabled={isProcessing}
+                className={`px-4 py-2 rounded-lg font-medium text-white transition-colors flex items-center gap-2 ${
+                  showBulkConfirm === 'lock' 
+                    ? 'bg-amber-600 hover:bg-amber-700' 
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {isProcessing ? <Spinner size="sm" /> : `Confirm ${showBulkConfirm === 'lock' ? 'Lock' : 'Unlock'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={filteredChoices.length > 0 && selectedStudents.size === filteredChoices.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lock Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Student</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Class</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Compulsory Subjects</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Elective Subjects</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Date Selected</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredChoices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                     No student subject choices found
                   </td>
                 </tr>
               ) : (
                 filteredChoices.map((choice) => (
-                  <tr key={choice.student_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <tr 
+                    key={choice.student_id} 
+                    className={`transition-colors ${choice.is_locked ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''} hover:bg-slate-50 dark:hover:bg-slate-800/50`}
+                  >
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.has(choice.student_id)}
+                        onChange={() => toggleStudentSelection(choice.student_id)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {choice.is_locked ? (
+                        <div className="flex items-center gap-2">
+                          <LockClosedIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Locked</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <LockOpenIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400">Unlocked</span>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-slate-900 dark:text-white">{choice.student_name}</div>
@@ -431,6 +672,31 @@ const StudentSubjectChoicesView: React.FC<StudentSubjectChoicesViewProps> = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                       {choice.date_selected ? new Date(choice.date_selected).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {choice.subjects.compulsory.length > 0 || choice.subjects.elective.length > 0 ? (
+                        choice.is_locked ? (
+                          <button
+                            onClick={() => handleUnlockStudent(choice.student_id)}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5"
+                          >
+                            <LockOpenIcon className="h-4 w-4" />
+                            Unlock
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleLockStudent(choice.student_id)}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5"
+                          >
+                            <LockClosedIcon className="h-4 w-4" />
+                            Lock
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-xs text-slate-400">No choices</span>
+                      )}
                     </td>
                   </tr>
                 ))
