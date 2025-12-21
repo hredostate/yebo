@@ -16,6 +16,8 @@ import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 import TeacherCommentModal from './TeacherCommentModal';
 import TeacherCommentEditor from './TeacherCommentEditor';
+import PrincipalCommentModal from './PrincipalCommentModal';
+import PrincipalCommentEditor from './PrincipalCommentEditor';
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -88,6 +90,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
+    
+    // State for principal comment editing modal
+    const [showPrincipalCommentModal, setShowPrincipalCommentModal] = useState(false);
+    const [selectedClassForPrincipalComments, setSelectedClassForPrincipalComments] = useState<{ id: number; name: string } | null>(null);
     
     // State for comment generation mode (Comment Bank vs AI)
     const [useCommentBank, setUseCommentBank] = useState(true);
@@ -802,6 +808,72 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
+    const handleBulkGeneratePrincipalComments = async (classId: number, overwrite: boolean = false) => {
+        if (!selectedTermId || !onGenerateReportComment) {
+            addToast("AI comment generation not available.", "error");
+            return;
+        }
+
+        setGeneratingPrincipalClassId(classId);
+        try {
+            // Get all students in this class
+            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
+            const studentIds = studentsInClass.map(s => s.student_id);
+
+            if (studentIds.length === 0) {
+                addToast('No students found in this class.', 'error');
+                return;
+            }
+
+            // Get reports for these students
+            const reportsToProcess = studentTermReports.filter(r => 
+                r.term_id === selectedTermId && 
+                studentIds.includes(r.student_id)
+            );
+
+            if (reportsToProcess.length === 0) {
+                addToast('No reports found for this class/term.', 'info');
+                return;
+            }
+
+            addToast(`Generating principal comments for ${reportsToProcess.length} students...`, 'info');
+
+            let successCount = 0;
+            let skippedCount = 0;
+
+            for (const report of reportsToProcess) {
+                try {
+                    // Skip if already has a comment and not overwriting
+                    if (!overwrite && report.principal_comment && report.principal_comment.trim() !== '') {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Generate AI principal comment
+                    const comment = await onGenerateReportComment(report.student_id, selectedTermId, 'principal');
+                    if (comment) {
+                        await onUpdateComments(report.id, report.teacher_comment || '', comment);
+                        successCount++;
+                    }
+
+                } catch (err) {
+                    console.error(`Error generating comment for report ${report.id}:`, err);
+                }
+            }
+
+            if (successCount > 0) {
+                addToast(`Successfully generated ${successCount} principal comments!${skippedCount > 0 ? ` (${skippedCount} skipped - already have comments)` : ''}`, 'success');
+            } else {
+                addToast(`No new comments generated. ${skippedCount} students already have comments.`, 'info');
+            }
+
+        } catch (e: any) {
+            addToast(`Error generating comments: ${e.message}`, 'error');
+        } finally {
+            setGeneratingPrincipalClassId(null);
+        }
+    };
+
     const handleOpenBulkGenerator = (classId: number, className: string) => {
         setSelectedClassForBulk({ id: classId, name: className });
         setShowBulkGenerator(true);
@@ -815,6 +887,11 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     const handleOpenCommentEditor = (classId: number, className: string) => {
         setSelectedClassForEditor({ id: classId, name: className });
         setShowCommentEditor(true);
+    };
+
+    const handleOpenPrincipalCommentModal = (classId: number, className: string) => {
+        setSelectedClassForPrincipalComments({ id: classId, name: className });
+        setShowPrincipalCommentModal(true);
     };
 
     const handleGenerateTeacherComments = async (classId: number, termId: number, useAI: boolean) => {
@@ -1310,6 +1387,17 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         Gen. Principal Comments
                                     </button>
                                     
+                                    {/* Edit Principal Comments Button */}
+                                    <button
+                                        onClick={() => handleOpenPrincipalCommentModal(c.id, c.name)}
+                                        disabled={c.reportsCount === 0}
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit principal comments for students"}
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                        Edit Principal Comments
+                                    </button>
+                                    
                                     {/* View and Edit Scores Buttons */}
                                     <div className="flex gap-2">
                                         <button
@@ -1739,6 +1827,36 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         setSelectedClassForEditor(null);
                     }}
                     onGenerateComments={handleGenerateTeacherComments}
+                    addToast={addToast}
+                />
+            )}
+
+            {/* Principal Comment Modal */}
+            {showPrincipalCommentModal && selectedClassForPrincipalComments && selectedTermId && (
+                <PrincipalCommentModal
+                    classId={selectedClassForPrincipalComments.id}
+                    className={selectedClassForPrincipalComments.name}
+                    termId={Number(selectedTermId)}
+                    students={students.filter(s => 
+                        academicClassStudents.some(acs => 
+                            acs.academic_class_id === selectedClassForPrincipalComments.id && 
+                            acs.student_id === s.id
+                        )
+                    )}
+                    studentTermReports={studentTermReports.filter(r => 
+                        r.term_id === selectedTermId &&
+                        academicClassStudents.some(acs => 
+                            acs.academic_class_id === selectedClassForPrincipalComments.id && 
+                            acs.student_id === r.student_id
+                        )
+                    )}
+                    onUpdateComment={onUpdateComments}
+                    onBulkGenerate={(overwrite) => handleBulkGeneratePrincipalComments(selectedClassForPrincipalComments.id, overwrite)}
+                    isGenerating={generatingPrincipalClassId === selectedClassForPrincipalComments.id}
+                    onClose={() => {
+                        setShowPrincipalCommentModal(false);
+                        setSelectedClassForPrincipalComments(null);
+                    }}
                     addToast={addToast}
                 />
             )}
