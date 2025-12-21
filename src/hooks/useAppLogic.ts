@@ -815,6 +815,7 @@ export const useAppLogic = () => {
         },
         // ... Add all other handlers following the pattern: Call Offline/Supabase -> Check Error -> Toast -> FetchData -> Return Success
         handleGenerateStudentAwards: async () => {
+             const supabase = requireSupabaseClient();
              // AI Logic
              const prompt = `Analyze positive behavior records: ${JSON.stringify(positiveRecords.slice(0, 20))}. Generate 3 awards. JSON: [{student_id, award_type, reason}]`;
              try {
@@ -842,6 +843,7 @@ export const useAppLogic = () => {
         handleOpenAIBulkResponseModal: (ids: number[]) => setIsAIBulkResponseModalOpen(true), // needs state set too
         handleOpenCreateStudentAccountModal: () => {}, // Implement modal state
         handleBulkAddStudents: async (students: any[]) => {
+             const supabase = requireSupabaseClient();
              const { data } = await supabase.functions.invoke('manage-users', { body: { action: 'bulk_create', students } });
              return data;
         },
