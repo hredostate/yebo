@@ -69,6 +69,8 @@ const PrincipalCommentEditor: React.FC<PrincipalCommentEditorProps> = ({
       principalComment: report.principal_comment || ''
     };
 
+    // Note: We track both teacher and principal comments to ensure we preserve
+    // the teacher comment when saving principal comments (onSave requires both)
     if (field === 'teacher') {
       existing.teacherComment = value;
     } else {

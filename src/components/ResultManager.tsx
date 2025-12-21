@@ -671,7 +671,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
-    const handleGeneratePrincipalCommentsForClass = async (classId: number, className: string) => {
+    const handleGeneratePrincipalCommentsForClass = async (classId: number, className: string, overwrite: boolean = false) => {
         if (!selectedTermId || !onGenerateReportComment) {
             addToast("AI comment generation not available.", "error");
             return;
@@ -685,12 +685,16 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
             const studentIds = studentsInClass.map(s => s.student_id);
 
-            // Get reports for these students in this term that don't have principal comments
-            const reportsToProcess = studentTermReports.filter(r => 
+            // Get reports for these students in this term
+            const allReports = studentTermReports.filter(r => 
                 r.term_id === selectedTermId && 
-                studentIds.includes(r.student_id) &&
-                (!r.principal_comment || r.principal_comment.trim() === '')
+                studentIds.includes(r.student_id)
             );
+
+            // Filter based on overwrite flag
+            const reportsToProcess = overwrite 
+                ? allReports 
+                : allReports.filter(r => !r.principal_comment || r.principal_comment.trim() === '');
 
             if (reportsToProcess.length === 0) {
                 addToast(`All students in ${className} already have principal comments.`, "info");
@@ -727,6 +731,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             setGeneratingPrincipalClassId(null);
         }
     };
+
 
     const handleOpenTeacherCommentModal = (classId: number, className: string) => {
         setSelectedClassForComments({ id: classId, name: className });
@@ -805,72 +810,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast(`Error generating comments: ${e.message}`, 'error');
         } finally {
             setIsGeneratingTeacherComments(false);
-        }
-    };
-
-    const handleBulkGeneratePrincipalComments = async (classId: number, overwrite: boolean = false) => {
-        if (!selectedTermId || !onGenerateReportComment) {
-            addToast("AI comment generation not available.", "error");
-            return;
-        }
-
-        setGeneratingPrincipalClassId(classId);
-        try {
-            // Get all students in this class
-            const studentsInClass = academicClassStudents.filter(acs => acs.academic_class_id === classId);
-            const studentIds = studentsInClass.map(s => s.student_id);
-
-            if (studentIds.length === 0) {
-                addToast('No students found in this class.', 'error');
-                return;
-            }
-
-            // Get reports for these students
-            const reportsToProcess = studentTermReports.filter(r => 
-                r.term_id === selectedTermId && 
-                studentIds.includes(r.student_id)
-            );
-
-            if (reportsToProcess.length === 0) {
-                addToast('No reports found for this class/term.', 'info');
-                return;
-            }
-
-            addToast(`Generating principal comments for ${reportsToProcess.length} students...`, 'info');
-
-            let successCount = 0;
-            let skippedCount = 0;
-
-            for (const report of reportsToProcess) {
-                try {
-                    // Skip if already has a comment and not overwriting
-                    if (!overwrite && report.principal_comment && report.principal_comment.trim() !== '') {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // Generate AI principal comment
-                    const comment = await onGenerateReportComment(report.student_id, selectedTermId, 'principal');
-                    if (comment) {
-                        await onUpdateComments(report.id, report.teacher_comment || '', comment);
-                        successCount++;
-                    }
-
-                } catch (err) {
-                    console.error(`Error generating comment for report ${report.id}:`, err);
-                }
-            }
-
-            if (successCount > 0) {
-                addToast(`Successfully generated ${successCount} principal comments!${skippedCount > 0 ? ` (${skippedCount} skipped - already have comments)` : ''}`, 'success');
-            } else {
-                addToast(`No new comments generated. ${skippedCount} students already have comments.`, 'info');
-            }
-
-        } catch (e: any) {
-            addToast(`Error generating comments: ${e.message}`, 'error');
-        } finally {
-            setGeneratingPrincipalClassId(null);
         }
     };
 
@@ -1851,7 +1790,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                         )
                     )}
                     onUpdateComment={onUpdateComments}
-                    onBulkGenerate={(overwrite) => handleBulkGeneratePrincipalComments(selectedClassForPrincipalComments.id, overwrite)}
+                    onBulkGenerate={(overwrite) => handleGeneratePrincipalCommentsForClass(selectedClassForPrincipalComments.id, selectedClassForPrincipalComments.name, overwrite)}
                     isGenerating={generatingPrincipalClassId === selectedClassForPrincipalComments.id}
                     onClose={() => {
                         setShowPrincipalCommentModal(false);

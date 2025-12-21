@@ -58,6 +58,11 @@ const PrincipalCommentModal: React.FC<PrincipalCommentModalProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Create a map for quick report lookup
+    const reportMap = useMemo(() => {
+        return new Map(studentTermReports.map(r => [r.id, r]));
+    }, [studentTermReports]);
+
     // Filter students based on search
     const filteredComments = useMemo(() => {
         if (!searchQuery.trim()) return commentEdits;
@@ -99,7 +104,7 @@ const PrincipalCommentModal: React.FC<PrincipalCommentModalProps> = ({
             for (const edit of dirtyEdits) {
                 try {
                     // Get the report to preserve teacher_comment
-                    const report = studentTermReports.find(r => r.id === edit.reportId);
+                    const report = reportMap.get(edit.reportId);
                     await onUpdateComment(
                         edit.reportId,
                         report?.teacher_comment || '',
@@ -136,7 +141,7 @@ const PrincipalCommentModal: React.FC<PrincipalCommentModalProps> = ({
 
         setIsSaving(true);
         try {
-            const report = studentTermReports.find(r => r.id === edit.reportId);
+            const report = reportMap.get(edit.reportId);
             await onUpdateComment(
                 edit.reportId,
                 report?.teacher_comment || '',
