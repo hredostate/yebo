@@ -958,7 +958,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                      <ManualsManager 
                          userProfile={data.userProfile}
                          schoolId={data.userProfile.school_id}
-                         roles={data.roles.map((r: any) => r.title)}
+                         roles={Object.values(data.roles).map((r: any) => r.title)}
                          addToast={actions.addToast}
                      />
                  </Suspense>;
