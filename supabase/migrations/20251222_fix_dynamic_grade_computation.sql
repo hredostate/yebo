@@ -207,7 +207,7 @@ BEGIN
              ELSE 0 
         END
     INTO v_computed_total_score, v_subject_count, v_computed_average_score
-    FROM jsonb_array_elements(v_subjects) AS subj;
+    FROM jsonb_array_elements(COALESCE(v_subjects, '[]'::jsonb)) AS subj;
 
     -- 7. Identify the student's class group for this term (class teacher groups take precedence)
     SELECT cgm.group_id
