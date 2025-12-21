@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import type { GradingScheme, GradingSchemeRule, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
-import { TrashIcon, PlusCircleIcon } from './common/icons';
+import { TrashIcon, PlusCircleIcon, RefreshIcon } from './common/icons';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface GradingSchemeFormProps {
     scheme: Partial<GradingScheme>;
@@ -79,12 +80,16 @@ interface GradingSchemeManagerProps {
     onDeleteScheme: (schemeId: number) => Promise<boolean>;
     onSetActiveScheme: (schemeId: number) => Promise<boolean>;
     onSaveSchoolConfig: (config: Partial<SchoolConfig>) => Promise<boolean>;
+    addToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSchemes = [], schoolConfig, onSaveScheme, onDeleteScheme, onSetActiveScheme, onSaveSchoolConfig }) => {
+const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSchemes = [], schoolConfig, onSaveScheme, onDeleteScheme, onSetActiveScheme, onSaveSchoolConfig, addToast }) => {
     const [editingScheme, setEditingScheme] = useState<Partial<GradingScheme> | null>(null);
     const [termWeights, setTermWeights] = useState<{ term1: number; term2: number; term3: number }>({ term1: 10, term2: 10, term3: 80 });
     const [isSavingWeights, setIsSavingWeights] = useState(false);
+    const [isRecalculating, setIsRecalculating] = useState(false);
+    const [showRecalculateModal, setShowRecalculateModal] = useState(false);
+    const [schemeToRecalculate, setSchemeToRecalculate] = useState<number | null>(null);
 
     useEffect(() => {
         if (schoolConfig?.term_weights) {
@@ -94,7 +99,53 @@ const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSche
 
     const handleSave = async (scheme: Partial<GradingScheme>) => {
         const success = await onSaveScheme(scheme);
-        if (success) setEditingScheme(null);
+        if (success) {
+            setEditingScheme(null);
+            // Prompt user to recalculate grades after saving
+            if (scheme.id && addToast) {
+                const shouldRecalculate = window.confirm(
+                    'Grading scheme saved successfully! Would you like to recalculate all grades using this scheme?'
+                );
+                if (shouldRecalculate) {
+                    setSchemeToRecalculate(scheme.id);
+                    setShowRecalculateModal(true);
+                }
+            }
+        }
+    };
+    
+    const handleRecalculateGrades = async () => {
+        if (!schemeToRecalculate) return;
+        
+        setShowRecalculateModal(false);
+        setIsRecalculating(true);
+        const supabase = requireSupabaseClient();
+        
+        try {
+            if (addToast) {
+                addToast('Recalculating all grades...', 'info');
+            }
+            
+            const { data, error } = await supabase.rpc('recalculate_all_grades', {
+                p_grading_scheme_id: schemeToRecalculate,
+                p_term_id: null // Recalculate for all terms
+            });
+            
+            if (error) throw error;
+            
+            const updatedCount = data?.updated_count || 0;
+            if (addToast) {
+                addToast(`Successfully recalculated ${updatedCount} grade${updatedCount !== 1 ? 's' : ''}!`, 'success');
+            }
+        } catch (e: any) {
+            console.error('Recalculate grades error:', e);
+            if (addToast) {
+                addToast(`Failed to recalculate grades: ${e.message}`, 'error');
+            }
+        } finally {
+            setIsRecalculating(false);
+            setSchemeToRecalculate(null);
+        }
     };
 
     const handleSaveWeights = async () => {
@@ -156,6 +207,18 @@ const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSche
                                     {schoolConfig?.active_grading_scheme_id === scheme.id && <span className="text-xs font-semibold px-2 py-0.5 bg-green-200 text-green-800 rounded-full">Active</span>}
                                 </div>
                                 <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            setSchemeToRecalculate(scheme.id);
+                                            setShowRecalculateModal(true);
+                                        }}
+                                        disabled={isRecalculating}
+                                        className="text-sm font-semibold text-purple-600 flex items-center gap-1 hover:text-purple-700 disabled:opacity-50"
+                                        title="Recalculate all grades using this scheme"
+                                    >
+                                        <RefreshIcon className="w-4 h-4" />
+                                        Recalculate
+                                    </button>
                                     {schoolConfig?.active_grading_scheme_id !== scheme.id && <button onClick={() => onSetActiveScheme(scheme.id)} className="text-sm font-semibold text-green-600">Set Active</button>}
                                     <button onClick={() => setEditingScheme(scheme)} className="text-sm font-semibold">Edit</button>
                                     <button onClick={() => {
@@ -169,6 +232,57 @@ const GradingSchemeManager: React.FC<GradingSchemeManagerProps> = ({ gradingSche
                     ))}
                 </div>
             </div>
+            
+            {/* Recalculate Grades Confirmation Modal */}
+            {showRecalculateModal && schemeToRecalculate && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in"
+                    aria-modal="true"
+                    role="dialog"
+                >
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                            Recalculate All Grades
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 mb-4">
+                            This will recalculate all grades across all terms for students using the <span className="font-semibold">{gradingSchemes.find(s => s.id === schemeToRecalculate)?.scheme_name}</span> grading scheme.
+                        </p>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            Subject-specific overrides will be applied where configured.
+                        </p>
+                        <p className="text-sm text-amber-600 dark:text-amber-400 mb-6 flex items-start gap-2">
+                            <span className="text-lg">⚠️</span>
+                            <span>This will update all existing grades. Make sure the grading scheme is correct before proceeding.</span>
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowRecalculateModal(false);
+                                    setSchemeToRecalculate(null);
+                                }}
+                                disabled={isRecalculating}
+                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRecalculateGrades}
+                                disabled={isRecalculating}
+                                className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isRecalculating ? (
+                                    <>
+                                        <Spinner size="sm" />
+                                        Recalculating...
+                                    </>
+                                ) : (
+                                    'Recalculate Grades'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

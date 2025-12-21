@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type {
     StudentTermReport,
     Student,
@@ -18,6 +18,7 @@ import StudentRankingTable from './StudentRankingTable';
 import { aggregateResultStatistics, rankCohort, type ResultScope } from '../utils/resultAnalytics';
 import { exportToCsv } from '../utils/export';
 import { DownloadIcon, RefreshIcon } from './common/icons';
+import { computeGradesBatch } from '../utils/gradeCalculation';
 
 interface LevelStatisticsDashboardProps {
     termId: number;
@@ -44,6 +45,8 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
     const [selectedLevel, setSelectedLevel] = useState<string>('');
     const [selectedArmId, setSelectedArmId] = useState<number | null>(null);
     const [refreshKey, setRefreshKey] = useState<number>(0);
+    const [gradeCache, setGradeCache] = useState<Map<string, string>>(new Map());
+    const [isLoadingGrades, setIsLoadingGrades] = useState(false);
 
     // Helper function to check if student is active - MUST be defined before use
     const isActiveStudent = (student: Student) => {
@@ -68,19 +71,80 @@ const LevelStatisticsDashboard: React.FC<LevelStatisticsDashboardProps> = ({
         return academicClasses.filter(ac => ac.level === selectedLevel && ac.is_active);
     }, [selectedLevel, academicClasses]);
 
-    // NOTE: These grade calculations are for statistics display only.
-    // For report cards, grades are computed server-side via the compute_grade RPC function.
-    // This ensures consistency between statistics and report cards.
-    const getGradeFromScore = (score: number): string => {
-        if (!gradingScheme || !gradingScheme.rules) return 'N/A';
-        
-        for (const rule of gradingScheme.rules) {
-            if (score >= rule.min_score && score <= rule.max_score) {
-                return rule.grade_label;
-            }
-        }
-        return 'N/A';
+    // NOTE: Grades are computed server-side via the compute_grade RPC function.
+    // This ensures consistency with report cards and respects subject-specific overrides.
+    // We cache grades in state after loading them asynchronously.
+    const getGradeFromScore = (score: number, subjectName?: string): string => {
+        const cacheKey = `${score}-${subjectName || 'default'}`;
+        return gradeCache.get(cacheKey) || 'N/A';
     };
+    
+    // Load grades for all scores when data changes
+    useEffect(() => {
+        if (!gradingScheme || !selectedLevel) return;
+        
+        const loadGrades = async () => {
+            setIsLoadingGrades(true);
+            
+            try {
+                // Collect all unique scores that need grades computed
+                const scoresSet = new Set<string>();
+                const scoresToCompute: Array<{ score: number; subjectName?: string }> = [];
+                
+                // Add scores from student term reports
+                const levelReports = studentTermReports.filter(r => {
+                    const academicClass = academicClasses.find(ac => ac.id === r.academic_class_id);
+                    return academicClass?.level === selectedLevel && r.term_id === termId;
+                });
+                
+                levelReports.forEach(report => {
+                    const key = `${report.average_score}-default`;
+                    if (!scoresSet.has(key)) {
+                        scoresSet.add(key);
+                        scoresToCompute.push({ score: report.average_score });
+                    }
+                });
+                
+                // Add scores from score entries with subject names
+                scoreEntries.forEach(entry => {
+                    const academicClass = academicClasses.find(ac => ac.id === entry.academic_class_id);
+                    if (academicClass?.level === selectedLevel && entry.term_id === termId) {
+                        const key = `${entry.total_score}-${entry.subject_name}`;
+                        if (!scoresSet.has(key)) {
+                            scoresSet.add(key);
+                            scoresToCompute.push({ 
+                                score: entry.total_score, 
+                                subjectName: entry.subject_name 
+                            });
+                        }
+                    }
+                });
+                
+                if (scoresToCompute.length === 0) {
+                    setIsLoadingGrades(false);
+                    return;
+                }
+                
+                // Compute grades in batch
+                const grades = await computeGradesBatch(scoresToCompute, gradingScheme.id);
+                
+                // Build cache map
+                const newCache = new Map<string, string>();
+                scoresToCompute.forEach((scoreInfo, index) => {
+                    const cacheKey = `${scoreInfo.score}-${scoreInfo.subjectName || 'default'}`;
+                    newCache.set(cacheKey, grades[index].grade_label);
+                });
+                
+                setGradeCache(newCache);
+            } catch (error) {
+                console.error('Error loading grades:', error);
+            } finally {
+                setIsLoadingGrades(false);
+            }
+        };
+        
+        loadGrades();
+    }, [selectedLevel, gradingScheme, studentTermReports, scoreEntries, termId, academicClasses, refreshKey]);
 
     // Calculate grade distribution
     const calculateGradeDistribution = (scores: number[]): GradeDistribution[] => {
