@@ -6,7 +6,7 @@ import { LockClosedIcon, CheckCircleIcon, WandIcon, GlobeIcon, UsersIcon, Search
 import { aiClient, getAIClient } from '../services/aiClient';
 import { textFromGemini } from '../utils/ai';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { generateSubjectComment, generateRuleBasedTeacherComment, generateTeacherComment } from '../services/reportGenerator';
+import { generateSubjectComment, generateRuleBasedTeacherComment, generateTeacherComment, generateFallbackSubjectRemark } from '../services/reportGenerator';
 import LevelStatisticsDashboard from './LevelStatisticsDashboard';
 import EnhancedStatisticsDashboard from './EnhancedStatisticsDashboard';
 import BulkReportCardGenerator from './BulkReportCardGenerator';
@@ -87,6 +87,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
+    
+    // State for comment generation mode (Comment Bank vs AI)
+    const [useCommentBank, setUseCommentBank] = useState(true);
 
 
     const assignmentsForTerm = useMemo(() => {
@@ -443,10 +446,13 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             
             // Check if AI is available BEFORE the loop
             const aiClient = getAIClient();
-            const useAI = !!aiClient;
+            const shouldUseAI = !useCommentBank && !!aiClient;
             
             // Only apply rate limiting if using AI
-            const RATE_LIMIT_DELAY_MS = useAI ? 500 : 0;
+            const RATE_LIMIT_DELAY_MS = shouldUseAI ? 500 : 0;
+            
+            // Track used remarks for uniqueness when using Comment Bank
+            const usedRemarks = new Set<string>();
 
             // Generate and save comments for each student
             for (const scoreEntry of relevantScores) {
@@ -462,16 +468,32 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     else if (score >= SATISFACTORY_THRESHOLD) effort = 'satisfactory';
                     else effort = 'needs improvement';
 
-                    // Generate AI comment
-                    const comment = await generateSubjectComment(
-                        assignment.subject_name,
-                        score,
-                        scoreEntry.grade_label || '',
-                        effort,
-                        'balanced', // tone
-                        'standard', // length
-                        undefined // previousScore (optional)
-                    );
+                    let comment: string;
+                    
+                    if (useCommentBank) {
+                        // Use Comment Bank (fast, offline, pre-built remarks)
+                        comment = generateFallbackSubjectRemark(
+                            assignment.subject_name,
+                            score,
+                            undefined, // trend (not calculated here)
+                            [], // strengthTags (not used here)
+                            [], // weaknessTags (not used here)
+                            usedRemarks
+                        );
+                        // Add to Set to ensure uniqueness across all students in this batch
+                        usedRemarks.add(comment);
+                    } else {
+                        // Generate AI comment
+                        comment = await generateSubjectComment(
+                            assignment.subject_name,
+                            score,
+                            scoreEntry.grade_label || '',
+                            effort,
+                            'balanced', // tone
+                            'standard', // length
+                            undefined // previousScore (optional)
+                        );
+                    }
 
                     // Save to database
                     const { error: updateError } = await supabase
@@ -487,7 +509,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     }
 
                     // Only delay if using AI to avoid rate limiting
-                    if (useAI && RATE_LIMIT_DELAY_MS > 0) {
+                    if (shouldUseAI && RATE_LIMIT_DELAY_MS > 0) {
                         await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
                     }
 
@@ -1214,7 +1236,37 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
             {selectedTermId && viewMode === 'by-subject' && (
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold">Teaching Assignments Status</h2>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold">Teaching Assignments Status</h2>
+                        <div className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                Comment Source:
+                            </span>
+                            <button
+                                onClick={() => setUseCommentBank(!useCommentBank)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                                    useCommentBank ? 'bg-indigo-600' : 'bg-slate-400 dark:bg-slate-600'
+                                }`}
+                                role="switch"
+                                aria-checked={useCommentBank}
+                                title={useCommentBank ? 'Using Comment Bank (1200+ pre-built remarks)' : 'Using AI Generator'}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        useCommentBank ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                                    {useCommentBank ? 'Comment Bank' : 'AI Generator'}
+                                </span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    {useCommentBank ? 'Fast, offline, 1200+ remarks' : 'Personalized, requires API'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                     <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-100 dark:bg-slate-800 uppercase text-xs font-semibold">
