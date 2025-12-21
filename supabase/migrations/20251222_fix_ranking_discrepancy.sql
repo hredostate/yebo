@@ -1,6 +1,11 @@
 -- Fix Ranking Discrepancy: Compute rankings dynamically from score_entries
 -- This migration updates get_student_term_report_details to compute rankings
 -- from fresh score_entries averages instead of using stale student_term_reports.average_score
+-- 
+-- This migration supersedes and includes the grade computation fix from 20251222_fix_dynamic_grade_computation.sql
+-- It applies BOTH fixes:
+-- 1. Rankings computed from score_entries averages (NEW)
+-- 2. Grades computed from grading_scheme_rules (from previous migration)
 
 CREATE OR REPLACE FUNCTION public.get_student_term_report_details(p_student_id INT, p_term_id INT)
 RETURNS JSONB AS $$
