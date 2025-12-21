@@ -188,7 +188,13 @@ export const useAppLogic = () => {
       if (userProfile && userType === 'staff') {
           try {
             // Determine if user has payroll management permission
-            const hasPayrollManagePermission = userPermissions.includes('manage-payroll') || userPermissions.includes('*');
+            // Check both userPermissions (from previous loads) and role (for first load)
+            const userProfileCast = userProfile as UserProfile;
+            const roleHasPayrollAccess = ['Admin', 'Principal', 'Accountant', 'Payroll Admin', 'Super Admin', 'School Owner'].includes(userProfileCast.role || '');
+            const hasPayrollManagePermission = 
+                userPermissions.includes('manage-payroll') || 
+                userPermissions.includes('*') || 
+                roleHasPayrollAccess;
             
             // Build payroll adjustments query with appropriate filtering
             const payrollAdjustmentsQuery = hasPayrollManagePermission
@@ -368,7 +374,7 @@ export const useAppLogic = () => {
                  setAnnouncements(getData(3));
              } catch (e) { console.error(e); }
       }
-  }, [userProfile, userType, userPermissions]);
+  }, [userProfile, userType]);
 
   useEffect(() => {
       fetchData();
