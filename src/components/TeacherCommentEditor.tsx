@@ -152,7 +152,7 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Edit Teacher Comments
+                Edit Comments
               </h2>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {className} - {termName}
@@ -223,6 +223,7 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
 
                 const currentEdit = editedComments.get(report.id);
                 const teacherComment = currentEdit?.teacherComment ?? report.teacher_comment ?? '';
+                const principalComment = currentEdit?.principalComment ?? report.principal_comment ?? '';
                 const isSaving = savingIds.has(report.id);
                 const hasChanges = editedComments.has(report.id);
 
@@ -267,6 +268,19 @@ const TeacherCommentEditor: React.FC<TeacherCommentEditorProps> = ({
                         value={teacherComment}
                         onChange={e => handleCommentChange(report.id, 'teacher', e.target.value)}
                         placeholder="Enter teacher's comment for this student..."
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Principal's Comment
+                      </label>
+                      <textarea
+                        value={principalComment}
+                        onChange={e => handleCommentChange(report.id, 'principal', e.target.value)}
+                        placeholder="Enter principal's comment for this student..."
                         rows={3}
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 outline-none"
                       />
