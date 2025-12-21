@@ -184,7 +184,57 @@ To add a new class:
 
 ## Migration Path
 
-For existing students without admission numbers:
-1. Use the same generation logic
-2. Run a one-time script to assign numbers to existing students
-3. Script would group by class and assign sequential numbers
+For existing students without admission numbers, a migration script is now available:
+
+### Running Locally
+
+1. **Set environment variables** (required):
+   ```bash
+   export SUPABASE_URL="your-supabase-url"
+   export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+   ```
+
+2. **Run in dry-run mode** (default - shows what would be changed without making changes):
+   ```bash
+   npm run migrate:admission-numbers
+   ```
+
+3. **Run in live mode** (applies changes to database):
+   ```bash
+   npm run migrate:admission-numbers:live
+   ```
+
+### Using GitHub Actions Workflow
+
+The migration can also be triggered via GitHub Actions:
+
+1. Go to the **Actions** tab in your GitHub repository
+2. Select **"Migrate Admission Numbers"** workflow
+3. Click **"Run workflow"**
+4. Choose **dry-run mode** (true) or **live mode** (false)
+5. Click **"Run workflow"** to start
+
+The workflow requires the following secrets to be configured in your GitHub repository:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+### How It Works
+
+The migration script:
+1. Fetches all existing admission numbers from the database
+2. Finds students without admission numbers (where `admission_number` is null or empty)
+3. Looks up each student's class name via their `class_id` relationship
+4. Generates sequential admission numbers using the existing `generateAdmissionNumber()` function
+5. Skips students without a class assigned or with unrecognized class names
+6. Provides detailed logging of all changes
+
+### Migration Output
+
+The script provides detailed information:
+- Number of existing admission numbers found
+- Number of students to update
+- Number of students skipped (with reasons)
+- List of all updates to be made (student ID, name, class, new admission number)
+- Success/failure count after live run
+
+**Note**: The migration script is idempotent - it only updates students who don't already have admission numbers.
