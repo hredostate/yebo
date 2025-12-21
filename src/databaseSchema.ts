@@ -273,6 +273,65 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Compute Grade Function (Single Source of Truth for Grade Calculations)
+CREATE OR REPLACE FUNCTION public.compute_grade(
+    p_score NUMERIC,
+    p_grading_scheme_id INTEGER,
+    p_subject_name TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_grade_label TEXT;
+    v_remark TEXT;
+    v_gpa_value NUMERIC;
+BEGIN
+    -- Check for subject-specific override first
+    IF p_subject_name IS NOT NULL THEN
+        SELECT grade_label, remark, NULL::NUMERIC
+        INTO v_grade_label, v_remark, v_gpa_value
+        FROM public.grading_scheme_overrides
+        WHERE grading_scheme_id = p_grading_scheme_id
+          AND subject_name = p_subject_name
+          AND p_score >= min_score
+          AND p_score <= max_score
+        ORDER BY min_score DESC
+        LIMIT 1;
+        
+        IF FOUND THEN
+            RETURN jsonb_build_object(
+                'grade_label', v_grade_label,
+                'remark', v_remark,
+                'gpa_value', v_gpa_value
+            );
+        END IF;
+    END IF;
+    
+    -- Fall back to standard grading rules
+    SELECT grade, remark, NULL::NUMERIC
+    INTO v_grade_label, v_remark, v_gpa_value
+    FROM public.grading_scheme_rules
+    WHERE grading_scheme_id = p_grading_scheme_id
+      AND p_score >= min_score
+      AND p_score <= max_score
+    ORDER BY min_score DESC
+    LIMIT 1;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object(
+            'grade_label', 'F',
+            'remark', 'Fail',
+            'gpa_value', 0.0
+        );
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'grade_label', v_grade_label,
+        'remark', v_remark,
+        'gpa_value', v_gpa_value
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Function to generate report details via RPC (for performance)
 CREATE OR REPLACE FUNCTION public.get_student_term_report_details(p_student_id INT, p_term_id INT)
 RETURNS JSONB AS $$
@@ -310,6 +369,7 @@ DECLARE
     v_campus_percentile NUMERIC;
     v_academic_goal JSONB;
     v_goal_analysis JSONB;
+    v_grading_scheme_id INTEGER;
 BEGIN
     -- 1. Student Info scoped with campus/class/arm for cohort filters
     SELECT jsonb_build_object(
@@ -340,6 +400,16 @@ BEGIN
     SELECT * INTO v_report_row
     FROM public.student_term_reports
     WHERE student_id = p_student_id AND term_id = p_term_id;
+
+    -- 4a. Get the grading scheme for this student's class (class-specific or school-wide)
+    SELECT COALESCE(ac.grading_scheme_id, sc.active_grading_scheme_id)
+    INTO v_grading_scheme_id
+    FROM public.academic_class_students acs
+    LEFT JOIN public.academic_classes ac ON ac.id = acs.academic_class_id
+    CROSS JOIN public.school_config sc
+    WHERE acs.student_id = p_student_id
+      AND acs.enrolled_term_id = p_term_id
+    LIMIT 1;
 
     -- 5. Cohort-level ranking (campus + session + term + class + arm)
     WITH cohort AS (
@@ -375,13 +445,27 @@ BEGIN
     WHERE c.student_id = p_student_id
     LIMIT 1;
 
-    -- 6. Subjects (from score_entries) ranked within cohort scope
+    -- 6. Subjects (from score_entries) with DYNAMICALLY COMPUTED grades
+    -- This is the key fix: instead of reading stored grade_label, compute it from grading scheme
     SELECT jsonb_agg(jsonb_build_object(
         'subjectName', se.subject_name,
         'componentScores', COALESCE(se.component_scores, '{}'::jsonb),
         'totalScore', se.total_score,
-        'gradeLabel', COALESCE(se.grade, se.grade_label),
-        'remark', COALESCE(se.teacher_comment, '-'),
+        -- FIXED: Compute grade dynamically from grading scheme instead of using stored value
+        'gradeLabel', CASE 
+            WHEN v_grading_scheme_id IS NOT NULL AND se.total_score IS NOT NULL 
+            THEN (public.compute_grade(se.total_score, v_grading_scheme_id, se.subject_name))->>'grade_label'
+            ELSE COALESCE(se.grade, se.grade_label, '-')
+        END,
+        'remark', CASE 
+            WHEN v_grading_scheme_id IS NOT NULL AND se.total_score IS NOT NULL 
+            THEN COALESCE(
+                (public.compute_grade(se.total_score, v_grading_scheme_id, se.subject_name))->>'remark',
+                se.teacher_comment,
+                '-'
+            )
+            ELSE COALESCE(se.teacher_comment, '-')
+        END,
         'subjectPosition', DENSE_RANK() OVER (
             PARTITION BY s.campus_id, t.session_label, se.term_id, se.academic_class_id, ac.arm, se.subject_name
             ORDER BY COALESCE(se.total_score, 0) DESC

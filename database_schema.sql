@@ -1773,6 +1773,67 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ============================================================================
+-- Compute Grade Function (Single Source of Truth for Grade Calculations)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.compute_grade(
+    p_score NUMERIC,
+    p_grading_scheme_id INTEGER,
+    p_subject_name TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_grade_label TEXT;
+    v_remark TEXT;
+    v_gpa_value NUMERIC;
+BEGIN
+    -- Check for subject-specific override first
+    IF p_subject_name IS NOT NULL THEN
+        SELECT grade_label, remark, NULL::NUMERIC
+        INTO v_grade_label, v_remark, v_gpa_value
+        FROM public.grading_scheme_overrides
+        WHERE grading_scheme_id = p_grading_scheme_id
+          AND subject_name = p_subject_name
+          AND p_score >= min_score
+          AND p_score <= max_score
+        ORDER BY min_score DESC
+        LIMIT 1;
+        
+        IF FOUND THEN
+            RETURN jsonb_build_object(
+                'grade_label', v_grade_label,
+                'remark', v_remark,
+                'gpa_value', v_gpa_value
+            );
+        END IF;
+    END IF;
+    
+    -- Fall back to standard grading rules
+    SELECT grade, remark, NULL::NUMERIC
+    INTO v_grade_label, v_remark, v_gpa_value
+    FROM public.grading_scheme_rules
+    WHERE grading_scheme_id = p_grading_scheme_id
+      AND p_score >= min_score
+      AND p_score <= max_score
+    ORDER BY min_score DESC
+    LIMIT 1;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object(
+            'grade_label', 'F',
+            'remark', 'Fail',
+            'gpa_value', 0.0
+        );
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'grade_label', v_grade_label,
+        'remark', v_remark,
+        'gpa_value', v_gpa_value
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 DROP FUNCTION IF EXISTS public.get_student_term_report_details(integer, integer) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_student_term_report_details(p_student_id INT, p_term_id INT)
 RETURNS JSONB AS $$
@@ -1809,14 +1870,21 @@ DECLARE
     v_level_rank INTEGER;
     v_level_size INTEGER;
     v_campus_percentile NUMERIC;
+    v_present_str INTEGER;
+    v_absent_str INTEGER;
+    v_grading_scheme_id INTEGER;
 BEGIN
-    -- 1. Student Info scoped with campus/class/arm for cohort filters
+    -- 1. Student Info scoped with campus/class/arm/level for cohort filters
     SELECT jsonb_build_object(
         'id', s.id,
         'fullName', s.name,
         'className', ac.name,
         'classId', ac.id,
         'armName', ac.arm,
+        'arm_name', ac.arm,
+        'levelName', ac.level,
+        'level_name', ac.level,
+        'level', ac.level,
         'campusId', s.campus_id
     )
     INTO v_student
@@ -1826,7 +1894,7 @@ BEGIN
     WHERE s.id = p_student_id;
 
     -- 2. Term Info with date range
-    SELECT jsonb_build_object('sessionLabel', session_label, 'termLabel', term_label),
+    SELECT jsonb_build_object('sessionLabel', session_label, 'termLabel', term_label, 'session_label', session_label, 'term_label', term_label),
            start_date, end_date
     INTO v_term, v_term_start, v_term_end
     FROM public.terms WHERE id = p_term_id;
@@ -1840,7 +1908,17 @@ BEGIN
     FROM public.student_term_reports
     WHERE student_id = p_student_id AND term_id = p_term_id;
 
-    -- 5. Cohort-level ranking (campus + session + term + class + arm) and Level-wide ranking
+    -- 5. Get the grading scheme for this student's class (class-specific or school-wide)
+    SELECT COALESCE(ac.grading_scheme_id, sc.active_grading_scheme_id)
+    INTO v_grading_scheme_id
+    FROM public.academic_class_students acs
+    LEFT JOIN public.academic_classes ac ON ac.id = acs.academic_class_id
+    CROSS JOIN public.school_config sc
+    WHERE acs.student_id = p_student_id
+      AND acs.enrolled_term_id = p_term_id
+    LIMIT 1;
+
+    -- 6. Cohort-level ranking (campus + session + term + class + arm) and Level-wide ranking
     WITH cohort AS (
         SELECT
             str.student_id,
@@ -1883,14 +1961,40 @@ BEGIN
     WHERE c.student_id = p_student_id
     LIMIT 1;
 
-    -- 6. Subjects (from score_entries) ranked within cohort scope
+    -- 7. Subjects (from score_entries) with DYNAMICALLY COMPUTED grades
+    -- This is the key fix: instead of reading stored grade_label, compute it from grading scheme
     SELECT jsonb_agg(jsonb_build_object(
         'subjectName', se.subject_name,
+        'subject_name', se.subject_name,
         'componentScores', COALESCE(se.component_scores, '{}'::jsonb),
+        'component_scores', COALESCE(se.component_scores, '{}'::jsonb),
         'totalScore', se.total_score,
-        'gradeLabel', COALESCE(se.grade, se.grade_label),
-        'remark', COALESCE(se.teacher_comment, '-'),
+        'total_score', se.total_score,
+        -- FIXED: Compute grade dynamically from grading scheme instead of using stored value
+        'gradeLabel', CASE 
+            WHEN v_grading_scheme_id IS NOT NULL AND se.total_score IS NOT NULL 
+            THEN (public.compute_grade(se.total_score, v_grading_scheme_id, se.subject_name))->>'grade_label'
+            ELSE COALESCE(se.grade, se.grade_label, '-')
+        END,
+        'grade', CASE 
+            WHEN v_grading_scheme_id IS NOT NULL AND se.total_score IS NOT NULL 
+            THEN (public.compute_grade(se.total_score, v_grading_scheme_id, se.subject_name))->>'grade_label'
+            ELSE COALESCE(se.grade, se.grade_label, '-')
+        END,
+        'remark', CASE 
+            WHEN v_grading_scheme_id IS NOT NULL AND se.total_score IS NOT NULL 
+            THEN COALESCE(
+                (public.compute_grade(se.total_score, v_grading_scheme_id, se.subject_name))->>'remark',
+                se.teacher_comment,
+                '-'
+            )
+            ELSE COALESCE(se.teacher_comment, '-')
+        END,
         'subjectPosition', DENSE_RANK() OVER (
+            PARTITION BY s.campus_id, t.session_label, se.term_id, se.academic_class_id, ac.arm, se.subject_name
+            ORDER BY COALESCE(se.total_score, 0) DESC
+        ),
+        'subject_position', DENSE_RANK() OVER (
             PARTITION BY s.campus_id, t.session_label, se.term_id, se.academic_class_id, ac.arm, se.subject_name
             ORDER BY COALESCE(se.total_score, 0) DESC
         )
@@ -1902,7 +2006,7 @@ BEGIN
     LEFT JOIN public.academic_classes ac ON ac.id = se.academic_class_id
     WHERE se.student_id = p_student_id AND se.term_id = p_term_id;
 
-    -- 7. Identify the student's class group for this term (class teacher groups take precedence)
+    -- 8. Identify the student's class group for this term (class teacher groups take precedence)
     SELECT cgm.group_id
     INTO v_class_group_id
     FROM public.class_group_members cgm
@@ -1914,7 +2018,7 @@ BEGIN
     ORDER BY (ta.term_id = p_term_id) DESC, cg.id
     LIMIT 1;
 
-    -- 8. Calculate real attendance from attendance_records
+    -- 9. Calculate real attendance from attendance_records
     -- Join through class_group_members to connect students with attendance records
     SELECT
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('present', 'p')), 0),
@@ -1950,7 +2054,7 @@ BEGIN
         'rate', v_attendance_rate_computed
     );
 
-    -- 9. Apply overrides when present for this class/term/student
+    -- 10. Apply overrides when present for this class/term/student
     IF v_class_group_id IS NOT NULL THEN
         SELECT * INTO v_override
         FROM public.attendance_overrides ao
@@ -1980,6 +2084,22 @@ BEGIN
         v_unexcused_count := v_unexcused_computed;
         v_total_count := v_total_computed;
         v_attendance_source := 'computed';
+    END IF;
+
+    -- 11. FALLBACK: If computed attendance is zero, try student_term_reports for manual entry
+    IF v_total_count = 0 THEN
+        SELECT days_present, days_absent
+        INTO v_present_str, v_absent_str
+        FROM public.student_term_reports
+        WHERE student_id = p_student_id AND term_id = p_term_id;
+        
+        v_present_count := COALESCE(v_present_str, 0);
+        v_absent_count := COALESCE(v_absent_str, 0);
+        v_total_count := v_present_count + v_absent_count;
+        
+        IF v_total_count > 0 THEN
+            v_attendance_source := 'manual_entry';
+        END IF;
     END IF;
 
     IF v_total_count > 0 THEN
@@ -2016,16 +2136,32 @@ BEGIN
         'summary', jsonb_build_object(
             'average', v_report_row.average_score,
             'positionInArm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
+            'position_in_arm', COALESCE(v_cohort_rank, v_report_row.position_in_class),
+            'position_in_class', COALESCE(v_cohort_rank, v_report_row.position_in_class),
             'cohortSize', v_cohort_size,
+            'totalStudentsInArm', v_cohort_size,
+            'total_students_in_arm', v_cohort_size,
+            'total_in_arm', v_cohort_size,
             'positionInLevel', v_level_rank,
+            'position_in_level', v_level_rank,
+            'position_in_grade', v_level_rank,
+            'gradeLevelPosition', v_level_rank,
             'levelSize', v_level_size,
+            'totalStudentsInLevel', v_level_size,
+            'total_students_in_level', v_level_size,
+            'total_in_level', v_level_size,
+            'gradeLevelSize', v_level_size,
             'campusPercentile', v_campus_percentile,
-            'gpaAverage', 0
+            'campus_percentile', v_campus_percentile,
+            'gpaAverage', 0,
+            'gpa_average', 0
         ),
         'attendance', v_attendance,
         'comments', jsonb_build_object(
             'teacher', v_report_row.teacher_comment,
-            'principal', v_report_row.principal_comment
+            'teacher_comment', v_report_row.teacher_comment,
+            'principal', v_report_row.principal_comment,
+            'principal_comment', v_report_row.principal_comment
         )
     );
 END;
