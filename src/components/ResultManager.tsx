@@ -446,10 +446,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             
             // Check if AI is available BEFORE the loop
             const aiClient = getAIClient();
-            const useAI = !useCommentBank && !!aiClient;
+            const shouldUseAI = !useCommentBank && !!aiClient;
             
             // Only apply rate limiting if using AI
-            const RATE_LIMIT_DELAY_MS = useAI ? 500 : 0;
+            const RATE_LIMIT_DELAY_MS = shouldUseAI ? 500 : 0;
             
             // Track used remarks for uniqueness when using Comment Bank
             const usedRemarks = new Set<string>();
@@ -480,6 +480,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                             [], // weaknessTags (not used here)
                             usedRemarks
                         );
+                        // Add to Set to prevent reuse for subsequent students
                         usedRemarks.add(comment);
                     } else {
                         // Generate AI comment
@@ -508,7 +509,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     }
 
                     // Only delay if using AI to avoid rate limiting
-                    if (useAI && RATE_LIMIT_DELAY_MS > 0) {
+                    if (shouldUseAI && RATE_LIMIT_DELAY_MS > 0) {
                         await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
                     }
 
