@@ -1991,6 +1991,9 @@ BEGIN
     LIMIT 1;
 
     -- 6. Subjects with DYNAMICALLY COMPUTED grades from grading_scheme_rules
+    -- Note: We use LEFT JOIN LATERAL instead of calling compute_grade() function
+    -- because it's more efficient to do a single join per subject rather than
+    -- a function call. The logic is similar to compute_grade but optimized for batch processing.
     SELECT jsonb_agg(subj_data)
     INTO v_subjects
     FROM (

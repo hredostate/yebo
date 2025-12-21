@@ -6,6 +6,10 @@
 -- It applies BOTH fixes:
 -- 1. Rankings computed from score_entries averages (NEW)
 -- 2. Grades computed from grading_scheme_rules (from previous migration)
+--
+-- Dependencies:
+-- - Requires grading_scheme_overrides table (created in 20251220_report_card_refactor.sql)
+-- - Requires compute_grade function (added to database_schema.sql)
 
 CREATE OR REPLACE FUNCTION public.get_student_term_report_details(p_student_id INT, p_term_id INT)
 RETURNS JSONB AS $$
@@ -145,6 +149,9 @@ BEGIN
     LIMIT 1;
 
     -- 6. Subjects with DYNAMICALLY COMPUTED grades from grading_scheme_rules
+    -- Note: We use LEFT JOIN LATERAL instead of calling compute_grade() function
+    -- because it's more efficient to do a single join per subject rather than
+    -- a function call. The logic is similar to compute_grade but optimized for batch processing.
     SELECT jsonb_agg(subj_data)
     INTO v_subjects
     FROM (
