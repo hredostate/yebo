@@ -33,7 +33,7 @@ const ThemeNote = () => (
 
 export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }: StudentLoginPageProps) {
   const [authView, setAuthView] = useState<AuthViewMode>('login');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [secretCode, setSecretCode] = useState('');
@@ -53,8 +53,12 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
     try {
       const supabase = requireSupabaseClient();
       if (authView === 'login') {
+        // Convert username to email format for authentication
+        // If username doesn't contain @, append @upsshub.com
+        const loginEmail = username.includes('@') ? username : `${username.toLowerCase()}@upsshub.com`;
+        
         // Cast supabase.auth to any to bypass potential type definition mismatches
-        const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
+        const { data, error } = await (supabase.auth as any).signInWithPassword({ email: loginEmail, password });
         if (error) throw error;
         
         // Check device limit before allowing login
@@ -80,8 +84,9 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
         }
         // Navigation will be handled by App.tsx after profile loads
       } else if (authView === 'signup') {
+        // For signup, still use email field
         const { data, error } = await (supabase.auth as any).signUp({
-          email,
+          email: username, // For signup, username can be an email
           password,
           options: {
             data: {
@@ -97,7 +102,9 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
           setAuthView('login');
         }
       } else if (authView === 'forgot_password') {
-        const { error } = await (supabase.auth as any).resetPasswordForEmail(email, {
+        // Convert username to email for password reset
+        const resetEmail = username.includes('@') ? username : `${username.toLowerCase()}@upsshub.com`;
+        const { error } = await (supabase.auth as any).resetPasswordForEmail(resetEmail, {
             redirectTo: window.location.origin,
         });
         if (error) throw error;
@@ -122,7 +129,10 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
       }
       
       // Now try to log in again
-      const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
+      const { data, error } = await (supabase.auth as any).signInWithPassword({ 
+        email: username.includes('@') ? username : `${username.toLowerCase()}@upsshub.com`, 
+        password 
+      });
       if (error) throw error;
       
       if (data?.user) {
@@ -150,8 +160,8 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
         return (
             <>
                 <label className="grid gap-1">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Email</span>
-                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your-email@school.com" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Username</span>
+                    <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                 </label>
                 <button type="submit" className="group mt-2 inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 px-4 font-medium text-white shadow-lg transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/40 disabled:opacity-70" disabled={loading}>
                     {loading ? <Spinner /> : <span>Send Reset Instructions</span>}
@@ -182,8 +192,15 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
               )}
               
               <label className="grid gap-1">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Email</span>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your-email@school.com" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{authView === 'signup' ? 'Email' : 'Username'}</span>
+                <input 
+                  type={authView === 'signup' ? 'email' : 'text'} 
+                  required 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value)} 
+                  placeholder={authView === 'signup' ? 'your-email@school.com' : 'Enter your username'} 
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" 
+                />
               </label>
 
               <label className="grid gap-1">

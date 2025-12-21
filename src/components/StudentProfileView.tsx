@@ -237,7 +237,9 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const handleCopyUsername = () => {
         if (userEmail) {
             try {
-                navigator.clipboard.writeText(userEmail);
+                // Copy just the username part, stripping @upsshub.com if present
+                const usernameOnly = userEmail.replace('@upsshub.com', '');
+                navigator.clipboard.writeText(usernameOnly);
                 addToast('Username copied to clipboard!', 'success');
             } catch (error) {
                 // Fallback for browsers that don't support clipboard API
@@ -679,8 +681,10 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                 <div className="mt-2 space-y-2">
                                     <div className="flex items-center gap-4">
                                         <div className="flex-1">
-                                            <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">Username/Email:</p>
-                                            <p className="font-mono text-sm font-bold text-blue-900 dark:text-blue-100">{userEmail}</p>
+                                            <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">Username:</p>
+                                            <p className="font-mono text-sm font-bold text-blue-900 dark:text-blue-100">
+                                                {userEmail.replace('@upsshub.com', '')}
+                                            </p>
                                         </div>
                                         <button 
                                             type="button" 
@@ -691,7 +695,7 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">Students log in using this username/email. Use "Retrieve Password" above to get their current password.</p>
+                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">Students log in using this username. Use "Retrieve Password" above to get their current password.</p>
                             </div>
                         )}
                         

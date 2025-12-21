@@ -91,7 +91,7 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                         <thead className="text-xs uppercase bg-slate-500/10 sticky top-0">
                             <tr>
                                 <th className="px-4 py-2">Name</th>
-                                <th className="px-4 py-2">Email</th>
+                                <th className="px-4 py-2">Username</th>
                                 <th className="px-4 py-2">Password</th>
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">Messaging</th>
@@ -103,10 +103,13 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                                 const sentCount = msgResults.filter((m: any) => m.success).length;
                                 const failCount = msgResults.length - sentCount;
                                 
+                                // Extract username from email or use the username field directly
+                                const displayUsername = res.username || (res.email ? res.email.replace('@upsshub.com', '') : 'N/A');
+                                
                                 return (
                                     <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60">
                                         <td className="px-4 py-2 font-medium">{res.name}</td>
-                                        <td className="px-4 py-2">{res.email}</td>
+                                        <td className="px-4 py-2 font-mono">{displayUsername}</td>
                                         <td className="px-4 py-2 font-mono">{res.password || 'N/A'}</td>
                                         <td className="px-4 py-2">{res.status}</td>
                                         <td className="px-4 py-2">
@@ -965,7 +968,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Student Roster</h1>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-1">Manage all students in the school.</p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            ℹ️ Passwords are only shown once during account creation. Students use their email/username to login.
+            ℹ️ Passwords are only shown once during account creation. Students use their username to login.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -1111,7 +1114,7 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                 <th scope="col" className="px-6 py-3 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/50 select-none" onClick={() => handleSort('status')}>
                     Status <SortIcon field="status" />
                 </th>
-                <th scope="col" className="px-6 py-3">Email/Username</th>
+                <th scope="col" className="px-6 py-3">Username</th>
                 <th scope="col" className="px-6 py-3">Account</th>
                 <th scope="col" className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -1120,6 +1123,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
               {paginatedStudents.map(student => {
                 const statusValue = student.status || 'Unknown'; // Ensure not null
                 const statusInfo = STUDENT_STATUSES.find(s => s.value === statusValue) || { label: statusValue, color: 'bg-slate-500/20 text-slate-700 dark:text-slate-300' };
+                // Extract username from email by removing @upsshub.com
+                const displayUsername = student.email ? student.email.replace('@upsshub.com', '') : null;
                 return (
                     <tr key={student.id} className="border-b border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-500/10">
                         {canManageStudents && (
@@ -1134,8 +1139,8 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
                         </td>
                         <td className="px-6 py-4 text-xs font-mono">
-                            {student.email ? (
-                                <span className="text-slate-600 dark:text-slate-300" title="Login Email">{student.email}</span>
+                            {displayUsername ? (
+                                <span className="text-slate-600 dark:text-slate-300" title="Login Username">{displayUsername}</span>
                             ) : (
                                 <span className="text-slate-400 dark:text-slate-500">Not set</span>
                             )}
