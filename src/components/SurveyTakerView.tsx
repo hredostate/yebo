@@ -30,6 +30,7 @@ const SurveyTakerView: React.FC<SurveyTakerViewProps> = ({ survey, onBack, addTo
 
     useEffect(() => {
         const fetchOptionCounts = async () => {
+            const supabase = requireSupabaseClient();
             // Fetch all responses for this survey to calculate current quotas
             const { data, error } = await supabase
                 .from('quiz_responses')

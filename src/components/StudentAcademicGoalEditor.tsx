@@ -36,6 +36,7 @@ const StudentAcademicGoalEditor: React.FC<StudentAcademicGoalEditorProps> = ({
     }, [studentId, termId]);
 
     const fetchGoalAndCheckTerm = async () => {
+        const supabase = requireSupabaseClient();
         setLoading(true);
         try {
             // Fetch existing goal
@@ -103,6 +104,7 @@ const StudentAcademicGoalEditor: React.FC<StudentAcademicGoalEditorProps> = ({
     };
 
     const handleSave = async () => {
+        const supabase = requireSupabaseClient();
         if (!goalText.trim()) {
             addToast('Please enter your goal description', 'error');
             return;
