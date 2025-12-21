@@ -6,6 +6,15 @@
 -- 1. Add lock tracking columns to student_subject_choices
 DO $$ 
 BEGIN 
+    -- Ensure locked column exists (should already be there from base schema)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='student_subject_choices' AND column_name='locked'
+    ) THEN
+        ALTER TABLE public.student_subject_choices 
+        ADD COLUMN locked BOOLEAN DEFAULT FALSE;
+    END IF;
+    
     -- Add locked_at column if it doesn't exist
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
