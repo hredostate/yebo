@@ -8,7 +8,8 @@ import {
     finalizePayroll,
     processOfflinePayment,
     processPaystackPayment,
-    resolvePayslipQuery
+    resolvePayslipQuery,
+    overrideApproveAndProcessOffline
 } from '../services/payrollPreRunService';
 import { generateBankTransferCSV, downloadCSV } from '../utils/bankCodes';
 import Spinner from './common/Spinner';
@@ -32,6 +33,7 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
     const [adminResponse, setAdminResponse] = useState('');
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [processingData, setProcessingData] = useState<any>(null);
+    const [showOverrideDialog, setShowOverrideDialog] = useState(false);
 
     useEffect(() => {
         loadRuns();
@@ -157,6 +159,25 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
             setShowQueryModal(false);
             setSelectedQuery(null);
             setAdminResponse('');
+            if (selectedRun) {
+                await loadRunDetails(selectedRun.id);
+            }
+        } catch (error: any) {
+            addToast(error.message, 'error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleOverrideApproval = async () => {
+        if (!selectedRun) return;
+
+        setShowOverrideDialog(false);
+        setIsProcessing(true);
+        try {
+            await overrideApproveAndProcessOffline(selectedRun.id, userProfile.id);
+            addToast('Override successful! All payslips auto-approved and processed offline.', 'success');
+            await loadRuns();
             if (selectedRun) {
                 await loadRunDetails(selectedRun.id);
             }
@@ -357,7 +378,7 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
 
                     {/* Action Buttons */}
                     {selectedRun.status === 'PRE_RUN_PUBLISHED' && (
-                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6 space-y-3">
                             <button
                                 onClick={handleFinalizeRun}
                                 disabled={isProcessing || approvalSummary.approved !== approvalSummary.total}
@@ -367,6 +388,18 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                                 Finalize Payroll
                                 {approvalSummary.approved !== approvalSummary.total && ' (Waiting for all approvals)'}
                             </button>
+
+                            {/* Override Button - Only show when there are pending or queried payslips */}
+                            {(approvalSummary.pending > 0 || approvalSummary.queried > 0) && (
+                                <button
+                                    onClick={() => setShowOverrideDialog(true)}
+                                    disabled={isProcessing}
+                                    className="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 font-semibold flex items-center justify-center gap-2 border-2 border-orange-700"
+                                >
+                                    {isProcessing ? <Spinner size="sm" /> : '⚠️'}
+                                    Override & Process Offline
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -596,6 +629,61 @@ const PayrollApprovalDashboard: React.FC<PayrollApprovalDashboardProps> = ({ use
                             >
                                 {isProcessing ? <Spinner size="sm" /> : '✓'}
                                 Confirm Offline Processing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Override Approval Confirmation Dialog */}
+            {showOverrideDialog && approvalSummary && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 m-4">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">
+                            ⚠️ Override Approval Confirmation
+                        </h2>
+                        
+                        <div className="mb-6">
+                            <p className="text-slate-700 dark:text-slate-300 mb-4">
+                                You are about to <strong>override the approval process</strong>. This will:
+                            </p>
+                            <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 mb-4">
+                                <li>Auto-approve <strong>{approvalSummary.pending}</strong> pending payslip{approvalSummary.pending !== 1 ? 's' : ''}</li>
+                                <li>Auto-approve <strong>{approvalSummary.queried}</strong> queried payslip{approvalSummary.queried !== 1 ? 's' : ''} (resolving queries)</li>
+                                <li>Finalize the payroll run</li>
+                                <li>Process payroll offline immediately</li>
+                                <li>Create an audit trail entry indicating override was used</li>
+                            </ul>
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                                <p className="text-red-800 dark:text-red-200 text-sm font-semibold mb-2">
+                                    ⚠️ WARNING: This action cannot be undone
+                                </p>
+                                <p className="text-red-700 dark:text-red-300 text-sm">
+                                    All pending staff reviews will be bypassed. Use this only when necessary.
+                                </p>
+                            </div>
+                            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                                <p className="text-orange-800 dark:text-orange-200 text-sm">
+                                    💡 After override, you'll need to manually complete bank transfers for all staff members.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowOverrideDialog(false)}
+                                disabled={isProcessing}
+                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleOverrideApproval}
+                                disabled={isProcessing}
+                                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-orange-400 font-semibold flex items-center justify-center gap-2"
+                            >
+                                {isProcessing ? <Spinner size="sm" /> : '✓'}
+                                Confirm Override
                             </button>
                         </div>
                     </div>
