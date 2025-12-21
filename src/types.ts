@@ -503,7 +503,9 @@ export interface LessonPlan {
     file_url?: string;
 
     submission_status: SubmissionStatus;
+    /** @deprecated Use lesson_plan_coverage table for coverage tracking. This field is kept for backward compatibility. */
     coverage_status: CoverageStatus;
+    /** @deprecated Use lesson_plan_coverage table for coverage notes. This field is kept for backward compatibility. */
     coverage_notes?: string | null;
     
     status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'revision_required' | 'published';

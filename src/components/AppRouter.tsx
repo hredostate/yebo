@@ -713,7 +713,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 coverageVotes={data.coverageVotes} 
                 users={data.users} 
                 teams={data.teams} 
-                currentUser={data.userProfile} 
+                currentUser={data.userProfile}
+                coverageData={data.coverageData || []}
              />;
         case VIEWS.COVERAGE_REPORTING:
              return <CoverageReportingPanel

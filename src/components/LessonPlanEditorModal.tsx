@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { LessonPlan, LessonPlanSession } from '../types';
-import { CoverageStatus, SubmissionStatus } from '../types';
+import { SubmissionStatus } from '../types';
 import Spinner from './common/Spinner';
 import { lessonPlanTemplate, sessionTemplate } from '../lessonPlanTemplate';
 import { WandIcon } from './common/icons';
@@ -85,8 +85,6 @@ const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, o
   const removeSession = (index: number) => {
     setPlanData(prev => ({ ...prev, sessions: (prev.sessions || []).filter((_, i) => i !== index) }));
   };
-  
-  const coverageStatuses = Object.values(CoverageStatus);
 
   if (!isOpen) return null;
 
@@ -171,31 +169,15 @@ const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, o
             </div>
           </div>
           
-          {/* Coverage Tracking */}
+          {/* Coverage Tracking - Informational Only */}
           <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Coverage Tracking</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-                {coverageStatuses.map(status => (
-                    <button
-                        key={status}
-                        type="button"
-                        onClick={() => handleFieldChange('coverage_status', status)}
-                        className={`px-3 py-1.5 text-sm rounded-full font-semibold ${planData.coverage_status === status ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                        {status}
-                    </button>
-                ))}
+            <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                <strong>Note:</strong> Coverage is now tracked separately through the Coverage Reporting Panel. 
+                After teaching this lesson plan, use the Coverage Reporting Panel to report coverage status for each class/arm.
+              </p>
             </div>
-             {(planData.coverage_status === CoverageStatus.PartiallyCovered || planData.coverage_status === CoverageStatus.NotCovered) && (
-                <div className="mt-3">
-                    <label htmlFor="coverage_notes" className={labelClasses}>Notes</label>
-                    <textarea id="coverage_notes" 
-                        value={planData.coverage_notes || ''}
-                        onChange={e => handleFieldChange('coverage_notes', e.target.value)}
-                        placeholder="Explain why the plan was not fully covered..."
-                        className={textareaClasses} rows={2} />
-                </div>
-             )}
           </div>
         </div>
 
