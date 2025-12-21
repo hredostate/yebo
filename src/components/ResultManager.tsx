@@ -688,6 +688,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
             if (reportsToProcess.length === 0) {
                 addToast(`All students in ${className} already have principal comments.`, "info");
+                setGeneratingPrincipalClassId(null);
                 return;
             }
 
