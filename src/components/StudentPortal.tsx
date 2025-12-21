@@ -5,6 +5,7 @@ import type { StudentProfile, AcademicClass } from '../types';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon, BookOpenIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
 import StudentAcademicGoalEditor from './StudentAcademicGoalEditor';
+import { lockStudentChoices, getElectiveCapacityInfo, type ElectiveCapacityInfo } from '../services/studentSubjectChoiceService';
 
 interface StudentPortalProps {
     studentProfile: StudentProfile;
@@ -24,6 +25,9 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     const [hasSaved, setHasSaved] = useState(false);
     const [activeTermId, setActiveTermId] = useState<number | null>(null);
     const [schoolId, setSchoolId] = useState<number | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
+    const [electiveCapacity, setElectiveCapacity] = useState<Map<number, ElectiveCapacityInfo>>(new Map());
+    const supabase = requireSupabaseClient();
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -91,10 +95,10 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 setAvailableSubjects(fetchedSubjects);
             }
 
-            // 3. Fetch existing choices & Merge Compulsory
+            // 3. Fetch existing choices & Merge Compulsory & Check Lock Status
             const { data: choices, error: choicesError } = await supabase
                 .from('student_subject_choices')
-                .select('subject_id')
+                .select('subject_id, locked')
                 .eq('student_id', studentProfile.student_record_id);
             
             if (choicesError) {
@@ -102,11 +106,30 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 addToast('Error fetching your choices.', 'error');
             } else {
                 const existingIds = (choices || []).map((c: any) => Number(c.subject_id));
+                // Check if any choices are locked
+                const anyLocked = (choices || []).some((c: any) => c.locked === true);
+                setIsLocked(anyLocked);
+                
                 // Automatically include compulsory subjects in the selection state
                 const compulsoryIds = fetchedSubjects.filter(s => s.is_compulsory).map(s => s.subject_id);
                 const combinedIds = new Set<number>([...existingIds, ...compulsoryIds]);
                 
                 setSelectedSubjectIds(combinedIds);
+            }
+            
+            // 4. Fetch elective capacity information if student has class and arm
+            if (studentProfile.class_id && studentProfile.arm_id && schoolIdLocal) {
+                const capacityInfo = await getElectiveCapacityInfo(
+                    studentProfile.class_id,
+                    studentProfile.arm_id,
+                    schoolIdLocal
+                );
+                
+                const capacityMap = new Map<number, ElectiveCapacityInfo>();
+                capacityInfo.forEach(info => {
+                    capacityMap.set(info.subjectId, info);
+                });
+                setElectiveCapacity(capacityMap);
             }
         } catch (error: any) {
             console.error('Error loading student portal data:', error);
@@ -122,6 +145,16 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
 
     const handleToggleSubject = (subjectId: number, isCompulsory: boolean) => {
         if (isCompulsory) return; // Prevent toggling compulsory subjects
+        if (isLocked) return; // Prevent toggling when locked
+
+        // Check if subject is at capacity (only for electives being added)
+        const capacity = electiveCapacity.get(subjectId);
+        const isAdding = !selectedSubjectIds.has(subjectId);
+        
+        if (isAdding && capacity && capacity.isFull) {
+            addToast(`${capacity.subjectName} is at full capacity. Cannot select.`, 'error');
+            return;
+        }
 
         const newSet = new Set(selectedSubjectIds);
         if (newSet.has(subjectId)) {
@@ -133,6 +166,11 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     };
 
     const handleSaveChoices = async () => {
+        if (isLocked) {
+            addToast('Your choices are locked. Contact your teacher to make changes.', 'error');
+            return;
+        }
+        
         const count = selectedSubjectIds.size;
         const min = academicClass?.min_subjects || 0;
         const max = academicClass?.max_subjects || 100; // Default high max if not set
@@ -160,11 +198,13 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             return;
         }
 
-        // 2. Insert new choices
+        // 2. Insert new choices with locked=true (auto-lock on save)
         const newRecords = Array.from(selectedSubjectIds).map(subjectId => ({
             student_id: studentProfile.student_record_id,
             subject_id: subjectId,
-            locked: false // Default unlocked
+            locked: true, // Auto-lock on save
+            locked_at: new Date().toISOString(),
+            locked_by: null // null means auto-locked by student
         }));
 
         if (newRecords.length > 0) {
@@ -174,13 +214,23 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             
             if (insertError) {
                 addToast(`Error saving choices: ${insertError.message}`, 'error');
+                setIsSaving(false);
+                return;
+            }
+            
+            // Lock the choices using service function (redundant but ensures consistency)
+            const lockResult = await lockStudentChoices(studentProfile.student_record_id);
+            
+            if (lockResult.success) {
+                addToast('Subjects saved and locked successfully!', 'success');
+                setHasSaved(true);
+                setIsLocked(true); // Update UI state
             } else {
-                addToast('Subjects saved successfully!', 'success');
-                setHasSaved(true); // Mark as saved
+                addToast('Subjects saved but failed to lock. Please contact administrator.', 'error');
             }
         } else {
              addToast('Subjects cleared.', 'success');
-             setHasSaved(true); // Mark as saved
+             setHasSaved(true);
         }
 
         setIsSaving(false);
@@ -248,7 +298,18 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                         </div>
                     ) : (
                         <>
-                            {hasSaved && (
+                            {/* Lock Status Banner */}
+                            {isLocked && (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-3">
+                                    <LockClosedIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                                    <div>
+                                        <p className="font-semibold text-amber-800 dark:text-amber-100">🔒 Your subject selections are locked</p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">Contact your class teacher or admin to request changes to your subject choices.</p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {hasSaved && !isLocked && (
                                 <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-3">
                                     <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                                     <div>
@@ -261,9 +322,9 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                 <div>
                                     <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
                                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Select the subjects you are taking this term.
-                                        {minLimit > 0 && ` Minimum: ${minLimit}.`} 
-                                        {maxLimit < 99 && ` Maximum: ${maxLimit}.`}
+                                        {isLocked ? 'Your selections are locked. Contact admin to make changes.' : 'Select the subjects you are taking this term.'}
+                                        {!isLocked && minLimit > 0 && ` Minimum: ${minLimit}.`} 
+                                        {!isLocked && maxLimit < 99 && ` Maximum: ${maxLimit}.`}
                                     </p>
                                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                                         * {compulsoryCount} subjects are compulsory and cannot be removed.
@@ -272,42 +333,68 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                         Total Selected: {selectionCount}
                                     </p>
                                 </div>
-                                <button 
-                                    onClick={handleSaveChoices} 
-                                    disabled={isSaving} 
-                                    className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors flex items-center gap-2 shadow-md ${isValid ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 cursor-not-allowed'}`}
-                                >
-                                    {isSaving ? <Spinner size="sm" /> : <><CheckCircleIcon className="w-5 h-5" /> Save Choices</>}
-                                </button>
+                                {!isLocked && (
+                                    <button 
+                                        onClick={handleSaveChoices} 
+                                        disabled={isSaving} 
+                                        className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors flex items-center gap-2 shadow-md ${isValid ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 cursor-not-allowed'}`}
+                                    >
+                                        {isSaving ? <Spinner size="sm" /> : <><CheckCircleIcon className="w-5 h-5" /> Save Choices</>}
+                                    </button>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {availableSubjects.length > 0 ? availableSubjects.map(sub => {
                                     const isSelected = selectedSubjectIds.has(sub.subject_id);
                                     const isCompulsory = sub.is_compulsory;
+                                    const capacity = electiveCapacity.get(sub.subject_id);
+                                    const isFull = !isCompulsory && capacity && capacity.isFull && !isSelected;
+                                    const isDisabled = isCompulsory || isLocked || isFull;
                                     
                                     return (
                                         <div 
                                             key={sub.subject_id} 
-                                            onClick={() => handleToggleSubject(sub.subject_id, isCompulsory)}
-                                            className={`p-4 border rounded-lg transition-all shadow-sm flex items-center justify-between 
-                                                ${isCompulsory 
-                                                    ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600 cursor-not-allowed opacity-90' 
+                                            onClick={() => !isDisabled && handleToggleSubject(sub.subject_id, isCompulsory)}
+                                            className={`p-4 border rounded-lg transition-all shadow-sm flex items-start justify-between 
+                                                ${isDisabled 
+                                                    ? 'cursor-not-allowed opacity-75' 
                                                     : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'
                                                 }
-                                                ${isSelected && !isCompulsory ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}
+                                                ${isCompulsory 
+                                                    ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600' 
+                                                    : ''
+                                                }
+                                                ${isFull 
+                                                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800' 
+                                                    : ''
+                                                }
+                                                ${isSelected && !isCompulsory && !isFull ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : ''}
+                                                ${!isCompulsory && !isFull && !isSelected ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : ''}
                                             `}
                                         >
-                                            <div className="flex flex-col">
-                                                <p className={`font-semibold ${isSelected ? 'text-blue-800 dark:text-blue-100' : 'text-slate-700 dark:text-slate-200'}`}>
-                                                    {sub.subject_name}
-                                                </p>
-                                                {isCompulsory && <span className="text-[10px] font-bold uppercase text-slate-500">Compulsory</span>}
+                                            <div className="flex flex-col flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`font-semibold ${isSelected ? 'text-blue-800 dark:text-blue-100' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        {sub.subject_name}
+                                                    </p>
+                                                    {isFull && (
+                                                        <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold uppercase rounded">Full</span>
+                                                    )}
+                                                </div>
+                                                {isCompulsory && <span className="text-[10px] font-bold uppercase text-slate-500 mt-1">Compulsory</span>}
+                                                {!isCompulsory && capacity && capacity.maxStudents !== null && (
+                                                    <span className={`text-xs mt-1 ${capacity.isFull ? 'text-red-600 dark:text-red-400 font-bold' : 'text-blue-600 dark:text-blue-400'}`}>
+                                                        {capacity.currentEnrollment}/{capacity.maxStudents} enrolled
+                                                    </span>
+                                                )}
                                             </div>
                                             
-                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-500'} ${isCompulsory ? 'bg-slate-500 border-slate-500' : ''}`}>
-                                                {isCompulsory ? (
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-500'} ${isCompulsory ? 'bg-slate-500 border-slate-500' : ''} ${isFull ? 'bg-red-600 border-red-600' : ''}`}>
+                                                {isCompulsory || isLocked ? (
                                                     <LockClosedIcon className="w-3 h-3 text-white" />
+                                                ) : isFull ? (
+                                                    <span className="text-white text-xs font-bold">✕</span>
                                                 ) : isSelected && (
                                                     <CheckCircleIcon className="w-4 h-4 text-white" />
                                                 )}

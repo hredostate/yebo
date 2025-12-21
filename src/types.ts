@@ -584,6 +584,27 @@ export interface ClassSubject {
     is_compulsory: boolean;
 }
 
+export interface StudentSubjectChoice {
+    id: number;
+    student_id: number;
+    subject_id: number;
+    locked: boolean;
+    locked_at?: string | null;
+    locked_by?: string | null;
+    created_at?: string;
+}
+
+export interface ElectiveSubjectLimit {
+    id: number;
+    school_id: number;
+    class_id: number;
+    arm_id: number | null;
+    subject_id: number;
+    max_students: number | null; // null means unlimited
+    created_at: string;
+    updated_at: string;
+}
+
 // Using Quiz structures for Surveys as well, as noted in SurveyManager
 export type QuizQuestionType = 'multiple_choice' | 'short_answer' | 'true_false' | 'ranking';
 export type SurveyQuestionType = QuizQuestionType;
