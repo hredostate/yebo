@@ -1001,7 +1001,9 @@ export const useAppLogic = () => {
                 
                 // Upload file if provided
                 if (file) {
-                    const fileName = `${userProfile.school_id}/${Date.now()}_${file.name}`;
+                    // Sanitize filename to prevent path traversal attacks
+                    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const fileName = `${userProfile.school_id}/${Date.now()}_${sanitizedName}`;
                     const { error: uploadError } = await supabase.storage
                         .from('lesson_plans')
                         .upload(fileName, file);
@@ -1018,20 +1020,16 @@ export const useAppLogic = () => {
                     file_url = publicUrlData.publicUrl;
                 }
                 
-                const lessonPlanData: any = {
-                    ...plan,
+                // Remove relation fields that shouldn't be sent to database
+                const { author, teaching_entity, ai_analysis, assignments, review_evidence, ...cleanPlanData } = plan;
+                
+                const lessonPlanData = {
+                    ...cleanPlanData,
                     file_url,
                     school_id: userProfile.school_id,
                     author_id: userProfile.id,
                     updated_at: new Date().toISOString(),
                 };
-                
-                // Remove relation fields that shouldn't be sent to database
-                delete lessonPlanData.author;
-                delete lessonPlanData.teaching_entity;
-                delete lessonPlanData.ai_analysis;
-                delete lessonPlanData.assignments;
-                delete lessonPlanData.review_evidence;
                 
                 if (plan.id) {
                     // Update existing lesson plan
@@ -1052,11 +1050,14 @@ export const useAppLogic = () => {
                     return data as LessonPlan;
                 } else {
                     // Create new lesson plan
-                    lessonPlanData.created_at = new Date().toISOString();
+                    const newLessonPlanData = {
+                        ...lessonPlanData,
+                        created_at: new Date().toISOString(),
+                    };
                     
                     const { data, error } = await supabase
                         .from('lesson_plans')
-                        .insert(lessonPlanData)
+                        .insert(newLessonPlanData)
                         .select()
                         .single();
                     
