@@ -98,9 +98,10 @@ function getSupabaseClient(): SupabaseClient {
   }
   try {
     return _cachedSupabaseModule.requireSupabaseClient();
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(
-      `Failed to initialize Supabase client: ${error.message || 'Unknown error'}. ` +
+      `Failed to initialize Supabase client: ${errorMessage}. ` +
       'Please check your Supabase configuration (URL and anon key) in the application settings.'
     );
   }
