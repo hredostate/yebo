@@ -38,7 +38,7 @@ BEGIN
     END IF;
     
     -- Fall back to standard grading rules
-    SELECT grade, remark, NULL::NUMERIC
+    SELECT grade_label, remark, NULL::NUMERIC
     INTO v_grade_label, v_remark, v_gpa_value
     FROM public.grading_scheme_rules
     WHERE grading_scheme_id = p_grading_scheme_id
