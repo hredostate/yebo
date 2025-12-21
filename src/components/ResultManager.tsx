@@ -90,6 +90,10 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     
     // State for comment generation mode (Comment Bank vs AI)
     const [useCommentBank, setUseCommentBank] = useState(true);
+    
+    // State for recalculate grades functionality
+    const [isRecalculatingGrades, setIsRecalculatingGrades] = useState(false);
+    const [showRecalculateModal, setShowRecalculateModal] = useState(false);
 
 
     const assignmentsForTerm = useMemo(() => {
@@ -573,6 +577,41 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             addToast(`Unpublish failed: ${e.message}`, "error");
         } finally {
             setIsPublishing(false);
+        }
+    };
+
+    // Recalculate grades for current term
+    const handleRecalculateGrades = async () => {
+        if (!selectedTermId || !schoolConfig?.active_grading_scheme_id) {
+            addToast("No active grading scheme found.", "error");
+            return;
+        }
+        
+        setShowRecalculateModal(false);
+        setIsRecalculatingGrades(true);
+        const supabase = requireSupabaseClient();
+        
+        try {
+            addToast("Recalculating grades for this term...", "info");
+            
+            const { data, error } = await supabase.rpc('recalculate_all_grades', {
+                p_grading_scheme_id: schoolConfig.active_grading_scheme_id,
+                p_term_id: selectedTermId
+            });
+            
+            if (error) throw error;
+            
+            const updatedCount = data?.updated_count || 0;
+            addToast(`Successfully recalculated ${updatedCount} grade${updatedCount !== 1 ? 's' : ''}!`, "success");
+            
+            // Trigger a refresh of the data (if there's a refresh mechanism)
+            // The parent component would need to refresh its data here
+            
+        } catch (e: any) {
+            console.error('Recalculate grades error:', e);
+            addToast(`Failed to recalculate grades: ${e.message}`, "error");
+        } finally {
+            setIsRecalculatingGrades(false);
         }
     };
 
@@ -1360,7 +1399,29 @@ const ResultManager: React.FC<ResultManagerProps> = ({
 
             {selectedTermId && viewMode === 'statistics' && (
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Level Statistics & Rankings</h2>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Level Statistics & Rankings</h2>
+                        {canLock && (
+                            <button
+                                onClick={() => setShowRecalculateModal(true)}
+                                disabled={isRecalculatingGrades}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:bg-purple-400 transition"
+                                title="Recalculate all grades using current grading scheme"
+                            >
+                                {isRecalculatingGrades ? (
+                                    <>
+                                        <Spinner size="sm" />
+                                        Recalculating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshIcon className="w-4 h-4" />
+                                        Recalculate Grades
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
                     <EnhancedStatisticsDashboard
                         termId={Number(selectedTermId)}
                         academicClasses={academicClasses}
@@ -1611,6 +1672,43 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                     onGenerateComments={handleGenerateTeacherComments}
                     addToast={addToast}
                 />
+            )}
+
+            {/* Recalculate Grades Confirmation Modal */}
+            {showRecalculateModal && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in"
+                    aria-modal="true"
+                    role="dialog"
+                >
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                            Recalculate Grades
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            This will recalculate all grades for this term using the current active grading scheme.
+                            Subject-specific overrides will be applied where configured.
+                        </p>
+                        <p className="text-sm text-amber-600 dark:text-amber-400 mb-6 flex items-start gap-2">
+                            <span className="text-lg">⚠️</span>
+                            <span>This will update all existing grades. Make sure the grading scheme is correct before proceeding.</span>
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowRecalculateModal(false)}
+                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRecalculateGrades}
+                                className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700 transition"
+                            >
+                                Recalculate Grades
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
