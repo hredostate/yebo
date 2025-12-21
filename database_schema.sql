@@ -2034,7 +2034,7 @@ BEGIN
         WHERE se.student_id = p_student_id
     ) subquery;
 
-    -- 7. Identify the student's class group for this term (class teacher groups take precedence)
+    -- 8. Identify the student's class group for this term (class teacher groups take precedence)
     SELECT cgm.group_id
     INTO v_class_group_id
     FROM public.class_group_members cgm
@@ -2046,7 +2046,7 @@ BEGIN
     ORDER BY (ta.term_id = p_term_id) DESC, cg.id
     LIMIT 1;
 
-    -- 8. Calculate real attendance from attendance_records
+    -- 9. Calculate real attendance from attendance_records
     -- Join through class_group_members to connect students with attendance records
     SELECT
         COALESCE(COUNT(*) FILTER (WHERE LOWER(ar.status) IN ('present', 'p')), 0),
@@ -2082,7 +2082,7 @@ BEGIN
         'rate', v_attendance_rate_computed
     );
 
-    -- 9. Apply overrides when present for this class/term/student
+    -- 10. Apply overrides when present for this class/term/student
     IF v_class_group_id IS NOT NULL THEN
         SELECT * INTO v_override
         FROM public.attendance_overrides ao
