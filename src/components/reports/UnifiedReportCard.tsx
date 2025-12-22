@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
-import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking } from '../../utils/reportCardHelpers';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking, calculatePercentile, formatPercentile } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
@@ -26,6 +26,7 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
   const teacherLabel = config?.teacherLabel || 'Class Teacher';
   const showLevelRanking = config?.showLevelRanking !== false; // default true
   const showArmRanking = config?.showArmRanking !== false; // default true
+  const showSubjectPosition = config?.showSubjectPosition !== false; // default true
 
   // Determine if we have level ranking data
   const hasLevelRanking = hasValidRanking(summary.positionInLevel, summary.totalStudentsInLevel);
@@ -148,7 +149,7 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                     Position in {student.armName ? sanitize(student.armName) : 'Class Arm'}
                   </div>
                   <div className="urc-rank-value">
-                    {formatPosition(summary.positionInArm, summary.totalStudentsInArm)}
+                    {formatPercentile(calculatePercentile(summary.positionInArm, summary.totalStudentsInArm))}
                   </div>
                   <div className="urc-rank-subtitle">Within Class Arm</div>
                 </div>
@@ -160,7 +161,7 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                     Position in {student.levelName ? `All ${sanitize(student.levelName)}` : 'Level'}
                   </div>
                   <div className="urc-rank-value">
-                    {formatPosition(summary.positionInLevel, summary.totalStudentsInLevel)}
+                    {formatPercentile(calculatePercentile(summary.positionInLevel, summary.totalStudentsInLevel))}
                   </div>
                   <div className="urc-rank-subtitle">Across All Arms</div>
                 </div>
@@ -193,7 +194,7 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                 )}
                 <th className="col-total">Total</th>
                 <th className="col-grade">Grade</th>
-                <th className="col-pos">Pos</th>
+                {showSubjectPosition && <th className="col-pos">Pos</th>}
                 <th className="col-remark">Remark</th>
               </tr>
             </thead>
@@ -225,7 +226,11 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                         {sanitize(subject.grade)}
                       </span>
                     </td>
-                    <td className="col-pos">{getOrdinal(subject.subjectPosition)}</td>
+                    {showSubjectPosition && (
+                      <td className="col-pos">
+                        {formatPercentile(calculatePercentile(subject.subjectPosition, subject.totalStudentsInSubject))}
+                      </td>
+                    )}
                     <td className="col-remark">{sanitize(subject.remark)}</td>
                   </tr>
                 );

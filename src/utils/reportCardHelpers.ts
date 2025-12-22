@@ -79,3 +79,35 @@ export function hasValidRanking(position: number | string | null | undefined, to
   const tot = typeof total === 'string' ? parseInt(total, 10) : total;
   return !isNaN(pos) && !isNaN(tot);
 }
+
+/**
+ * Calculate percentile rank from position and total
+ * Formula: ((total - position + 1) / total) * 100
+ * Example: Position 3 out of 45 = ((45 - 3 + 1) / 45) * 100 = 95.5%
+ */
+export function calculatePercentile(position: number | string | null | undefined, total: number | string | null | undefined): number | null {
+  if (!hasValidRanking(position, total)) {
+    return null;
+  }
+  const pos = typeof position === 'string' ? parseInt(position, 10) : position!;
+  const tot = typeof total === 'string' ? parseInt(total, 10) : total!;
+  return ((tot - pos + 1) / tot) * 100;
+}
+
+/**
+ * Format percentile as "Top X%" for high performers or "Xth percentile" for others
+ * - For 90th percentile and above: "Top X%" (e.g., "Top 5%", "Top 10%")
+ * - For below 90th percentile: "Xth percentile" (e.g., "75th percentile")
+ */
+export function formatPercentile(percentile: number | null | undefined): string {
+  if (percentile == null || isNaN(percentile)) {
+    return 'N/A';
+  }
+  
+  if (percentile >= 90) {
+    const topPercentage = Math.ceil(100 - percentile);
+    return `Top ${topPercentage}%`;
+  } else {
+    return `${Math.round(percentile)}th percentile`;
+  }
+}

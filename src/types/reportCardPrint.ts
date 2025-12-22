@@ -13,6 +13,7 @@ export interface PrintSubject {
   remark: string;
   componentScores?: Record<string, number>; // e.g., { "CA1": 10, "Exam": 50 }
   subjectPosition?: number | null;
+  totalStudentsInSubject?: number | null; // Total students enrolled in this subject for percentile calculation
 }
 
 export interface PrintAttendance {
@@ -88,6 +89,7 @@ export interface PrintConfig {
   teacherLabel?: string;
   showLevelRanking?: boolean;
   showArmRanking?: boolean;
+  showSubjectPosition?: boolean; // Toggle to show/hide position per subject
 }
 
 export interface UnifiedReportCardData {

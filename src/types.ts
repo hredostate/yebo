@@ -822,7 +822,7 @@ export interface ReportCardConfig {
     layout: 'classic' | 'modern' | 'compact' | 'professional' | 'pastel' | 'modern-gradient' | 'banded-rows' | 'executive-dark' | 'minimalist-clean';
     orientation: 'portrait' | 'landscape';
     showPhoto: boolean;
-    showPosition: boolean;
+    showPosition: boolean; // Legacy field - kept for backward compatibility
     showGraph: boolean;
     colorTheme?: string;
     customLogoUrl?: string;
@@ -831,6 +831,10 @@ export interface ReportCardConfig {
     teacherLabel?: string;
     principalNameOverride?: string;
     teacherNameOverride?: string;
+    // Granular position toggles - default to true for backward compatibility
+    showSubjectPosition?: boolean; // Toggle to show/hide position per subject
+    showArmPosition?: boolean; // Toggle to show/hide position within the class arm
+    showLevelPosition?: boolean; // Toggle to show/hide position across all arms in the level
 }
 
 export interface AcademicClass {
