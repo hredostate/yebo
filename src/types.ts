@@ -478,6 +478,13 @@ export interface LessonPlanReviewEvidence {
     decided_at: string;
     created_at: string;
     reviewer?: UserProfile;
+    
+    // Anti-rubber-stamping tracking fields
+    pause_count?: number;           // Number of times reviewer left the tab
+    scroll_depth_reached?: number;  // 0-100 percentage
+    feedback_similarity_warning?: boolean;
+    active_review_time_seconds?: number;  // Time with tab in focus
+    checklist_completion_order?: string[]; // Order items were checked
 }
 
 export interface LessonPlan {
