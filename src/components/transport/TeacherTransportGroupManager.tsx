@@ -96,9 +96,9 @@ export default function TeacherTransportGroupManager({
           student:students(*),
           subscription:transport_subscriptions(
             *,
-            route:transport_routes(*),
-            stop:transport_stops(*),
-            assigned_bus:transport_buses(*)
+            route:transport_routes!route_id(*),
+            stop:transport_stops!stop_id(*),
+            assigned_bus:transport_buses!assigned_bus_id(*)
           )
         `)
         .eq('group_id', groupId);
