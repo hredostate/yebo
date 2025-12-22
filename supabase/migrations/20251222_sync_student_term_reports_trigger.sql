@@ -73,28 +73,28 @@ and match the computed values from score_entries.';
 -- ============================================================================
 -- BULK UPDATE: Fix all existing stale records
 -- ============================================================================
-UPDATE public.student_term_reports str
-SET 
-    total_score = computed.total_score,
-    average_score = computed.average_score,
-    updated_at = NOW()
-FROM (
-    SELECT 
-        student_id,
-        term_id,
-        COALESCE(SUM(total_score), 0) as total_score,
-        CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(total_score), 2) ELSE 0 END as average_score
-    FROM public.score_entries
-    GROUP BY student_id, term_id
-) computed
-WHERE str.student_id = computed.student_id
-  AND str.term_id = computed.term_id;
-
--- Log how many records were updated
 DO $$
 DECLARE
     v_count INTEGER;
 BEGIN
+    UPDATE public.student_term_reports str
+    SET 
+        total_score = computed.total_score,
+        average_score = computed.average_score,
+        updated_at = NOW()
+    FROM (
+        SELECT 
+            student_id,
+            term_id,
+            COALESCE(SUM(total_score), 0) as total_score,
+            CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(total_score), 2) ELSE 0 END as average_score
+        FROM public.score_entries
+        GROUP BY student_id, term_id
+    ) computed
+    WHERE str.student_id = computed.student_id
+      AND str.term_id = computed.term_id;
+    
+    -- Get the row count immediately after the UPDATE
     GET DIAGNOSTICS v_count = ROW_COUNT;
     RAISE NOTICE 'Updated % student_term_reports records with fresh computed values', v_count;
 END $$;
