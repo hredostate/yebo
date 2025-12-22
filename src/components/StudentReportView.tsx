@@ -6,6 +6,7 @@ import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
+import { calculatePercentile, formatPercentile } from '../utils/reportCardHelpers';
 import ResultSheetDesigns from './ResultSheetDesigns';
 
 interface StudentReportViewProps {
@@ -468,11 +469,16 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   const themeColor = classReportConfig?.colorTheme || '#1E3A8A';
   const containerStyle = { borderColor: themeColor };
   const showPhoto = classReportConfig?.showPhoto !== false;
-  const showPosition = classReportConfig?.showPosition !== false;
+  const showPosition = classReportConfig?.showPosition !== false; // Legacy field
   const showGraph = classReportConfig?.showGraph || false;
   const layout = classReportConfig?.layout || 'classic';
   const orientation = classReportConfig?.orientation || 'portrait';
   const admissionNumber = (reportDetails as any)?.student?.admissionNumber || 'N/A';
+  
+  // Granular position toggles - default to true for backward compatibility
+  const showSubjectPosition = classReportConfig?.showSubjectPosition !== false;
+  const showArmPosition = classReportConfig?.showArmPosition !== false;
+  const showLevelPosition = classReportConfig?.showLevelPosition !== false;
   
   // Overrides
   const schoolName = classReportConfig?.schoolNameOverride || reportDetails.schoolConfig.display_name || 'University Preparatory Secondary School';
@@ -541,7 +547,13 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                                 {sub.gradeLabel}
                             </span>
                         </td>
-                        <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>{getOrdinal(sub.subjectPosition)}</td>
+                        {showSubjectPosition && (
+                            <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>
+                                {/* Note: Using cohortSize as approximation for total students in subject.
+                                    In most cases, all students in a class take the same subjects. */}
+                                {formatPercentile(calculatePercentile(sub.subjectPosition, summary.cohortSize))}
+                            </td>
+                        )}
                         <td className={`${commonTdClasses} text-xs italic`}>{sub.remark}</td>
                     </tr>
                 )})}
@@ -565,7 +577,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <td className={`${commonTdClasses} text-center text-slate-500`}>{sub.term2Score ?? '-'}</td>
                         <td className={`${commonTdClasses} text-center`}>{sub.term3Score}</td>
                         <td className={`${commonTdClasses} text-center font-bold ${layout === 'pastel' ? '' : 'bg-blue-50'}`}>{sub.cumulativeAverage}</td>
-                        <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>{getOrdinal(sub.subjectPosition)}</td>
+                        {showSubjectPosition && (
+                            <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>
+                                {/* Note: Using cohortSize as approximation for total students in subject */}
+                                {formatPercentile(calculatePercentile(sub.subjectPosition, summary.cohortSize))}
+                            </td>
+                        )}
                         <td className={`${commonTdClasses} text-center font-bold ${sub.finalGrade === 'F' ? 'text-red-600' : ''}`}>{sub.finalGrade}</td>
                         <td className={`${commonTdClasses} text-xs italic`}>{sub.remark}</td>
                     </tr>
@@ -609,7 +626,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         )}
                         <th className={`${commonThClasses} text-center w-16`}>Total</th>
                         <th className={`${commonThClasses} text-center w-14`}>Grade</th>
-                        <th className={`${commonThClasses} text-center w-14`}>Pos</th>
+                        {showSubjectPosition && <th className={`${commonThClasses} text-center w-14`}>Pos</th>}
                         <th className={commonThClasses}>Remark</th>
                     </tr>
                 </thead>
@@ -624,7 +641,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                     <th className={`${commonThClasses} text-center w-12`}>2nd</th>
                     <th className={`${commonThClasses} text-center w-12`}>3rd</th>
                     <th className={`${commonThClasses} text-center w-16`}>Cum.</th>
-                    <th className={`${commonThClasses} text-center w-16`}>Pos</th>
+                    {showSubjectPosition && <th className={`${commonThClasses} text-center w-16`}>Pos</th>}
                     <th className={`${commonThClasses} text-center w-12`}>Grd</th>
                     <th className={commonThClasses}>Remark</th>
                 </tr>
@@ -780,13 +797,15 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Standing</p>
                 <div className="flex items-center gap-3">
                     <div>
-                        <p className="text-2xl font-black text-slate-900">{showPosition && summary.positionInArm ? getOrdinal(summary.positionInArm) : 'N/A'}</p>
+                        <p className="text-2xl font-black text-slate-900">
+                            {showArmPosition && summary.positionInArm ? formatPercentile(calculatePercentile(summary.positionInArm, summary.cohortSize)) : 'N/A'}
+                        </p>
                         <p className="text-xs text-slate-500">Position in Arm{summary.cohortSize ? ` (out of ${summary.cohortSize})` : ''}</p>
                     </div>
                 </div>
-                {summary.positionInLevel && summary.levelSize && (
+                {showLevelPosition && summary.positionInLevel && summary.levelSize && (
                     <p className="text-sm text-slate-600 mt-1">
-                        Level: {getOrdinal(summary.positionInLevel)} out of {summary.levelSize}
+                        Level: {formatPercentile(calculatePercentile(summary.positionInLevel, summary.levelSize))} out of {summary.levelSize}
                     </p>
                 )}
                 <p className="text-xs text-slate-500 mt-1">Campus percentile: {summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : 'N/A'}</p>
@@ -1167,8 +1186,12 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <div>Name: <strong>{student.fullName}</strong></div>
                         <div>Class: <strong>{student.className}</strong></div>
                         <div>Avg: <strong>{Number(summary.average).toFixed(2)}%</strong></div>
-                        <div>Pos (Arm): <strong>{getOrdinal(summary.positionInArm)}{summary.cohortSize ? ` / ${summary.cohortSize}` : ''}</strong></div>
-                        {summary.positionInLevel && summary.levelSize && <div>Pos (Level): <strong>{getOrdinal(summary.positionInLevel)} / {summary.levelSize}</strong></div>}
+                        {showArmPosition && (
+                            <div>Pos (Arm): <strong>{formatPercentile(calculatePercentile(summary.positionInArm, summary.cohortSize))}{summary.cohortSize ? ` / ${summary.cohortSize}` : ''}</strong></div>
+                        )}
+                        {showLevelPosition && summary.positionInLevel && summary.levelSize && (
+                            <div>Pos (Level): <strong>{formatPercentile(calculatePercentile(summary.positionInLevel, summary.levelSize))} / {summary.levelSize}</strong></div>
+                        )}
                         {summary.campusPercentile != null && <div>Campus Percentile: <strong>{summary.campusPercentile.toFixed(0)}th</strong></div>}
                         <div>Att: <strong>{attendance.rate.toFixed(1)}% ({attendance.present}/{attendance.total})</strong></div>
                     </div>
@@ -1256,14 +1279,18 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                             <p className="text-xs font-bold uppercase">Average</p>
                             <p className="text-lg font-bold">{Number(summary.average).toFixed(2)}%</p>
                         </div>
-                        <div>
-                            <p className="text-xs font-bold uppercase">Pos (Arm)</p>
-                            <p className="text-lg font-bold">{getOrdinal(summary.positionInArm)} / {summary.cohortSize ?? '-'}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold uppercase">Pos (Level)</p>
-                            <p className="text-lg font-bold">{summary.positionInLevel && summary.levelSize ? `${getOrdinal(summary.positionInLevel)} / ${summary.levelSize}` : '-'}</p>
-                        </div>
+                        {showArmPosition && (
+                            <div>
+                                <p className="text-xs font-bold uppercase">Pos (Arm)</p>
+                                <p className="text-lg font-bold">{formatPercentile(calculatePercentile(summary.positionInArm, summary.cohortSize))} / {summary.cohortSize ?? '-'}</p>
+                            </div>
+                        )}
+                        {showLevelPosition && (
+                            <div>
+                                <p className="text-xs font-bold uppercase">Pos (Level)</p>
+                                <p className="text-lg font-bold">{summary.positionInLevel && summary.levelSize ? `${formatPercentile(calculatePercentile(summary.positionInLevel, summary.levelSize))} / ${summary.levelSize}` : '-'}</p>
+                            </div>
+                        )}
                         <div>
                             <p className="text-xs font-bold uppercase">Campus Percentile</p>
                             <p className="text-lg font-bold">{summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : '-'}</p>

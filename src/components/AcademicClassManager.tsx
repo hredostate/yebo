@@ -465,7 +465,7 @@ const AcademicClassManager: React.FC<AcademicClassManagerProps> = ({
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold">Manage Academic Classes</h3>
                 {!editingClass && (
-                    <button onClick={() => setEditingClass({ report_config: { layout: 'classic', showPhoto: true, showPosition: true, showGraph: false, orientation: 'portrait' } as ReportCardConfig })} className="flex items-center gap-2 text-sm font-semibold text-blue-600 p-2 rounded-md hover:bg-blue-100">
+                    <button onClick={() => setEditingClass({ report_config: { layout: 'classic', showPhoto: true, showPosition: true, showGraph: false, orientation: 'portrait', showSubjectPosition: true, showArmPosition: true, showLevelPosition: true } as ReportCardConfig })} className="flex items-center gap-2 text-sm font-semibold text-blue-600 p-2 rounded-md hover:bg-blue-100">
                         <PlusCircleIcon className="w-5 h-5"/> New Class
                     </button>
                 )}
@@ -625,7 +625,7 @@ const AcademicClassForm: React.FC<{
         setLocalAc(prev => ({
             ...prev,
             report_config: {
-                ...prev.report_config || { layout: 'classic', showPhoto: true, showPosition: true, showGraph: false, orientation: 'portrait' },
+                ...prev.report_config || { layout: 'classic', showPhoto: true, showPosition: true, showGraph: false, orientation: 'portrait', showSubjectPosition: true, showArmPosition: true, showLevelPosition: true },
                 [field]: value
             }
         }));
@@ -739,12 +739,50 @@ const AcademicClassForm: React.FC<{
                                     <span className="text-sm">Show Student Photo</span>
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={localAc.report_config?.showPosition !== false} onChange={e => handleConfigChange('showPosition', e.target.checked)} className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm">Show Position in Class</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" checked={localAc.report_config?.showGraph || false} onChange={e => handleConfigChange('showGraph', e.target.checked)} className="w-4 h-4 text-blue-600" />
                                     <span className="text-sm">Show Performance Graph</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        {/* Position Toggles Section */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div className="md:col-span-3">
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Position Display (Percentiles)</h4>
+                                <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                    <p className="text-xs text-blue-800 dark:text-blue-300">
+                                        <strong>ℹ️ Info:</strong> All positions are displayed as percentiles (e.g., "Top 5%" for high performers or "75th percentile"). 
+                                        This provides a clearer understanding of student performance relative to peers.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="md:col-span-3 flex flex-col gap-3">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={localAc.report_config?.showSubjectPosition !== false} 
+                                        onChange={e => handleConfigChange('showSubjectPosition', e.target.checked)} 
+                                        className="w-4 h-4 text-blue-600" 
+                                    />
+                                    <span className="text-sm">Show Subject Position (Percentile) - Controls subject position column in academic table</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={localAc.report_config?.showArmPosition !== false} 
+                                        onChange={e => handleConfigChange('showArmPosition', e.target.checked)} 
+                                        className="w-4 h-4 text-blue-600" 
+                                    />
+                                    <span className="text-sm">Show Class/Arm Position (Percentile) - Controls arm ranking visibility</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={localAc.report_config?.showLevelPosition !== false} 
+                                        onChange={e => handleConfigChange('showLevelPosition', e.target.checked)} 
+                                        className="w-4 h-4 text-blue-600" 
+                                    />
+                                    <span className="text-sm">Show Level Position (Percentile) - Controls level ranking visibility across all arms</span>
                                 </label>
                             </div>
                         </div>
