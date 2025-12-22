@@ -92,31 +92,51 @@ export default function TeacherTransportGroupManager({
   const loadGroupMembers = async (groupId: number) => {
     try {
       const supabase = requireSupabaseClient();
+      
+      // First, get group members with student and subscription data
       const { data, error } = await supabase
         .from('transport_class_group_members')
         .select(`
           *,
-          student:students(*),
-          subscription:transport_subscriptions(
-            *,
-            route:transport_routes!route_id(*),
-            stop:transport_stops!stop_id(*),
-            assigned_bus:transport_buses!assigned_bus_id(*)
-          )
+          student:students(id, name, admission_number, campus_id),
+          subscription:transport_subscriptions(id, route_id, stop_id, assigned_bus_id, seat_label, status)
         `)
         .eq('group_id', groupId);
 
       if (error) throw error;
-      
+
+      // Get unique route, stop, and bus IDs
+      const routeIds = [...new Set(data?.map(m => m.subscription?.route_id).filter(Boolean))] as number[];
+      const stopIds = [...new Set(data?.map(m => m.subscription?.stop_id).filter(Boolean))] as number[];
+      const busIds = [...new Set(data?.map(m => m.subscription?.assigned_bus_id).filter(Boolean))] as number[];
+
+      // Fetch routes, stops, and buses in parallel
+      const [routesRes, stopsRes, busesRes] = await Promise.all([
+        routeIds.length > 0 
+          ? supabase.from('transport_routes').select('id, route_name').in('id', routeIds)
+          : Promise.resolve({ data: [], error: null }),
+        stopIds.length > 0
+          ? supabase.from('transport_stops').select('id, stop_name').in('id', stopIds)
+          : Promise.resolve({ data: [], error: null }),
+        busIds.length > 0
+          ? supabase.from('transport_buses').select('id, bus_number').in('id', busIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      // Create lookup maps
+      const routesMap = Object.fromEntries((routesRes.data || []).map(r => [r.id, r]));
+      const stopsMap = Object.fromEntries((stopsRes.data || []).map(s => [s.id, s]));
+      const busesMap = Object.fromEntries((busesRes.data || []).map(b => [b.id, b]));
+
       // Transform to TransportRoster format
       const roster: TransportRoster[] = (data || []).map(member => ({
         student_id: member.student.id,
         student_name: member.student.name,
         admission_number: member.student.admission_number,
-        campus_name: member.student.campus?.name,
-        route_name: member.subscription?.route?.route_name || '',
-        stop_name: member.subscription?.stop?.stop_name || '',
-        bus_number: member.subscription?.assigned_bus?.bus_number || '',
+        campus_name: '', // Can be fetched separately if needed
+        route_name: member.subscription?.route_id ? routesMap[member.subscription.route_id]?.route_name || '' : '',
+        stop_name: member.subscription?.stop_id ? stopsMap[member.subscription.stop_id]?.stop_name || '' : '',
+        bus_number: member.subscription?.assigned_bus_id ? busesMap[member.subscription.assigned_bus_id]?.bus_number || '' : '',
         seat_label: member.subscription?.seat_label,
       }));
       
