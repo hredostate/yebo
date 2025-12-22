@@ -25,6 +25,8 @@ const DAYS_OF_WEEK = [
     { value: 'sunday', label: 'Sunday' },
 ];
 
+const DEFAULT_DEADLINE_TIME = '17:00';
+
 const LessonPlanSubmissionSettings: React.FC<LessonPlanSubmissionSettingsProps> = ({
     schoolId,
     addToast
@@ -185,7 +187,7 @@ const LessonPlanSubmissionSettings: React.FC<LessonPlanSubmissionSettingsProps> 
                             </label>
                             <input
                                 type="time"
-                                value={config.submission_deadline_time?.substring(0, 5) || '17:00'}
+                                value={config.submission_deadline_time?.substring(0, 5) || DEFAULT_DEADLINE_TIME}
                                 onChange={(e) => setConfig({ ...config, submission_deadline_time: e.target.value + ':00' })}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />

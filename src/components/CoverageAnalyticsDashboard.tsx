@@ -10,6 +10,8 @@ import {
 import type { LessonPlan, LessonPlanCoverage } from '../types';
 import { requireSupabaseClient } from '../services/supabaseClient';
 
+const UNKNOWN_SUBJECT = 'Unknown';
+
 interface CoverageAnalyticsDashboardProps {
     schoolId: number;
     lessonPlans: LessonPlan[];
@@ -79,7 +81,7 @@ const CoverageAnalyticsDashboard: React.FC<CoverageAnalyticsDashboardProps> = ({
         lessonPlans.forEach(plan => {
             if (plan.status !== 'approved' && plan.status !== 'published') return;
             
-            const subject = plan.subject || 'Unknown';
+            const subject = plan.subject || UNKNOWN_SUBJECT;
             if (!subjectMap.has(subject)) {
                 subjectMap.set(subject, {
                     subject,
@@ -128,11 +130,18 @@ const CoverageAnalyticsDashboard: React.FC<CoverageAnalyticsDashboardProps> = ({
         const trends = new Map<string, WeeklyTrend>();
         const now = new Date();
         
+        // Helper to calculate week start date
+        const getWeekStartDate = (daysOffset: number): string => {
+            const weekStart = new Date(now);
+            const currentDayOfWeek = weekStart.getDay();
+            const daysToSubtract = currentDayOfWeek + daysOffset;
+            weekStart.setDate(weekStart.getDate() - daysToSubtract);
+            return weekStart.toISOString().split('T')[0];
+        };
+        
         // Generate last 8 weeks
         for (let i = 7; i >= 0; i--) {
-            const weekStart = new Date(now);
-            weekStart.setDate(weekStart.getDate() - (weekStart.getDay() + 7 * i));
-            const weekKey = weekStart.toISOString().split('T')[0];
+            const weekKey = getWeekStartDate(7 * i);
             trends.set(weekKey, {
                 weekStart: weekKey,
                 submitted: 0,
