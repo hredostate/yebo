@@ -284,13 +284,11 @@ const PublicReportView: React.FC = () => {
                         />
                         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                             <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center text-2xl font-black shadow-inner border border-white/20 overflow-hidden">
-                                    {schoolLogo ? (
-                                        <img src={schoolLogo} alt="School Logo" className="h-14 w-14 object-contain" />
-                                    ) : (
-                                        'UP'
-                                    )}
-                                </div>
+                                <img 
+                                  src="https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png" 
+                                  alt="School Logo"
+                                  className="h-16 w-16 rounded-2xl object-contain bg-white/95 p-2 shadow-xl border border-white/30"
+                                />
                                 <div>
                                     <p className="text-xs uppercase tracking-[0.25em] text-white/70">United Providence Secondary School</p>
                                     <h1 className="text-3xl font-black leading-tight">Student Report Card</h1>
