@@ -104,7 +104,7 @@ const NAV_STRUCTURE: NavGroup[] = [
     items: [
       { id: VIEWS.USER_MANAGEMENT, label: 'User Directory', permission: 'manage-users' },
       { id: VIEWS.ROLE_MANAGEMENT, label: 'Roles & Access', permission: 'manage-roles' },
-      { id: VIEWS.TEAM_MANAGEMENT, label: 'Teams', permission: 'manage-teams' },
+      { id: VIEWS.TEAM_HUB, label: 'Team Hub', permission: 'manage-teams' },
       { id: VIEWS.TEACHER_ATTENDANCE, label: 'Attendance Monitor', permission: 'view-teacher-attendance' },
       { id: VIEWS.TEACHER_RATINGS, label: 'Teacher Ratings', permission: 'view-teacher-ratings' },
       { id: VIEWS.TEACHER_PULSE, label: 'Teacher Pulse', permission: 'view-dashboard' },
