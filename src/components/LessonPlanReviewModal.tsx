@@ -13,6 +13,9 @@ interface LessonPlanReviewModalProps {
 
 const MINIMUM_REVIEW_TIME = 60; // seconds
 const MINIMUM_FEEDBACK_LENGTH = 50; // characters
+const SCROLL_TOLERANCE = 20; // pixels from bottom to consider "scrolled to bottom"
+const SIMILARITY_THRESHOLD = 0.8; // 80% similarity threshold for duplicate feedback
+const MAX_STORED_FEEDBACKS = 10; // Maximum number of recent feedbacks to store
 
 // Simple Jaccard similarity
 const calculateSimilarity = (str1: string, str2: string): number => {
@@ -20,6 +23,7 @@ const calculateSimilarity = (str1: string, str2: string): number => {
     const set2 = new Set(str2.split(/\s+/));
     const intersection = new Set([...set1].filter(x => set2.has(x)));
     const union = new Set([...set1, ...set2]);
+    if (union.size === 0) return 0; // Prevent division by zero
     return intersection.size / union.size;
 };
 
@@ -135,7 +139,7 @@ const LessonPlanReviewModal: React.FC<LessonPlanReviewModalProps> = ({
         const percentage = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
         setScrollPercentage(Math.min(percentage, 100));
         
-        if (scrollTop + clientHeight >= scrollHeight - 20) {
+        if (scrollTop + clientHeight >= scrollHeight - SCROLL_TOLERANCE) {
             setHasScrolledToBottom(true);
         }
     };
@@ -147,7 +151,7 @@ const LessonPlanReviewModal: React.FC<LessonPlanReviewModalProps> = ({
         
         for (const oldFeedback of recentFeedbacks) {
             const similarity = calculateSimilarity(normalizedNew, oldFeedback.toLowerCase());
-            if (similarity > 0.8) {
+            if (similarity > SIMILARITY_THRESHOLD) {
                 setFeedbackWarning('This feedback is very similar to a recent review. Please provide unique feedback.');
                 return false;
             }
@@ -220,7 +224,7 @@ const LessonPlanReviewModal: React.FC<LessonPlanReviewModalProps> = ({
             // Store feedback for similarity checking
             const recentFeedbacks = JSON.parse(localStorage.getItem('recentReviewFeedbacks') || '[]') as string[];
             recentFeedbacks.unshift(feedback.toLowerCase().trim());
-            if (recentFeedbacks.length > 10) {
+            if (recentFeedbacks.length > MAX_STORED_FEEDBACKS) {
                 recentFeedbacks.pop();
             }
             localStorage.setItem('recentReviewFeedbacks', JSON.stringify(recentFeedbacks));

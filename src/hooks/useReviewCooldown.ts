@@ -9,7 +9,7 @@ export function useReviewCooldown() {
     useEffect(() => {
         const lastReview = localStorage.getItem(COOLDOWN_STORAGE_KEY);
         if (lastReview) {
-            const elapsed = Math.floor((Date.now() - parseInt(lastReview)) / 1000);
+            const elapsed = Math.floor((Date.now() - parseInt(lastReview, 10)) / 1000);
             const remaining = Math.max(0, COOLDOWN_SECONDS - elapsed);
             setCooldownRemaining(remaining);
         }

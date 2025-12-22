@@ -2,6 +2,13 @@ import React, { useState, useMemo } from 'react';
 import type { LessonPlanReviewEvidence, UserProfile } from '../types';
 import { ChartBarIcon, ExclamationTriangleIcon, CheckCircleIcon } from './common/icons';
 
+// Quality threshold constants
+const MIN_ACTIVE_TIME_THRESHOLD = 45; // seconds
+const MIN_SCROLL_DEPTH_THRESHOLD = 50; // percentage
+const MAX_PAUSE_COUNT_THRESHOLD = 5; // number of pauses
+const HIGH_APPROVAL_RATE_THRESHOLD = 95; // percentage
+const HIGH_SIMILAR_FEEDBACK_THRESHOLD = 3; // count
+
 interface ReviewQualityDashboardProps {
     reviewEvidence: LessonPlanReviewEvidence[];
     reviewers: UserProfile[];
@@ -82,19 +89,19 @@ const ReviewQualityDashboard: React.FC<ReviewQualityDashboardProps> = ({
 
             // Flag concerning patterns
             const flags: string[] = [];
-            if (metrics.avg_active_time < 45) {
+            if (metrics.avg_active_time < MIN_ACTIVE_TIME_THRESHOLD) {
                 flags.push('Low active time');
             }
-            if (metrics.avg_scroll_depth < 50) {
+            if (metrics.avg_scroll_depth < MIN_SCROLL_DEPTH_THRESHOLD) {
                 flags.push('Low scroll depth');
             }
-            if (metrics.avg_pause_count > 5) {
+            if (metrics.avg_pause_count > MAX_PAUSE_COUNT_THRESHOLD) {
                 flags.push('High pause count');
             }
-            if (metrics.approval_rate > 95) {
+            if (metrics.approval_rate > HIGH_APPROVAL_RATE_THRESHOLD) {
                 flags.push('Very high approval rate');
             }
-            if (metrics.similar_feedback_count > 3) {
+            if (metrics.similar_feedback_count > HIGH_SIMILAR_FEEDBACK_THRESHOLD) {
                 flags.push('Repetitive feedback');
             }
             metrics.flags = flags;
@@ -138,19 +145,29 @@ const ReviewQualityDashboard: React.FC<ReviewQualityDashboardProps> = ({
     };
 
     const exportReport = () => {
+        // Helper function to escape CSV values
+        const escapeCsvValue = (value: any): string => {
+            const str = String(value);
+            // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+        
         const csv = [
             ['Reviewer', 'Total Reviews', 'Avg Time (s)', 'Avg Active Time (s)', 'Avg Scroll %', 'Avg Pauses', 'Avg Rating', 'Approval %', 'Similar Feedbacks', 'Flags'],
             ...sortedMetrics.map(m => [
-                m.reviewer_name,
-                m.total_reviews,
-                m.avg_time_spent,
-                m.avg_active_time,
-                m.avg_scroll_depth,
-                m.avg_pause_count,
-                m.avg_quality_given,
-                m.approval_rate,
-                m.similar_feedback_count,
-                m.flags.join('; ')
+                escapeCsvValue(m.reviewer_name),
+                escapeCsvValue(m.total_reviews),
+                escapeCsvValue(m.avg_time_spent),
+                escapeCsvValue(m.avg_active_time),
+                escapeCsvValue(m.avg_scroll_depth),
+                escapeCsvValue(m.avg_pause_count),
+                escapeCsvValue(m.avg_quality_given),
+                escapeCsvValue(m.approval_rate),
+                escapeCsvValue(m.similar_feedback_count),
+                escapeCsvValue(m.flags.join('; '))
             ])
         ].map(row => row.join(',')).join('\n');
 
@@ -289,21 +306,21 @@ const ReviewQualityDashboard: React.FC<ReviewQualityDashboardProps> = ({
                                         {metrics.total_reviews}
                                     </td>
                                     <td className={`px-4 py-3 text-sm ${
-                                        metrics.avg_active_time < 45
+                                        metrics.avg_active_time < MIN_ACTIVE_TIME_THRESHOLD
                                             ? 'text-red-600 dark:text-red-400 font-medium'
                                             : 'text-slate-600 dark:text-slate-400'
                                     }`}>
                                         {metrics.avg_active_time}
                                     </td>
                                     <td className={`px-4 py-3 text-sm ${
-                                        metrics.avg_scroll_depth < 50
+                                        metrics.avg_scroll_depth < MIN_SCROLL_DEPTH_THRESHOLD
                                             ? 'text-red-600 dark:text-red-400 font-medium'
                                             : 'text-slate-600 dark:text-slate-400'
                                     }`}>
                                         {metrics.avg_scroll_depth}%
                                     </td>
                                     <td className={`px-4 py-3 text-sm ${
-                                        metrics.avg_pause_count > 5
+                                        metrics.avg_pause_count > MAX_PAUSE_COUNT_THRESHOLD
                                             ? 'text-yellow-600 dark:text-yellow-400 font-medium'
                                             : 'text-slate-600 dark:text-slate-400'
                                     }`}>
@@ -313,14 +330,14 @@ const ReviewQualityDashboard: React.FC<ReviewQualityDashboardProps> = ({
                                         {metrics.avg_quality_given}
                                     </td>
                                     <td className={`px-4 py-3 text-sm ${
-                                        metrics.approval_rate > 95
+                                        metrics.approval_rate > HIGH_APPROVAL_RATE_THRESHOLD
                                             ? 'text-yellow-600 dark:text-yellow-400 font-medium'
                                             : 'text-slate-600 dark:text-slate-400'
                                     }`}>
                                         {metrics.approval_rate}%
                                     </td>
                                     <td className={`px-4 py-3 text-sm ${
-                                        metrics.similar_feedback_count > 3
+                                        metrics.similar_feedback_count > HIGH_SIMILAR_FEEDBACK_THRESHOLD
                                             ? 'text-red-600 dark:text-red-400 font-medium'
                                             : 'text-slate-600 dark:text-slate-400'
                                     }`}>
