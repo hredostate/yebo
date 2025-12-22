@@ -108,6 +108,7 @@ export function formatPercentile(percentile: number | null | undefined): string 
     const topPercentage = Math.ceil(100 - percentile);
     return `Top ${topPercentage}%`;
   } else {
-    return `${Math.round(percentile)}th percentile`;
+    const rounded = Math.round(percentile);
+    return `${getOrdinal(rounded)} percentile`;
   }
 }
