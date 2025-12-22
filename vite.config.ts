@@ -33,20 +33,14 @@ export default defineConfig(({ mode }) => ({
         background_color: '#ffffff',
         icons: [
           {
-            src: '/icons/icon.svg',
+            src: 'https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png',
             sizes: '192x192',
-            type: 'image/svg+xml',
-          },
-          {
-            src: '/icons/icon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
           {
             src: 'https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any',
           },
           {
             src: 'https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png',
