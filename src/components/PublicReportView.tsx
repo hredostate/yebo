@@ -95,12 +95,7 @@ const PublicReportView: React.FC = () => {
     const [expired, setExpired] = useState(false);
     const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState<string>('School Report Card');
-    const [positionInArm, setPositionInArm] = useState<number | undefined>(undefined);
-    const [totalInArm, setTotalInArm] = useState<number | undefined>(undefined);
-    const [positionInLevel, setPositionInLevel] = useState<number | undefined>(undefined);
-    const [totalInLevel, setTotalInLevel] = useState<number | undefined>(undefined);
-    const [armName, setArmName] = useState<string | undefined>(undefined);
-    const [levelName, setLevelName] = useState<string | undefined>(undefined);
+    const [classReportConfig, setClassReportConfig] = useState<any>(null);
 
     useEffect(() => {
         fetchReport();
@@ -181,6 +176,36 @@ const PublicReportView: React.FC = () => {
                 }
                 if (schoolConfig?.display_name) {
                     setSchoolName(schoolConfig.display_name);
+                }
+            }
+
+            // Fetch academic class report_config for customizations
+            if (report.student_id && report.term_id) {
+                const { data: enrollment } = await supabase
+                    .from('academic_class_students')
+                    .select('academic_class_id')
+                    .eq('student_id', report.student_id)
+                    .eq('enrolled_term_id', report.term_id)
+                    .maybeSingle();
+
+                if (enrollment?.academic_class_id) {
+                    const { data: classData } = await supabase
+                        .from('academic_classes')
+                        .select('report_config')
+                        .eq('id', enrollment.academic_class_id)
+                        .maybeSingle();
+                    
+                    if (classData?.report_config) {
+                        setClassReportConfig(classData.report_config);
+                        
+                        // Apply customizations
+                        if (classData.report_config.customLogoUrl) {
+                            setSchoolLogo(classData.report_config.customLogoUrl);
+                        }
+                        if (classData.report_config.schoolNameOverride) {
+                            setSchoolName(classData.report_config.schoolNameOverride);
+                        }
+                    }
                 }
             }
 
@@ -661,13 +686,17 @@ const PublicReportView: React.FC = () => {
                                 <div className="grid md:grid-cols-2 gap-4">
                                     {reportData.teacher_comment && (
                                         <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">Class Teacher's Remark</p>
+                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">
+                                                {classReportConfig?.teacherLabel || 'Class Teacher'}'s Remark
+                                            </p>
                                             <p className="text-sm text-slate-800 leading-relaxed">{reportData.teacher_comment}</p>
                                         </div>
                                     )}
                                     {reportData.principal_comment && (
                                         <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">Principal's Remark</p>
+                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">
+                                                {classReportConfig?.principalLabel || 'Principal'}'s Remark
+                                            </p>
                                             <p className="text-sm text-slate-800 leading-relaxed">{reportData.principal_comment}</p>
                                         </div>
                                     )}
@@ -682,13 +711,23 @@ const PublicReportView: React.FC = () => {
                                     <div className="mb-1">
                                         <div className="h-12 border-b-2 border-slate-300"></div>
                                     </div>
-                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Class Teacher Signature & Date</p>
+                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                        {classReportConfig?.teacherLabel || 'Class Teacher'} Signature & Date
+                                    </p>
+                                    {classReportConfig?.teacherNameOverride && (
+                                        <p className="text-sm text-slate-700 mt-1">{classReportConfig.teacherNameOverride}</p>
+                                    )}
                                 </div>
                                 <div>
                                     <div className="mb-1">
                                         <div className="h-12 border-b-2 border-slate-300"></div>
                                     </div>
-                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Principal Signature & Date</p>
+                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                        {classReportConfig?.principalLabel || 'Principal'} Signature & Date
+                                    </p>
+                                    {classReportConfig?.principalNameOverride && (
+                                        <p className="text-sm text-slate-700 mt-1">{classReportConfig.principalNameOverride}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
