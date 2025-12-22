@@ -207,11 +207,16 @@ const PublicReportView: React.FC = () => {
             }) : [];
 
             // Extract additional data from RPC response
+            // Always use RPC computed values - they are the source of truth
             // Note: RPC returns both camelCase and snake_case for backward compatibility
             // with different parts of the application that may expect either format
             // Use nullish coalescing (??) to preserve legitimate 0 values
-            const averageScore = rpcData?.summary?.average ?? report.average_score;
-            const positionInClass = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? report.position_in_class;
+            const averageScore = rpcData?.summary?.average ?? rpcData?.summary?.averageScore ?? 0;
+            const totalScore = rpcData?.summary?.totalScore ?? rpcData?.summary?.total_score ?? 0;
+            const positionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
+            const totalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? null;
+            const positionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level ?? null;
+            const totalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? null;
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
@@ -222,7 +227,8 @@ const PublicReportView: React.FC = () => {
                 academic_class: Array.isArray(report.academic_class) ? report.academic_class[0] : report.academic_class,
                 subjects: transformedSubjects,
                 average_score: averageScore,
-                position_in_class: positionInClass,
+                total_score: totalScore,
+                position_in_class: positionInArm,
                 teacher_comment: teacherComment,
                 principal_comment: principalComment
             });
