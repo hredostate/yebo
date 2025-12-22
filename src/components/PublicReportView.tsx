@@ -10,6 +10,21 @@ import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
 import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
 
+// RPC response types
+interface RPCSubject {
+    id?: number;
+    subjectName?: string;
+    subject_name?: string;
+    totalScore?: number;
+    total_score?: number;
+    gradeLabel?: string;
+    grade_label?: string;
+    grade?: string;
+    subjectPosition?: number;
+    subject_position?: number;
+    remark?: string;
+}
+
 interface PublicReportData {
     id: number;
     student_id: number;
@@ -171,13 +186,14 @@ const PublicReportView: React.FC = () => {
             }
 
             // Transform RPC subjects data to match the existing interface
-            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: any) => ({
-                id: sub.id || 0,
-                subject_name: sub.subjectName || sub.subject_name,
-                total_score: sub.totalScore || sub.total_score,
-                grade_label: sub.gradeLabel || sub.grade_label || sub.grade,
-                subject_position: sub.subjectPosition || sub.subject_position,
-                remark: sub.remark
+            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject, index: number) => ({
+                // Use index as fallback ID for display purposes only (not for DB operations)
+                id: sub.id ?? index,
+                subject_name: sub.subjectName || sub.subject_name || '',
+                total_score: sub.totalScore ?? sub.total_score ?? 0,
+                grade_label: sub.gradeLabel || sub.grade_label || sub.grade || '',
+                subject_position: sub.subjectPosition ?? sub.subject_position,
+                remark: sub.remark || ''
             })) : [];
 
             // Extract additional data from RPC response
