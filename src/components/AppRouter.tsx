@@ -17,6 +17,7 @@ import AICopilot from './AICopilot';
 import UserManagement from './UserManagement';
 import RoleManager from './RoleManager';
 import TeamManager from './TeamManager';
+import TeamHub from './TeamHub';
 import CurriculumManager from './CurriculumManager';
 import CurriculumPlannerContainer from './CurriculumPlannerContainer';
 import TeamLessonPlanHub from './TeamLessonPlanHub';
@@ -567,6 +568,44 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeleteTeam={actions.handleDeleteTeam}
                 onUpdateTeamMembers={actions.handleUpdateTeamMembers}
                 onSaveTeamFeedback={actions.handleSaveTeamFeedback}
+             />;
+        case VIEWS.TEAM_HUB:
+             return <TeamHub
+                users={data.users}
+                currentUser={data.userProfile}
+                userPermissions={data.userPermissions}
+                teams={data.teams}
+                teamPulse={data.teamPulse}
+                teamFeedback={data.teamFeedback}
+                tasks={data.tasks}
+                reports={data.reports}
+                lessonPlans={data.lessonPlans}
+                teachingAssignments={data.academicAssignments}
+                reviewEvidence={data.reviewEvidence || []}
+                coverageData={data.coverageData || []}
+                coverageVotes={data.coverageVotes || []}
+                onCreateTeam={actions.handleCreateTeam}
+                onUpdateTeam={actions.handleUpdateTeam}
+                onDeleteTeam={actions.handleDeleteTeam}
+                onUpdateTeamMembers={actions.handleUpdateTeamMembers}
+                onSaveTeamFeedback={actions.handleSaveTeamFeedback}
+                onSubmitReview={async (planId, review) => {
+                  const supabase = requireSupabaseClient();
+                  const { error } = await supabase
+                    .from('lesson_plan_review_evidence')
+                    .insert(review);
+                  if (error) throw error;
+                  if (review.decision) {
+                    await supabase
+                      .from('lesson_plans')
+                      .update({ 
+                        status: review.decision === 'approved' ? 'approved' : 
+                               review.decision === 'rejected' ? 'rejected' : 'revision_required'
+                      })
+                      .eq('id', planId);
+                  }
+                  await actions.loadAllData();
+                }}
              />;
         case VIEWS.CURRICULUM_MANAGER:
              return <CurriculumManager 

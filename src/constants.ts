@@ -115,6 +115,7 @@ export const VIEWS = {
   USER_MANAGEMENT: 'User Management',
   ROLE_MANAGEMENT: 'Role Management',
   TEAM_MANAGEMENT: 'Team Management',
+  TEAM_HUB: 'Team Hub',
   CURRICULUM_MANAGER: 'Curriculum Manager',
   LESSON_PLANNER: 'Lesson Planner',
   GRADEBOOK: 'Gradebook',
