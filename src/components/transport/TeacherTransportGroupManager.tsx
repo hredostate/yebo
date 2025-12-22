@@ -114,13 +114,13 @@ export default function TeacherTransportGroupManager({
       const [routesRes, stopsRes, busesRes] = await Promise.all([
         routeIds.length > 0 
           ? supabase.from('transport_routes').select('id, route_name').in('id', routeIds)
-          : { data: [] },
+          : Promise.resolve({ data: [], error: null }),
         stopIds.length > 0
           ? supabase.from('transport_stops').select('id, stop_name').in('id', stopIds)
-          : { data: [] },
+          : Promise.resolve({ data: [], error: null }),
         busIds.length > 0
           ? supabase.from('transport_buses').select('id, bus_number').in('id', busIds)
-          : { data: [] },
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       // Create lookup maps
