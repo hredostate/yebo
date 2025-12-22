@@ -16,8 +16,7 @@ import ZeroScoreConfirmationModal from './ZeroScoreConfirmationModal';
 import AcademicGoalsDashboard from './AcademicGoalsDashboard';
 import TeacherCommentModal from './TeacherCommentModal';
 import TeacherCommentEditor from './TeacherCommentEditor';
-import PrincipalCommentModal from './PrincipalCommentModal';
-import PrincipalCommentEditor from './PrincipalCommentEditor';
+
 
 
 type ViewMode = 'by-class' | 'by-subject' | 'statistics' | 'zero-scores' | 'academic-goals';
@@ -90,10 +89,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     // State for teacher comment editor modal
     const [showCommentEditor, setShowCommentEditor] = useState(false);
     const [selectedClassForEditor, setSelectedClassForEditor] = useState<{ id: number; name: string } | null>(null);
-    
-    // State for principal comment editing modal
-    const [showPrincipalCommentModal, setShowPrincipalCommentModal] = useState(false);
-    const [selectedClassForPrincipalComments, setSelectedClassForPrincipalComments] = useState<{ id: number; name: string } | null>(null);
+
     
     // State for comment generation mode (Comment Bank vs AI)
     const [useCommentBank, setUseCommentBank] = useState(true);
@@ -828,10 +824,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         setShowCommentEditor(true);
     };
 
-    const handleOpenPrincipalCommentModal = (classId: number, className: string) => {
-        setSelectedClassForPrincipalComments({ id: classId, name: className });
-        setShowPrincipalCommentModal(true);
-    };
 
     const handleGenerateTeacherComments = async (classId: number, termId: number, useAI: boolean) => {
         if (!selectedTermId) return;
@@ -1304,15 +1296,15 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         </button>
                                     )}
                                     
-                                    {/* Edit Teacher Comments Button */}
+                                    {/* Edit Comments Button */}
                                     <button
                                         onClick={() => handleOpenCommentEditor(c.id, c.name)}
                                         disabled={c.reportsCount === 0}
                                         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher comments for students"}
+                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit teacher and principal comments for students"}
                                     >
                                         <EditIcon className="w-4 h-4" />
-                                        Edit Teacher Comments
+                                        Edit Comments
                                     </button>
                                     
                                     {/* Gen. Principal Comments Button */}
@@ -1324,17 +1316,6 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                     >
                                         {generatingPrincipalClassId === c.id ? <Spinner size="sm" /> : <WandIcon className="w-4 h-4" />}
                                         Gen. Principal Comments
-                                    </button>
-                                    
-                                    {/* Edit Principal Comments Button */}
-                                    <button
-                                        onClick={() => handleOpenPrincipalCommentModal(c.id, c.name)}
-                                        disabled={c.reportsCount === 0}
-                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={c.reportsCount === 0 ? "No reports available for this class" : "Edit principal comments for students"}
-                                    >
-                                        <EditIcon className="w-4 h-4" />
-                                        Edit Principal Comments
                                     </button>
                                     
                                     {/* View and Edit Scores Buttons */}
@@ -1770,35 +1751,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                 />
             )}
 
-            {/* Principal Comment Modal */}
-            {showPrincipalCommentModal && selectedClassForPrincipalComments && selectedTermId && (
-                <PrincipalCommentModal
-                    classId={selectedClassForPrincipalComments.id}
-                    className={selectedClassForPrincipalComments.name}
-                    termId={Number(selectedTermId)}
-                    students={students.filter(s => 
-                        academicClassStudents.some(acs => 
-                            acs.academic_class_id === selectedClassForPrincipalComments.id && 
-                            acs.student_id === s.id
-                        )
-                    )}
-                    studentTermReports={studentTermReports.filter(r => 
-                        r.term_id === selectedTermId &&
-                        academicClassStudents.some(acs => 
-                            acs.academic_class_id === selectedClassForPrincipalComments.id && 
-                            acs.student_id === r.student_id
-                        )
-                    )}
-                    onUpdateComment={onUpdateComments}
-                    onBulkGenerate={(overwrite) => handleGeneratePrincipalCommentsForClass(selectedClassForPrincipalComments.id, selectedClassForPrincipalComments.name, overwrite)}
-                    isGenerating={generatingPrincipalClassId === selectedClassForPrincipalComments.id}
-                    onClose={() => {
-                        setShowPrincipalCommentModal(false);
-                        setSelectedClassForPrincipalComments(null);
-                    }}
-                    addToast={addToast}
-                />
-            )}
+
 
             {/* Recalculate Grades Confirmation Modal */}
             {showRecalculateModal && (
