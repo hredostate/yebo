@@ -4,7 +4,7 @@
  * No authentication required - validates via token and expiry
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
@@ -23,6 +23,8 @@ interface RPCSubject {
     subjectPosition?: number;
     subject_position?: number;
     remark?: string;
+    componentScores?: Record<string, number>;
+    component_scores?: Record<string, number>;
 }
 
 interface PublicReportData {
@@ -62,6 +64,7 @@ interface PublicReportData {
         grade_label: string;
         subject_position?: number;
         remark?: string;
+        component_scores?: Record<string, number>;
     }>;
 }
 
@@ -73,6 +76,13 @@ const getGradeColorClasses = (grade: string): string => {
     if (upperGrade === 'C') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
     if (upperGrade === 'D') return 'bg-orange-100 text-orange-800 border-orange-300';
     return 'bg-red-100 text-red-800 border-red-300'; // F or lower
+};
+
+// Helper function to get ordinal suffix
+const getOrdinalSuffix = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
 };
 
 const PublicReportView: React.FC = () => {
@@ -233,16 +243,19 @@ const PublicReportView: React.FC = () => {
                     // Use nullish coalescing consistently
                     grade_label: sub.gradeLabel ?? sub.grade_label ?? sub.grade ?? '',
                     subject_position: sub.subjectPosition ?? sub.subject_position,
-                    remark: sub.remark ?? ''
+                    remark: sub.remark ?? '',
+                    component_scores: sub.componentScores || sub.component_scores || {},
                 };
             }) : [];
 
             // Extract additional data from RPC response
+            // Always use RPC computed values - they are the source of truth
             // Note: RPC returns both camelCase and snake_case for backward compatibility
             // with different parts of the application that may expect either format
             // Use nullish coalescing (??) to preserve legitimate 0 values
-            const averageScore = rpcData?.summary?.average ?? report.average_score;
-            const positionInClass = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? report.position_in_class;
+            const averageScore = rpcData?.summary?.average ?? rpcData?.summary?.averageScore ?? 0;
+            const totalScore = rpcData?.summary?.totalScore ?? rpcData?.summary?.total_score ?? 0;
+            const positionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
@@ -253,10 +266,17 @@ const PublicReportView: React.FC = () => {
                 academic_class: Array.isArray(report.academic_class) ? report.academic_class[0] : report.academic_class,
                 subjects: transformedSubjects,
                 average_score: averageScore,
-                position_in_class: positionInClass,
+                total_score: totalScore,
+                position_in_class: positionInArm,
                 teacher_comment: teacherComment,
                 principal_comment: principalComment
             });
+            setPositionInArm(positionInArm);
+            setTotalInArm(totalInArm);
+            setPositionInLevel(positionInLevel);
+            setTotalInLevel(totalInLevel);
+            setArmName(armName);
+            setLevelName(levelName);
         } catch (err: any) {
             console.error('Error fetching report:', err);
             setError(err.message || 'Failed to load report');
@@ -337,6 +357,21 @@ const PublicReportView: React.FC = () => {
         { label: 'D · Fair', range: '60 - 69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
         { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
     ];
+
+    // Calculate component score columns using useMemo for performance
+    const componentScoreData = useMemo(() => {
+        if (!reportData.subjects || reportData.subjects.length === 0) {
+            return { hasComponentScores: false, componentNames: [] };
+        }
+        
+        const hasComponentScores = reportData.subjects.some(s => s.component_scores && Object.keys(s.component_scores).length > 0);
+        const componentNames = hasComponentScores ? 
+            Array.from(new Set(
+                reportData.subjects.flatMap(s => Object.keys(s.component_scores || {}))
+            )).sort() : [];
+        
+        return { hasComponentScores, componentNames };
+    }, [reportData.subjects]);
 
     return (
         <div className="report-print-root min-h-screen bg-slate-50 py-8 px-4 print:bg-white print:p-0">
@@ -509,7 +544,7 @@ const PublicReportView: React.FC = () => {
                             <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                 Student Information
                             </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-4">
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Full Name</p>
                                     <p className="text-base font-semibold text-slate-900">{reportData.student?.name}</p>
@@ -523,9 +558,17 @@ const PublicReportView: React.FC = () => {
                                     <p className="text-base font-semibold text-slate-900">{reportData.academic_class?.name}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position</p>
+                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Arm</p>
+                                    <p className="text-base font-semibold text-slate-900">{armName || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Level</p>
+                                    <p className="text-base font-semibold text-slate-900">{levelName || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Class</p>
                                     <p className="text-base font-semibold text-slate-900">
-                                        {reportData.position_in_class ? `${reportData.position_in_class}` : '—'}
+                                        {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)}${totalInArm ? ` of ${totalInArm}` : ''}` : '—'}
                                     </p>
                                 </div>
                             </div>
@@ -536,7 +579,7 @@ const PublicReportView: React.FC = () => {
                             <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                 Overall Performance Summary
                             </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
                                     <p className="text-3xl font-bold text-indigo-600">{reportData.average_score?.toFixed(1)}%</p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Average Score</p>
@@ -555,6 +598,12 @@ const PublicReportView: React.FC = () => {
                                     </p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Best Subject</p>
                                 </div>
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                                    <p className="text-lg font-bold text-indigo-600">
+                                        {positionInLevel ? `${positionInLevel}${getOrdinalSuffix(positionInLevel)}${totalInLevel ? ` / ${totalInLevel}` : ''}` : '—'}
+                                    </p>
+                                    <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Level</p>
+                                </div>
                             </div>
                         </div>
 
@@ -564,41 +613,53 @@ const PublicReportView: React.FC = () => {
                                 <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                     Subject Performance
                                 </h4>
-                                <div className="overflow-hidden rounded-lg border border-slate-200">
-                                    <table className="min-w-full divide-y divide-slate-200">
-                                        <thead className="bg-slate-800" style={{ display: 'table-header-group' }}>
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Subject</th>
-                                                <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Score</th>
-                                                <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Grade</th>
-                                                <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Position</th>
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Remark</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-slate-200">
-                                            {reportData.subjects.map((subject, index) => (
-                                                <tr key={subject.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} style={{ pageBreakInside: 'avoid' }}>
-                                                    <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
-                                                        {subject.subject_name}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center text-sm font-semibold text-slate-900">
-                                                        {subject.total_score}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        <span className={`grade-badge inline-flex items-center justify-center px-3 py-1 rounded-md text-xs font-bold ${getGradeColorClasses(subject.grade_label)}`}>
-                                                            {subject.grade_label}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center text-sm text-slate-700">
-                                                        {subject.subject_position || '—'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-slate-700">
-                                                        {subject.remark || '—'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                                    <div className="inline-block min-w-full align-middle">
+                                        <div className="overflow-hidden rounded-lg border border-slate-200 sm:mx-0 mx-4">
+                                            <table className="min-w-full divide-y divide-slate-200">
+                                                <thead className="bg-slate-800" style={{ display: 'table-header-group' }}>
+                                                    <tr>
+                                                        <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Subject</th>
+                                                        {componentScoreData.componentNames.map(componentName => (
+                                                            <th key={componentName} className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">{componentName}</th>
+                                                        ))}
+                                                        <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Score</th>
+                                                        <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Grade</th>
+                                                        <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Position</th>
+                                                        <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Remark</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-slate-200">
+                                                    {reportData.subjects.map((subject, index) => (
+                                                        <tr key={subject.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} style={{ pageBreakInside: 'avoid' }}>
+                                                            <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
+                                                                {subject.subject_name}
+                                                            </td>
+                                                            {componentScoreData.componentNames.map(componentName => (
+                                                                <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
+                                                                    {subject.component_scores?.[componentName] ?? '—'}
+                                                                </td>
+                                                            ))}
+                                                            <td className="px-4 py-3 text-center text-sm font-semibold text-slate-900">
+                                                                {subject.total_score}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className={`grade-badge inline-flex items-center justify-center px-3 py-1 rounded-md text-xs font-bold ${getGradeColorClasses(subject.grade_label)}`}>
+                                                                    {subject.grade_label}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center text-sm text-slate-700">
+                                                                {subject.subject_position || '—'}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                                {subject.remark || '—'}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 {/* Grade Legend */}
