@@ -22,13 +22,22 @@
   /* Page setup */
   @page {
     size: A4;
-    margin: 6mm 6mm 6mm 6mm;
+    margin: 12mm 10mm 12mm 10mm;
   }
 
   /* Alternative page size for Letter format */
   @page :letter {
     size: letter;
     margin: 0.5in;
+  }
+
+  /* Page counters for multi-page reports */
+  @page {
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+      color: #64748b;
+    }
   }
 
   /* General print styles */
@@ -42,121 +51,123 @@
   body {
     background: white !important;
     color: black !important;
-    font-size: 12pt;
-    line-height: 1.5;
+    font-size: 11pt;
+    line-height: 1.4;
   }
 
   /* Report card specific styles */
   .report-card {
-    page-break-after: always;
+    page-break-after: auto;
     page-break-inside: auto;
     break-inside: auto;
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: 0.5cm;
+    padding: 0;
     background: white !important;
-    border: 1px solid #d1d5db !important;
+    border: none !important;
   }
 
   /* Dedicated A4 canvas and safe area */
   .a4-print-page {
     width: 210mm;
-    min-height: 297mm;
-    max-height: 297mm;
-    padding: 6mm;
+    min-height: auto;
+    max-height: none;
+    padding: 0;
     margin: 0 auto;
     background: white !important;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    overflow: visible;
+    display: block;
     position: relative;
   }
 
   .a4-print-safe-area {
-    width: calc(210mm - 12mm);
-    min-height: calc(297mm - 12mm);
-    max-height: calc(297mm - 12mm);
-    padding: 6mm;
+    width: 100%;
+    min-height: auto;
+    max-height: none;
+    padding: 0;
     margin: 0 auto;
     background: white !important;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow: hidden;
+    display: block;
+    overflow: visible;
   }
 
+  /* Prevent page breaks inside these elements */
   .print-section,
-  .a4-print-safe-area > * {
-    break-inside: avoid !important;
+  .page-break-inside-avoid,
+  .report-card table thead,
+  .report-card .student-info,
+  .report-card .remarks,
+  .report-card .signatures,
+  .report-card .print-break-avoid {
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Allow page breaks before these elements if needed */
+  .report-card .subjects-section,
+  .report-card .comments-section {
+    page-break-before: auto;
+    break-before: auto;
   }
 
   .report-card-hero {
     background: linear-gradient(90deg, #0f172a, #312e81, #1d4ed8) !important;
     color: white !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .report-card-stat {
-    background: #f8fafc !important;
+    background: rgba(248, 250, 252, 0.8) !important;
     border-color: #e2e8f0 !important;
     color: #0f172a !important;
-  }
-
-  /* Prevent page breaks inside these elements */
-  .report-card table,
-  .report-card .student-info,
-  .report-card .remarks,
-  .report-card .signatures,
-  .report-card .print-break-avoid,
-  .page-break-inside-avoid {
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
 
   /* Disable animations and transforms in print to prevent layout drift */
   *, *::before, *::after {
     animation: none !important;
     transition: none !important;
-    transform: none !important;
   }
 
-  /* Allow manual breakpoints for very long cards */
-  .report-card .print-page-break {
-    page-break-before: always;
-    break-before: page;
-  }
-
-  /* Table styles for print */
+  /* Table styles for print - prevent row splitting */
   table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Prevent table overflow */
-  }
-
-  table th,
-  table td {
-    border: 1px solid #000 !important;
-    padding: 8px;
-    text-align: left;
-    word-wrap: break-word; /* Wrap long text */
-    overflow-wrap: break-word;
+    table-layout: fixed;
+    page-break-inside: auto;
   }
 
   table thead {
     display: table-header-group;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
   table tbody {
     display: table-row-group;
   }
 
+  table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #d1d5db !important;
+    padding: 6px 8px;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    page-break-inside: avoid !important;
+  }
+
   /* Ensure tables don't overflow A4 width */
   .report-card table,
   .a4-print-safe-area table {
     max-width: 100% !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   /* Images */
@@ -165,15 +176,9 @@
     page-break-inside: avoid;
   }
 
-  /* Links */
-  a {
-    text-decoration: none;
-    color: black;
-  }
-
-  a[href]:after {
-    content: " (" attr(href) ")";
-    font-size: 90%;
+  /* Links - don't show URLs in print for report cards */
+  .report-card a[href]:after {
+    content: none !important;
   }
 
   /* Headings */
@@ -187,32 +192,56 @@
     page-break-inside: avoid;
   }
 
-  /* Borders and backgrounds */
-  .border,
-  .border-t,
-  .border-b,
-  .border-l,
-  .border-r {
-    border-color: black !important;
-  }
-
   /* Text colors for print */
   .text-green-600 { color: #059669 !important; }
+  .text-green-800 { color: #166534 !important; }
   .text-blue-600 { color: #2563eb !important; }
+  .text-blue-800 { color: #1e40af !important; }
   .text-yellow-600 { color: #d97706 !important; }
+  .text-yellow-800 { color: #92400e !important; }
   .text-orange-600 { color: #ea580c !important; }
+  .text-orange-800 { color: #9a3412 !important; }
   .text-red-600 { color: #dc2626 !important; }
+  .text-red-800 { color: #991b1b !important; }
   .text-gray-600 { color: #4b5563 !important; }
   .text-gray-700 { color: #374151 !important; }
   .text-gray-800 { color: #1f2937 !important; }
+  .text-slate-500 { color: #64748b !important; }
+  .text-slate-600 { color: #475569 !important; }
+  .text-slate-700 { color: #334155 !important; }
+  .text-slate-800 { color: #1e293b !important; }
+  .text-slate-900 { color: #0f172a !important; }
 
   /* Background colors for print */
   .bg-gray-50 { background-color: #f9fafb !important; }
   .bg-gray-100 { background-color: #f3f4f6 !important; }
   .bg-gray-200 { background-color: #e5e7eb !important; }
+  .bg-slate-50 { background-color: #f8fafc !important; }
+  .bg-slate-100 { background-color: #f1f5f9 !important; }
+  .bg-slate-200 { background-color: #e2e8f0 !important; }
+  .bg-slate-900 { background-color: #0f172a !important; }
   .bg-blue-50 { background-color: #eff6ff !important; }
   .bg-blue-100 { background-color: #dbeafe !important; }
   .bg-blue-600 { background-color: #2563eb !important; }
+  .bg-green-100 { background-color: #dcfce7 !important; }
+  .bg-green-500 { background-color: #22c55e !important; }
+  .bg-yellow-100 { background-color: #fef3c7 !important; }
+  .bg-yellow-500 { background-color: #eab308 !important; }
+  .bg-orange-100 { background-color: #ffedd5 !important; }
+  .bg-orange-500 { background-color: #f97316 !important; }
+  .bg-red-100 { background-color: #fee2e2 !important; }
+  .bg-red-500 { background-color: #ef4444 !important; }
+  .bg-indigo-50 { background-color: #eef2ff !important; }
+  .bg-emerald-50 { background-color: #ecfdf5 !important; }
+
+  /* Border colors */
+  .border-green-300 { border-color: #86efac !important; }
+  .border-blue-300 { border-color: #93c5fd !important; }
+  .border-yellow-300 { border-color: #fde047 !important; }
+  .border-orange-300 { border-color: #fdba74 !important; }
+  .border-red-300 { border-color: #fca5a5 !important; }
+  .border-slate-200 { border-color: #e2e8f0 !important; }
+  .border-slate-300 { border-color: #cbd5e1 !important; }
 
   /* Remove shadows and effects */
   .shadow,
@@ -227,29 +256,29 @@
   /* Rounded corners - keep for aesthetics but reduce */
   .rounded,
   .rounded-lg,
-  .rounded-xl {
+  .rounded-xl,
+  .rounded-2xl {
     border-radius: 4px !important;
   }
 
-  /* Print buttons */
-  .print-button {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: #2563eb;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    z-index: 1000;
+  .rounded-full {
+    border-radius: 9999px !important;
   }
 
-  @media print {
-    .print-button {
-      display: none !important;
-    }
+  /* Grid layout adjustments - keep grid for proper layout */
+  .grid {
+    display: grid !important;
+  }
+  
+  /* Ensure grid gaps are maintained */
+  .gap-2 { gap: 0.5rem !important; }
+  .gap-3 { gap: 0.75rem !important; }
+  .gap-4 { gap: 1rem !important; }
+  .gap-6 { gap: 1.5rem !important; }
+  .gap-8 { gap: 2rem !important; }
+
+  .grid > * {
+    margin-bottom: 0;
   }
 
   /* Batch print - multiple report cards */
@@ -261,43 +290,14 @@
     page-break-after: auto;
   }
 
-  /* Data table prints */
-  .data-table {
-    font-size: 10pt;
-  }
-
-  .data-table th {
-    background-color: #f3f4f6 !important;
-    font-weight: bold;
-  }
-
   /* Chart prints - ensure visibility */
   .recharts-wrapper {
     page-break-inside: avoid;
   }
 
-  /* Footer for report cards */
-  .report-card-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 8pt;
-    color: #6b7280;
-    padding: 5px;
-  }
-
   /* Watermark support */
   .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    font-size: 72pt;
-    color: rgba(0, 0, 0, 0.05);
-    z-index: -1;
-    pointer-events: none;
+    opacity: 0.03 !important;
   }
 
   /* Hide dark mode specific elements in print */
@@ -317,80 +317,8 @@
     margin-top: 1.5rem !important;
   }
 
-  /* Grid layout adjustments - keep grid for proper layout */
-  .grid {
-    display: grid !important;
-  }
-  
-  /* Ensure grid gaps are maintained */
-  .gap-2 { gap: 0.5rem !important; }
-  .gap-3 { gap: 0.75rem !important; }
-  .gap-4 { gap: 1rem !important; }
-  .gap-6 { gap: 1.5rem !important; }
-  .gap-8 { gap: 2rem !important; }
-
-  .grid > * {
-    margin-bottom: 0;
-  }
-  
-  /* Additional background colors for print */
-  .bg-slate-50 { background-color: #f8fafc !important; }
-  .bg-slate-100 { background-color: #f1f5f9 !important; }
-  .bg-slate-900 { background-color: #0f172a !important; }
-  .bg-indigo-50 { background-color: #eef2ff !important; }
-  .bg-indigo-100 { background-color: #e0e7ff !important; }
-  .bg-amber-50 { background-color: #fffbeb !important; }
-  .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.1) !important; }
-  .bg-sky-500\/10 { background-color: rgba(14, 165, 233, 0.1) !important; }
-  .bg-indigo-500\/10 { background-color: rgba(99, 102, 241, 0.1) !important; }
-  .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.1) !important; }
-  .bg-slate-50\/60 { background-color: rgba(248, 250, 252, 0.6) !important; }
-  .bg-white\/80 { background-color: rgba(255, 255, 255, 0.8) !important; }
-  .bg-orange-600 { background-color: #ea580c !important; }
-  .bg-green-600 { background-color: #16a34a !important; }
-  .bg-red-700 { background-color: #b91c1c !important; }
-  
-  /* Text colors - extended */
-  .text-slate-500 { color: #64748b !important; }
-  .text-slate-700 { color: #334155 !important; }
-  .text-slate-800 { color: #1e293b !important; }
-  .text-slate-900 { color: #0f172a !important; }
-  .text-orange-600 { color: #ea580c !important; }
-  .text-indigo-600 { color: #4f46e5 !important; }
-  .text-emerald-600 { color: #059669 !important; }
-  .text-emerald-200 { color: #a7f3d0 !important; }
-  .text-sky-100 { color: #e0f2fe !important; }
-  .text-indigo-100 { color: #e0e7ff !important; }
-  .text-amber-100 { color: #fef3c7 !important; }
-  .text-green-600 { color: #16a34a !important; }
-  .text-blue-600 { color: #2563eb !important; }
-  .text-red-700 { color: #b91c1c !important; }
-  
-  /* Charts - Recharts specific */
-  .recharts-wrapper,
-  .recharts-surface,
-  .recharts-cartesian-grid,
-  .recharts-bar,
-  svg {
-    page-break-inside: avoid !important;
-  }
-  
-  /* Preserve SVG rendering for charts */
-  svg {
-    overflow: visible !important;
-  }
-
-  /* Signature lines */
-  .signature-line {
-    border-top: 2px solid black;
-    margin-top: 50px;
-    padding-top: 5px;
-  }
-
-  /* QR Code for digital verification (if present) */
-  .qr-code {
-    page-break-inside: avoid;
-    max-width: 100px;
+  .space-y-10 > * + * {
+    margin-top: 2rem !important;
   }
 
   /* School logo */
@@ -405,6 +333,12 @@
     max-width: 120px;
     max-height: 120px;
     object-fit: cover;
+  }
+  
+  /* Performance visualization - ensure it prints */
+  .performance-chart,
+  .performance-visualization {
+    page-break-inside: avoid !important;
   }
 }
 

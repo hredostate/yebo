@@ -1,9 +1,9 @@
 /* Print-specific overrides for report cards */
 @media print {
   :root {
-    --report-print-margin: 6mm;
+    --report-print-margin: 10mm;
     --report-print-width: calc(210mm - (var(--report-print-margin) * 2));
-    --report-print-height: calc(297mm - (var(--report-print-margin) * 2));
+    --report-print-height: auto;
   }
 
   @page report-card {
@@ -59,29 +59,28 @@
   /* Print canvas */
   .report-print-root {
     page: report-card;
-    width: var(--report-print-width) !important;
-    max-width: var(--report-print-width) !important;
-    min-height: var(--report-print-height) !important;
-    max-height: var(--report-print-height) !important;
-    margin: 0 auto !important;
-    padding: 6mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
     transform: none !important;
     zoom: 1 !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   /* If the screen layout vertically centers content and causes big top whitespace */
   .report-print-root,
   .report-print-root * {
-    align-items: stretch !important;
-    justify-content: flex-start !important;
     box-sizing: border-box !important;
     max-width: 100%;
   }
 
-  .report-print-root .print-break-avoid {
+  .report-print-root .print-break-avoid,
+  .report-print-root .page-break-inside-avoid {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
@@ -90,29 +89,47 @@
   table {
     width: 100% !important;
     border-collapse: collapse !important;
+    page-break-inside: auto !important;
   }
 
-  thead { display: table-header-group; }
-  tfoot { display: table-footer-group; }
+  thead { 
+    display: table-header-group;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+  
+  tfoot { 
+    display: table-footer-group; 
+  }
 
-  tr, td, th {
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+
+  td, th {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
-  /* Prevent “cards” from printing as faint boxes; use borders instead */
+  /* Prevent "cards" from printing as faint boxes; use borders instead */
   .report-print-root .card,
   .report-print-root [class*="card"] {
     border: 1px solid #e5e7eb !important;
     background: #fff !important;
   }
 
-  /* Reduce excessive top padding/margins inside the report (tune selectors) */
-  .report-print-root .pt-12,
-  .report-print-root .pt-16,
-  .report-print-root .py-12,
-  .report-print-root .my-12 {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
+  /* Reduce excessive spacing for print */
+  .report-print-root .py-8,
+  .report-print-root .py-10,
+  .report-print-root .py-12 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  .report-print-root .px-8,
+  .report-print-root .px-10 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
   }
 }

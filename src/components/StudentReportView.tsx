@@ -157,8 +157,21 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       const termName = reportDetails.term.termName || 'Current Term';
       const sessionLabel = reportDetails.term.sessionLabel || '';
       
-      // Generate a unique public token
-      const publicToken = crypto.randomUUID();
+      // Helper function to slugify student name
+      const slugify = (text: string): string => {
+        return text
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '') // Remove special characters
+          .replace(/\s+/g, '-')     // Replace spaces with hyphens
+          .replace(/-+/g, '-')      // Replace multiple hyphens with single hyphen
+          .substring(0, 30);        // Limit length
+      };
+      
+      // Generate a unique public token with student name slug
+      const nameSlug = slugify(studentName);
+      const uniqueId = `${studentId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      const publicToken = `${nameSlug}-${uniqueId}`;
       const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
       // Find or get the report ID

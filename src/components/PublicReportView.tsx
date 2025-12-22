@@ -49,13 +49,26 @@ interface PublicReportData {
     }>;
 }
 
+// Helper function to get grade color classes
+const getGradeColorClasses = (grade: string): string => {
+    const upperGrade = grade.toUpperCase();
+    if (upperGrade === 'A') return 'bg-green-100 text-green-800 border-green-300';
+    if (upperGrade === 'B') return 'bg-blue-100 text-blue-800 border-blue-300';
+    if (upperGrade === 'C') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (upperGrade === 'D') return 'bg-orange-100 text-orange-800 border-orange-300';
+    return 'bg-red-100 text-red-800 border-red-300'; // F or lower
+};
+
 const PublicReportView: React.FC = () => {
-    // Get token from URL pathname
-    const token = window.location.pathname.split('/report/')[1] || '';
+    // Get token from URL pathname and sanitize it
+    // Remove any trailing characters like `:1`, query params, or other artifacts
+    const rawToken = window.location.pathname.split('/report/')[1] || '';
+    const token = rawToken.split(/[?:#]/)[0].trim(); // Split on ?, :, or # and take first part
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<PublicReportData | null>(null);
     const [expired, setExpired] = useState(false);
+    const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
 
     useEffect(() => {
         fetchReport();
@@ -78,7 +91,8 @@ const PublicReportView: React.FC = () => {
                     student:students!student_id (
                         id,
                         name,
-                        admission_number
+                        admission_number,
+                        school_id
                     ),
                     term:terms!term_id (
                         id,
@@ -122,9 +136,23 @@ const PublicReportView: React.FC = () => {
 
             if (subjectsError) throw subjectsError;
 
+            // Fetch school logo if student data is available
+            const studentData = Array.isArray(report.student) ? report.student[0] : report.student;
+            if (studentData?.school_id) {
+                const { data: schoolConfig } = await supabase
+                    .from('school_config')
+                    .select('logo_url')
+                    .eq('school_id', studentData.school_id)
+                    .maybeSingle();
+                
+                if (schoolConfig?.logo_url) {
+                    setSchoolLogo(schoolConfig.logo_url);
+                }
+            }
+
             setReportData({
                 ...report,
-                student: Array.isArray(report.student) ? report.student[0] : report.student,
+                student: studentData,
                 term: Array.isArray(report.term) ? report.term[0] : report.term,
                 academic_class: Array.isArray(report.academic_class) ? report.academic_class[0] : report.academic_class,
                 subjects: subjects || []
@@ -239,9 +267,14 @@ const PublicReportView: React.FC = () => {
                 </div>
 
                 {/* Report Card */}
-                <div className="report-card bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+                <div className="report-card relative bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+                    {/* Watermark */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5 pointer-events-none rotate-[-45deg] text-8xl font-black text-slate-900 whitespace-nowrap z-0 print:opacity-[0.03]">
+                        OFFICIAL REPORT
+                    </div>
+                    
                     {/* Hero Header */}
-                    <div className="report-card-hero relative bg-gradient-to-r from-slate-900 via-indigo-800 to-blue-700 text-white px-8 py-10">
+                    <div className="report-card-hero relative bg-gradient-to-r from-slate-900 via-indigo-800 to-blue-700 text-white px-8 py-10 z-10">
                         <div
                             className="absolute inset-0 opacity-20"
                             style={{
@@ -251,8 +284,12 @@ const PublicReportView: React.FC = () => {
                         />
                         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                             <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center text-2xl font-black shadow-inner border border-white/20">
-                                    UP
+                                <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center text-2xl font-black shadow-inner border border-white/20 overflow-hidden">
+                                    {schoolLogo ? (
+                                        <img src={schoolLogo} alt="School Logo" className="h-14 w-14 object-contain" />
+                                    ) : (
+                                        'UP'
+                                    )}
                                 </div>
                                 <div>
                                     <p className="text-xs uppercase tracking-[0.25em] text-white/70">United Providence Secondary School</p>
@@ -273,7 +310,7 @@ const PublicReportView: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="px-8 py-10 md:px-10 md:py-12 space-y-10">
+                    <div className="px-8 py-10 md:px-10 md:py-12 space-y-10 relative z-10">
                         {/* Student Info */}
                         <div className="grid md:grid-cols-3 gap-6">
                             <div className="col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-inner shadow-slate-100">
@@ -332,7 +369,37 @@ const PublicReportView: React.FC = () => {
                                         Consistent reporting layout
                                     </span>
                                 </div>
-                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+
+                                {/* Performance Visualization Chart */}
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 print:page-break-inside-avoid">
+                                    <h4 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Performance Overview</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        {reportData.subjects.slice(0, 12).map((subject, idx) => (
+                                            <div key={idx} className="bg-white rounded-lg p-2 border border-slate-200">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-xs font-medium text-slate-700 truncate">{subject.subject_name}</span>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${getGradeColorClasses(subject.grade)}`}>
+                                                        {subject.grade}
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-slate-200 rounded-full h-2">
+                                                    <div 
+                                                        className={`h-2 rounded-full ${
+                                                            subject.score >= 90 ? 'bg-green-500' :
+                                                            subject.score >= 80 ? 'bg-blue-500' :
+                                                            subject.score >= 70 ? 'bg-yellow-500' :
+                                                            subject.score >= 60 ? 'bg-orange-500' : 'bg-red-500'
+                                                        }`}
+                                                        style={{ width: `${Math.min(subject.score, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-1">{subject.score}%</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm print:page-break-inside-avoid">
                                     <table className="min-w-full">
                                         <thead className="bg-slate-900 text-white">
                                             <tr>
@@ -353,7 +420,7 @@ const PublicReportView: React.FC = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className="inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-semibold bg-gradient-to-r from-indigo-50 to-blue-100 text-indigo-700 border border-indigo-200">
+                                                        <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-bold border ${getGradeColorClasses(subject.grade)}`}>
                                                             {subject.grade}
                                                         </span>
                                                     </td>
@@ -413,21 +480,24 @@ const PublicReportView: React.FC = () => {
                         )}
 
                         {/* Footer */}
-                        <div className="pt-6 border-t border-dashed border-slate-200 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                        <div className="pt-6 border-t border-dashed border-slate-200 flex flex-col gap-6 md:flex-row md:items-center md:justify-between print:page-break-inside-avoid">
                             <div className="space-y-2 text-sm text-slate-600">
                                 <p>
                                     Issued for <span className="font-semibold text-slate-900">{reportData.student?.name}</span> · {reportData.academic_class?.name}
                                 </p>
                                 <p className="text-slate-500">For verification, contact the school administration.</p>
+                                <p className="text-xs font-mono text-slate-400">Ref: {reportData.public_token.substring(0, 16)}...</p>
                             </div>
                             <div className="flex items-center gap-6 text-sm text-slate-700">
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="h-10 w-32 border-b border-slate-400" />
                                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Class teacher</p>
+                                    <p className="text-[10px] text-slate-400">Signature & Date</p>
                                 </div>
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="h-10 w-32 border-b border-slate-400" />
                                     <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Principal</p>
+                                    <p className="text-[10px] text-slate-400">Signature & Date</p>
                                 </div>
                             </div>
                         </div>
