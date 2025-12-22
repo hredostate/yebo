@@ -186,11 +186,13 @@ const PublicReportView: React.FC = () => {
             }
 
             // Transform RPC subjects data to match the existing interface
-            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject, index: number) => {
+            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject) => {
                 const subjectName = sub.subjectName || sub.subject_name || '';
                 // Generate stable ID for React keys - use subject ID if available,
-                // otherwise create hash-like ID from student_id + subject name for stability
-                const stableId = sub.id ?? `${report.student_id}_${subjectName.replace(/\s+/g, '_')}`;
+                // otherwise create stable ID from student_id + sanitized subject name
+                // Sanitize subject name: remove special chars, convert to lowercase, replace spaces
+                const sanitizedName = subjectName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                const stableId = sub.id ?? `${report.student_id}_${sanitizedName}`;
                 
                 return {
                     id: stableId,
