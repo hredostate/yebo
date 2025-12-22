@@ -188,26 +188,30 @@ const PublicReportView: React.FC = () => {
             // Transform RPC subjects data to match the existing interface
             const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject, index: number) => {
                 const subjectName = sub.subjectName || sub.subject_name || '';
-                // Generate stable ID for React keys - use subject ID if available, otherwise create from name and index
-                const stableId = sub.id ?? (subjectName ? `${subjectName}_${index}`.replace(/\s+/g, '_') : index);
+                // Generate stable ID for React keys - use subject ID if available,
+                // otherwise create hash-like ID from student_id + subject name for stability
+                const stableId = sub.id ?? `${report.student_id}_${subjectName.replace(/\s+/g, '_')}`;
                 
                 return {
                     id: stableId,
                     subject_name: subjectName,
+                    // Use nullish coalescing to preserve 0 scores
                     total_score: sub.totalScore ?? sub.total_score ?? 0,
-                    grade_label: sub.gradeLabel || sub.grade_label || sub.grade || '',
+                    // Use nullish coalescing consistently
+                    grade_label: sub.gradeLabel ?? sub.grade_label ?? sub.grade ?? '',
                     subject_position: sub.subjectPosition ?? sub.subject_position,
-                    remark: sub.remark || ''
+                    remark: sub.remark ?? ''
                 };
             }) : [];
 
             // Extract additional data from RPC response
             // Note: RPC returns both camelCase and snake_case for backward compatibility
             // with different parts of the application that may expect either format
-            const averageScore = rpcData?.summary?.average || report.average_score;
-            const positionInClass = rpcData?.summary?.positionInArm || rpcData?.summary?.position_in_arm || report.position_in_class;
-            const teacherComment = rpcData?.comments?.teacher || rpcData?.comments?.teacher_comment || report.teacher_comment;
-            const principalComment = rpcData?.comments?.principal || rpcData?.comments?.principal_comment || report.principal_comment;
+            // Use nullish coalescing (??) to preserve legitimate 0 values
+            const averageScore = rpcData?.summary?.average ?? report.average_score;
+            const positionInClass = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? report.position_in_class;
+            const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
+            const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
             setReportData({
                 ...report,
