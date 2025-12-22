@@ -1,13 +1,11 @@
 /* Print-specific overrides for report cards */
 @media print {
   :root {
-    --report-print-margin: 10mm;
-    --report-print-width: calc(210mm - (var(--report-print-margin) * 2));
-    --report-print-height: auto;
+    --report-print-margin: 15mm;
   }
 
-  @page report-card {
-    size: 210mm 297mm;
+  @page {
+    size: A4 portrait;
     margin: var(--report-print-margin);
   }
 
@@ -15,18 +13,21 @@
     height: auto !important;
     overflow: visible !important;
     background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body {
-    margin: 0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    color-adjust: exact;
   }
 
   /* Hide app chrome in print */
   nav, header, footer, aside,
   button, .no-print, [data-no-print="true"],
-  [role="dialog"], [aria-modal="true"] {
+  [role="dialog"], [aria-modal="true"],
+  .print\\:hidden {
     display: none !important;
   }
 
@@ -58,7 +59,6 @@
 
   /* Print canvas */
   .report-print-root {
-    page: report-card;
     width: 100% !important;
     max-width: 100% !important;
     min-height: auto !important;
@@ -72,17 +72,37 @@
     overflow: visible !important;
   }
 
-  /* If the screen layout vertically centers content and causes big top whitespace */
+  /* Ensure all print content uses border-box sizing */
   .report-print-root,
   .report-print-root * {
     box-sizing: border-box !important;
-    max-width: 100%;
   }
 
-  .report-print-root .print-break-avoid,
-  .report-print-root .page-break-inside-avoid {
+  /* Page break control */
+  .page-break-avoid,
+  .page-break-inside-avoid {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  .page-break-before {
+    break-before: always !important;
+    page-break-before: always !important;
+  }
+
+  .page-break-after {
+    break-after: always !important;
+    page-break-after: always !important;
+  }
+
+  /* Ensure colored elements print correctly */
+  .report-header-accent,
+  .grade-badge,
+  [class*="bg-"],
+  [class*="text-"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   /* Tables: readable + no row splitting */
@@ -93,18 +113,18 @@
   }
 
   thead { 
-    display: table-header-group;
+    display: table-header-group !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
   }
   
   tfoot { 
-    display: table-footer-group; 
+    display: table-footer-group !important;
   }
 
   tr {
     page-break-inside: avoid !important;
-    page-break-after: auto;
+    page-break-after: auto !important;
   }
 
   td, th {
@@ -112,24 +132,20 @@
     page-break-inside: avoid !important;
   }
 
-  /* Prevent "cards" from printing as faint boxes; use borders instead */
-  .report-print-root .card,
-  .report-print-root [class*="card"] {
-    border: 1px solid #e5e7eb !important;
-    background: #fff !important;
+  /* Ensure borders print with good visibility */
+  .report-card table,
+  .report-card table thead,
+  .report-card table tbody,
+  .report-card table tr,
+  .report-card table td,
+  .report-card table th {
+    border-color: #475569 !important; /* slate-600 for good contrast */
   }
 
-  /* Reduce excessive spacing for print */
-  .report-print-root .py-8,
-  .report-print-root .py-10,
-  .report-print-root .py-12 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
-  }
-  
-  .report-print-root .px-8,
-  .report-print-root .px-10 {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
+  /* Remove rounded corners and shadows for print */
+  .report-card,
+  .report-card * {
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 }

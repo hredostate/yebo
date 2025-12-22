@@ -8,6 +8,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 import { UnifiedReportCard } from './reports/UnifiedReportCard';
+import { createStudentSlug } from '../utils/reportUrlHelpers';
 import { buildUnifiedReportData } from '../utils/buildUnifiedReportData';
 import type { WatermarkType } from '../types/reportCardPrint';
 import { generateBulkGoalAnalyses } from '../services/goalAnalysisService';
@@ -757,7 +758,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
             if (updateError) throw updateError;
           }
 
-          const reportLink = `${window.location.origin}/report/${token}`;
+          const studentSlug = createStudentSlug(student.name);
+          const reportLink = `${window.location.origin}/report/${token}/${studentSlug}`;
           results.push({
             studentName: student.name,
             link: reportLink

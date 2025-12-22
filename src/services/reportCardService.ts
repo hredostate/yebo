@@ -5,6 +5,7 @@
 
 import { requireSupabaseClient } from './supabaseClient';
 import { sendSmsNotification } from './smsService';
+import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
 
 interface SendReportCardParams {
     studentId: number;
@@ -75,8 +76,7 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
 
         if (needsNewToken) {
             // Generate new token with 30-day expiry
-            // Use crypto.randomUUID() with fallback for compatibility
-            token = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `token-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+            token = generateReportToken();
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 30);
 
@@ -121,8 +121,9 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
             reportId = existingReport.id;
         }
 
-        // 3. Build the public URL
-        const downloadLink = `${window.location.origin}/report/${token}`;
+        // 3. Build the public URL with student slug
+        const studentSlug = createStudentSlug(studentName);
+        const downloadLink = `${window.location.origin}/report/${token}/${studentSlug}`;
 
         // 4. Send SMS notification
         const smsSuccess = await sendSmsNotification({

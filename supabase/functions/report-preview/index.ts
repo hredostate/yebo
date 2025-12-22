@@ -19,9 +19,16 @@ serve(async (req) => {
 
   try {
     // Extract token from URL path
+    // Format can be: /report-preview/<token> or /report-preview/<token>/<slug>
     const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const token = pathParts[pathParts.length - 1];
+    const pathParts = url.pathname.split('/').filter(p => p); // Remove empty parts
+    // Find 'report-preview' and take the next part as token
+    const previewIndex = pathParts.indexOf('report-preview');
+    if (previewIndex === -1 || previewIndex >= pathParts.length - 1) {
+      return new Response('Token not provided', { status: 400 });
+    }
+    
+    const token = pathParts[previewIndex + 1];
 
     if (!token) {
       return new Response('Token not provided', { status: 400 });
@@ -91,10 +98,23 @@ serve(async (req) => {
       }
     }
 
+    // Generate student slug for canonical URL
+    const createStudentSlug = (name: string): string => {
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/--+/g, '-')
+        .replace(/^-|-$/g, '');
+    };
+
+    const studentSlug = student?.name ? createStudentSlug(student.name) : '';
+
     // Generate dynamic meta tags
     const title = `Report Card for ${student?.name || 'Student'} - ${term?.term_label || 'Term'} ${term?.session_label || ''}`;
     const description = `${schoolName} - ${academicClass?.name || 'Academic'} Report Card`;
-    const reportUrl = `${url.origin}/report/${cleanToken}`;
+    const reportUrl = `${url.origin}/report/${cleanToken}${studentSlug ? '/' + studentSlug : ''}`;
 
     // Generate HTML with meta tags
     const html = `<!DOCTYPE html>
