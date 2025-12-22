@@ -56,7 +56,7 @@ interface PublicReportData {
         name: string;
     };
     subjects?: Array<{
-        id: number;
+        id: number | string; // Allow string for generated IDs based on subject name
         subject_name: string;
         total_score: number;
         grade_label: string;
@@ -186,17 +186,24 @@ const PublicReportView: React.FC = () => {
             }
 
             // Transform RPC subjects data to match the existing interface
-            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject, index: number) => ({
-                // Use index as fallback ID for display purposes only (not for DB operations)
-                id: sub.id ?? index,
-                subject_name: sub.subjectName || sub.subject_name || '',
-                total_score: sub.totalScore ?? sub.total_score ?? 0,
-                grade_label: sub.gradeLabel || sub.grade_label || sub.grade || '',
-                subject_position: sub.subjectPosition ?? sub.subject_position,
-                remark: sub.remark || ''
-            })) : [];
+            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: RPCSubject, index: number) => {
+                const subjectName = sub.subjectName || sub.subject_name || '';
+                // Generate stable ID for React keys - use subject ID if available, otherwise create from name and index
+                const stableId = sub.id ?? (subjectName ? `${subjectName}_${index}`.replace(/\s+/g, '_') : index);
+                
+                return {
+                    id: stableId,
+                    subject_name: subjectName,
+                    total_score: sub.totalScore ?? sub.total_score ?? 0,
+                    grade_label: sub.gradeLabel || sub.grade_label || sub.grade || '',
+                    subject_position: sub.subjectPosition ?? sub.subject_position,
+                    remark: sub.remark || ''
+                };
+            }) : [];
 
             // Extract additional data from RPC response
+            // Note: RPC returns both camelCase and snake_case for backward compatibility
+            // with different parts of the application that may expect either format
             const averageScore = rpcData?.summary?.average || report.average_score;
             const positionInClass = rpcData?.summary?.positionInArm || rpcData?.summary?.position_in_arm || report.position_in_class;
             const teacherComment = rpcData?.comments?.teacher || rpcData?.comments?.teacher_comment || report.teacher_comment;
