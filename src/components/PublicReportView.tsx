@@ -30,7 +30,7 @@ interface PublicReportData {
     };
     term?: {
         id: number;
-        name: string;
+        term_label: string;
         session_label?: string;
         start_date: string;
         end_date: string;
@@ -96,7 +96,7 @@ const PublicReportView: React.FC = () => {
                     ),
                     term:terms!term_id (
                         id,
-                        name,
+                        term_label,
                         session_label,
                         start_date,
                         end_date
@@ -248,7 +248,7 @@ const PublicReportView: React.FC = () => {
                             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Official student report</p>
                             <h1 className="text-2xl font-black text-slate-800">Report Card • {reportData.term?.session_label}</h1>
                             <p className="text-sm text-slate-600 mt-1">
-                                {reportData.student?.name} · {reportData.term?.name}
+                                {reportData.student?.name} · {reportData.term?.term_label}
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -293,7 +293,7 @@ const PublicReportView: React.FC = () => {
                                     <p className="text-xs uppercase tracking-[0.25em] text-white/70">United Providence Secondary School</p>
                                     <h1 className="text-3xl font-black leading-tight">Student Report Card</h1>
                                     <p className="text-sm text-white/80 mt-1">
-                                        {reportData.term?.name} • {reportData.term?.session_label}
+                                        {reportData.term?.term_label} • {reportData.term?.session_label}
                                     </p>
                                 </div>
                             </div>

@@ -47,7 +47,7 @@ serve(async (req) => {
         ),
         term:terms!term_id (
           id,
-          name,
+          term_label,
           session_label
         ),
         academic_class:academic_classes!academic_class_id (
@@ -92,7 +92,7 @@ serve(async (req) => {
     }
 
     // Generate dynamic meta tags
-    const title = `Report Card for ${student?.name || 'Student'} - ${term?.name || 'Term'} ${term?.session_label || ''}`;
+    const title = `Report Card for ${student?.name || 'Student'} - ${term?.term_label || 'Term'} ${term?.session_label || ''}`;
     const description = `${schoolName} - ${academicClass?.name || 'Academic'} Report Card`;
     const reportUrl = `${url.origin}/report/${cleanToken}`;
 
