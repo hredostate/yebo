@@ -7,6 +7,7 @@ import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
 import { calculatePercentile, formatPercentile } from '../utils/reportCardHelpers';
+import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
 import ResultSheetDesigns from './ResultSheetDesigns';
 
 interface StudentReportViewProps {
@@ -157,19 +158,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       const termName = reportDetails.term.termName || 'Current Term';
       const sessionLabel = reportDetails.term.sessionLabel || '';
       
-      // Helper function to create URL-friendly slug from student name
-      const createStudentSlug = (name: string): string => {
-        return name
-          .toLowerCase()
-          .trim()
-          .replace(/[^\w\s-]/g, '') // Remove special chars
-          .replace(/\s+/g, '-')     // Replace spaces with hyphens
-          .replace(/--+/g, '-')     // Replace multiple hyphens with single
-          .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
-      };
-      
       // Generate a unique public token (simple format)
-      const publicToken = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      const publicToken = generateReportToken();
       const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
       // Find or get the report ID

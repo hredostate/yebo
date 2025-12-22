@@ -132,10 +132,14 @@
     page-break-inside: avoid !important;
   }
 
-  /* Ensure borders print */
-  .report-card,
-  table, thead, tbody, tr, td, th {
-    border-color: #000 !important;
+  /* Ensure borders print with good visibility */
+  .report-card table,
+  .report-card table thead,
+  .report-card table tbody,
+  .report-card table tr,
+  .report-card table td,
+  .report-card table th {
+    border-color: #475569 !important; /* slate-600 for good contrast */
   }
 
   /* Remove rounded corners and shadows for print */

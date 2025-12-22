@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
+import { createStudentSlug } from '../utils/reportUrlHelpers';
 
 interface PublicReportData {
     id: number;
@@ -57,17 +58,6 @@ const getGradeColorClasses = (grade: string): string => {
     if (upperGrade === 'C') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
     if (upperGrade === 'D') return 'bg-orange-100 text-orange-800 border-orange-300';
     return 'bg-red-100 text-red-800 border-red-300'; // F or lower
-};
-
-// Helper function to create URL-friendly slug from student name
-const createStudentSlug = (name: string): string => {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '') // Remove special chars
-        .replace(/\s+/g, '-')     // Replace spaces with hyphens
-        .replace(/--+/g, '-')     // Replace multiple hyphens with single
-        .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
 };
 
 const PublicReportView: React.FC = () => {
@@ -178,8 +168,11 @@ const PublicReportView: React.FC = () => {
                 const canonicalPath = `/report/${token}/${studentSlug}`;
                 const hash = window.location.hash;
                 
-                // Only update if we're not already at the canonical URL
-                if (!currentPath.endsWith(`/${studentSlug}`) && !currentPath.endsWith(`/${studentSlug}/`)) {
+                // Only update if current path doesn't match canonical (normalize trailing slashes)
+                const normalizedCurrent = currentPath.replace(/\/$/, '');
+                const normalizedCanonical = canonicalPath.replace(/\/$/, '');
+                
+                if (normalizedCurrent !== normalizedCanonical) {
                     // Use replaceState to update URL without triggering navigation
                     window.history.replaceState(null, '', canonicalPath + hash);
                 }

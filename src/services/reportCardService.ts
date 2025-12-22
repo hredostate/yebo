@@ -5,6 +5,7 @@
 
 import { requireSupabaseClient } from './supabaseClient';
 import { sendSmsNotification } from './smsService';
+import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
 
 interface SendReportCardParams {
     studentId: number;
@@ -44,19 +45,6 @@ interface BulkSendResult {
 }
 
 /**
- * Helper function to create URL-friendly slug from student name
- */
-function createStudentSlug(name: string): string {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '') // Remove special chars
-        .replace(/\s+/g, '-')     // Replace spaces with hyphens
-        .replace(/--+/g, '-')     // Replace multiple hyphens with single
-        .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
-}
-
-/**
  * Generate and send report card link to a single parent
  */
 export async function sendReportCardToParent(params: SendReportCardParams): Promise<SendResult> {
@@ -88,8 +76,7 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
 
         if (needsNewToken) {
             // Generate new token with 30-day expiry
-            // Use crypto.randomUUID() with fallback for compatibility
-            token = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `token-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+            token = generateReportToken();
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 30);
 

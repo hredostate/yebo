@@ -8,6 +8,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 import { UnifiedReportCard } from './reports/UnifiedReportCard';
+import { createStudentSlug } from '../utils/reportUrlHelpers';
 import { buildUnifiedReportData } from '../utils/buildUnifiedReportData';
 import type { WatermarkType } from '../types/reportCardPrint';
 import { generateBulkGoalAnalyses } from '../services/goalAnalysisService';
@@ -756,17 +757,6 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
             if (updateError) throw updateError;
           }
-
-          // Helper function to create URL-friendly slug from student name
-          const createStudentSlug = (name: string): string => {
-            return name
-              .toLowerCase()
-              .trim()
-              .replace(/[^\w\s-]/g, '') // Remove special chars
-              .replace(/\s+/g, '-')     // Replace spaces with hyphens
-              .replace(/--+/g, '-')     // Replace multiple hyphens with single
-              .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
-          };
 
           const studentSlug = createStudentSlug(student.name);
           const reportLink = `${window.location.origin}/report/${token}/${studentSlug}`;

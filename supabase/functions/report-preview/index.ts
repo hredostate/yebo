@@ -19,11 +19,16 @@ serve(async (req) => {
 
   try {
     // Extract token from URL path
+    // Format can be: /report-preview/<token> or /report-preview/<token>/<slug>
     const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    // Token is the last part, or second-to-last if there's a slug
-    const tokenIndex = pathParts.length - 1;
-    const token = pathParts[tokenIndex];
+    const pathParts = url.pathname.split('/').filter(p => p); // Remove empty parts
+    // Find 'report-preview' and take the next part as token
+    const previewIndex = pathParts.indexOf('report-preview');
+    if (previewIndex === -1 || previewIndex >= pathParts.length - 1) {
+      return new Response('Token not provided', { status: 400 });
+    }
+    
+    const token = pathParts[previewIndex + 1];
 
     if (!token) {
       return new Response('Token not provided', { status: 400 });
