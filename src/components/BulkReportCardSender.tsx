@@ -52,6 +52,7 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
     }, [termId, academicClassId, schoolId]);
 
     const loadStudents = async () => {
+        const supabase = requireSupabaseClient();
         setIsLoading(true);
         try {
             // Get term details
