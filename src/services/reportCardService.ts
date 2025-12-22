@@ -44,6 +44,19 @@ interface BulkSendResult {
 }
 
 /**
+ * Helper function to create URL-friendly slug from student name
+ */
+function createStudentSlug(name: string): string {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special chars
+        .replace(/\s+/g, '-')     // Replace spaces with hyphens
+        .replace(/--+/g, '-')     // Replace multiple hyphens with single
+        .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
+}
+
+/**
  * Generate and send report card link to a single parent
  */
 export async function sendReportCardToParent(params: SendReportCardParams): Promise<SendResult> {
@@ -121,8 +134,9 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
             reportId = existingReport.id;
         }
 
-        // 3. Build the public URL
-        const downloadLink = `${window.location.origin}/report/${token}`;
+        // 3. Build the public URL with student slug
+        const studentSlug = createStudentSlug(studentName);
+        const downloadLink = `${window.location.origin}/report/${token}/${studentSlug}`;
 
         // 4. Send SMS notification
         const smsSuccess = await sendSmsNotification({

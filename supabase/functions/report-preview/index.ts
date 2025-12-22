@@ -21,7 +21,9 @@ serve(async (req) => {
     // Extract token from URL path
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/');
-    const token = pathParts[pathParts.length - 1];
+    // Token is the last part, or second-to-last if there's a slug
+    const tokenIndex = pathParts.length - 1;
+    const token = pathParts[tokenIndex];
 
     if (!token) {
       return new Response('Token not provided', { status: 400 });
@@ -91,10 +93,23 @@ serve(async (req) => {
       }
     }
 
+    // Generate student slug for canonical URL
+    const createStudentSlug = (name: string): string => {
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/--+/g, '-')
+        .replace(/^-|-$/g, '');
+    };
+
+    const studentSlug = student?.name ? createStudentSlug(student.name) : '';
+
     // Generate dynamic meta tags
     const title = `Report Card for ${student?.name || 'Student'} - ${term?.term_label || 'Term'} ${term?.session_label || ''}`;
     const description = `${schoolName} - ${academicClass?.name || 'Academic'} Report Card`;
-    const reportUrl = `${url.origin}/report/${cleanToken}`;
+    const reportUrl = `${url.origin}/report/${cleanToken}${studentSlug ? '/' + studentSlug : ''}`;
 
     // Generate HTML with meta tags
     const html = `<!DOCTYPE html>
