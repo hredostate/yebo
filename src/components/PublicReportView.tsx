@@ -69,6 +69,7 @@ const PublicReportView: React.FC = () => {
     const [reportData, setReportData] = useState<PublicReportData | null>(null);
     const [expired, setExpired] = useState(false);
     const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
+    const [schoolName, setSchoolName] = useState<string>('School Report Card');
 
     useEffect(() => {
         fetchReport();
@@ -136,17 +137,20 @@ const PublicReportView: React.FC = () => {
 
             if (subjectsError) throw subjectsError;
 
-            // Fetch school logo if student data is available
+            // Fetch school logo and name if student data is available
             const studentData = Array.isArray(report.student) ? report.student[0] : report.student;
             if (studentData?.school_id) {
                 const { data: schoolConfig } = await supabase
                     .from('school_config')
-                    .select('logo_url')
+                    .select('logo_url, display_name')
                     .eq('school_id', studentData.school_id)
                     .maybeSingle();
                 
                 if (schoolConfig?.logo_url) {
                     setSchoolLogo(schoolConfig.logo_url);
+                }
+                if (schoolConfig?.display_name) {
+                    setSchoolName(schoolConfig.display_name);
                 }
             }
 
@@ -239,7 +243,48 @@ const PublicReportView: React.FC = () => {
     ];
 
     return (
-        <div className="report-print-root min-h-screen bg-slate-100 py-8 px-4">
+        <div className="report-print-root min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:p-0">
+            <style>
+{`
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        
+        .a4-print-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 0;
+            margin: 0 auto;
+        }
+        
+        .a4-print-safe-area {
+            width: 100%;
+            max-width: 190mm;
+            margin: 0 auto;
+        }
+        
+        .page-break-inside-avoid {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .report-card-hero {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        table thead {
+            display: table-header-group;
+        }
+        
+        table tr {
+            page-break-inside: avoid;
+        }
+    }
+`}
+            </style>
             <div className="max-w-5xl mx-auto">
                 {/* Header with actions - hidden when printing */}
                 <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 print:hidden border border-slate-100">
@@ -267,7 +312,8 @@ const PublicReportView: React.FC = () => {
                 </div>
 
                 {/* Report Card */}
-                <div className="report-card relative bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+                <div className="a4-print-page">
+                    <div className="a4-print-safe-area report-card relative bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100 print:rounded-none print:shadow-none print:border-none">
                     {/* Watermark */}
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5 pointer-events-none rotate-[-45deg] text-8xl font-black text-slate-900 whitespace-nowrap z-0 print:opacity-[0.03]">
                         OFFICIAL REPORT
@@ -285,12 +331,12 @@ const PublicReportView: React.FC = () => {
                         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                             <div className="flex items-center gap-4">
                                 <img 
-                                  src="https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png" 
+                                  src={schoolLogo || "https://tyvufbldcucgmmlattct.supabase.co/storage/v1/object/public/Images/imageedit_1_5058819643%20(1).png"}
                                   alt="School Logo"
                                   className="h-16 w-16 rounded-2xl object-contain bg-white/95 p-2 shadow-xl border border-white/30"
                                 />
                                 <div>
-                                    <p className="text-xs uppercase tracking-[0.25em] text-white/70">United Providence Secondary School</p>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-white/70">{schoolName}</p>
                                     <h1 className="text-3xl font-black leading-tight">Student Report Card</h1>
                                     <p className="text-sm text-white/80 mt-1">
                                         {reportData.term?.term_label} • {reportData.term?.session_label}
@@ -397,9 +443,9 @@ const PublicReportView: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm print:page-break-inside-avoid">
+                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm page-break-inside-avoid">
                                     <table className="min-w-full">
-                                        <thead className="bg-slate-900 text-white">
+                                        <thead className="bg-slate-900 text-white" style={{ display: 'table-header-group' }}>
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
                                                 <th className="px-4 py-3 text-center text-sm font-semibold">Score</th>
@@ -410,7 +456,7 @@ const PublicReportView: React.FC = () => {
                                         </thead>
                                         <tbody className="bg-white divide-y divide-slate-200">
                                             {reportData.subjects.map((subject) => (
-                                                <tr key={subject.id} className="hover:bg-slate-50">
+                                                <tr key={subject.id} className="hover:bg-slate-50 page-break-inside-avoid">
                                                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{subject.subject_name}</td>
                                                     <td className="px-4 py-3 text-center">
                                                         <span className="inline-flex items-center justify-center w-14 rounded-full bg-slate-100 text-slate-900 font-semibold border border-slate-200">
@@ -500,6 +546,7 @@ const PublicReportView: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                </div>
                 </div>
 
                 {/* Info note - hidden when printing */}
