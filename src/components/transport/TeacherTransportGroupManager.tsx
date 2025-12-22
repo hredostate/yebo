@@ -54,7 +54,7 @@ export default function TeacherTransportGroupManager({
       const supabase = requireSupabaseClient();
       const { data, error } = await supabase
         .from('transport_class_groups')
-        .select('*, route:transport_routes(*), term:terms(*)')
+        .select('*, route:transport_routes!route_id(*), term:terms!term_id(*)')
         .eq('created_by', userId)
         .eq('term_id', currentTerm.id)
         .eq('is_active', true)
@@ -96,9 +96,9 @@ export default function TeacherTransportGroupManager({
           student:students(*),
           subscription:transport_subscriptions(
             *,
-            route:transport_routes(*),
-            stop:transport_stops(*),
-            assigned_bus:transport_buses(*)
+            route:transport_routes!route_id(*),
+            stop:transport_stops!stop_id(*),
+            assigned_bus:transport_buses!assigned_bus_id(*)
           )
         `)
         .eq('group_id', groupId);
