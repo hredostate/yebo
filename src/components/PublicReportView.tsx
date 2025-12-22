@@ -4,7 +4,7 @@
  * No authentication required - validates via token and expiry
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
@@ -335,6 +335,21 @@ const PublicReportView: React.FC = () => {
         { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
     ];
 
+    // Calculate component score columns using useMemo for performance
+    const componentScoreData = useMemo(() => {
+        if (!reportData.subjects || reportData.subjects.length === 0) {
+            return { hasComponentScores: false, componentNames: [] };
+        }
+        
+        const hasComponentScores = reportData.subjects.some(s => s.component_scores && Object.keys(s.component_scores).length > 0);
+        const componentNames = hasComponentScores ? 
+            Array.from(new Set(
+                reportData.subjects.flatMap(s => Object.keys(s.component_scores || {}))
+            )).sort() : [];
+        
+        return { hasComponentScores, componentNames };
+    }, [reportData.subjects]);
+
     return (
         <div className="report-print-root min-h-screen bg-slate-50 py-8 px-4 print:bg-white print:p-0">
             <style>
@@ -570,15 +585,7 @@ const PublicReportView: React.FC = () => {
                         </div>
 
                         {/* Subject Performance Table */}
-                        {reportData.subjects && reportData.subjects.length > 0 && (() => {
-                            // Check if any subject has component scores and collect all unique component names
-                            const hasComponentScores = reportData.subjects.some(s => s.component_scores && Object.keys(s.component_scores).length > 0);
-                            const componentNames = hasComponentScores ? 
-                                Array.from(new Set(
-                                    reportData.subjects.flatMap(s => Object.keys(s.component_scores || {}))
-                                )).sort() : [];
-                            
-                            return (
+                        {reportData.subjects && reportData.subjects.length > 0 && (
                             <div className="page-break-avoid">
                                 <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                     Subject Performance
@@ -590,7 +597,7 @@ const PublicReportView: React.FC = () => {
                                                 <thead className="bg-slate-800" style={{ display: 'table-header-group' }}>
                                                     <tr>
                                                         <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Subject</th>
-                                                        {componentNames.map(componentName => (
+                                                        {componentScoreData.componentNames.map(componentName => (
                                                             <th key={componentName} className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">{componentName}</th>
                                                         ))}
                                                         <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Score</th>
@@ -605,7 +612,7 @@ const PublicReportView: React.FC = () => {
                                                             <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
                                                                 {subject.subject_name}
                                                             </td>
-                                                            {componentNames.map(componentName => (
+                                                            {componentScoreData.componentNames.map(componentName => (
                                                                 <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
                                                                     {subject.component_scores?.[componentName] ?? '—'}
                                                                 </td>
@@ -645,8 +652,7 @@ const PublicReportView: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            );
-                        })()}
+                        )}
 
                         {/* Comments Section */}
                         {(reportData.teacher_comment || reportData.principal_comment) && (
