@@ -157,21 +157,19 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       const termName = reportDetails.term.termName || 'Current Term';
       const sessionLabel = reportDetails.term.sessionLabel || '';
       
-      // Helper function to slugify student name
-      const slugify = (text: string): string => {
-        return text
+      // Helper function to create URL-friendly slug from student name
+      const createStudentSlug = (name: string): string => {
+        return name
           .toLowerCase()
           .trim()
-          .replace(/[^\w\s-]/g, '') // Remove special characters
+          .replace(/[^\w\s-]/g, '') // Remove special chars
           .replace(/\s+/g, '-')     // Replace spaces with hyphens
-          .replace(/-+/g, '-')      // Replace multiple hyphens with single hyphen
-          .substring(0, 30);        // Limit length
+          .replace(/--+/g, '-')     // Replace multiple hyphens with single
+          .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
       };
       
-      // Generate a unique public token with student name slug
-      const nameSlug = slugify(studentName);
-      const uniqueId = `${studentId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      const publicToken = `${nameSlug}-${uniqueId}`;
+      // Generate a unique public token (simple format)
+      const publicToken = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
       const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
       // Find or get the report ID
@@ -221,8 +219,9 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
         if (updateError) throw updateError;
       }
 
-      // Build the public download link
-      const downloadLink = `${window.location.origin}/report/${publicToken}`;
+      // Build the public download link with student name slug
+      const studentSlug = createStudentSlug(studentName);
+      const downloadLink = `${window.location.origin}/report/${publicToken}/${studentSlug}`;
       
       // Get user for school_id
       const { data: { user } } = await supabase.auth.getUser();

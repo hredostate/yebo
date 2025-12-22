@@ -757,7 +757,19 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
             if (updateError) throw updateError;
           }
 
-          const reportLink = `${window.location.origin}/report/${token}`;
+          // Helper function to create URL-friendly slug from student name
+          const createStudentSlug = (name: string): string => {
+            return name
+              .toLowerCase()
+              .trim()
+              .replace(/[^\w\s-]/g, '') // Remove special chars
+              .replace(/\s+/g, '-')     // Replace spaces with hyphens
+              .replace(/--+/g, '-')     // Replace multiple hyphens with single
+              .replace(/^-|-$/g, '');   // Remove leading/trailing hyphens
+          };
+
+          const studentSlug = createStudentSlug(student.name);
+          const reportLink = `${window.location.origin}/report/${token}/${studentSlug}`;
           results.push({
             studentName: student.name,
             link: reportLink
