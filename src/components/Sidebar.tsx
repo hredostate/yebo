@@ -60,7 +60,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.TIMETABLE, label: 'Timetable', permission: 'view-dashboard' },
       { id: VIEWS.LESSON_PLANNER, label: 'Lesson Plans', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.TEAM_LESSON_HUB, label: 'Team Lesson Hub', permission: 'manage-curriculum' },
-      { id: VIEWS.REVIEW_QUALITY_DASHBOARD, label: 'Review Quality', permission: 'manage-curriculum' },
+      { id: VIEWS.COVERAGE_ANALYTICS, label: 'Coverage Analytics', permission: 'manage-curriculum' },
       { id: VIEWS.HOMEWORK_MANAGER, label: 'Homework Manager', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.NOTES_COMPLIANCE, label: 'Notes Compliance', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.GRADEBOOK, label: 'My Gradebook', permission: 'score_entries.edit_self' },
@@ -132,6 +132,7 @@ const NAV_STRUCTURE: NavGroup[] = [
     icon: ShieldIcon,
     items: [
       { id: VIEWS.SETTINGS, label: 'Global Settings', permission: 'manage-settings' },
+      { id: VIEWS.SUBMISSION_SETTINGS, label: 'Submission Settings', permission: 'manage-settings' },
       { id: VIEWS.AI_STRATEGIC_CENTER, label: 'AI Strategic Center', permission: 'view-school-health-overview' },
       { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictive Analytics', permission: 'view-predictive-analytics' },
       { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },

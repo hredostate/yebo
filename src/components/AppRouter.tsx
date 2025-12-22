@@ -29,6 +29,8 @@ import ResultManager from './ResultManager';
 import ScoreReviewView from './ScoreReviewView';
 import CoverageFeedbackReport from './CoverageFeedbackReport';
 import CoverageReportingPanel from './CoverageReportingPanel';
+import CoverageAnalyticsDashboard from './CoverageAnalyticsDashboard';
+import LessonPlanSubmissionSettings from './LessonPlanSubmissionSettings';
 import DataUploader from './DataUploader';
 import LivingPolicyManager from './LivingPolicyManager';
 import EmergencyBroadcast from './EmergencyBroadcast';
@@ -727,6 +729,13 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 currentUser={data.userProfile}
                 coverageData={data.coverageData || []}
              />;
+        case VIEWS.COVERAGE_ANALYTICS:
+             return <CoverageAnalyticsDashboard
+                schoolId={data.userProfile.school_id}
+                lessonPlans={data.lessonPlans}
+                coverageData={data.coverageData || []}
+                addToast={actions.addToast}
+             />;
         case VIEWS.COVERAGE_REPORTING:
              return <CoverageReportingPanel
                 lessonPlans={data.lessonPlans}
@@ -784,6 +793,11 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolConfig={data.schoolConfig}
                 onSaveSettings={actions.handleUpdateSchoolSettings} 
                 onSaveSchoolConfig={actions.handleUpdateSchoolConfig}
+             />;
+        case VIEWS.SUBMISSION_SETTINGS:
+             return <LessonPlanSubmissionSettings
+                schoolId={data.userProfile.school_id}
+                addToast={actions.addToast}
              />;
         case VIEWS.TEACHER_RATINGS:
              return <StaffTeacherRatingsView 

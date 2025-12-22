@@ -2101,10 +2101,38 @@ export interface LessonPlanCoverage {
     coverage_percentage?: number;
     topics_covered?: string;
     topics_pending?: string;
+    topics_covered_list?: string[]; // New: Array of covered topics
+    topics_pending_list?: string[]; // New: Array of pending topics
+    evidence_urls?: string[]; // New: Array of evidence URLs
     notes?: string;
     coverage_date?: string; // Changed from covered_date to match migration
     created_at: string;
     updated_at: string;
+}
+
+export interface LessonPlanSubmissionConfig {
+    id: number;
+    school_id: number;
+    submission_deadline_day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+    submission_deadline_time: string;
+    grace_period_hours: number;
+    auto_mark_late_after_grace: boolean;
+    require_coverage_before_new_plan: boolean;
+    min_coverage_percentage_required: number;
+    enable_auto_reminders: boolean;
+    reminder_days_before: number[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LessonPlanSubmissionHistory {
+    id: number;
+    lesson_plan_id: number;
+    previous_status: string | null;
+    new_status: string;
+    changed_by: string | null;
+    change_reason: string | null;
+    created_at: string;
 }
 
 export interface LearningMaterial {
