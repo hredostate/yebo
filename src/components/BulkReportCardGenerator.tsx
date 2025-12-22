@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
-import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';
+import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon, ClipboardListIcon } from './common/icons';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -808,13 +808,19 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
       return;
     }
     
+    // Helper to escape CSV fields
+    const escapeCsvField = (field: string) => {
+      // Escape double quotes by doubling them and wrap in quotes
+      return `"${field.replace(/"/g, '""')}"`;
+    };
+    
     const header = ['Student Name', 'Admission Number', 'Report Link'];
     const rows = successfulResults.map(result => {
       const student = studentsWithDebt.find(s => s.name === result.studentName);
       return [
-        `"${result.studentName}"`,
-        `"${student?.admission_number || 'N/A'}"`,
-        `"${result.link}"`
+        escapeCsvField(result.studentName),
+        escapeCsvField(student?.admission_number || 'N/A'),
+        escapeCsvField(result.link!)
       ].join(',');
     });
     
@@ -1287,7 +1293,8 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                         onClick={handleCopyAllLinks}
                         className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2"
                       >
-                        📋 Copy All Links
+                        <ClipboardListIcon className="w-5 h-5" />
+                        Copy All Links
                       </button>
                     </div>
                   )}
