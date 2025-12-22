@@ -7,8 +7,8 @@
 CREATE OR REPLACE FUNCTION public.sync_student_term_report_scores()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_student_id INTEGER;
-    v_term_id INTEGER;
+    v_student_id public.score_entries.student_id%TYPE;
+    v_term_id public.score_entries.term_id%TYPE;
     v_total_score NUMERIC;
     v_average_score NUMERIC;
     v_subject_count INTEGER;
