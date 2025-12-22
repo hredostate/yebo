@@ -159,6 +159,7 @@ export const VIEWS = {
   // Lesson Plan Enhancement Views
   COVERAGE_DASHBOARD: 'Coverage Dashboard',
   COVERAGE_REPORTING: 'Coverage Reporting',
+  COVERAGE_ANALYTICS: 'Coverage Analytics',
   REVIEW_DASHBOARD: 'Review Dashboard',
   TEAM_LESSON_HUB: 'Team Lesson Hub',
   STUDENT_LESSON_PORTAL: 'Student Lessons',
@@ -171,6 +172,7 @@ export const VIEWS = {
   ABSENCE_REQUESTS: 'Absence Requests',
   STUDENT_SUBJECT_CHOICES_ADMIN: 'Student Subject Choices',
   STUDENT_SUBJECT_ENROLLMENT_MANAGER: 'Student Subject Enrollment',
+  SUBMISSION_SETTINGS: 'Submission Settings',
   // Transport Views
   TRANSPORT_MANAGER: 'Transport Manager',
   TRANSPORT_SIGN_UP: 'Transport Sign-Up',
