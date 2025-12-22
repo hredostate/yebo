@@ -103,6 +103,22 @@ const PublicReportView: React.FC = () => {
     const [armName, setArmName] = useState<string | null>(null);
     const [levelName, setLevelName] = useState<string | null>(null);
 
+    // Calculate component score columns using useMemo for performance
+    // This hook must be called before any conditional returns to satisfy React's Rules of Hooks
+    const componentScoreData = useMemo(() => {
+        if (!reportData?.subjects || reportData.subjects.length === 0) {
+            return { hasComponentScores: false, componentNames: [] as string[] };
+        }
+        
+        const hasComponentScores = reportData.subjects.some(s => s.component_scores && Object.keys(s.component_scores).length > 0);
+        const componentNames = hasComponentScores ? 
+            Array.from(new Set(
+                reportData.subjects.flatMap(s => Object.keys(s.component_scores || {}))
+            )).sort() : [];
+        
+        return { hasComponentScores, componentNames };
+    }, [reportData?.subjects]);
+
     useEffect(() => {
         fetchReport();
     }, [token]);
@@ -373,21 +389,6 @@ const PublicReportView: React.FC = () => {
         { label: 'D · Fair', range: '60 - 69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
         { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
     ];
-
-    // Calculate component score columns using useMemo for performance
-    const componentScoreData = useMemo(() => {
-        if (!reportData.subjects || reportData.subjects.length === 0) {
-            return { hasComponentScores: false, componentNames: [] };
-        }
-        
-        const hasComponentScores = reportData.subjects.some(s => s.component_scores && Object.keys(s.component_scores).length > 0);
-        const componentNames = hasComponentScores ? 
-            Array.from(new Set(
-                reportData.subjects.flatMap(s => Object.keys(s.component_scores || {}))
-            )).sort() : [];
-        
-        return { hasComponentScores, componentNames };
-    }, [reportData.subjects]);
 
     return (
         <div className="report-print-root min-h-screen bg-slate-50 py-8 px-4 print:bg-white print:p-0">
