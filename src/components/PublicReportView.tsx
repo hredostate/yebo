@@ -489,10 +489,6 @@ const PublicReportView: React.FC = () => {
         .comments-section {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-        }
-        
-        /* Allow page break before comments if needed */
-        .comments-section {
             page-break-before: auto;
         }
         
