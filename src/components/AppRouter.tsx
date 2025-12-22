@@ -84,6 +84,7 @@ const CampusStatsReport = lazy(() => import('./CampusStatsReport'));
 
 // Lesson Plan Enhancement Components
 const HomeworkManager = lazy(() => import('./HomeworkManager'));
+const LearningMaterialsManager = lazy(() => import('./LearningMaterialsManager'));
 
 // Manuals System Components
 const ManualsManager = lazy(() => import('./manuals/admin/ManualsManager'));
@@ -1152,6 +1153,19 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         userProfile={data.userProfile}
                         teachingAssignments={data.academicAssignments}
                         onNavigate={actions.setCurrentView}
+                    />
+                </Suspense>
+            );
+        case VIEWS.LEARNING_MATERIALS:
+            return (
+                <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                    <LearningMaterialsManager
+                        materials={data.learningMaterials || []}
+                        lessonPlans={data.lessonPlans}
+                        onUploadMaterial={actions.handleUploadLearningMaterial}
+                        onUpdateMaterial={actions.handleUpdateLearningMaterial}
+                        onDeleteMaterial={actions.handleDeleteLearningMaterial}
+                        currentUserId={data.userProfile.id}
                     />
                 </Suspense>
             );
