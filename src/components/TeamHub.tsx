@@ -68,7 +68,8 @@ const getWeekStartDate = (date: Date): string => {
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(d.setDate(diff));
+    const monday = new Date(d);
+    monday.setDate(diff);
     return monday.toISOString().split('T')[0];
 };
 
@@ -433,7 +434,7 @@ const TeamHub: React.FC<TeamHubProps> = ({
     const filteredTeams = useMemo(() => {
         return teams.filter(team => 
             team.team_name.toLowerCase().includes(teamSearchQuery.toLowerCase()) ||
-            team.lead?.name.toLowerCase().includes(teamSearchQuery.toLowerCase())
+            team.lead?.name?.toLowerCase().includes(teamSearchQuery.toLowerCase())
         );
     }, [teams, teamSearchQuery]);
 
@@ -474,7 +475,11 @@ const TeamHub: React.FC<TeamHubProps> = ({
                 disagrees,
                 totalVotes: votes.length
             };
-        }).sort((a, b) => new Date(b.plan.week_start_date!).getTime() - new Date(a.plan.week_start_date!).getTime());
+        }).sort((a, b) => {
+            const dateA = a.plan.week_start_date ? new Date(a.plan.week_start_date).getTime() : 0;
+            const dateB = b.plan.week_start_date ? new Date(b.plan.week_start_date).getTime() : 0;
+            return dateB - dateA;
+        });
     }, [relevantPlans, coverageVotes]);
 
     const studentConcurrence = coverageVotes.length > 0
@@ -754,7 +759,7 @@ const TeamHub: React.FC<TeamHubProps> = ({
                             <div>
                                 <p className="font-semibold text-slate-900 dark:text-white">{plan.title || 'Untitled Plan'}</p>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    {plan.author?.name} • {plan.subject} • Week of {new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString()}
+                                    {plan.author?.name} • {plan.subject} • Week of {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
                                 </p>
                             </div>
                             {(isAdmin || isMyTeamLead) && (
@@ -784,7 +789,7 @@ const TeamHub: React.FC<TeamHubProps> = ({
                             <div>
                                 <p className="font-semibold text-slate-900 dark:text-white">{plan.title || 'Untitled Plan'}</p>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    {plan.author?.name} • {plan.subject} • Week of {new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString()}
+                                    {plan.author?.name} • {plan.subject} • Week of {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
                                 </p>
                             </div>
                             <CheckCircleIcon className="w-6 h-6 text-green-500" />
@@ -827,16 +832,19 @@ const TeamHub: React.FC<TeamHubProps> = ({
             <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Coverage Progress</h3>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-8 overflow-hidden">
-                    {totalPlans > 0 && (
-                        <div className="h-full flex">
-                            <div 
-                                className="bg-green-500 flex items-center justify-center text-white text-sm font-semibold"
-                                style={{ width: `${(fullyCoveredPlans / totalPlans) * 100}%` }}
-                            >
-                                {fullyCoveredPlans > 0 && `${Math.round((fullyCoveredPlans / totalPlans) * 100)}%`}
+                    {totalPlans > 0 && (() => {
+                        const coveragePercentage = Math.round((fullyCoveredPlans / totalPlans) * 100);
+                        return (
+                            <div className="h-full flex">
+                                <div 
+                                    className="bg-green-500 flex items-center justify-center text-white text-sm font-semibold"
+                                    style={{ width: `${coveragePercentage}%` }}
+                                >
+                                    {fullyCoveredPlans > 0 && `${coveragePercentage}%`}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -861,7 +869,7 @@ const TeamHub: React.FC<TeamHubProps> = ({
                                         <p className="text-xs text-slate-500 dark:text-slate-400">{plan.author?.name}</p>
                                     </td>
                                     <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                        {new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString()}
+                                        {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
