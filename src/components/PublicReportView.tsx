@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
-import { createStudentSlug } from '../utils/reportUrlHelpers';
+import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
 
 interface PublicReportData {
     id: number;
@@ -43,10 +43,10 @@ interface PublicReportData {
     subjects?: Array<{
         id: number;
         subject_name: string;
-        score: number;
-        grade: string;
-        position?: number;
-        teacher_comment?: string;
+        total_score: number;
+        grade_label: string;
+        subject_position?: number;
+        remark?: string;
     }>;
 }
 
@@ -61,15 +61,8 @@ const getGradeColorClasses = (grade: string): string => {
 };
 
 const PublicReportView: React.FC = () => {
-    // Extract token from URL pathname, supporting both formats:
-    // /report/<token> (backward compatible)
-    // /report/<token>/<student-slug> (canonical with human-friendly slug)
-    const rawPath = window.location.pathname.split('/report/')[1] || '';
-    const pathParts = rawPath.split('/');
-    // First part is always the token, second part (if present) is the slug
-    const rawToken = pathParts[0] || '';
-    // Remove any trailing characters like `:1`, query params, or other artifacts
-    const token = rawToken.split(/[?:#]/)[0].trim();
+    // Use centralized token parsing that handles all edge cases
+    const token = parsePublicReportTokenFromLocation();
     
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -250,8 +243,8 @@ const PublicReportView: React.FC = () => {
     const bestSubject =
         reportData.subjects && reportData.subjects.length > 0
             ? reportData.subjects.reduce((top, current) => {
-                  const topScore = top?.score ?? -Infinity;
-                  return current.score > topScore ? current : top;
+                  const topScore = top?.total_score ?? -Infinity;
+                  return current.total_score > topScore ? current : top;
               }, null as (typeof reportData.subjects[number] | null))
             : null;
 
@@ -510,18 +503,18 @@ const PublicReportView: React.FC = () => {
                                                         {subject.subject_name}
                                                     </td>
                                                     <td className="px-4 py-3 text-center text-sm font-semibold text-slate-900">
-                                                        {subject.score}
+                                                        {subject.total_score}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`grade-badge inline-flex items-center justify-center px-3 py-1 rounded-md text-xs font-bold ${getGradeColorClasses(subject.grade)}`}>
-                                                            {subject.grade}
+                                                        <span className={`grade-badge inline-flex items-center justify-center px-3 py-1 rounded-md text-xs font-bold ${getGradeColorClasses(subject.grade_label)}`}>
+                                                            {subject.grade_label}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center text-sm text-slate-700">
-                                                        {subject.position || '—'}
+                                                        {subject.subject_position || '—'}
                                                     </td>
                                                     <td className="px-4 py-3 text-sm text-slate-700">
-                                                        {subject.teacher_comment || '—'}
+                                                        {subject.remark || '—'}
                                                     </td>
                                                 </tr>
                                             ))}

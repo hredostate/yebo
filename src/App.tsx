@@ -6760,14 +6760,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
 
     // ... (Rendering Logic) ...
 
-    if (booting) {
-        return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>;
-    }
-
-    // Check for public report view (no authentication required)
+    // CRITICAL: Check for public routes FIRST, before any auth/booting logic
+    // This prevents authenticated app routing from hijacking public report URLs
     const pathname = window.location.pathname;
     if (pathname.startsWith('/report/')) {
-        const token = pathname.split('/report/')[1];
         const PublicReportView = React.lazy(() => import('./components/PublicReportView'));
         return (
             <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>}>
@@ -6778,6 +6774,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
 
     if (pathname.startsWith('/activate')) {
         return <ActivationPage />;
+    }
+
+    if (booting) {
+        return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>;
     }
 
     if (!session) {
