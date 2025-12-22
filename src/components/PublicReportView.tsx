@@ -453,7 +453,11 @@ const PublicReportView: React.FC = () => {
             color-adjust: exact;
         }
         
-        /* Table styles for print */
+        /* Better table handling */
+        .subjects-table-container {
+            page-break-inside: auto !important;
+        }
+        
         table {
             width: 100% !important;
             page-break-inside: auto !important;
@@ -463,13 +467,57 @@ const PublicReportView: React.FC = () => {
             display: table-header-group !important;
         }
         
+        table tfoot {
+            display: table-footer-group !important;
+        }
+        
+        table tbody {
+            display: table-row-group !important;
+        }
+        
         table tr {
             page-break-inside: avoid !important;
-            page-break-after: auto !important;
+            break-inside: avoid !important;
         }
         
         table td, table th {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        
+        /* Keep comment sections together */
+        .comments-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        
+        /* Allow page break before comments if needed */
+        .comments-section {
+            page-break-before: auto;
+        }
+        
+        /* Keep signature block on same page */
+        .signature-block {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-before: auto;
+        }
+        
+        /* Ensure grade legend stays with table */
+        .grade-legend {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        
+        /* Remove horizontal scroll container overflow for print */
+        .overflow-x-auto {
+            overflow: visible !important;
+            overflow-x: visible !important;
+        }
+        
+        /* Ensure inline-block doesn't cause issues */
+        .inline-block {
+            display: block !important;
         }
         
         /* Remove screen-only shadows and effects */
@@ -626,7 +674,7 @@ const PublicReportView: React.FC = () => {
 
                         {/* Subject Performance Table */}
                         {reportData.subjects && reportData.subjects.length > 0 && (
-                            <div className="page-break-avoid">
+                            <div className="subjects-table-container page-break-avoid">
                                 <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                     Subject Performance
                                 </h4>
@@ -680,7 +728,7 @@ const PublicReportView: React.FC = () => {
                                 </div>
                                 
                                 {/* Grade Legend */}
-                                <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 page-break-avoid">
+                                <div className="grade-legend mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 page-break-avoid">
                                     <p className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-2">Grading Scale</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                                         {gradeLegend.map((grade) => (
@@ -696,7 +744,7 @@ const PublicReportView: React.FC = () => {
 
                         {/* Comments Section */}
                         {(reportData.teacher_comment || reportData.principal_comment) && (
-                            <div className="space-y-4 page-break-avoid">
+                            <div className="comments-section space-y-4 page-break-avoid">
                                 <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
                                     Teacher Comments
                                 </h4>
@@ -722,7 +770,7 @@ const PublicReportView: React.FC = () => {
                         )}
 
                         {/* Signature Block */}
-                        <div className="pt-6 border-t border-slate-200 page-break-avoid">
+                        <div className="signature-block pt-6 border-t border-slate-200 page-break-avoid">
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div>
                                     <div className="mb-1">
