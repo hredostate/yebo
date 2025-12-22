@@ -4,7 +4,7 @@
  */
 
 import assert from 'assert';
-import { parsePublicReportTokenFromLocation } from '../src/utils/reportUrlHelpers.js';
+import { parsePublicReportTokenFromLocation } from '../src/utils/reportUrlHelpers';
 
 // Helper to create mock Location object
 function createMockLocation(pathname: string, hash?: string, search?: string): Location {
@@ -123,7 +123,7 @@ assert.strictEqual(
     'Should return empty string for non-report paths'
 );
 
-// Test 13: Token followed by multiple slashes (defensive case)
+// Test 12: Token followed by multiple slashes (defensive case)
 const loc13 = createMockLocation(`/report/${basicToken}///extra/path`);
 assert.strictEqual(
     parsePublicReportTokenFromLocation(loc13),
@@ -131,7 +131,7 @@ assert.strictEqual(
     'Should handle multiple trailing slashes'
 );
 
-// Test 14: Case from problem statement - exact failing URL
+// Test 13: Case from problem statement - exact failing URL
 const failingToken = '5080-1-1766419518668-qyshsl';
 const loc14 = createMockLocation(`/report/${failingToken}/adun-tina`, '#Dashboard');
 const parsed = parsePublicReportTokenFromLocation(loc14);

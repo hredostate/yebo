@@ -55,18 +55,10 @@ export function parsePublicReportTokenFromLocation(location?: Location): string 
     if (!firstSegment) return '';
     
     // Remove any :1 suffix, query params (?), or hash fragments (#)
-    // Also handle other potential URL artifacts
     const cleanToken = firstSegment
         .split(/[?:#]/)[0]  // Remove query/hash/colon artifacts
         .trim()
         .replace(/\/$/, ''); // Remove trailing slash if any
-    
-    // Defensive: ensure token doesn't contain forward slashes
-    // (This shouldn't happen after split, but extra safety)
-    if (cleanToken.includes('/')) {
-        console.warn('Token contains forward slash, extracting first part only');
-        return cleanToken.split('/')[0];
-    }
     
     return cleanToken;
 }
