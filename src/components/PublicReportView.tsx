@@ -214,9 +214,6 @@ const PublicReportView: React.FC = () => {
             const averageScore = rpcData?.summary?.average ?? rpcData?.summary?.averageScore ?? 0;
             const totalScore = rpcData?.summary?.totalScore ?? rpcData?.summary?.total_score ?? 0;
             const positionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
-            const totalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? null;
-            const positionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level ?? null;
-            const totalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? null;
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
