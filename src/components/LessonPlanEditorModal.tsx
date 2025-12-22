@@ -9,12 +9,13 @@ import { WandIcon } from './common/icons';
 interface LessonPlanEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (plan: Partial<LessonPlan>, generateWithAi: boolean) => Promise<LessonPlan | null>;
+  onSave: (plan: Partial<LessonPlan>, generateWithAi: boolean, file: File | null) => Promise<LessonPlan | null>;
   initialPlanData: Partial<LessonPlan> | null;
 }
 
 const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, onClose, onSave, initialPlanData }) => {
   const [planData, setPlanData] = useState<Partial<LessonPlan>>({});
+  const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -25,8 +26,10 @@ const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, o
         ...initialPlanData,
         sessions: initialPlanData.sessions || [], // Ensure sessions is an array
       });
+      setFile(null); // Reset file when modal opens
     } else {
       setPlanData({ sessions: [] });
+      setFile(null);
     }
   }, [initialPlanData, isOpen]);
 
@@ -42,7 +45,7 @@ const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, o
     // Set submission status based on due date logic (simplified here)
     const submission_status = planData.id ? planData.submission_status : SubmissionStatus.OnTime;
     
-    const result = await onSave({ ...planData, submission_status }, generateWithAi);
+    const result = await onSave({ ...planData, submission_status }, generateWithAi, file);
     
     setIsSaving(false);
     setIsGenerating(false);
@@ -124,6 +127,22 @@ const LessonPlanEditorModal: React.FC<LessonPlanEditorModalProps> = ({ isOpen, o
               )}
             </div>
           ))}
+
+          {/* PDF File Upload */}
+          <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
+            <label htmlFor="file-upload" className={labelClasses}>Attach PDF (Optional)</label>
+            <p className="text-xs text-slate-500 mb-2">Upload a PDF document for this lesson plan.</p>
+            <input 
+              id="file-upload"
+              type="file"
+              accept=".pdf"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300 dark:hover:file:bg-blue-900/50"
+            />
+            {file && (
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Selected: {file.name}</p>
+            )}
+          </div>
 
           {/* Sessions - Repeatable Block */}
           <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">

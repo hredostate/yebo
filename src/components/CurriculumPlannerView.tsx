@@ -204,9 +204,7 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
         isOpen={isPlanEditorOpen}
         onClose={() => setIsPlanEditorOpen(false)}
         initialPlanData={editingPlan}
-        // FIX: The onSave prop for LessonPlanEditorModal expects a function with two arguments, but onSaveLessonPlan takes three.
-        // This wraps the call to provide `null` for the third argument, as this modal doesn't handle files.
-        onSave={(plan, generateWithAi) => onSaveLessonPlan(plan, generateWithAi, null)}
+        onSave={(plan, generateWithAi, file) => onSaveLessonPlan(plan, generateWithAi, file)}
       />}
 
       <FreeformLessonPlanEditorModal
