@@ -85,6 +85,7 @@ const PublicReportView: React.FC = () => {
     const [expired, setExpired] = useState(false);
     const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState<string>('School Report Card');
+    const [classReportConfig, setClassReportConfig] = useState<any>(null);
 
     useEffect(() => {
         fetchReport();
@@ -165,6 +166,36 @@ const PublicReportView: React.FC = () => {
                 }
                 if (schoolConfig?.display_name) {
                     setSchoolName(schoolConfig.display_name);
+                }
+            }
+
+            // Fetch academic class report_config for customizations
+            if (report.student_id && report.term_id) {
+                const { data: enrollment } = await supabase
+                    .from('academic_class_students')
+                    .select('academic_class_id')
+                    .eq('student_id', report.student_id)
+                    .eq('enrolled_term_id', report.term_id)
+                    .maybeSingle();
+
+                if (enrollment?.academic_class_id) {
+                    const { data: classData } = await supabase
+                        .from('academic_classes')
+                        .select('report_config')
+                        .eq('id', enrollment.academic_class_id)
+                        .maybeSingle();
+                    
+                    if (classData?.report_config) {
+                        setClassReportConfig(classData.report_config);
+                        
+                        // Apply customizations
+                        if (classData.report_config.customLogoUrl) {
+                            setSchoolLogo(classData.report_config.customLogoUrl);
+                        }
+                        if (classData.report_config.schoolNameOverride) {
+                            setSchoolName(classData.report_config.schoolNameOverride);
+                        }
+                    }
                 }
             }
 
@@ -615,13 +646,23 @@ const PublicReportView: React.FC = () => {
                                     <div className="mb-1">
                                         <div className="h-12 border-b-2 border-slate-300"></div>
                                     </div>
-                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Class Teacher Signature & Date</p>
+                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                        {classReportConfig?.teacherLabel || 'Class Teacher'} Signature & Date
+                                    </p>
+                                    {classReportConfig?.teacherNameOverride && (
+                                        <p className="text-sm text-slate-700 mt-1">{classReportConfig.teacherNameOverride}</p>
+                                    )}
                                 </div>
                                 <div>
                                     <div className="mb-1">
                                         <div className="h-12 border-b-2 border-slate-300"></div>
                                     </div>
-                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Principal Signature & Date</p>
+                                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                        {classReportConfig?.principalLabel || 'Principal'} Signature & Date
+                                    </p>
+                                    {classReportConfig?.principalNameOverride && (
+                                        <p className="text-sm text-slate-700 mt-1">{classReportConfig.principalNameOverride}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
