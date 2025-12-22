@@ -6,6 +6,7 @@ import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
+import { calculatePercentile, formatPercentile } from '../utils/reportCardHelpers';
 import ResultSheetDesigns from './ResultSheetDesigns';
 
 interface StudentReportViewProps {
@@ -444,27 +445,6 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
-  // Helper to calculate percentile rank
-  const calculatePercentile = (position: number | null | undefined, total: number | null | undefined): number | null => {
-    if (!position || !total) return null;
-    return ((total - position + 1) / total) * 100;
-  };
-
-  // Helper to format percentile
-  const formatPercentile = (percentile: number | null | undefined): string => {
-    if (percentile == null || isNaN(percentile)) {
-      return 'N/A';
-    }
-    
-    if (percentile >= 90) {
-      const topPercentage = Math.ceil(100 - percentile);
-      return `Top ${topPercentage}%`;
-    } else {
-      const rounded = Math.round(percentile);
-      return `${getOrdinal(rounded)} percentile`;
-    }
-  };
-
 
   if (isLoading) return <div className="flex justify-center items-center h-screen"><Spinner size="lg" /></div>;
 
@@ -569,6 +549,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         </td>
                         {showSubjectPosition && (
                             <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>
+                                {/* Note: Using cohortSize as approximation for total students in subject.
+                                    In most cases, all students in a class take the same subjects. */}
                                 {formatPercentile(calculatePercentile(sub.subjectPosition, summary.cohortSize))}
                             </td>
                         )}
@@ -597,6 +579,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <td className={`${commonTdClasses} text-center font-bold ${layout === 'pastel' ? '' : 'bg-blue-50'}`}>{sub.cumulativeAverage}</td>
                         {showSubjectPosition && (
                             <td className={`${commonTdClasses} text-center text-slate-500 text-xs`}>
+                                {/* Note: Using cohortSize as approximation for total students in subject */}
                                 {formatPercentile(calculatePercentile(sub.subjectPosition, summary.cohortSize))}
                             </td>
                         )}
