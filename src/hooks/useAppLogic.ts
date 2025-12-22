@@ -113,6 +113,7 @@ export const useAppLogic = () => {
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
   const [coverageData, setCoverageData] = useState<LessonPlanCoverage[]>([]);
   const [reviewEvidence, setReviewEvidence] = useState<LessonPlanReviewEvidence[]>([]);
+  const [learningMaterials, setLearningMaterials] = useState<any[]>([]);
   
   // UI States passed to children
   const [isPositiveModalOpen, setIsPositiveModalOpen] = useState(false);
@@ -252,6 +253,7 @@ export const useAppLogic = () => {
                 supabase.from('academic_class_students').select('*').limit(10000),
                 supabase.from('lesson_plan_coverage').select('*'),
                 supabase.from('lesson_plan_review_evidence').select('*, reviewer:user_profiles(name)'),
+                supabase.from('learning_materials').select('*'),
             ]);
 
             // Helper to safely extract data from result - always returns array for array types
@@ -340,6 +342,7 @@ export const useAppLogic = () => {
             setAcademicClassStudents(getData(37));
             setCoverageData(getData(38));
             setReviewEvidence(getData(39));
+            setLearningMaterials(getData(40));
             
             // Mock Data for things not yet fully DB driven or for demo
             setSocialMediaAnalytics(MOCK_SOCIAL_ANALYTICS);
@@ -721,7 +724,7 @@ export const useAppLogic = () => {
         payrollRuns, payrollItems, payrollAdjustments, leaveRequests, orders, socialAccounts, checkinAnomalies, weeklyRatings,
         scoreEntries, studentTermReportSubjects, coverageVotes, curricula, curriculumWeeks, lessonPlans, assessments, assessmentScores,
         classGroups, surveys, roles, terms, academicClasses, schoolSettings, isPositiveModalOpen, isTourOpen, isAIBulkResponseModalOpen,
-        selectedStudent, coverageData, reviewEvidence
+        selectedStudent, coverageData, reviewEvidence, learningMaterials
     },
     actions: {
         setCurrentView,
@@ -1146,6 +1149,95 @@ export const useAppLogic = () => {
             } catch (error: any) {
                 addToast(`Error updating coverage: ${error.message}`, 'error');
                 throw error;
+            }
+        },
+        handleUploadLearningMaterial: async (material: Partial<any>, file?: File) => {
+            const supabase = requireSupabaseClient();
+            if (!userProfile || !('school_id' in userProfile)) return;
+            
+            try {
+                let file_url = material.file_url;
+                
+                // Upload file if provided
+                if (file) {
+                    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const fileName = `${userProfile.school_id}/${Date.now()}_${sanitizedName}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('learning_materials')
+                        .upload(fileName, file);
+                    
+                    if (uploadError) {
+                        addToast(`Error uploading file: ${uploadError.message}`, 'error');
+                        return;
+                    }
+                    
+                    const { data: publicUrlData } = supabase.storage
+                        .from('learning_materials')
+                        .getPublicUrl(fileName);
+                    
+                    file_url = publicUrlData.publicUrl;
+                }
+                
+                const materialData = {
+                    ...material,
+                    file_url,
+                    school_id: userProfile.school_id,
+                    uploaded_by: userProfile.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                };
+                
+                const { error } = await supabase.from('learning_materials').insert(materialData);
+                
+                if (error) {
+                    addToast(`Error uploading material: ${error.message}`, 'error');
+                    return;
+                }
+                
+                addToast('Material uploaded successfully!', 'success');
+                fetchData();
+            } catch (error: any) {
+                addToast(`Error: ${error.message}`, 'error');
+            }
+        },
+        handleUpdateLearningMaterial: async (id: number, updates: Partial<any>) => {
+            const supabase = requireSupabaseClient();
+            
+            try {
+                const { error } = await supabase
+                    .from('learning_materials')
+                    .update({
+                        ...updates,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', id);
+                
+                if (error) {
+                    addToast(`Error updating material: ${error.message}`, 'error');
+                    return;
+                }
+                
+                addToast('Material updated successfully!', 'success');
+                fetchData();
+            } catch (error: any) {
+                addToast(`Error: ${error.message}`, 'error');
+            }
+        },
+        handleDeleteLearningMaterial: async (id: number) => {
+            const supabase = requireSupabaseClient();
+            
+            try {
+                const { error } = await supabase.from('learning_materials').delete().eq('id', id);
+                
+                if (error) {
+                    addToast(`Error deleting material: ${error.message}`, 'error');
+                    return;
+                }
+                
+                addToast('Material deleted successfully!', 'success');
+                fetchData();
+            } catch (error: any) {
+                addToast(`Error: ${error.message}`, 'error');
             }
         },
         handleSaveScores: async (scores: any[]) => {

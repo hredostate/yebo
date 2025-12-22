@@ -165,6 +165,7 @@ export const VIEWS = {
   TEAM_LESSON_HUB: 'Team Lesson Hub',
   STUDENT_LESSON_PORTAL: 'Student Lessons',
   HOMEWORK_MANAGER: 'Homework Manager',
+  LEARNING_MATERIALS: 'Learning Materials',
   STUDENT_HOMEWORK: 'My Homework',
   NOTES_COMPLIANCE: 'Notes Compliance',
   NOTIFICATION_HISTORY: 'Notification History',

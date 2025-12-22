@@ -62,6 +62,7 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.TEAM_LESSON_HUB, label: 'Team Lesson Hub', permission: 'manage-curriculum' },
       { id: VIEWS.COVERAGE_ANALYTICS, label: 'Coverage Analytics', permission: 'manage-curriculum' },
       { id: VIEWS.HOMEWORK_MANAGER, label: 'Homework Manager', permission: 'view-my-lesson-plans|manage-curriculum' },
+      { id: VIEWS.LEARNING_MATERIALS, label: 'Learning Materials', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.NOTES_COMPLIANCE, label: 'Notes Compliance', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.GRADEBOOK, label: 'My Gradebook', permission: 'score_entries.edit_self' },
       { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
