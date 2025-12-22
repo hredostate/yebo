@@ -124,5 +124,13 @@ If you've deployed an update but users are still seeing the old version, this is
 - **White Screen on Load**: Check browser console for errors and verify your `.env` file has correct Supabase credentials
 - **Database Schema Errors**: Make sure you've run the complete schema from the "Critical Application Error" page or from `database_schema.sql`
 - **Authentication Issues**: Verify your Supabase project has RLS (Row Level Security) policies enabled
+- **"supabase is not defined" Errors**: See [`SUPABASE_USAGE_GUIDE.md`](./SUPABASE_USAGE_GUIDE.md) for correct client usage patterns
 
 For more detailed troubleshooting, see [`BUILD_GUIDE.md`](./BUILD_GUIDE.md) and [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
+## 📚 Developer Documentation
+
+### Supabase Client Usage
+- [`SUPABASE_USAGE_GUIDE.md`](./SUPABASE_USAGE_GUIDE.md) - Complete guide on using the Supabase client correctly
+- [`CIRCULAR_DEPENDENCY_FIX_SUPABASE_CLIENT.md`](./CIRCULAR_DEPENDENCY_FIX_SUPABASE_CLIENT.md) - Technical background on the lazy initialization pattern
+- [`SUPABASE_CLIENT_AUDIT_SUMMARY.md`](./SUPABASE_CLIENT_AUDIT_SUMMARY.md) - Audit results showing 100% compliance
