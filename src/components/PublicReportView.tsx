@@ -96,6 +96,12 @@ const PublicReportView: React.FC = () => {
     const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState<string>('School Report Card');
     const [classReportConfig, setClassReportConfig] = useState<any>(null);
+    const [positionInArm, setPositionInArm] = useState<number | undefined>(undefined);
+    const [totalInArm, setTotalInArm] = useState<number | undefined>(undefined);
+    const [positionInLevel, setPositionInLevel] = useState<number | undefined>(undefined);
+    const [totalInLevel, setTotalInLevel] = useState<number | undefined>(undefined);
+    const [armName, setArmName] = useState<string | undefined>(undefined);
+    const [levelName, setLevelName] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         fetchReport();
@@ -255,7 +261,12 @@ const PublicReportView: React.FC = () => {
             // Use nullish coalescing (??) to preserve legitimate 0 values
             const averageScore = rpcData?.summary?.average ?? rpcData?.summary?.averageScore ?? 0;
             const totalScore = rpcData?.summary?.totalScore ?? rpcData?.summary?.total_score ?? 0;
-            const positionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
+            const extractedPositionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
+            const extractedTotalInArm = rpcData?.summary?.armSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_in_arm;
+            const extractedPositionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level;
+            const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_in_level;
+            const extractedArmName = rpcData?.student?.armName ?? rpcData?.student?.arm_name;
+            const extractedLevelName = rpcData?.student?.levelName ?? rpcData?.student?.level_name ?? rpcData?.student?.level;
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
@@ -267,16 +278,16 @@ const PublicReportView: React.FC = () => {
                 subjects: transformedSubjects,
                 average_score: averageScore,
                 total_score: totalScore,
-                position_in_class: positionInArm,
+                position_in_class: extractedPositionInArm,
                 teacher_comment: teacherComment,
                 principal_comment: principalComment
             });
-            setPositionInArm(positionInArm);
-            setTotalInArm(totalInArm);
-            setPositionInLevel(positionInLevel);
-            setTotalInLevel(totalInLevel);
-            setArmName(armName);
-            setLevelName(levelName);
+            setPositionInArm(extractedPositionInArm);
+            setTotalInArm(extractedTotalInArm);
+            setPositionInLevel(extractedPositionInLevel);
+            setTotalInLevel(extractedTotalInLevel);
+            setArmName(extractedArmName);
+            setLevelName(extractedLevelName);
         } catch (err: any) {
             console.error('Error fetching report:', err);
             setError(err.message || 'Failed to load report');
