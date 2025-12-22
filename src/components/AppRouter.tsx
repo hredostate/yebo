@@ -20,6 +20,7 @@ import TeamManager from './TeamManager';
 import CurriculumManager from './CurriculumManager';
 import CurriculumPlannerContainer from './CurriculumPlannerContainer';
 import TeamLessonPlanHub from './TeamLessonPlanHub';
+import ReviewQualityDashboard from './ReviewQualityDashboard';
 import TeacherGradebookView from './TeacherGradebookView';
 import TeacherScoreEntryView from './TeacherScoreEntryView';
 import AssessmentManager from './AssessmentManager';
@@ -613,6 +614,16 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                }}
                reviewEvidence={data.reviewEvidence || []}
                coverageData={data.coverageData || []}
+             />;
+        case VIEWS.REVIEW_QUALITY_DASHBOARD:
+             return <ReviewQualityDashboard
+               reviewEvidence={data.reviewEvidence || []}
+               reviewers={data.users.filter((u: any) => ['Principal', 'Team Lead'].includes(u.role))}
+               onViewReviewerDetails={(reviewerId) => {
+                 // Navigate to a detailed view - for now just log
+                 console.log('View details for reviewer:', reviewerId);
+                 actions.addToast('Reviewer details view coming soon', 'info');
+               }}
              />;
         case VIEWS.GRADEBOOK:
              return <TeacherGradebookView 

@@ -161,6 +161,7 @@ export const VIEWS = {
   COVERAGE_REPORTING: 'Coverage Reporting',
   COVERAGE_ANALYTICS: 'Coverage Analytics',
   REVIEW_DASHBOARD: 'Review Dashboard',
+  REVIEW_QUALITY_DASHBOARD: 'Review Quality Dashboard',
   TEAM_LESSON_HUB: 'Team Lesson Hub',
   STUDENT_LESSON_PORTAL: 'Student Lessons',
   HOMEWORK_MANAGER: 'Homework Manager',
