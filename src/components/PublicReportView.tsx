@@ -96,12 +96,12 @@ const PublicReportView: React.FC = () => {
     const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState<string>('School Report Card');
     const [classReportConfig, setClassReportConfig] = useState<any>(null);
-    const [positionInArm, setPositionInArm] = useState<number | undefined>(undefined);
-    const [totalInArm, setTotalInArm] = useState<number | undefined>(undefined);
-    const [positionInLevel, setPositionInLevel] = useState<number | undefined>(undefined);
-    const [totalInLevel, setTotalInLevel] = useState<number | undefined>(undefined);
-    const [armName, setArmName] = useState<string | undefined>(undefined);
-    const [levelName, setLevelName] = useState<string | undefined>(undefined);
+    const [positionInArm, setPositionInArm] = useState<number | null>(null);
+    const [totalInArm, setTotalInArm] = useState<number | null>(null);
+    const [positionInLevel, setPositionInLevel] = useState<number | null>(null);
+    const [totalInLevel, setTotalInLevel] = useState<number | null>(null);
+    const [armName, setArmName] = useState<string | null>(null);
+    const [levelName, setLevelName] = useState<string | null>(null);
 
     useEffect(() => {
         fetchReport();
@@ -261,12 +261,15 @@ const PublicReportView: React.FC = () => {
             // Use nullish coalescing (??) to preserve legitimate 0 values
             const averageScore = rpcData?.summary?.average ?? rpcData?.summary?.averageScore ?? 0;
             const totalScore = rpcData?.summary?.totalScore ?? rpcData?.summary?.total_score ?? 0;
-            const extractedPositionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? null;
-            const extractedTotalInArm = rpcData?.summary?.armSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_in_arm;
+            
+            // Use different names for the extracted values to avoid shadowing state setters
+            const extractedPositionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? report.position_in_class;
+            const extractedTotalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_students_in_arm;
             const extractedPositionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level;
-            const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_in_level;
+            const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_students_in_level;
             const extractedArmName = rpcData?.student?.armName ?? rpcData?.student?.arm_name;
             const extractedLevelName = rpcData?.student?.levelName ?? rpcData?.student?.level_name ?? rpcData?.student?.level;
+            
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
@@ -282,6 +285,8 @@ const PublicReportView: React.FC = () => {
                 teacher_comment: teacherComment,
                 principal_comment: principalComment
             });
+            
+            // Now the state setters work correctly with the extracted values
             setPositionInArm(extractedPositionInArm);
             setTotalInArm(extractedTotalInArm);
             setPositionInLevel(extractedPositionInLevel);
