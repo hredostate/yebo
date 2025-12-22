@@ -269,7 +269,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                                 />
                             )}
                             {structureSubTab === 'subjects' && (
-                                <SubjectsManager subjects={subjects} onSave={onSaveSubject} onDelete={onDeleteSubject} />
+                                <SubjectsManager subjects={subjects} onSave={onSaveSubject} onDelete={onDeleteSubject} addToast={addToast} />
                             )}
                             {structureSubTab === 'class_subjects' && (
                                 <ClassSubjectsManager 
