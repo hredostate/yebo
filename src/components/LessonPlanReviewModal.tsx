@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CloseIcon, CheckCircleIcon, XCircleIcon, ClockIcon, StarIcon } from './common/icons';
 import type { LessonPlan, LessonPlanReviewEvidence, LessonPlanAssignment } from '../types';
 import { useReviewCooldown } from '../hooks/useReviewCooldown';
