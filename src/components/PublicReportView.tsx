@@ -128,14 +128,13 @@ const PublicReportView: React.FC = () => {
                 }
             }
 
-            // Fetch subjects for this report
-            const { data: subjects, error: subjectsError } = await supabase
-                .from('student_term_report_subjects')
-                .select('*')
-                .eq('report_id', report.id)
-                .order('subject_name');
+            // Fetch subjects and additional data using RPC (same as internal view)
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_student_term_report_details', {
+                p_student_id: report.student_id,
+                p_term_id: report.term_id,
+            });
 
-            if (subjectsError) throw subjectsError;
+            if (rpcError) throw rpcError;
 
             // Fetch school logo and name if student data is available
             const studentData = Array.isArray(report.student) ? report.student[0] : report.student;
@@ -171,12 +170,32 @@ const PublicReportView: React.FC = () => {
                 }
             }
 
+            // Transform RPC subjects data to match the existing interface
+            const transformedSubjects = rpcData?.subjects ? rpcData.subjects.map((sub: any) => ({
+                id: sub.id || 0,
+                subject_name: sub.subjectName || sub.subject_name,
+                total_score: sub.totalScore || sub.total_score,
+                grade_label: sub.gradeLabel || sub.grade_label || sub.grade,
+                subject_position: sub.subjectPosition || sub.subject_position,
+                remark: sub.remark
+            })) : [];
+
+            // Extract additional data from RPC response
+            const averageScore = rpcData?.summary?.average || report.average_score;
+            const positionInClass = rpcData?.summary?.positionInArm || rpcData?.summary?.position_in_arm || report.position_in_class;
+            const teacherComment = rpcData?.comments?.teacher || rpcData?.comments?.teacher_comment || report.teacher_comment;
+            const principalComment = rpcData?.comments?.principal || rpcData?.comments?.principal_comment || report.principal_comment;
+
             setReportData({
                 ...report,
                 student: studentData,
                 term: Array.isArray(report.term) ? report.term[0] : report.term,
                 academic_class: Array.isArray(report.academic_class) ? report.academic_class[0] : report.academic_class,
-                subjects: subjects || []
+                subjects: transformedSubjects,
+                average_score: averageScore,
+                position_in_class: positionInClass,
+                teacher_comment: teacherComment,
+                principal_comment: principalComment
             });
         } catch (err: any) {
             console.error('Error fetching report:', err);
