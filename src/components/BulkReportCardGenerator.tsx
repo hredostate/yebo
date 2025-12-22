@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import type { Student, SchoolConfig } from '../types';
 import Spinner from './common/Spinner';
-import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon } from './common/icons';
+import { CloseIcon, DownloadIcon, CheckCircleIcon, AlertCircleIcon, ClipboardListIcon } from './common/icons';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -801,6 +801,63 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     });
   };
 
+  const handleExportCSV = () => {
+    const successfulResults = shareResults.filter(r => r.link);
+    if (successfulResults.length === 0) {
+      addToast('No links to export', 'error');
+      return;
+    }
+    
+    // Helper to escape CSV fields
+    const escapeCsvField = (field: string) => {
+      // Escape double quotes by doubling them and wrap in quotes
+      return `"${field.replace(/"/g, '""')}"`;
+    };
+    
+    const header = ['Student Name', 'Admission Number', 'Report Link'];
+    const rows = successfulResults.map(result => {
+      const student = studentsWithDebt.find(s => s.name === result.studentName);
+      return [
+        escapeCsvField(result.studentName),
+        escapeCsvField(student?.admission_number || 'N/A'),
+        escapeCsvField(result.link!)
+      ].join(',');
+    });
+    
+    const csvContent = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${sanitizeString(className)}_${sanitizeString(termName)}_ReportLinks.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    addToast('CSV exported successfully!', 'success');
+  };
+
+  const handleCopyAllLinks = () => {
+    const successfulResults = shareResults.filter(r => r.link);
+    if (successfulResults.length === 0) {
+      addToast('No links to copy', 'error');
+      return;
+    }
+    
+    const formattedText = `Report Card Links - ${className} - ${termName}\n\n` +
+      successfulResults.map(result => 
+        `Student Name: ${result.studentName}\nLink: ${result.link}`
+      ).join('\n\n');
+    
+    navigator.clipboard.writeText(formattedText).then(() => {
+      addToast(`Copied ${successfulResults.length} links to clipboard!`, 'success');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      addToast('Failed to copy links', 'error');
+    });
+  };
+
   const filteredStudents = studentsWithDebt.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.admission_number?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1221,6 +1278,26 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                       Generated Links ({shareResults.length})
                     </h4>
                   </div>
+
+                  {/* Export Buttons */}
+                  {shareResults.filter(r => r.link).length > 0 && (
+                    <div className="flex gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 mb-4">
+                      <button
+                        onClick={handleExportCSV}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center justify-center gap-2"
+                      >
+                        <DownloadIcon className="w-5 h-5" />
+                        Export as CSV
+                      </button>
+                      <button
+                        onClick={handleCopyAllLinks}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2"
+                      >
+                        <ClipboardListIcon className="w-5 h-5" />
+                        Copy All Links
+                      </button>
+                    </div>
+                  )}
                   
                   {shareResults.map((result, index) => (
                     <div
