@@ -625,13 +625,17 @@ const PublicReportView: React.FC = () => {
                                 <div className="grid md:grid-cols-2 gap-4">
                                     {reportData.teacher_comment && (
                                         <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">Class Teacher's Remark</p>
+                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">
+                                                {classReportConfig?.teacherLabel || 'Class Teacher'}'s Remark
+                                            </p>
                                             <p className="text-sm text-slate-800 leading-relaxed">{reportData.teacher_comment}</p>
                                         </div>
                                     )}
                                     {reportData.principal_comment && (
                                         <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">Principal's Remark</p>
+                                            <p className="text-xs uppercase tracking-wider font-bold text-slate-600 mb-2">
+                                                {classReportConfig?.principalLabel || 'Principal'}'s Remark
+                                            </p>
                                             <p className="text-sm text-slate-800 leading-relaxed">{reportData.principal_comment}</p>
                                         </div>
                                     )}
