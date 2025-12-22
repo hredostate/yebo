@@ -3,16 +3,19 @@ import React, { useState } from 'react';
 import type { Subject } from '../types';
 import Spinner from './common/Spinner';
 import { PlusCircleIcon } from './common/icons';
+import { requireSupabaseClient } from '../services/supabaseClient';
 
 interface SubjectsManagerProps {
     subjects: Subject[];
     onSave: (subject: Partial<Subject>) => Promise<boolean>;
     onDelete: (id: number) => Promise<boolean>;
+    addToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-const SubjectsManager: React.FC<SubjectsManagerProps> = ({ subjects = [], onSave, onDelete }) => {
+const SubjectsManager: React.FC<SubjectsManagerProps> = ({ subjects = [], onSave, onDelete, addToast }) => {
     const [editing, setEditing] = useState<Partial<Subject> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
     const handleSave = async (data: Partial<Subject>) => {
         setIsSaving(true);
@@ -21,6 +24,87 @@ const SubjectsManager: React.FC<SubjectsManagerProps> = ({ subjects = [], onSave
             setEditing(null);
         }
         setIsSaving(false);
+    };
+
+    const handleDelete = async (subjectId: number) => {
+        // Get the subject name for the check
+        const subject = subjects.find(s => s.id === subjectId);
+        if (!subject) return;
+
+        setIsDeleting(subjectId);
+
+        try {
+            // Check for existing score entries
+            const supabase = requireSupabaseClient();
+            const { count: scoreCount, error: scoreError } = await supabase
+                .from('score_entries')
+                .select('*', { count: 'exact', head: true })
+                .eq('subject_name', subject.name);
+
+            if (scoreError) {
+                const errorMessage = `Error checking score entries: ${scoreError.message}`;
+                if (addToast) {
+                    addToast(errorMessage, 'error');
+                } else {
+                    alert(errorMessage);
+                }
+                setIsDeleting(null);
+                return;
+            }
+
+            if (scoreCount && scoreCount > 0) {
+                const message = `Cannot delete "${subject.name}" - there are ${scoreCount} score entries for this subject. Please delete or reassign the scores first.`;
+                if (addToast) {
+                    addToast(message, 'error');
+                } else {
+                    alert(message);
+                }
+                setIsDeleting(null);
+                return;
+            }
+
+            // Check for teaching assignments
+            const { count: assignmentCount, error: assignmentError } = await supabase
+                .from('teaching_assignments')
+                .select('*', { count: 'exact', head: true })
+                .eq('subject_name', subject.name);
+
+            if (assignmentError) {
+                const errorMessage = `Error checking teaching assignments: ${assignmentError.message}`;
+                if (addToast) {
+                    addToast(errorMessage, 'error');
+                } else {
+                    alert(errorMessage);
+                }
+                setIsDeleting(null);
+                return;
+            }
+
+            if (assignmentCount && assignmentCount > 0) {
+                const message = `Cannot delete "${subject.name}" - there are ${assignmentCount} teaching assignments for this subject. Please remove the assignments first.`;
+                if (addToast) {
+                    addToast(message, 'error');
+                } else {
+                    alert(message);
+                }
+                setIsDeleting(null);
+                return;
+            }
+
+            // Safe to delete - show confirmation
+            if (window.confirm('Are you sure you want to delete this subject? This action cannot be undone.')) {
+                await onDelete(subjectId);
+            }
+        } catch (error: any) {
+            const errorMessage = `Error during deletion check: ${error.message || 'Unknown error'}`;
+            if (addToast) {
+                addToast(errorMessage, 'error');
+            } else {
+                alert(errorMessage);
+            }
+        } finally {
+            setIsDeleting(null);
+        }
     };
 
     return (
@@ -60,11 +144,13 @@ const SubjectsManager: React.FC<SubjectsManagerProps> = ({ subjects = [], onSave
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setEditing(subject)} className="text-sm font-semibold">Edit</button>
-                            <button onClick={() => {
-                                if (window.confirm('Are you sure you want to delete this subject? This action cannot be undone and may affect class assignments and student enrollments.')) {
-                                    onDelete(subject.id);
-                                }
-                            }} className="text-sm font-semibold text-red-600">Delete</button>
+                            <button 
+                                onClick={() => handleDelete(subject.id)} 
+                                disabled={isDeleting === subject.id}
+                                className="text-sm font-semibold text-red-600 disabled:opacity-50"
+                            >
+                                {isDeleting === subject.id ? 'Checking...' : 'Delete'}
+                            </button>
                         </div>
                     </div>
                 ))}
