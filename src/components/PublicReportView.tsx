@@ -9,6 +9,7 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
 import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
+import { matchComponentScore } from '../utils/reportCardHelpers';
 
 // RPC response types
 interface RPCSubject {
@@ -756,11 +757,16 @@ const PublicReportView: React.FC = () => {
                                                             <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
                                                                 {subject.subject_name}
                                                             </td>
-                                                            {componentScoreData.componentNames.map(componentName => (
-                                                                <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
-                                                                    {subject.component_scores?.[componentName] ?? '—'}
-                                                                </td>
-                                                            ))}
+                                                            {componentScoreData.componentNames.map((componentName) => {
+                                                                // Use semantic matching utility to find the component score
+                                                                const value = matchComponentScore(componentName, subject.component_scores) ?? '—';
+                                                                
+                                                                return (
+                                                                    <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
+                                                                        {value}
+                                                                    </td>
+                                                                );
+                                                            })}
                                                             <td className="px-4 py-3 text-center text-sm font-semibold text-slate-900">
                                                                 {subject.total_score}
                                                             </td>

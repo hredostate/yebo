@@ -6,7 +6,7 @@ import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
-import { calculatePercentile, formatPercentile } from '../utils/reportCardHelpers';
+import { calculatePercentile, formatPercentile, matchComponentScore } from '../utils/reportCardHelpers';
 import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
 import ResultSheetDesigns from './ResultSheetDesigns';
 
@@ -525,11 +525,16 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <td className={commonTdClasses}>{sub.subjectName}</td>
                         {assessmentComponents && assessmentComponents.length > 0 ? (
                             // Dynamic component scores
-                            assessmentComponents.map((comp, compIdx) => (
-                                <td key={compIdx} className={`${commonTdClasses} text-center`}>
-                                    {sub.componentScores?.[comp.name] ?? '-'}
-                                </td>
-                            ))
+                            assessmentComponents.map((comp, compIdx) => {
+                                // Use semantic matching utility to find the component score
+                                const value = matchComponentScore(comp.name, sub.componentScores) ?? '-';
+                                
+                                return (
+                                    <td key={compIdx} className={`${commonTdClasses} text-center`}>
+                                        {value}
+                                    </td>
+                                );
+                            })
                         ) : (
                             // Fallback to CA/Exam
                             <>

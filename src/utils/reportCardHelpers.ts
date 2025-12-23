@@ -112,3 +112,83 @@ export function formatPercentile(percentile: number | null | undefined): string 
     return `${getOrdinal(rounded)} percentile`;
   }
 }
+
+/**
+ * Match component score using semantic/fuzzy matching
+ * Handles component name variations and abbreviations
+ * 
+ * @param componentName - The component name from the class assessment structure (e.g., "FA", "SA")
+ * @param componentScores - The subject's component scores object (e.g., {"Assessment 1": 20, "Assessment 2": 19})
+ * @returns The matched score value or null if no match found
+ * 
+ * Matching priority:
+ * 1. Exact match (case-sensitive)
+ * 2. Exact match (case-insensitive)
+ * 3. Normalized match (ignoring spaces, dots, hyphens)
+ * 4. Specific semantic matches
+ * 5. Substring matches (with length constraints to avoid false positives)
+ */
+export function matchComponentScore(
+  componentName: string,
+  componentScores: Record<string, number> | undefined | null
+): number | null {
+  // Return null if no component scores exist
+  if (!componentScores) {
+    return null;
+  }
+  
+  // Priority 1: Try exact match (case-sensitive)
+  if (componentScores[componentName] !== undefined) {
+    return componentScores[componentName];
+  }
+  
+  // Prepare normalized versions for fuzzy matching
+  const compNameLower = componentName.toLowerCase().trim();
+  const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
+  
+  // Priority 2: Exact case-insensitive match
+  for (const [key, val] of Object.entries(componentScores)) {
+    if (key.toLowerCase().trim() === compNameLower) {
+      return val;
+    }
+  }
+  
+  // Priority 3: Normalized match (ignoring spaces, dots, hyphens)
+  for (const [key, val] of Object.entries(componentScores)) {
+    const keyNormalized = key.toLowerCase().trim().replace(/[.\s-]/g, '');
+    if (keyNormalized === compNameNormalized) {
+      return val;
+    }
+  }
+  
+  // Priority 4: Specific semantic matches
+  for (const [key, val] of Object.entries(componentScores)) {
+    const keyNormalized = key.toLowerCase().trim().replace(/[.\s-]/g, '');
+    
+    if (
+      (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
+      (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
+      (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
+      (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
+      (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
+      (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
+      (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
+    ) {
+      return val;
+    }
+  }
+  
+  // Priority 5: Substring matching with length constraints (to avoid false positives)
+  // Only match if both strings are at least 3 characters to avoid single-letter false matches
+  if (compNameLower.length >= 3) {
+    for (const [key, val] of Object.entries(componentScores)) {
+      const keyLower = key.toLowerCase().trim();
+      if (keyLower.length >= 3 && (keyLower.includes(compNameLower) || compNameLower.includes(keyLower))) {
+        return val;
+      }
+    }
+  }
+  
+  // No match found
+  return null;
+}

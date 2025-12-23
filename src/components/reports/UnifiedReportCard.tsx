@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
-import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking, calculatePercentile, formatPercentile } from '../../utils/reportCardHelpers';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking, calculatePercentile, formatPercentile, matchComponentScore } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
@@ -209,11 +209,16 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                     <td className="col-sn">{idx + 1}</td>
                     <td className="col-subject">{sanitize(subject.subjectName)}</td>
                     {assessmentComponents && assessmentComponents.length > 0 ? (
-                      assessmentComponents.map((comp, compIdx) => (
-                        <td key={compIdx} className="col-component">
-                          {subject.componentScores?.[comp.name] ?? '-'}
-                        </td>
-                      ))
+                      assessmentComponents.map((comp, compIdx) => {
+                        // Use semantic matching utility to find the component score
+                        const value = matchComponentScore(comp.name, subject.componentScores) ?? '-';
+                        
+                        return (
+                          <td key={compIdx} className="col-component">
+                            {value}
+                          </td>
+                        );
+                      })
                     ) : (
                       <>
                         <td className="col-score">{subject.componentScores ? caScore : '-'}</td>
