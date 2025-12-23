@@ -56,7 +56,7 @@ The enterprise theme provides a bright, professional visual refresh for the appl
 ### Import the Theme Tokens
 
 ```typescript
-import { enterprise } from '@/styles/enterpriseTheme';
+import { enterprise } from '../../styles/enterpriseTheme';
 ```
 
 ### Applying Styles
@@ -145,7 +145,7 @@ Buttons use bold styling with clear visual hierarchy:
 Or use the Button component:
 
 ```tsx
-import Button from '@/components/common/Button';
+import Button from '../../components/common/Button';
 
 <Button variant="primary">Primary</Button>
 <Button variant="secondary">Secondary</Button>

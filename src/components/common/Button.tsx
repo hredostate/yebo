@@ -8,7 +8,8 @@ import Spinner from './Spinner';
  * src/styles/enterpriseTheme.ts. Styles are replicated here to maintain
  * the component's flexibility with className overrides.
  * 
- * For direct token usage, import { enterprise } from '@/styles/enterpriseTheme'
+ * For direct token usage:
+ * import { enterprise } from '../../styles/enterpriseTheme'
  * and use enterprise.btnPrimary, enterprise.btnSecondary, etc.
  */
 
