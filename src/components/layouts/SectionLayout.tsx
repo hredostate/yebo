@@ -14,6 +14,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDownIcon } from '../common/icons';
 import type { SectionConfig, SectionTab, PinnedItem } from '../../routing/sectionConfig';
 import { filterTabsByPermissions } from '../../routing/sectionConfig';
+import { enterprise } from '../../styles/enterpriseTheme';
 
 interface SectionLayoutProps {
   config: SectionConfig;
@@ -89,16 +90,16 @@ export const SectionLayout: React.FC<SectionLayoutProps> = ({
         )}
 
         {/* Enterprise Pill Sub-tabs Navigation */}
-        <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-700/50 bg-white dark:bg-slate-800">
+        <div className={enterprise.pillTabsContainer}>
           <div className="flex items-center gap-2 overflow-x-auto">
             {visibleTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab)}
-                className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-200 whitespace-nowrap border focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                className={`${enterprise.pillTabBase} ${
                   activeTab?.id === tab.id
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-600 shadow-sm font-bold'
-                    : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? enterprise.pillTabActive
+                    : enterprise.pillTabInactive
                 }`}
               >
                 {tab.label}
@@ -110,7 +111,7 @@ export const SectionLayout: React.FC<SectionLayoutProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setIsMoreOpen(!isMoreOpen)}
-                  className="px-4 py-2 text-sm font-semibold rounded-full transition-all duration-200 text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  className={`${enterprise.pillTabBase} ${enterprise.pillTabInactive} flex items-center gap-1`}
                 >
                   More
                   <ChevronDownIcon className={`w-4 h-4 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />

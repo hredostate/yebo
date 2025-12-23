@@ -1,6 +1,17 @@
 import React from 'react';
 import Spinner from './Spinner';
 
+/**
+ * Button Component
+ * 
+ * Enterprise-styled button that matches the theme tokens defined in
+ * src/styles/enterpriseTheme.ts. Styles are replicated here to maintain
+ * the component's flexibility with className overrides.
+ * 
+ * For direct token usage, import { enterprise } from '@/styles/enterpriseTheme'
+ * and use enterprise.btnPrimary, enterprise.btnSecondary, etc.
+ */
+
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
