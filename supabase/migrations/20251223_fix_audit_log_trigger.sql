@@ -12,9 +12,9 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_table_name ON public.audit_log(table_na
 CREATE INDEX IF NOT EXISTS idx_audit_log_record_id ON public.audit_log(record_id);
 
 -- Step 3: Add comments for documentation
-COMMENT ON COLUMN public.audit_log.table_name IS 'The name of the table that triggered this audit log entry';
-COMMENT ON COLUMN public.audit_log.record_id IS 'The ID of the record that was changed';
-COMMENT ON COLUMN public.audit_log.changes IS 'JSONB containing the changes made (alternative to details column)';
+COMMENT ON COLUMN public.audit_log.table_name IS 'The name of the table that triggered this audit log entry (for backward compatibility, not used by current triggers)';
+COMMENT ON COLUMN public.audit_log.record_id IS 'The ID of the record that was changed (for backward compatibility, not used by current triggers)';
+COMMENT ON COLUMN public.audit_log.changes IS 'JSONB containing the changes made (for backward compatibility, current triggers use details column)';
 
 -- Step 4: Fix the log_score_entry_changes() trigger function
 CREATE OR REPLACE FUNCTION public.log_score_entry_changes()
