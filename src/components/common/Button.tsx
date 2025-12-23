@@ -54,7 +54,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       className={`
         inline-flex items-center justify-center gap-2 
-        font-semibold rounded-lg transition-all
+        rounded-lg transition-all
         disabled:opacity-50 disabled:cursor-not-allowed
         focus:outline-none
         ${variantStyles[variant]}

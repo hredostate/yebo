@@ -79,7 +79,7 @@ export interface EnterpriseTheme {
   helpText: string;
 
   // Dark mode
-  dark: Partial<EnterpriseTheme>;
+  dark: EnterpriseTheme;
 }
 
 export const enterprise: EnterpriseTheme = {
@@ -264,7 +264,7 @@ export const enterprise: EnterpriseTheme = {
       "disabled:bg-slate-900 disabled:text-slate-500 disabled:cursor-not-allowed",
     label: "block text-sm font-semibold text-slate-300 mb-1",
     helpText: "mt-1 text-xs text-slate-400",
-  } as EnterpriseTheme,
+  },
 };
 
 export default enterprise;
