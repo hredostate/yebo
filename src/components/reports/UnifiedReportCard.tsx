@@ -213,17 +213,40 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                         // First try exact match
                         let value = subject.componentScores?.[comp.name];
                         
-                        // If no match, try to find a semantic equivalent or use positional fallback
-                        if (value === undefined || value === null) {
-                          // Check if subject has its own components
-                          const subjectComponents = subject.componentScores ? Object.keys(subject.componentScores) : [];
-                          if (subjectComponents.length > 0 && !subjectComponents.includes(comp.name)) {
-                            // Subject uses different component structure - show its own values by position
-                            const subjectValues = Object.values(subject.componentScores);
-                            value = subjectValues[compIdx] ?? '-';
-                          } else {
-                            value = '-';
+                        // If no exact match, try semantic/fuzzy matching
+                        if (value === undefined || value === null && subject.componentScores) {
+                          // Try common variations and abbreviations
+                          const compNameLower = comp.name.toLowerCase().trim();
+                          const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
+                          
+                          for (const [key, val] of Object.entries(subject.componentScores)) {
+                            const keyLower = key.toLowerCase().trim();
+                            const keyNormalized = keyLower.replace(/[.\s-]/g, '');
+                            
+                            // Check for various matching patterns
+                            if (
+                              keyLower === compNameLower || // Exact case-insensitive match
+                              keyNormalized === compNameNormalized || // Normalized match (ignoring spaces, dots, hyphens)
+                              keyLower.includes(compNameLower) || // Component name is substring of key
+                              compNameLower.includes(keyLower) || // Key is substring of component name
+                              // Specific semantic matches
+                              (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
+                              (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
+                              (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
+                              (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
+                              (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
+                              (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
+                              (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
+                            ) {
+                              value = val;
+                              break;
+                            }
                           }
+                        }
+                        
+                        // Fallback to dash if still no match
+                        if (value === undefined || value === null) {
+                          value = '-';
                         }
                         
                         return (
