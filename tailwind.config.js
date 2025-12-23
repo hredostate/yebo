@@ -7,6 +7,17 @@ export default {
         navy: { 50:"#F3F5FA",100:"#E6EBF4",500:"#1E3A8A",600:"#172B6E",700:"#0D1F5A" },
         blue: { 500:"#3B82F6", 600:"#2563EB", 700:"#1D4ED8" }
       },
+      // Glassmorphism backdrop blur utilities
+      backdropBlur: {
+        'glass': '24px',
+        'glass-strong': '32px',
+      },
+      // Box shadows for glassmorphism
+      boxShadow: {
+        'glass': '0 8px 32px rgba(31, 38, 135, 0.15)',
+        'glass-strong': '0 12px 40px rgba(31, 38, 135, 0.20)',
+        'glass-hover': '0 16px 48px rgba(79, 70, 229, 0.25)',
+      },
       // Touch-friendly spacing scale and safe area insets
       spacing: {
         '18': '4.5rem',   // 72px - good for large touch targets

@@ -29,14 +29,56 @@ html {
   --brand: 79 70 229;
   --brand-2: 56 189 248;
   --card-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.32);
+  
+  /* Glassmorphism Design Tokens */
+  --glass-fill: rgba(255, 255, 255, 0.75);
+  --glass-fill-strong: rgba(255, 255, 255, 0.85);
+  --glass-fill-subtle: rgba(255, 255, 255, 0.50);
+  --glass-border: rgba(255, 255, 255, 0.40);
+  --glass-border-strong: rgba(255, 255, 255, 0.60);
+  --glass-blur: 24px;
+  --glass-blur-strong: 32px;
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-shadow-strong: 0 12px 40px rgba(31, 38, 135, 0.20);
+  
+  /* Background & Ink Tokens */
+  --bg-base: #0f172a;
+  --bg-surface: #1e293b;
+  --ink-primary: #0f172a;
+  --ink-secondary: #475569;
+  --ink-muted: #94a3b8;
+  
+  /* Accent Tokens */
+  --accent-primary: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-focus: #6366f1;
+  
+  /* Enhanced Borders & Radius */
+  --radius-base: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
 
 .dark {
   --surface: 16 24 40;
   --surface-muted: 9 15 26;
   --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  --glass-border: rgba(148, 163, 184, 0.25);
+  
+  /* Dark Mode Glassmorphism */
+  --glass-fill: rgba(15, 23, 42, 0.70);
+  --glass-fill-strong: rgba(15, 23, 42, 0.85);
+  --glass-fill-subtle: rgba(15, 23, 42, 0.50);
+  --glass-border: rgba(148, 163, 184, 0.20);
+  --glass-border-strong: rgba(148, 163, 184, 0.30);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.40);
+  --glass-shadow-strong: 0 12px 40px rgba(0, 0, 0, 0.50);
+  
+  /* Dark Background & Ink */
+  --bg-base: #020617;
+  --bg-surface: #0f172a;
+  --ink-primary: #f8fafc;
+  --ink-secondary: #cbd5e1;
+  --ink-muted: #64748b;
 }
 
 @keyframes fade-in {
@@ -72,18 +114,22 @@ html {
 }
 
 body {
-  /* Clean bright background for enterprise appearance */
-  @apply bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 bg-fixed;
+  /* Deeper neutral base with subtle gradients for premium glassmorphism */
+  @apply bg-slate-900 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
   font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  background-attachment: fixed;
 }
 
-/* Core application surface - enterprise bright theme */
+/* Core application surface - deeper theme with radial gradients */
 .app-shell {
-  @apply relative min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300;
+  @apply relative min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300;
+  background: transparent;
 }
 
 .app-surface {
-  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8 isolate bg-transparent;
+  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8 isolate;
+  background: transparent;
 }
 
 .app-surface::before {
@@ -91,18 +137,23 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(120deg, rgba(var(--brand), 0.04), transparent 35%),
-              linear-gradient(300deg, rgba(var(--brand-2), 0.04), transparent 30%);
+  background: 
+    radial-gradient(ellipse at 20% 30%, rgba(79, 70, 229, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(56, 189, 248, 0.08), transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.05), transparent 60%);
 }
 
 .app-panel {
-  @apply relative overflow-hidden rounded-2xl border border-white/70 dark:border-slate-800/70 shadow-2xl backdrop-blur-xl;
-  background: rgba(var(--surface), 0.85);
-  box-shadow: var(--card-shadow);
+  @apply relative overflow-hidden rounded-2xl shadow-2xl;
+  background: var(--glass-fill);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .dark .app-panel {
-  background: rgba(var(--surface), 0.4);
+  background: var(--glass-fill);
 }
 
 /* Custom Scrollbar for a more modern feel */
@@ -146,25 +197,61 @@ body {
 @layer components {
   /* General transitions for buttons and other interactive elements */
   button {
-    @apply transition-all duration-200 ease-in-out transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500;
+    @apply transition-all duration-200 ease-in-out transform;
+  }
+  
+  button:focus-visible {
+    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900;
   }
   
   button:active {
     @apply scale-95;
   }
   
-  /* Enhanced Glassmorphism Utility - "Louder" and clearer */
-  /* Increased opacity for legibility, stronger border and shadow */
+  /* Enhanced Glassmorphism Primitives */
   .glass-panel {
-    @apply bg-white/90 dark:bg-slate-900/95 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-2xl shadow-indigo-500/10 dark:shadow-black/40;
+    background: var(--glass-fill);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    @apply rounded-2xl;
+  }
+  
+  .glass-panel-strong {
+    background: var(--glass-fill-strong);
+    backdrop-filter: blur(var(--glass-blur-strong));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+    border: 1px solid var(--glass-border-strong);
+    box-shadow: var(--glass-shadow-strong);
+    @apply rounded-2xl;
+  }
+  
+  .glass-panel-subtle {
+    background: var(--glass-fill-subtle);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    @apply rounded-2xl;
   }
 
   .glass-panel-hover {
-    @apply transition-all duration-300 ease-in-out hover:scale-[1.01] hover:shadow-blue-500/20 dark:hover:shadow-blue-900/40 hover:border-blue-400/50 dark:hover:border-blue-500/50;
+    @apply transition-all duration-300 ease-out hover:scale-[1.01] hover:shadow-xl;
+  }
+  
+  .glass-panel-hover:hover {
+    box-shadow: 0 16px 48px rgba(79, 70, 229, 0.25);
+    border-color: rgba(99, 102, 241, 0.40);
   }
   
   .card-hover {
     @apply glass-panel-hover;
+  }
+  
+  /* Solid panels for content-heavy surfaces (tables, forms) */
+  .solid-panel {
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg;
   }
 
   /* Helper for text that shouldn't be cut off */
@@ -220,7 +307,7 @@ body {
 
   /* Accessibility improvements */
   .focus-visible-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900;
   }
 
   /* Support for reduced motion */

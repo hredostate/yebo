@@ -289,13 +289,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         
         return (
             <div className="mb-10 animate-fade-in">
-                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-200/60 dark:border-slate-700/60 pb-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block shadow-lg shadow-indigo-500/50"></span>
+                <h3 className="text-sm font-bold text-slate-200 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-white/20 dark:border-slate-700/40 pb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block shadow-lg shadow-indigo-500/50"></span>
                     {title}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {widgetsInThisSection.map(widgetId => (
-                         <div key={widgetId} className="glass-panel rounded-2xl transition-all duration-300 hover:shadow-xl hover:scale-[1.01] flex flex-col h-full">
+                         <div key={widgetId} className="glass-panel glass-panel-hover rounded-2xl flex flex-col h-full">
                             <WidgetErrorBoundary widgetId={widgetId}>
                                 {renderWidget(widgetId)}
                             </WidgetErrorBoundary>
@@ -323,13 +323,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
-                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-1">Welcome back, <span className="font-semibold text-indigo-600 dark:text-indigo-400">{userProfile.name}</span>.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white dark:text-white tracking-tight">Dashboard</h1>
+                    <p className="text-sm sm:text-base text-slate-200 dark:text-slate-200 mt-1">Welcome back, <span className="font-semibold text-indigo-300 dark:text-indigo-400">{userProfile.name}</span>.</p>
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
                     <button 
                       onClick={() => setIsCustomizeModalOpen(true)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 min-h-touch bg-white/80 dark:bg-slate-800/80 border border-white/50 dark:border-slate-700 backdrop-blur-md text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm hover:shadow-md w-full sm:w-auto touch-target"
+                      className="flex items-center justify-center gap-2 px-4 py-2 min-h-touch glass-panel-strong text-white dark:text-slate-100 font-semibold rounded-xl hover:shadow-glass-hover transition-all w-full sm:w-auto touch-target focus-visible-ring"
                     >
                         <CogIcon className="w-5 h-5" />
                         <span className="sm:inline">Customize</span>
@@ -345,13 +345,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
             <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {summaryStats.map((stat) => (
-                    <div key={stat.label} className="glass-panel rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+                    <div key={stat.label} className="glass-panel-strong rounded-2xl p-4 shadow-glass flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase text-slate-500">{stat.label}</p>
-                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
-                            <p className="text-xs text-slate-500 mt-1">{stat.hint}</p>
+                            <p className="text-xs font-semibold uppercase text-slate-300">{stat.label}</p>
+                            <p className="text-2xl font-bold text-white dark:text-white">{stat.value}</p>
+                            <p className="text-xs text-slate-300 mt-1">{stat.hint}</p>
                         </div>
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-200 text-sm font-bold">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/30 border border-indigo-400/40 flex items-center justify-center text-indigo-200 dark:text-indigo-300 text-sm font-bold backdrop-blur-sm">
                             ✓
                         </div>
                     </div>
