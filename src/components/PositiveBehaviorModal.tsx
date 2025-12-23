@@ -67,7 +67,7 @@ const PositiveBehaviorModal: React.FC<PositiveBehaviorModalProps> = ({ isOpen, o
               rows={4}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="mt-1 block w-full rounded-xl shadow-sm py-2 px-3 sm:text-sm glass-panel text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="mt-1 block w-full rounded-xl shadow-sm py-2 px-3 sm:text-sm glass-panel-strong text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900"
               placeholder="e.g., Helped a classmate who was struggling with their work."
             ></textarea>
           </div>

@@ -79,7 +79,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     setIsSubmitting(false);
   };
   
-  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl glass-panel text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:text-sm";
+  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl glass-panel-strong text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:text-sm";
 
   return (
     <div className="modal-responsive bg-black/50 backdrop-blur-md animate-fade-in">
