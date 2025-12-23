@@ -6,6 +6,7 @@
 import { requireSupabaseClient } from './supabaseClient';
 import { sendSmsNotification } from './smsService';
 import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
+import { sanitizeForSms } from '../utils/smsHelpers';
 
 interface SendReportCardParams {
     studentId: number;
@@ -133,8 +134,8 @@ export async function sendReportCardToParent(params: SendReportCardParams): Prom
             templateName: 'report_card_ready',
             variables: {
                 student_name: studentName,
-                term: termName,
-                class_name: className,
+                term: sanitizeForSms(termName),      // Sanitize term name to remove year patterns
+                class_name: sanitizeForSms(className), // Sanitize class name to remove year patterns
                 download_link: downloadLink
             },
             referenceId: reportId,
