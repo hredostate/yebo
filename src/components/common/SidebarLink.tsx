@@ -7,8 +7,8 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { isNewNavigationEnabled } from '../routing/featureFlags';
-import { viewToPath } from '../routing/routeViewMapping';
+import { isNewNavigationEnabled } from '../../routing/featureFlags';
+import { viewToPath } from '../../routing/routeViewMapping';
 
 interface SidebarLinkProps {
   viewId: string;

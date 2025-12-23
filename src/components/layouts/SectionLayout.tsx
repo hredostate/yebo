@@ -11,9 +11,9 @@
 
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDownIcon, PlusCircleIcon } from '../common/icons';
+import { ChevronDownIcon } from '../common/icons';
 import type { SectionConfig, SectionTab, PinnedItem } from '../../routing/sectionConfig';
-import { filterTabsByPermissions, getVisibleTabs, getOverflowTabs, needsMoreDropdown } from '../../routing/sectionConfig';
+import { filterTabsByPermissions } from '../../routing/sectionConfig';
 
 interface SectionLayoutProps {
   config: SectionConfig;

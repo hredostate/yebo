@@ -67,13 +67,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         <Route index element={<Navigate to={SECTION_CONFIGS.workspace.defaultPath} replace />} />
         
         {/* Workspace routes */}
-        {SECTION_CONFIGS.workspace.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.workspace.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* Communication Section */}
@@ -87,13 +91,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.communication.defaultPath} replace />} />
-        {SECTION_CONFIGS.communication.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.communication.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* Academics Section */}
@@ -107,13 +115,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.academics.defaultPath} replace />} />
-        {SECTION_CONFIGS.academics.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.academics.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
         {/* Support parameterized routes like score-entry/:assignmentId */}
         <Route
           path="score-entry/:assignmentId"
@@ -132,13 +144,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS['student-affairs'].defaultPath} replace />} />
-        {SECTION_CONFIGS['student-affairs'].tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS['student-affairs'].tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
         {/* Support parameterized routes like student-profile/:studentId */}
         <Route
           path="student-profile/:studentId"
@@ -161,13 +177,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.transport.defaultPath} replace />} />
-        {SECTION_CONFIGS.transport.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.transport.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* HR Section */}
@@ -181,13 +201,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.hr.defaultPath} replace />} />
-        {SECTION_CONFIGS.hr.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.hr.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* Finance Section */}
@@ -201,13 +225,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.finance.defaultPath} replace />} />
-        {SECTION_CONFIGS.finance.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.finance.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* Admin Section */}
@@ -221,13 +249,17 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         }
       >
         <Route index element={<Navigate to={SECTION_CONFIGS.admin.defaultPath} replace />} />
-        {SECTION_CONFIGS.admin.tabs.map(tab => (
-          <Route
-            key={tab.id}
-            path={tab.path.split('/').pop()}
-            element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
-          />
-        ))}
+        {SECTION_CONFIGS.admin.tabs.map(tab => {
+          const pathSegments = tab.path.split('/');
+          const routePath = pathSegments[pathSegments.length - 1];
+          return (
+            <Route
+              key={tab.id}
+              path={routePath}
+              element={<ViewRenderer view={tab.view} data={data} actions={actions} />}
+            />
+          );
+        })}
       </Route>
       
       {/* Student Portal Routes (no section layout) */}
