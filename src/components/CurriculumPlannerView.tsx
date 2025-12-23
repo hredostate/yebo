@@ -69,6 +69,23 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
     return teachingAssignments.filter(a => a.teacher_user_id === userProfile.id);
   }, [teachingAssignments, userProfile, teams]);
 
+  // Filter lesson plans based on user role (same logic as userAssignments)
+  const userLessonPlans = useMemo(() => {
+    if (['Admin', 'Principal'].includes(userProfile.role)) {
+      return lessonPlans;
+    }
+    if (userProfile.role === 'Team Lead') {
+      const myTeam = teams.find(team => team.lead_id === userProfile.id);
+      if (myTeam) {
+        const memberIds = new Set(myTeam.members.map(m => m.user_id));
+        memberIds.add(userProfile.id);
+        return lessonPlans.filter(p => memberIds.has(p.author_id));
+      }
+    }
+    // Teacher - only see their own lesson plans
+    return lessonPlans.filter(p => p.author_id === userProfile.id);
+  }, [lessonPlans, userProfile, teams]);
+
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(userAssignments.length > 0 ? userAssignments[0].id : null);
   
   // State for structured plan modals
@@ -90,12 +107,12 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
   const plansForWeek = useMemo(() => {
     if (!selectedAssignmentId) return [];
     const weekStartTime = weekStart.getTime();
-    return lessonPlans.filter(lp => {
+    return userLessonPlans.filter(lp => {
       if (!lp.week_start_date) return false;
       const planDate = new Date(lp.week_start_date + 'T00:00:00');
       return lp.teaching_entity_id === selectedAssignmentId && planDate.getTime() === weekStartTime;
     });
-  }, [lessonPlans, selectedAssignmentId, weekStart]);
+  }, [userLessonPlans, selectedAssignmentId, weekStart]);
 
   const handlePrevWeek = () => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)));
   const handleNextWeek = () => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)));
@@ -223,7 +240,7 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
         onCopy={onCopyLessonPlan}
         userProfile={userProfile}
         allTeachingAssignments={teachingAssignments}
-        allLessonPlans={lessonPlans}
+        allLessonPlans={userLessonPlans}
         teams={teams}
       />
     </div>
