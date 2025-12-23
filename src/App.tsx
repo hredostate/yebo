@@ -6369,6 +6369,7 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
     }, [userProfile, addToast]);
 
     const handleUpdateClassEnrollment = useCallback(async (classId: number, termId: number, studentIds: number[]): Promise<boolean> => {
+        const supabase = requireSupabaseClient();
         if (!userProfile) return false;
         
         try {
