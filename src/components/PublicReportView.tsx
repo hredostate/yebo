@@ -9,6 +9,7 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
 import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
+import { matchComponentScore } from '../utils/reportCardHelpers';
 
 // RPC response types
 interface RPCSubject {
@@ -756,45 +757,9 @@ const PublicReportView: React.FC = () => {
                                                             <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
                                                                 {subject.subject_name}
                                                             </td>
-                                                            {componentScoreData.componentNames.map((componentName, compIdx) => {
-                                                                // First try exact match
-                                                                let value = subject.component_scores?.[componentName];
-                                                                
-                                                                // If no exact match, try semantic/fuzzy matching
-                                                                if (value === undefined || value === null && subject.component_scores) {
-                                                                    // Try common variations and abbreviations
-                                                                    const compNameLower = componentName.toLowerCase().trim();
-                                                                    const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
-                                                                    
-                                                                    for (const [key, val] of Object.entries(subject.component_scores)) {
-                                                                        const keyLower = key.toLowerCase().trim();
-                                                                        const keyNormalized = keyLower.replace(/[.\s-]/g, '');
-                                                                        
-                                                                        // Check for various matching patterns
-                                                                        if (
-                                                                            keyLower === compNameLower || // Exact case-insensitive match
-                                                                            keyNormalized === compNameNormalized || // Normalized match (ignoring spaces, dots, hyphens)
-                                                                            keyLower.includes(compNameLower) || // Component name is substring of key
-                                                                            compNameLower.includes(keyLower) || // Key is substring of component name
-                                                                            // Specific semantic matches
-                                                                            (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
-                                                                            (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
-                                                                            (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
-                                                                            (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
-                                                                            (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
-                                                                            (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
-                                                                            (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
-                                                                        ) {
-                                                                            value = val;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                }
-                                                                
-                                                                // Fallback to dash if still no match
-                                                                if (value === undefined || value === null) {
-                                                                    value = '—';
-                                                                }
+                                                            {componentScoreData.componentNames.map((componentName) => {
+                                                                // Use semantic matching utility to find the component score
+                                                                const value = matchComponentScore(componentName, subject.component_scores) ?? '—';
                                                                 
                                                                 return (
                                                                     <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">

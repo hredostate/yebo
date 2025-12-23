@@ -112,3 +112,56 @@ export function formatPercentile(percentile: number | null | undefined): string 
     return `${getOrdinal(rounded)} percentile`;
   }
 }
+
+/**
+ * Match component score using semantic/fuzzy matching
+ * Handles component name variations and abbreviations
+ * 
+ * @param componentName - The component name from the class assessment structure (e.g., "FA", "SA")
+ * @param componentScores - The subject's component scores object (e.g., {"Assessment 1": 20, "Assessment 2": 19})
+ * @returns The matched score value or null if no match found
+ */
+export function matchComponentScore(
+  componentName: string,
+  componentScores: Record<string, number> | undefined | null
+): number | null {
+  // Return null if no component scores exist
+  if (!componentScores) {
+    return null;
+  }
+  
+  // First try exact match
+  if (componentScores[componentName] !== undefined && componentScores[componentName] !== null) {
+    return componentScores[componentName];
+  }
+  
+  // Try semantic/fuzzy matching
+  const compNameLower = componentName.toLowerCase().trim();
+  const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
+  
+  for (const [key, val] of Object.entries(componentScores)) {
+    const keyLower = key.toLowerCase().trim();
+    const keyNormalized = keyLower.replace(/[.\s-]/g, '');
+    
+    // Check for various matching patterns
+    if (
+      keyLower === compNameLower || // Exact case-insensitive match
+      keyNormalized === compNameNormalized || // Normalized match (ignoring spaces, dots, hyphens)
+      keyLower.includes(compNameLower) || // Component name is substring of key
+      compNameLower.includes(keyLower) || // Key is substring of component name
+      // Specific semantic matches
+      (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
+      (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
+      (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
+      (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
+      (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
+      (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
+      (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
+    ) {
+      return val;
+    }
+  }
+  
+  // No match found
+  return null;
+}

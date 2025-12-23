@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { UnifiedReportCardData, WatermarkType } from '../../types/reportCardPrint';
-import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking, calculatePercentile, formatPercentile } from '../../utils/reportCardHelpers';
+import { getOrdinal, sanitize, categorizeComponentScore, getGradeBadgeClass, formatPosition, hasValidRanking, calculatePercentile, formatPercentile, matchComponentScore } from '../../utils/reportCardHelpers';
 import './unified-report-card.css';
 
 interface UnifiedReportCardProps {
@@ -210,44 +210,8 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                     <td className="col-subject">{sanitize(subject.subjectName)}</td>
                     {assessmentComponents && assessmentComponents.length > 0 ? (
                       assessmentComponents.map((comp, compIdx) => {
-                        // First try exact match
-                        let value = subject.componentScores?.[comp.name];
-                        
-                        // If no exact match, try semantic/fuzzy matching
-                        if (value === undefined || value === null && subject.componentScores) {
-                          // Try common variations and abbreviations
-                          const compNameLower = comp.name.toLowerCase().trim();
-                          const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
-                          
-                          for (const [key, val] of Object.entries(subject.componentScores)) {
-                            const keyLower = key.toLowerCase().trim();
-                            const keyNormalized = keyLower.replace(/[.\s-]/g, '');
-                            
-                            // Check for various matching patterns
-                            if (
-                              keyLower === compNameLower || // Exact case-insensitive match
-                              keyNormalized === compNameNormalized || // Normalized match (ignoring spaces, dots, hyphens)
-                              keyLower.includes(compNameLower) || // Component name is substring of key
-                              compNameLower.includes(keyLower) || // Key is substring of component name
-                              // Specific semantic matches
-                              (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
-                              (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
-                              (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
-                              (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
-                              (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
-                              (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
-                              (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
-                            ) {
-                              value = val;
-                              break;
-                            }
-                          }
-                        }
-                        
-                        // Fallback to dash if still no match
-                        if (value === undefined || value === null) {
-                          value = '-';
-                        }
+                        // Use semantic matching utility to find the component score
+                        const value = matchComponentScore(comp.name, subject.componentScores) ?? '-';
                         
                         return (
                           <td key={compIdx} className="col-component">

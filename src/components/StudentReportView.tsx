@@ -6,7 +6,7 @@ import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAttendanceStatus, getAttendanceProgressColor, type AttendanceData } from '../utils/attendanceHelpers';
-import { calculatePercentile, formatPercentile } from '../utils/reportCardHelpers';
+import { calculatePercentile, formatPercentile, matchComponentScore } from '../utils/reportCardHelpers';
 import { createStudentSlug, generateReportToken } from '../utils/reportUrlHelpers';
 import ResultSheetDesigns from './ResultSheetDesigns';
 
@@ -526,44 +526,8 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         {assessmentComponents && assessmentComponents.length > 0 ? (
                             // Dynamic component scores
                             assessmentComponents.map((comp, compIdx) => {
-                                // First try exact match
-                                let value = sub.componentScores?.[comp.name];
-                                
-                                // If no exact match, try semantic/fuzzy matching
-                                if (value === undefined || value === null && sub.componentScores) {
-                                    // Try common variations and abbreviations
-                                    const compNameLower = comp.name.toLowerCase().trim();
-                                    const compNameNormalized = compNameLower.replace(/[.\s-]/g, '');
-                                    
-                                    for (const [key, val] of Object.entries(sub.componentScores)) {
-                                        const keyLower = key.toLowerCase().trim();
-                                        const keyNormalized = keyLower.replace(/[.\s-]/g, '');
-                                        
-                                        // Check for various matching patterns
-                                        if (
-                                            keyLower === compNameLower || // Exact case-insensitive match
-                                            keyNormalized === compNameNormalized || // Normalized match (ignoring spaces, dots, hyphens)
-                                            keyLower.includes(compNameLower) || // Component name is substring of key
-                                            compNameLower.includes(keyLower) || // Key is substring of component name
-                                            // Specific semantic matches
-                                            (compNameNormalized === 'fa' && keyNormalized.includes('assessment1')) ||
-                                            (compNameNormalized === 'sa' && keyNormalized.includes('assessment2')) ||
-                                            (compNameNormalized === 'hw' && (keyNormalized.includes('homeactivity') || keyNormalized.includes('homework'))) ||
-                                            (compNameNormalized === 'hol' && keyNormalized.includes('holiday')) ||
-                                            (compNameNormalized === 'pro' && keyNormalized.includes('project')) ||
-                                            (compNameNormalized === 'el' && keyNormalized.includes('elearning')) ||
-                                            (compNameNormalized === 'eva' && keyNormalized.includes('evaluation'))
-                                        ) {
-                                            value = val;
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                // Fallback to dash if still no match
-                                if (value === undefined || value === null) {
-                                    value = '-';
-                                }
+                                // Use semantic matching utility to find the component score
+                                const value = matchComponentScore(comp.name, sub.componentScores) ?? '-';
                                 
                                 return (
                                     <td key={compIdx} className={`${commonTdClasses} text-center`}>
