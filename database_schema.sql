@@ -2425,6 +2425,7 @@ BEGIN
         INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT (id) DO NOTHING;
         INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents', true) ON CONFLICT (id) DO NOTHING;
         INSERT INTO storage.buckets (id, name, public) VALUES ('lesson_plans', 'lesson_plans', true) ON CONFLICT (id) DO NOTHING;
+        INSERT INTO storage.buckets (id, name, public) VALUES ('learning_materials', 'learning_materials', true) ON CONFLICT (id) DO NOTHING;
         INSERT INTO storage.buckets (id, name, public) VALUES ('student-photos', 'student-photos', true) ON CONFLICT (id) DO NOTHING;
     END IF;
 END $$;
@@ -2458,10 +2459,26 @@ BEGIN
             CREATE POLICY "Authenticated read avatars" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'avatars');
         END IF;
         
+        -- Policy for lesson_plans bucket
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Authenticated upload lesson_plans') THEN
+            CREATE POLICY "Authenticated upload lesson_plans" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'lesson_plans');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Authenticated read lesson_plans') THEN
+            CREATE POLICY "Authenticated read lesson_plans" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'lesson_plans');
+        END IF;
+        
+        -- Policy for learning_materials bucket
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Authenticated upload learning_materials') THEN
+            CREATE POLICY "Authenticated upload learning_materials" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'learning_materials');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Authenticated read learning_materials') THEN
+            CREATE POLICY "Authenticated read learning_materials" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'learning_materials');
+        END IF;
+        
         -- Allow public read on public buckets
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public read public buckets') THEN
             CREATE POLICY "Public read public buckets" ON storage.objects FOR SELECT USING (
-                bucket_id IN ('attendance-photos', 'attendance_photos', 'student-photos', 'avatars', 'report_images')
+                bucket_id IN ('attendance-photos', 'attendance_photos', 'student-photos', 'avatars', 'report_images', 'lesson_plans', 'learning_materials')
             );
         END IF;
     END IF;
