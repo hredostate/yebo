@@ -5,7 +5,7 @@
  * to maintain backward compatibility during incremental migration.
  */
 
-import { VIEWS } from '../constants';
+import { VIEWS } from '../constants.js';
 
 /**
  * Map of VIEWS constants to their corresponding route paths
