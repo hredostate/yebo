@@ -1,12 +1,11 @@
 /**
  * SidebarLink Component
  * 
- * Wrapper component that uses React Router Link when new navigation is enabled,
- * falls back to legacy href navigation otherwise
+ * Uses React Router NavLink for navigation with active state support
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { isNewNavigationEnabled } from '../../routing/featureFlags';
 import { viewToPath } from '../../routing/routeViewMapping';
 
@@ -15,22 +14,49 @@ interface SidebarLinkProps {
   onNavigate: (viewId: string) => void;
   onClick?: () => void;
   className?: string;
+  activeClassName?: string;
   children: React.ReactNode;
 }
 
 /**
- * Smart link component that adapts based on feature flags
+ * Smart link component that uses React Router NavLink with active state
+ * Falls back to legacy navigation if feature flag is disabled (for emergency rollback)
  */
 export const SidebarLink: React.FC<SidebarLinkProps> = ({
   viewId,
   onNavigate,
   onClick,
-  className,
+  className = '',
+  activeClassName = '',
   children,
 }) => {
   const useNewNav = isNewNavigationEnabled();
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onClick) {
+      onClick();
+    }
+    // Call onNavigate for backward compatibility with legacy state sync
+    onNavigate(viewId);
+  };
+
+  if (useNewNav) {
+    const path = viewToPath(viewId);
+    return (
+      <NavLink
+        to={path}
+        onClick={handleClick}
+        className={({ isActive }) => 
+          `${className} ${isActive ? activeClassName : ''}`
+        }
+      >
+        {children}
+      </NavLink>
+    );
+  }
+
+  // Legacy navigation (emergency fallback)
+  const legacyHandleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     if (onClick) {
       onClick();
@@ -38,30 +64,10 @@ export const SidebarLink: React.FC<SidebarLinkProps> = ({
     onNavigate(viewId);
   };
 
-  if (useNewNav) {
-    const path = viewToPath(viewId);
-    return (
-      <Link
-        to={path}
-        onClick={(e) => {
-          if (onClick) {
-            onClick();
-          }
-          // Let React Router handle navigation, but also call onNavigate for state sync
-          onNavigate(viewId);
-        }}
-        className={className}
-      >
-        {children}
-      </Link>
-    );
-  }
-
-  // Legacy navigation
   return (
     <a
       href="#"
-      onClick={handleClick}
+      onClick={legacyHandleClick}
       className={className}
     >
       {children}

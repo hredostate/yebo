@@ -7,13 +7,13 @@
 
 export const FEATURE_FLAGS = {
   // Enable React Router v6 navigation with SectionLayout
-  USE_NEW_NAVIGATION: false, // Set to true to enable new navigation
+  USE_NEW_NAVIGATION: true, // Enabled by default - migration complete
   
   // Enable section-based layouts
-  USE_SECTION_LAYOUTS: false,
+  USE_SECTION_LAYOUTS: true, // Enabled by default - migration complete
   
   // Enable pill sub-tabs
-  USE_PILL_TABS: false,
+  USE_PILL_TABS: true, // Enabled by default - migration complete
 } as const;
 
 export function isNewNavigationEnabled(): boolean {
