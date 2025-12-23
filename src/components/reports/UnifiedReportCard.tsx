@@ -219,7 +219,7 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                           const subjectComponents = subject.componentScores ? Object.keys(subject.componentScores) : [];
                           if (subjectComponents.length > 0 && !subjectComponents.includes(comp.name)) {
                             // Subject uses different component structure - show its own values by position
-                            const subjectValues = Object.values(subject.componentScores || {});
+                            const subjectValues = Object.values(subject.componentScores);
                             value = subjectValues[compIdx] ?? '-';
                           } else {
                             value = '-';

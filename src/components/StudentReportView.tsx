@@ -535,13 +535,11 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                                     const subjectComponents = sub.componentScores ? Object.keys(sub.componentScores) : [];
                                     if (subjectComponents.length > 0 && !subjectComponents.includes(comp.name)) {
                                         // Subject uses different component structure - show its own values by position
-                                        const subjectValues = Object.values(sub.componentScores || {});
+                                        const subjectValues = Object.values(sub.componentScores);
                                         value = subjectValues[compIdx] ?? '-';
                                     } else {
                                         value = '-';
                                     }
-                                } else {
-                                    value = value;
                                 }
                                 
                                 return (

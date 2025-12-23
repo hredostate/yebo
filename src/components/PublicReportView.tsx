@@ -766,7 +766,7 @@ const PublicReportView: React.FC = () => {
                                                                     const subjectComponents = subject.component_scores ? Object.keys(subject.component_scores) : [];
                                                                     if (subjectComponents.length > 0 && !subjectComponents.includes(componentName)) {
                                                                         // Subject uses different component structure - show its own values by position
-                                                                        const subjectValues = Object.values(subject.component_scores || {});
+                                                                        const subjectValues = Object.values(subject.component_scores);
                                                                         value = subjectValues[compIdx] ?? '—';
                                                                     } else {
                                                                         value = '—';
