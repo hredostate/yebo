@@ -285,7 +285,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         `}
         aria-label="Sidebar"
       >
-        <div className="h-full px-4 sm:px-4 py-6 glass-panel-strong rounded-r-2xl md:rounded-l-none flex flex-col shadow-2xl md:shadow-glass-strong overflow-hidden border-r-0 md:border-r">
+        <div className="h-full px-4 sm:px-4 py-6 bg-white rounded-r-2xl md:rounded-l-none flex flex-col shadow-2xl overflow-hidden border-r border-gray-200">
           
           {/* Brand Header */}
           <div className="flex items-center justify-between mb-6 pl-1">
@@ -293,11 +293,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                <div className="p-1 transition-transform group-hover:scale-105">
                    <img src={SCHOOL_LOGO_URL} alt="Logo" className="h-10 w-10 object-contain" />
                </div>
-             <span className="self-center text-lg font-extrabold whitespace-nowrap text-slate-100 dark:text-white tracking-tight">Guardian 360</span>
+             <span className="self-center text-lg font-extrabold whitespace-nowrap text-gray-900 tracking-tight">Guardian 360</span>
            </a>
            <button
             onClick={() => setIsSidebarOpen(false)}
-            className="touch-target text-slate-200 rounded-lg md:hidden hover:bg-white/20 dark:hover:bg-slate-800/50 active:bg-white/30 dark:active:bg-slate-700/70 focus-visible-ring"
+            className="touch-target text-gray-700 rounded-lg md:hidden hover:bg-gray-100 active:bg-gray-200 focus-visible-ring"
             aria-label="Close sidebar"
            >
             <CloseIcon className="w-6 h-6" />
@@ -307,13 +307,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         {/* Search Bar */}
         {role !== 'Student' && (
             <div className="mb-6 relative group">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-indigo-400 transition-colors" />
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-600 transition-colors" />
               <input
                   type="text"
                   placeholder="Search menu..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); if(e.target.value) setExpandedGroups(new Set(NAV_STRUCTURE.map(g=>g.id))); }}
-                  className="w-full h-10 pl-10 pr-4 text-sm glass-panel-subtle text-slate-100 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-400 focus-visible-ring"
+                  className="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 text-gray-900 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all placeholder:text-gray-400 focus-visible-ring"
               />
             </div>
         )}
@@ -332,19 +332,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                         onClick={() => toggleGroup(group.id)}
                         aria-expanded={isExpanded}
                         aria-label={`${group.label} menu`}
-                        className={`flex items-center w-full p-3 min-h-touch text-sm font-bold rounded-xl transition-all duration-200 group touch-target focus-visible-ring ${isActiveGroup ? 'glass-panel-subtle shadow-glass text-indigo-200 dark:text-indigo-200' : 'hover:bg-white/10 dark:hover:bg-slate-800/30 text-slate-200'}`}
+                        className={`flex items-center w-full p-3 min-h-touch text-sm font-bold rounded-xl transition-all duration-200 group touch-target focus-visible-ring ${isActiveGroup ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}
                       >
-                        <div className={`p-1.5 rounded-lg mr-3 transition-colors ${isActiveGroup ? 'bg-indigo-500/30 text-indigo-300' : 'bg-white/10 dark:bg-slate-800/50 text-slate-300 group-hover:text-slate-100 dark:group-hover:text-slate-200'}`}>
+                        <div className={`p-1.5 rounded-lg mr-3 transition-colors ${isActiveGroup ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600 group-hover:text-gray-900'}`}>
                             <group.icon className="w-5 h-5" />
                         </div>
-                        <span className={`flex-1 text-left whitespace-nowrap ${isActiveGroup ? 'text-white dark:text-indigo-100' : 'group-hover:text-white dark:group-hover:text-slate-100'}`}>{group.label}</span>
-                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} opacity-50`} />
+                        <span className={`flex-1 text-left whitespace-nowrap ${isActiveGroup ? 'text-gray-900' : 'group-hover:text-gray-900'}`}>{group.label}</span>
+                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} text-gray-400`} />
                       </button>
                       
                       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[100vh] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                         <ul className="space-y-0.5 pl-2 relative">
                           {/* Vertical line for hierarchy */}
-                          <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-white/20 to-transparent dark:from-slate-700/50"></div>
+                          <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-gray-200 to-transparent"></div>
                           
                           {/* Items */}
                           {group.items.map(item => {
@@ -366,10 +366,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                                     }
                                     setSearchQuery(''); 
                                   }}
-                                  className={`flex items-center py-3 pl-9 pr-3 w-full text-sm font-medium rounded-lg transition-all duration-200 relative z-10 min-h-touch touch-target focus-visible-ring ${
+                                  className={`flex items-center py-3 pl-9 pr-3 w-full text-sm font-medium rounded-xl transition-all duration-200 relative z-10 min-h-touch touch-target focus-visible-ring ${
                                     isActive
-                                      ? 'text-indigo-200 dark:text-indigo-300 glass-panel-subtle font-bold shadow-glass border-l-4 border-indigo-400 dark:border-indigo-400'
-                                      : 'text-slate-200 dark:text-slate-300 hover:text-white dark:hover:text-white hover:bg-white/10 dark:hover:bg-slate-800/20 border-l-4 border-transparent'
+                                      ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                                   }`}
                                 >
                                   {item.label}
@@ -388,113 +388,113 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
               <ul className="space-y-2">
                 {/* Dashboard */}
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_DASHBOARD)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_DASHBOARD ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <HomeIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_DASHBOARD)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_DASHBOARD ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <HomeIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_DASHBOARD ? 'text-white' : 'text-gray-600'}`} />
                         <span>Dashboard</span>
                      </a>
                 </li>
                 
                 {/* Academic Section */}
                 <li className="pt-4">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">📚 Academic</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">📚 Academic</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.MY_SUBJECTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.MY_SUBJECTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <BookOpenIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.MY_SUBJECTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.MY_SUBJECTS ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <BookOpenIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.MY_SUBJECTS ? 'text-white' : 'text-gray-600'}`} />
                         <span>My Subjects</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <BookOpenIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_LESSON_PORTAL)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <BookOpenIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_LESSON_PORTAL ? 'text-white' : 'text-gray-600'}`} />
                         <span>Lesson Plans</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TIMETABLE)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.TIMETABLE ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ClockIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TIMETABLE)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.TIMETABLE ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <ClockIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.TIMETABLE ? 'text-white' : 'text-gray-600'}`} />
                         <span>Timetable</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_HOMEWORK)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_HOMEWORK ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <PencilIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_HOMEWORK)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_HOMEWORK ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <PencilIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_HOMEWORK ? 'text-white' : 'text-gray-600'}`} />
                         <span>My Homework</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_REPORTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ChartBarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_REPORTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_REPORTS ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <ChartBarIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_REPORTS ? 'text-white' : 'text-gray-600'}`} />
                         <span>Report Cards</span>
                      </a>
                 </li>
 
                 {/* Finances Section */}
                 <li className="pt-4">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">💳 Finances</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">💳 Finances</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_FINANCES)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_FINANCES ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <BanknotesIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_FINANCES)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_FINANCES ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <BanknotesIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_FINANCES ? 'text-white' : 'text-gray-600'}`} />
                         <span>Wallet & Payments</span>
                      </a>
                 </li>
 
                 {/* Engagement Section */}
                 <li className="pt-4">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">⭐ Engagement</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">⭐ Engagement</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.RATE_MY_TEACHER ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <StarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.RATE_MY_TEACHER)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.RATE_MY_TEACHER ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <StarIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.RATE_MY_TEACHER ? 'text-white' : 'text-gray-600'}`} />
                         <span>Rate Teachers</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_SURVEYS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ClipboardListIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_SURVEYS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_SURVEYS ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <ClipboardListIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_SURVEYS ? 'text-white' : 'text-gray-600'}`} />
                         <span>Surveys & Quizzes</span>
                      </a>
                 </li>
 
                 {/* Personal Section */}
                 <li className="pt-4">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">👤 Personal</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">👤 Personal</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <UserCircleIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_PROFILE_EDIT)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <UserCircleIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_PROFILE_EDIT ? 'text-white' : 'text-gray-600'}`} />
                         <span>My Profile</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.ABSENCE_REQUESTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.ABSENCE_REQUESTS ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <CalendarIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.ABSENCE_REQUESTS)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.ABSENCE_REQUESTS ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <CalendarIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.ABSENCE_REQUESTS ? 'text-white' : 'text-gray-600'}`} />
                         <span>Absence Requests</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TRANSPORT_SIGN_UP)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.TRANSPORT_SIGN_UP ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.TRANSPORT_SIGN_UP)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.TRANSPORT_SIGN_UP ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <svg className={`w-6 h-6 mr-3 ${baseView === VIEWS.TRANSPORT_SIGN_UP ? 'text-white' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
                         <span>Transport Sign-Up</span>
                      </a>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_STRIKES)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_STRIKES ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <ShieldIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STUDENT_STRIKES)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STUDENT_STRIKES ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <ShieldIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STUDENT_STRIKES ? 'text-white' : 'text-gray-600'}`} />
                         <span>Strikes & Appeals</span>
                      </a>
                 </li>
 
                 {/* Rewards Section */}
                 <li className="pt-4">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 mb-2">🎁 Rewards</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">🎁 Rewards</p>
                 </li>
                 <li>
-                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STOREFRONT)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STOREFRONT ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                        <GiftIcon className="w-6 h-6 text-slate-400 dark:text-slate-500 mr-3" />
+                     <a href="#" onClick={(e) => {e.preventDefault(); onNavigate(VIEWS.STOREFRONT)}} className={`flex items-center p-3 min-h-touch text-base font-medium rounded-xl transition-colors touch-target ${baseView === VIEWS.STOREFRONT ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}>
+                        <GiftIcon className={`w-6 h-6 mr-3 ${baseView === VIEWS.STOREFRONT ? 'text-white' : 'text-gray-600'}`} />
                         <span>Store</span>
                      </a>
                 </li>
@@ -503,9 +503,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         </div>
 
         {/* User Profile Footer */}
-        <div className="pt-4 mt-4 border-t border-white/20 dark:border-slate-700/40">
-           <div className="flex items-center gap-3 p-2 rounded-xl glass-panel-subtle transition-all cursor-pointer group focus-visible-ring" onClick={() => onNavigate(role === 'Student' ? VIEWS.STUDENT_PROFILE_EDIT : VIEWS.PROFILE)}>
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg ring-2 ring-white/30 dark:ring-slate-800/50 overflow-hidden flex-shrink-0 group-hover:scale-110 transition-transform">
+        <div className="pt-4 mt-4 border-t border-gray-200">
+           <div className="flex items-center gap-3 p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all cursor-pointer group focus-visible-ring" onClick={() => onNavigate(role === 'Student' ? VIEWS.STUDENT_PROFILE_EDIT : VIEWS.PROFILE)}>
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg ring-2 ring-gray-100 overflow-hidden flex-shrink-0 group-hover:scale-110 transition-transform">
                 {avatarUrl ? (
                     <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
                 ) : (
@@ -513,13 +513,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                 )}
               </div>
               <div className="overflow-hidden flex-1">
-                  <p className="text-sm font-bold text-white dark:text-white truncate">{name}</p>
-                  <p className="text-[11px] uppercase font-bold text-indigo-300 dark:text-indigo-400 truncate">{role}</p>
+                  <p className="text-sm font-bold text-gray-900 truncate">{name}</p>
+                  <p className="text-[11px] uppercase font-bold text-indigo-600 truncate">{role}</p>
               </div>
            </div>
            <button 
               onClick={onLogout} 
-              className="w-full mt-3 flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-red-300 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-all uppercase tracking-wide focus-visible-ring backdrop-blur-md border border-red-400/30"
+              className="w-full mt-3 flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all uppercase tracking-wide focus-visible-ring"
             >
              <LogoutIcon className="w-4 h-4" />
              Sign Out
