@@ -6874,7 +6874,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         // Student specific layout
         return (
             <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-              <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+              <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
                 <Sidebar
                     currentView={currentView}
                     onNavigate={setCurrentView}
@@ -7143,7 +7143,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     // Staff Layout
     return (
         <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-          <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+          <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
             <Sidebar
                 currentView={currentView}
                 onNavigate={setCurrentView}

@@ -72,31 +72,18 @@ html {
 }
 
 body {
-  /* Clean background for professional appearance */
-  @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 bg-fixed;
+  /* Clean bright background for enterprise appearance */
+  @apply bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 bg-fixed;
   font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
-  background: radial-gradient(1200px circle at 20% 20%, rgba(99, 102, 241, 0.08), transparent 40%),
-              radial-gradient(1200px circle at 80% 0%, rgba(56, 189, 248, 0.08), transparent 40%),
-              linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.9));
 }
 
-/* Core application surface used by both staff and student layouts */
+/* Core application surface - enterprise bright theme */
 .app-shell {
-  @apply relative min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300;
-  background: radial-gradient(1100px circle at 10% 10%, rgba(79, 70, 229, 0.12), transparent 45%),
-              radial-gradient(900px circle at 90% 15%, rgba(56, 189, 248, 0.12), transparent 40%),
-              linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.95));
-}
-
-.dark .app-shell {
-  background: radial-gradient(1200px circle at 10% 10%, rgba(129, 140, 248, 0.16), transparent 45%),
-              radial-gradient(800px circle at 90% 10%, rgba(14, 165, 233, 0.16), transparent 40%),
-              linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(9, 12, 26, 0.9));
+  @apply relative min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300;
 }
 
 .app-surface {
-  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8 isolate;
-  background: linear-gradient(180deg, rgba(var(--surface), 0.95), rgba(var(--surface-muted), 0.9));
+  @apply relative flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8 isolate bg-transparent;
 }
 
 .app-surface::before {
