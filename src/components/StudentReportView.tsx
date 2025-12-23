@@ -525,11 +525,31 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                         <td className={commonTdClasses}>{sub.subjectName}</td>
                         {assessmentComponents && assessmentComponents.length > 0 ? (
                             // Dynamic component scores
-                            assessmentComponents.map((comp, compIdx) => (
-                                <td key={compIdx} className={`${commonTdClasses} text-center`}>
-                                    {sub.componentScores?.[comp.name] ?? '-'}
-                                </td>
-                            ))
+                            assessmentComponents.map((comp, compIdx) => {
+                                // First try exact match
+                                let value = sub.componentScores?.[comp.name];
+                                
+                                // If no match, try to find a semantic equivalent or use positional fallback
+                                if (value === undefined || value === null) {
+                                    // Check if subject has its own components
+                                    const subjectComponents = sub.componentScores ? Object.keys(sub.componentScores) : [];
+                                    if (subjectComponents.length > 0 && !subjectComponents.includes(comp.name)) {
+                                        // Subject uses different component structure - show its own values by position
+                                        const subjectValues = Object.values(sub.componentScores || {});
+                                        value = subjectValues[compIdx] ?? '-';
+                                    } else {
+                                        value = '-';
+                                    }
+                                } else {
+                                    value = value;
+                                }
+                                
+                                return (
+                                    <td key={compIdx} className={`${commonTdClasses} text-center`}>
+                                        {value}
+                                    </td>
+                                );
+                            })
                         ) : (
                             // Fallback to CA/Exam
                             <>

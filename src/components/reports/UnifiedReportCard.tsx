@@ -209,11 +209,29 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
                     <td className="col-sn">{idx + 1}</td>
                     <td className="col-subject">{sanitize(subject.subjectName)}</td>
                     {assessmentComponents && assessmentComponents.length > 0 ? (
-                      assessmentComponents.map((comp, compIdx) => (
-                        <td key={compIdx} className="col-component">
-                          {subject.componentScores?.[comp.name] ?? '-'}
-                        </td>
-                      ))
+                      assessmentComponents.map((comp, compIdx) => {
+                        // First try exact match
+                        let value = subject.componentScores?.[comp.name];
+                        
+                        // If no match, try to find a semantic equivalent or use positional fallback
+                        if (value === undefined || value === null) {
+                          // Check if subject has its own components
+                          const subjectComponents = subject.componentScores ? Object.keys(subject.componentScores) : [];
+                          if (subjectComponents.length > 0 && !subjectComponents.includes(comp.name)) {
+                            // Subject uses different component structure - show its own values by position
+                            const subjectValues = Object.values(subject.componentScores || {});
+                            value = subjectValues[compIdx] ?? '-';
+                          } else {
+                            value = '-';
+                          }
+                        }
+                        
+                        return (
+                          <td key={compIdx} className="col-component">
+                            {value}
+                          </td>
+                        );
+                      })
                     ) : (
                       <>
                         <td className="col-score">{subject.componentScores ? caScore : '-'}</td>

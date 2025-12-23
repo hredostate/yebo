@@ -756,11 +756,29 @@ const PublicReportView: React.FC = () => {
                                                             <td className="px-4 py-3 text-sm font-medium text-slate-900 whitespace-nowrap">
                                                                 {subject.subject_name}
                                                             </td>
-                                                            {componentScoreData.componentNames.map(componentName => (
-                                                                <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
-                                                                    {subject.component_scores?.[componentName] ?? '—'}
-                                                                </td>
-                                                            ))}
+                                                            {componentScoreData.componentNames.map((componentName, compIdx) => {
+                                                                // First try exact match
+                                                                let value = subject.component_scores?.[componentName];
+                                                                
+                                                                // If no match, try to find a semantic equivalent or use positional fallback
+                                                                if (value === undefined || value === null) {
+                                                                    // Check if subject has its own components
+                                                                    const subjectComponents = subject.component_scores ? Object.keys(subject.component_scores) : [];
+                                                                    if (subjectComponents.length > 0 && !subjectComponents.includes(componentName)) {
+                                                                        // Subject uses different component structure - show its own values by position
+                                                                        const subjectValues = Object.values(subject.component_scores || {});
+                                                                        value = subjectValues[compIdx] ?? '—';
+                                                                    } else {
+                                                                        value = '—';
+                                                                    }
+                                                                }
+                                                                
+                                                                return (
+                                                                    <td key={componentName} className="px-4 py-3 text-center text-sm text-slate-700">
+                                                                        {value}
+                                                                    </td>
+                                                                );
+                                                            })}
                                                             <td className="px-4 py-3 text-center text-sm font-semibold text-slate-900">
                                                                 {subject.total_score}
                                                             </td>
