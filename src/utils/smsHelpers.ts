@@ -26,8 +26,8 @@ export function sanitizeForSms(text: string): string {
         .replace(/\s*\b\d{4}\/\d{4}\b/g, '')
         // Remove academic year patterns with dash like "2024-2025"
         .replace(/\s*\b\d{4}-\d{4}\b/g, '')
-        // Remove standalone years 2020-2099 (covers current and near future academic years)
-        .replace(/\b(20[2-9][0-9]|210[0-9])\b/g, '')
+        // Remove standalone years 2020-2099 (covers current and future academic years)
+        .replace(/\b20[2-9][0-9]\b/g, '')
         // Clean up extra spaces
         .replace(/\s+/g, ' ')
         .trim();

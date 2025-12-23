@@ -58,7 +58,7 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
             // Get term details
             const { data: term } = await supabase
                 .from('terms')
-                .select('term_label, session_label')
+                .select('term_label')
                 .eq('id', termId)
                 .single();
 
