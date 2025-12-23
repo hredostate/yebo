@@ -1423,15 +1423,23 @@ export const useAppLogic = () => {
         handleImportLegacyAssignments: async () => true,
         handleUpdateClassEnrollment: async (classId: number, termId: number, studentIds: number[]) => {
             const supabase = requireSupabaseClient();
-            if (!userProfile || !('school_id' in userProfile)) return false;
+            if (!userProfile || !('school_id' in userProfile)) {
+                addToast('Authentication required to update enrollments', 'error');
+                return false;
+            }
             
             try {
                 // Step 1: Get current enrollments for this class and term
-                const { data: currentEnrollments } = await supabase
+                const { data: currentEnrollments, error: fetchError } = await supabase
                     .from('academic_class_students')
                     .select('student_id')
                     .eq('academic_class_id', classId)
                     .eq('enrolled_term_id', termId);
+                
+                if (fetchError) {
+                    addToast(`Error fetching enrollments: ${fetchError.message}`, 'error');
+                    return false;
+                }
                 
                 const currentIds = new Set(currentEnrollments?.map(e => e.student_id) || []);
                 const newIds = new Set(studentIds);
@@ -1439,12 +1447,17 @@ export const useAppLogic = () => {
                 // Step 2: Remove students no longer enrolled
                 const toRemove = [...currentIds].filter(id => !newIds.has(id));
                 if (toRemove.length > 0) {
-                    await supabase
+                    const { error: deleteError } = await supabase
                         .from('academic_class_students')
                         .delete()
                         .eq('academic_class_id', classId)
                         .eq('enrolled_term_id', termId)
                         .in('student_id', toRemove);
+                    
+                    if (deleteError) {
+                        addToast(`Error removing students: ${deleteError.message}`, 'error');
+                        return false;
+                    }
                 }
                 
                 // Step 3: Add new enrollments using upsert
