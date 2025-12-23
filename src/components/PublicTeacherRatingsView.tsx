@@ -57,6 +57,7 @@ const PublicTeacherRatingsView: React.FC<PublicTeacherRatingsViewProps> = ({ onS
     useEffect(() => {
         const fetchInitialData = async () => {
             setLoading(prev => ({ ...prev, leaderboard: true }));
+            const supabase = requireSupabaseClient();
             const { data: leaderboardData, error: leaderboardError } = await supabase
                 .from('mv_public_teacher_leaderboard_current_week')
                 .select('*')

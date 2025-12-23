@@ -137,6 +137,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
         const level = selectedClass.level;
 
         // Find the base class ID
+        const supabase = requireSupabaseClient();
         const { data: baseClassData } = await supabase
           .from('classes')
           .select('id, name')
@@ -314,6 +315,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
     try {
       setIsSaving(true);
+      const supabase = requireSupabaseClient();
       const newEnrollmentStatus = !isEnrolled(studentId, subjectId);
       const payload = {
         school_id: schoolId,
@@ -361,6 +363,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
     try {
       setIsSaving(true);
+      const supabase = requireSupabaseClient();
       
       // Get current valid student IDs
       const validStudentIds = new Set(students.map(s => s.id));
@@ -455,6 +458,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
 
     try {
       setIsSaving(true);
+      const supabase = requireSupabaseClient();
       const updates: Array<{
         school_id: number;
         student_id: number;
@@ -710,6 +714,7 @@ const StudentSubjectEnrollmentManager: React.FC<StudentSubjectEnrollmentManagerP
       }
 
       // Use upsert to update all enrollments
+      const supabase = requireSupabaseClient();
       const { error } = await supabase
         .from('student_subject_enrollments')
         .upsert(enrollments, {

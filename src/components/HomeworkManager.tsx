@@ -44,6 +44,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
     const loadHomework = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('homework')
                 .select(`
@@ -70,6 +71,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
     const loadSubmissionsForHomework = async (homeworkId: number) => {
         try {
+            const supabase = requireSupabaseClient();
             const { data: submissionsData, error: submissionsError } = await supabase
                 .from('homework_submissions')
                 .select('*, student:students(*)')
@@ -87,6 +89,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
     };
 
     const getEnrolledStudentIds = async (academicClassId: number): Promise<number[]> => {
+        const supabase = requireSupabaseClient();
         const { data: classStudents, error } = await supabase
             .from('academic_class_students')
             .select('student_id')
@@ -98,6 +101,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
     const loadStudentsForClass = async (homeworkId: number, academicClassId: number) => {
         try {
+            const supabase = requireSupabaseClient();
             const studentIds = await getEnrolledStudentIds(academicClassId);
             
             if (studentIds.length > 0) {
@@ -121,6 +125,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
     const createPendingSubmissions = async (homeworkId: number, academicClassId: number) => {
         try {
+            const supabase = requireSupabaseClient();
             const studentIds = await getEnrolledStudentIds(academicClassId);
             
             if (studentIds.length > 0) {
@@ -153,6 +158,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
         }
 
         try {
+            const supabase = requireSupabaseClient();
             if (editingHomework) {
                 // Update existing
                 const { error } = await supabase
@@ -209,6 +215,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
         if (!confirm('Are you sure you want to delete this homework?')) return;
 
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('homework')
                 .delete()
@@ -239,6 +246,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
 
     const markSubmission = async (homeworkId: number, studentId: number, status: 'submitted' | 'late' | 'missing') => {
         try {
+            const supabase = requireSupabaseClient();
             const existing = submissions[homeworkId]?.find(s => s.student_id === studentId);
 
             if (existing) {
@@ -277,6 +285,7 @@ const HomeworkManager: React.FC<HomeworkManagerProps> = ({
         const submittedAt = new Date().toISOString();
         
         try {
+            const supabase = requireSupabaseClient();
             // Update all submissions in parallel for better performance
             await Promise.all(
                 classStudents.map(student => {

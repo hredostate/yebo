@@ -35,12 +35,11 @@ const ElectiveSubjectLimitsManager: React.FC<ElectiveSubjectLimitsManagerProps> 
   const [electiveSubjects, setElectiveSubjects] = useState<ElectiveSubjectInfo[]>([]);
   const [modifiedLimits, setModifiedLimits] = useState<Map<number, number | null>>(new Map());
 
-  const supabase = requireSupabaseClient();
-
   // Fetch classes and arms
   useEffect(() => {
     const fetchFilters = async () => {
       try {
+        const supabase = requireSupabaseClient();
         const { data: classesData } = await supabase
           .from('classes')
           .select('id, name')
@@ -75,6 +74,7 @@ const ElectiveSubjectLimitsManager: React.FC<ElectiveSubjectLimitsManagerProps> 
 
     setIsLoading(true);
     try {
+      const supabase = requireSupabaseClient();
       // Get elective subjects for this class
       const { data: classSubjects, error: subjectsError } = await supabase
         .from('class_subjects')
@@ -168,6 +168,7 @@ const ElectiveSubjectLimitsManager: React.FC<ElectiveSubjectLimitsManagerProps> 
     setIsSaving(true);
 
     try {
+      const supabase = requireSupabaseClient();
       let successCount = 0;
       let errorCount = 0;
 

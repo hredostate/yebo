@@ -85,6 +85,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
     const fetchData = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Fetch campuses
             const { data: campusData, error: campusError } = await supabase
                 .from('campuses')
@@ -142,6 +143,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
     const fetchTemplates = async () => {
         try {
+            const supabase = requireSupabaseClient();
             const { data: templatesData, error: templatesError } = await supabase
                 .from('sms_templates')
                 .select('*')
@@ -170,6 +172,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
         setSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             const dataToSave: any = {
                 school_id: schoolId,
                 campus_id: configForm.campus_id || null,
@@ -243,6 +246,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
         setSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('kudisms_settings')
                 .update({
@@ -271,6 +275,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
         setSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('sms_templates')
                 .update({ message_content: editedContent })

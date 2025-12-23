@@ -122,6 +122,7 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
     if (!pendingUserId) return;
     
     try {
+      const supabase = requireSupabaseClient();
       // Terminate oldest session
       const success = await terminateOldestSession(pendingUserId);
       if (!success) {

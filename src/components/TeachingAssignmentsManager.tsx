@@ -107,6 +107,7 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({
         const fetchTeamMembers = async () => {
             if (userProfile && userProfile.role === 'Team Lead') {
                 try {
+                    const supabase = requireSupabaseClient();
                     // Find team where user is the lead
                     const { data: team, error: teamError } = await supabase
                         .from('teams')
@@ -245,6 +246,7 @@ const AcademicAssignmentManager: React.FC<AcademicAssignmentManagerProps> = ({
         
         // Fetch timetable data for the selected term
         try {
+            const supabase = requireSupabaseClient();
             if (selectedTermId) {
                 // Fetch timetable entries for the selected term
                 const { data: timetableEntries, error: entriesError } = await supabase

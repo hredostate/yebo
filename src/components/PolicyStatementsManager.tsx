@@ -70,6 +70,7 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
     const loadPolicies = async () => {
         setIsLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('policy_statements')
                 .select('*')
@@ -93,6 +94,7 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
 
     const loadAcknowledgmentStats = async (policyList: PolicyStatement[]) => {
         try {
+            const supabase = requireSupabaseClient();
             // Fetch all data in parallel
             const [
                 { count: staffCount },
@@ -166,6 +168,7 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
     const loadComplianceDetails = async (policy: PolicyStatement) => {
         setIsLoadingCompliance(true);
         try {
+            const supabase = requireSupabaseClient();
             // Fetch acknowledgments from the new policy_acknowledgments table
             const { data: acknowledgments, error: ackError } = await supabase
                 .from('policy_acknowledgments')
@@ -405,6 +408,7 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
 
         setIsSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             if (editingPolicy) {
                 // Update existing policy
                 const { error } = await supabase
@@ -443,6 +447,7 @@ const PolicyStatementsManager: React.FC<PolicyStatementsManagerProps> = ({
 
     const handleToggleActive = async (policy: PolicyStatement) => {
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('policy_statements')
                 .update({ is_active: !policy.is_active })
