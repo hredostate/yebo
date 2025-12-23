@@ -96,8 +96,10 @@ export const ReportCardPrintRenderer: React.FC<ReportCardPrintRendererProps> = (
 
       if (rpcError) throw rpcError;
 
-      // Fetch school config
-      const studentData = Array.isArray(report.student) ? report.student[0] : report.student;
+      // Normalize related records (Supabase returns single object, not array, for maybeSingle queries)
+      const studentData = report.student as any;
+      const termData = report.term as any;
+      const classData = report.academic_class as any;
       let schoolConfig: any = {};
       if (studentData?.school_id) {
         const { data: config } = await supabase

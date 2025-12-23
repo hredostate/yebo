@@ -434,8 +434,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         
         root.render(<UnifiedReportCard data={pageData} watermark={watermark} />);
 
-        // Wait longer for render to complete and images to load
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for render to complete - check for completion rather than fixed delay
+        // UnifiedReportCard renders synchronously, but we need to ensure DOM updates
+        await new Promise(resolve => {
+          // Use requestAnimationFrame to wait for next paint
+          requestAnimationFrame(() => {
+            // Give an additional frame for images and styles to settle
+            requestAnimationFrame(() => {
+              setTimeout(resolve, 200); // Small buffer for any async operations
+            });
+          });
+        });
 
         // Capture as canvas with improved settings
         const canvas = await html2canvas(tempContainer, {
@@ -449,7 +458,6 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           windowWidth: 794,
           windowHeight: 1123,
           imageTimeout: 15000, // 15s timeout for images
-          removeContainer: false, // Keep container for debugging if needed
         });
 
         // Cleanup
