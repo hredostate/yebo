@@ -628,6 +628,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 curricula={data.curricula}
                 curriculumWeeks={data.curriculumWeeks}
                 onApprove={actions.handleApproveLessonPlan}
+                onSubmitForReview={actions.handleSubmitLessonPlanForReview}
              />;
         case VIEWS.TEAM_LESSON_HUB:
              // Find the current user's team (where they are the lead)
