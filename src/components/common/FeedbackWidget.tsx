@@ -59,6 +59,7 @@ export const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({ userProfile }) =
         status: 'new',
       };
 
+      const supabase = requireSupabaseClient();
       const { error } = await supabase
         .from('feedback')
         .insert(feedbackData);

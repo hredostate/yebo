@@ -38,6 +38,7 @@ const StaffTeacherRatingsView: React.FC<StaffTeacherRatingsViewProps> = ({ users
                 return;
             }
             setIsLoadingComments(true);
+            const supabase = requireSupabaseClient();
             const { data, error } = await supabase
                 .from('v_teacher_ratings_masked')
                 .select('*')

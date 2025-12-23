@@ -34,6 +34,7 @@ const PaymentGatewaySettings: React.FC<PaymentGatewaySettingsProps> = ({ schoolI
     const fetchData = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             // Fetch campuses
             const { data: campusData, error: campusError } = await supabase
                 .from('campuses')
@@ -78,6 +79,7 @@ const PaymentGatewaySettings: React.FC<PaymentGatewaySettingsProps> = ({ schoolI
 
         setSaving(true);
         try {
+            const supabase = requireSupabaseClient();
             const dataToSave = {
                 school_id: schoolId,
                 campus_id: formData.campus_id || null,
@@ -129,6 +131,7 @@ const PaymentGatewaySettings: React.FC<PaymentGatewaySettingsProps> = ({ schoolI
         if (!confirm('Are you sure you want to delete these API settings?')) return;
 
         try {
+            const supabase = requireSupabaseClient();
             const { error } = await supabase
                 .from('paystack_api_settings')
                 .delete()
