@@ -27,7 +27,6 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     const [schoolId, setSchoolId] = useState<number | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [electiveCapacity, setElectiveCapacity] = useState<Map<number, ElectiveCapacityInfo>>(new Map());
-    const supabase = requireSupabaseClient();
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -166,6 +165,8 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     };
 
     const handleSaveChoices = async () => {
+        const supabase = requireSupabaseClient();
+        
         if (isLocked) {
             addToast('Your choices are locked. Contact your teacher to make changes.', 'error');
             return;

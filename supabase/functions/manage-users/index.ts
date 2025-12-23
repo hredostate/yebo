@@ -32,6 +32,19 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Initialize Supabase admin client early (before helper functions that use it)
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
   /**
    * Helper function to send student credentials via SMS/WhatsApp
    * Uses the existing messaging system with channel preferences
@@ -135,16 +148,6 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Server configuration error: Missing Supabase URL or Service Key.');
-    }
-
-    // Service role client is required for admin.createUser and admin.updateUserById
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
     // Safely parse body
     let body;
     try {
