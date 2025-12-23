@@ -630,10 +630,27 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onApprove={actions.handleApproveLessonPlan}
              />;
         case VIEWS.TEAM_LESSON_HUB:
+             // Find the current user's team (where they are the lead)
+             const myTeam = data.teams.find(t => t.lead_id === data.userProfile.id);
+             const myTeamMemberIds = myTeam 
+                 ? new Set([myTeam.lead_id, ...myTeam.members.map(m => m.user_id)].filter(Boolean))
+                 : new Set([data.userProfile.id]);
+             
+             // Filter lesson plans to only show team members' plans
+             const teamLessonPlans = data.lessonPlans.filter(p => myTeamMemberIds.has(p.author_id));
+             
+             // Filter teaching assignments to team members only
+             const teamTeachingAssignments = data.academicAssignments.filter(a => myTeamMemberIds.has(a.teacher_user_id));
+             
+             // Get team members from current user's team only
+             const myTeamMembers = myTeam 
+                 ? [myTeam.lead, ...myTeam.members.map(m => m.profile)].filter((p): p is any => p != null)
+                 : [data.userProfile];
+             
              return <TeamLessonPlanHub
-               lessonPlans={data.lessonPlans}
-               teachingAssignments={data.academicAssignments}
-               teamMembers={data.teams.flatMap(t => [t.lead, ...t.members.map(m => m.profile)]).filter((p): p is any => p != null)}
+               lessonPlans={teamLessonPlans}
+               teachingAssignments={teamTeachingAssignments}
+               teamMembers={myTeamMembers}
                currentUser={data.userProfile}
                onSubmitReview={async (planId, review) => {
                  const supabase = requireSupabaseClient();
