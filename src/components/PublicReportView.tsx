@@ -102,6 +102,15 @@ const PublicReportView: React.FC = () => {
     const [totalInLevel, setTotalInLevel] = useState<number | null>(null);
     const [armName, setArmName] = useState<string | null>(null);
     const [levelName, setLevelName] = useState<string | null>(null);
+    const [attendance, setAttendance] = useState<{
+        present: number;
+        absent: number;
+        late: number;
+        excused: number;
+        unexcused: number;
+        total: number;
+        rate: number;
+    } | null>(null);
 
     // Calculate component score columns using useMemo for performance
     // This hook must be called before any conditional returns to satisfy React's Rules of Hooks
@@ -289,6 +298,17 @@ const PublicReportView: React.FC = () => {
             const teacherComment = rpcData?.comments?.teacher ?? rpcData?.comments?.teacher_comment ?? report.teacher_comment;
             const principalComment = rpcData?.comments?.principal ?? rpcData?.comments?.principal_comment ?? report.principal_comment;
 
+            // Extract attendance data from RPC response
+            const extractedAttendance = rpcData?.attendance ? {
+                present: rpcData.attendance.present ?? 0,
+                absent: rpcData.attendance.absent ?? 0,
+                late: rpcData.attendance.late ?? 0,
+                excused: rpcData.attendance.excused ?? 0,
+                unexcused: rpcData.attendance.unexcused ?? 0,
+                total: rpcData.attendance.total ?? 0,
+                rate: rpcData.attendance.rate ?? 0,
+            } : null;
+
             setReportData({
                 ...report,
                 student: studentData,
@@ -309,6 +329,7 @@ const PublicReportView: React.FC = () => {
             setTotalInLevel(extractedTotalInLevel);
             setArmName(extractedArmName);
             setLevelName(extractedLevelName);
+            setAttendance(extractedAttendance);
         } catch (err: any) {
             console.error('Error fetching report:', err);
             setError(err.message || 'Failed to load report');
@@ -667,6 +688,45 @@ const PublicReportView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Attendance Section */}
+                        {attendance && attendance.total > 0 && (
+                            <div className="page-break-avoid">
+                                <h4 className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
+                                    Attendance Record
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-emerald-600">{attendance.present}</p>
+                                        <p className="text-xs text-emerald-700 uppercase tracking-wider mt-1">Present</p>
+                                    </div>
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-red-600">{attendance.absent}</p>
+                                        <p className="text-xs text-red-700 uppercase tracking-wider mt-1">Absent</p>
+                                    </div>
+                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-amber-600">{attendance.late}</p>
+                                        <p className="text-xs text-amber-700 uppercase tracking-wider mt-1">Late</p>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-blue-600">{attendance.excused}</p>
+                                        <p className="text-xs text-blue-700 uppercase tracking-wider mt-1">Excused</p>
+                                    </div>
+                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-orange-600">{attendance.unexcused}</p>
+                                        <p className="text-xs text-orange-700 uppercase tracking-wider mt-1">Unexcused</p>
+                                    </div>
+                                    <div className="bg-slate-100 border border-slate-300 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-slate-700">{attendance.total}</p>
+                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Total Days</p>
+                                    </div>
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold text-indigo-600">{attendance.rate.toFixed(1)}%</p>
+                                        <p className="text-xs text-indigo-700 uppercase tracking-wider mt-1">Attendance Rate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Subject Performance Table */}
                         {reportData.subjects && reportData.subjects.length > 0 && (
