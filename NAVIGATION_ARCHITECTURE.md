@@ -2,7 +2,15 @@
 
 ## Overview
 
-This document describes the new React Router v6-based navigation architecture for Guardian 360, implementing incremental migration Option A with full backward compatibility.
+This document describes the React Router v6-based navigation architecture for Guardian 360, implementing path-based navigation with BrowserRouter for clean URLs.
+
+## Migration Status: ✅ COMPLETE
+
+The navigation migration to React Router v6 with BrowserRouter is **complete**. The app now uses:
+- **Clean URLs** (no hash) via BrowserRouter
+- **Path-based navigation** as the source of truth
+- **Backward compatibility** for legacy hash URLs
+- **React Router v6.30.2** consistently across the codebase
 
 ## Architecture Components
 
@@ -21,9 +29,27 @@ const path = viewToPath(VIEWS.RESULT_MANAGER); // → '/academics/result-manager
 
 // Convert path to view
 const view = pathToView('/academics/result-manager'); // → 'Result Manager'
+
+// Legacy hash URL support
+const cleanPath = hashToPath('#Dashboard'); // → '/workspace/dashboard'
 ```
 
-### 2. Section Configuration (`src/routing/sectionConfig.ts`)
+### 2. RouterWrapper (`src/components/RouterWrapper.tsx`)
+
+Wraps the authenticated app with BrowserRouter and provides:
+- Clean URL paths (no hash)
+- Legacy hash URL redirect on initial load
+- Bi-directional sync between path and legacy `currentView` state
+- 404 handling via Routes
+
+### 3. NotFound Page (`src/components/NotFoundPage.tsx`)
+
+Friendly 404 page displayed when users navigate to unknown routes:
+- Links back to `/workspace/dashboard`
+- Go back button
+- Modern, responsive design
+
+### 4. Section Configuration (`src/routing/sectionConfig.ts`)
 
 Defines metadata for each section:
 - **Workspace**: Personal productivity tools
@@ -41,16 +67,7 @@ Each section includes:
 - Permission filters
 - Optional pinned items
 
-### 3. SectionLayout Component (`src/components/layouts/SectionLayout.tsx`)
-
-Reusable layout providing:
-- **Section title** with expand toggle
-- **Pinned items row** (max 5) above tabs if configured
-- **Pill sub-tabs** with automatic "More" dropdown
-- **Expanded launcher mode** (grid view of all tabs)
-- **Content outlet** for nested routes
-
-### 4. Navigation Hook (`src/hooks/useNavigation.ts`)
+### 5. Navigation Hook (`src/hooks/useNavigation.ts`)
 
 Unified navigation interface supporting both:
 - Path-based navigation (React Router)
@@ -68,10 +85,10 @@ function MyComponent() {
     isInSection 
   } = useNavigation();
 
-  // Navigate using view (legacy)
+  // Navigate using view (legacy - still works for compatibility)
   navigateByView(VIEWS.RESULT_MANAGER);
 
-  // Navigate using path (new)
+  // Navigate using path (new standard)
   navigateByPath('/academics/result-manager');
 
   // Get current view
@@ -82,25 +99,25 @@ function MyComponent() {
 }
 ```
 
-### 5. Router Configuration (`src/routing/routes.tsx`)
+### 6. SidebarLink Component (`src/components/common/SidebarLink.tsx`)
 
-Defines React Router v6 route structure with:
-- Section-based layouts
-- Default redirects (e.g., `/workspace` → `/workspace/dashboard`)
-- Integration with existing AppRouter
-- Parameterized routes support
+Navigation link component that uses React Router's NavLink:
+- Active state styling support
+- Automatic path generation from view IDs
+- Click handler integration
+- Emergency legacy fallback if feature flags disabled
 
-### 6. Feature Flags (`src/routing/featureFlags.ts`)
+### 7. Feature Flags (`src/routing/featureFlags.ts`)
 
-Controls rollout of new navigation features:
-- `USE_NEW_NAVIGATION`: Enable React Router v6 navigation
-- `USE_SECTION_LAYOUTS`: Enable section-based layouts
-- `USE_PILL_TABS`: Enable pill sub-tabs navigation
+All feature flags are **enabled by default** (migration complete):
+- `USE_NEW_NAVIGATION`: ✅ true
+- `USE_SECTION_LAYOUTS`: ✅ true  
+- `USE_PILL_TABS`: ✅ true
 
-Can be overridden via localStorage for testing:
+Can be overridden via localStorage for emergency rollback:
 ```javascript
 // In browser console:
-localStorage.setItem('sg360_use_new_nav', 'true');
+localStorage.setItem('sg360_use_new_nav', 'false');
 window.location.reload();
 ```
 
@@ -119,6 +136,35 @@ Each section has a default route that it redirects to:
 | `/finance` | `/finance/fees` | Bursary (Fees) |
 | `/admin` | `/admin/global-settings` | Global Settings |
 
+## Legacy Hash URL Support
+
+The app provides **automatic redirect** for legacy hash-based URLs:
+
+### Supported Hash Formats
+- `#Dashboard` → `/workspace/dashboard`
+- `#/Dashboard` → `/workspace/dashboard`
+- `#Result Manager` → `/academics/result-manager`
+- `#Student Profile/123` → `/student-affairs/student-profile/123`
+
+### How It Works
+1. On initial load, `RouterWrapper` checks for hash in URL
+2. If hash exists (and not auth-related), converts to clean path via `hashToPath()`
+3. Replaces URL without hash and navigates to clean path
+4. All subsequent navigation uses clean URLs
+
+### Auth Hash Handling
+Auth-related hashes are ignored:
+- `#access_token=...` - Supabase auth callback
+- `#error=...` - Auth error handling
+
+## Public Route Handling
+
+Public routes (`/report/*`) bypass authenticated app routing:
+- Handled in `App.tsx` before authentication check
+- Render `PublicReportView` or `PublicReportPrintView` directly
+- No hash redirect interference
+- SEO-friendly clean URLs for sharing
+
 ## Tab Configuration
 
 ### Default Tab Display (5 + More)
@@ -134,69 +180,46 @@ Most sections display 5 tabs directly with overflow in "More" dropdown:
 
 ### Transport Exception (3 tabs, no More)
 
-Transport section has only 3 tabs, so no "More" dropdown is shown unless explicitly configured:
+Transport section has only 3 tabs, so no "More" dropdown is shown:
 - Transport Manager
 - My Transport Groups
 - Transport Attendance
 
-## Migration Path
+## Dependency Management
 
-### Phase 1: Infrastructure (Current)
-✅ Install React Router v6
-✅ Create route-view mapping
-✅ Create section configuration
-✅ Create SectionLayout component
-✅ Create navigation hook
-✅ Create router configuration
-✅ Create feature flags
+### React Router Version
+- **Installed**: v6.30.2 (via npm)
+- **Runtime (importmap)**: v6.30.2
+- **Status**: ✅ Consistent
 
-### Phase 2: Integration (Next)
-- [ ] Integrate CompatibleRouter into App.tsx
-- [ ] Update Sidebar to use new navigation
-- [ ] Test backward compatibility
-- [ ] Enable for limited users
-
-### Phase 3: Gradual Rollout
-- [ ] Enable feature flag for beta users
-- [ ] Monitor for issues
-- [ ] Gather feedback
-- [ ] Make adjustments
-
-### Phase 4: Full Migration
-- [ ] Enable for all users
-- [ ] Update all navigation calls
-- [ ] Remove legacy navigation code
-- [ ] Clean up feature flags
-
-## Backward Compatibility
-
-The new system maintains full backward compatibility:
-
-1. **Dual Navigation Support**: Both `setCurrentView(view)` and `navigate(path)` work
-2. **Hash-based URLs**: Continues using `HashRouter` for compatibility
-3. **VIEWS Constants**: All existing VIEWS constants are mapped to paths
-4. **Parameterized Routes**: Legacy routes like `Student Profile/123` still work
-5. **Feature Flags**: Can be disabled instantly if issues arise
+The importmap in `index.html` points to v6 (not v7) ensuring runtime consistency:
+```json
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^6.30.2"
+  }
+}
+```
 
 ## Usage Examples
+
+### Navigate by Path (Recommended)
+```typescript
+navigate('/academics/result-manager');
+```
 
 ### Navigate by View (Legacy - Still Works)
 ```typescript
 actions.setCurrentView(VIEWS.RESULT_MANAGER);
 ```
 
-### Navigate by Path (New)
-```typescript
-navigate('/academics/result-manager');
-```
-
 ### Navigate with Parameters
 ```typescript
-// Legacy
-actions.setCurrentView(`${VIEWS.STUDENT_PROFILE}/${studentId}`);
-
 // New
 navigate(`/student-affairs/student-profile/${studentId}`);
+
+// Legacy (still works)
+actions.setCurrentView(`${VIEWS.STUDENT_PROFILE}/${studentId}`);
 ```
 
 ### Check Current Section
@@ -210,50 +233,66 @@ if (isInSection('academics')) {
 
 ## Testing
 
-### Enable New Navigation for Testing
-```javascript
-// In browser console
-localStorage.setItem('sg360_use_new_nav', 'true');
-window.location.reload();
-```
+### Manual Testing
+1. Navigate to various pages via sidebar
+2. Check URL bar - should show clean paths like `/workspace/dashboard`
+3. Bookmark a page and reload - should work
+4. Try legacy hash URL: `/#Dashboard` - should redirect to `/workspace/dashboard`
+5. Navigate to unknown route - should show NotFound page
 
-### Disable New Navigation
+### Automated Tests
+- `tests/navigationMapping.test.ts` - Route↔View mapping
+- `tests/legacyHashRedirect.test.ts` - Hash URL redirect logic
+- `tests/notFoundRoute.test.ts` - 404 page behavior
+- `tests/navigationLinks.test.ts` - Link generation
+
+Run tests: `npm run test:navigation`
+
+## Emergency Rollback
+
+If issues arise, temporarily disable new navigation:
+
+### Option 1: Feature Flag (Per User)
 ```javascript
 localStorage.setItem('sg360_use_new_nav', 'false');
 window.location.reload();
 ```
 
-### Clear Override
-```javascript
-localStorage.removeItem('sg360_use_new_nav');
-window.location.reload();
+### Option 2: Code Rollback
+Revert `src/routing/featureFlags.ts`:
+```typescript
+USE_NEW_NAVIGATION: false,
+USE_SECTION_LAYOUTS: false,
+USE_PILL_TABS: false,
 ```
+
+**Note**: This will revert to hash-based URLs but maintain backward compatibility.
 
 ## Technical Notes
 
-- **HashRouter**: Uses hash-based routing (`#/workspace/dashboard`) for compatibility
-- **Lazy Loading**: AppRouter is lazy-loaded to maintain performance
+- **BrowserRouter**: Uses HTML5 history API for clean URLs
+- **Lazy Loading**: AppRouter components are lazy-loaded for performance
 - **Permission Filtering**: Tabs automatically filtered based on user permissions
 - **Responsive**: SectionLayout adapts to mobile/tablet/desktop viewports
 - **Dark Mode**: Full support for light/dark themes
+- **SEO**: Clean URLs improve SEO for public pages
 
-## Future Enhancements
+## Migration Complete
 
-Potential future improvements:
-1. BrowserRouter migration (remove hash from URLs)
-2. Nested route parameters (breadcrumbs)
-3. Route guards (authentication/authorization)
-4. Route-based code splitting
-5. Analytics integration
-6. Deep linking from external sources
-7. Route-based state management
+✅ **BrowserRouter** active with clean URLs  
+✅ **Path-based navigation** is source of truth  
+✅ **Legacy hash URLs** auto-redirect on load  
+✅ **NotFound page** for unknown routes  
+✅ **React Router v6** consistent across codebase  
+✅ **All feature flags** enabled by default  
+✅ **Tests** cover redirect, NotFound, and link generation  
 
 ## Support
 
 For questions or issues:
 1. Check feature flags configuration
-2. Verify route-view mappings
-3. Test with legacy navigation first
-4. Review browser console for navigation logs
+2. Verify route-view mappings in `routeViewMapping.ts`
+3. Review browser console for navigation logs
+4. Test with legacy navigation fallback
 5. Check permission configuration
 

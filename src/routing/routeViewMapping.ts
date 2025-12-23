@@ -115,7 +115,6 @@ export const VIEW_TO_PATH: Record<string, string> = {
   [VIEWS.STUDENT_PROFILE_EDIT]: '/student/profile-edit',
   [VIEWS.STUDENT_STRIKES]: '/student/strikes',
   [VIEWS.TAKE_QUIZ]: '/student/take-quiz',
-  [VIEWS.QUIZ_TAKER]: '/student/take-quiz',
   [VIEWS.TAKE_SURVEY]: '/student/take-survey',
   [VIEWS.STUDENT_LESSON_PORTAL]: '/student/lessons',
   [VIEWS.STUDENT_HOMEWORK]: '/student/homework',

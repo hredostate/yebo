@@ -5,6 +5,7 @@
  * - Section-based layouts
  * - Default redirects
  * - Integration with existing AppRouter component
+ * - NotFound page for unknown routes
  */
 
 import React, { Suspense, lazy } from 'react';
@@ -12,6 +13,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import SectionLayout from '../components/layouts/SectionLayout';
 import { SECTION_CONFIGS } from './sectionConfig';
 import Spinner from '../components/common/Spinner';
+import NotFoundPage from '../components/NotFoundPage';
 
 // Lazy load AppRouter to match existing pattern
 const AppRouter = lazy(() => import('../components/AppRouter'));
@@ -279,8 +281,8 @@ export const RouterConfig: React.FC<RouterConfigProps> = ({
         <Route path="rate-teacher" element={<ViewRenderer view="Rate My Teacher" data={data} actions={actions} />} />
       </Route>
       
-      {/* Fallback for unknown routes */}
-      <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
+      {/* Fallback for unknown routes - show NotFound page */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

@@ -54,6 +54,7 @@ import StudentRateMyTeacherView from './components/StudentRateMyTeacherView';
 import StudentReportList from './components/StudentReportList';
 import PolicyAcknowledgmentGate from './components/PolicyAcknowledgmentGate';
 import { BookOpenIcon, ClipboardListIcon, FileTextIcon, StarIcon, UserCircleIcon } from './components/common/icons';
+import RouterWrapper from './components/RouterWrapper';
 
 // Use lazyWithRetry for all lazy-loaded components to handle chunk load failures
 // This is especially important for PWAs where cached bundles may reference outdated chunk hashes
@@ -6872,7 +6873,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     if (userType === 'student') {
         // Student specific layout
         return (
-             <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+            <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
+              <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
                 <Sidebar
                     currentView={currentView}
                     onNavigate={setCurrentView}
@@ -7134,12 +7136,14 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 </div>
                  <Toast toasts={toasts} removeToast={removeToast} />
              </div>
+            </RouterWrapper>
         )
     }
 
     // Staff Layout
     return (
-        <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
+        <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
+          <div className={`app-shell flex h-screen text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
             <Sidebar
                 currentView={currentView}
                 onNavigate={setCurrentView}
@@ -7483,6 +7487,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 userProfile={userProfile as { id: string; school_id: number } | null}
             />
         </div>
+        </RouterWrapper>
     );
 };
 

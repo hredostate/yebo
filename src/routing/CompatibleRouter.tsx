@@ -1,12 +1,12 @@
 /**
  * CompatibleRouter Component
  * 
- * Bridges legacy hash-based navigation with React Router v6
- * Maintains backward compatibility during incremental migration
+ * Bridges legacy hash-based navigation with React Router v6 BrowserRouter
+ * Provides backward compatibility for legacy hash URLs by redirecting them to clean paths
  */
 
 import React, { useEffect } from 'react';
-import { HashRouter, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import RouterConfig from './routes';
 import { pathToView, viewToPath, hashToPath } from './routeViewMapping';
 import { VIEWS } from '../constants';
@@ -18,6 +18,37 @@ interface CompatibleRouterProps {
   actions: any;
   userPermissions: string[];
 }
+
+/**
+ * Component that handles legacy hash URL redirects and syncs state
+ */
+const LegacyHashRedirect: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if there's a hash in the URL (legacy format)
+    const hash = window.location.hash;
+    
+    if (hash && hash.length > 1) {
+      // Ignore auth-related hashes
+      if (hash.includes('access_token=') || hash.includes('error=')) {
+        console.log('[CompatibleRouter] Ignoring auth hash');
+        return;
+      }
+
+      // Convert legacy hash to clean path
+      const cleanPath = hashToPath(hash);
+      console.log('[CompatibleRouter] Redirecting legacy hash URL:', hash, '→', cleanPath);
+      
+      // Remove hash from URL and navigate to clean path
+      window.history.replaceState(null, '', cleanPath);
+      navigate(cleanPath, { replace: true });
+    }
+  }, []);
+
+  return null;
+};
 
 /**
  * Internal component that syncs React Router location with currentView state
@@ -51,8 +82,10 @@ const LocationSync: React.FC<{
 };
 
 /**
- * CompatibleRouter wraps the app with HashRouter and provides bi-directional sync
- * between legacy currentView state and React Router location
+ * CompatibleRouter wraps the app with BrowserRouter and provides:
+ * - Clean URL paths (no hash)
+ * - Legacy hash URL redirect support
+ * - Bi-directional sync between legacy currentView state and React Router location
  */
 export const CompatibleRouter: React.FC<CompatibleRouterProps> = ({
   currentView,
@@ -62,7 +95,8 @@ export const CompatibleRouter: React.FC<CompatibleRouterProps> = ({
   userPermissions,
 }) => {
   return (
-    <HashRouter>
+    <BrowserRouter>
+      <LegacyHashRedirect />
       <LocationSync currentView={currentView} setCurrentView={setCurrentView} />
       <RouterConfig
         currentView={currentView}
@@ -70,7 +104,7 @@ export const CompatibleRouter: React.FC<CompatibleRouterProps> = ({
         actions={actions}
         userPermissions={userPermissions}
       />
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 
