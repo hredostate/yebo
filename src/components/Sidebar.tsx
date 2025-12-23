@@ -285,7 +285,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
         `}
         aria-label="Sidebar"
       >
-        <div className="h-full px-4 sm:px-4 py-6 glass-panel border-r-0 rounded-r-2xl md:rounded-none md:rounded-r-2xl flex flex-col shadow-2xl md:shadow-none overflow-hidden">
+        <div className="h-full px-4 sm:px-4 py-6 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 rounded-r-2xl md:rounded-none flex flex-col shadow-2xl md:shadow-none overflow-hidden">
           
           {/* Brand Header */}
           <div className="flex items-center justify-between mb-6 pl-1">
@@ -368,8 +368,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                                   }}
                                   className={`flex items-center py-3 pl-9 pr-3 w-full text-sm font-medium rounded-lg transition-all duration-200 relative z-10 min-h-touch touch-target ${
                                     isActive
-                                      ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 translate-x-1 font-bold shadow-sm'
-                                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                                      ? 'text-indigo-700 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-900/20 font-bold shadow-sm border-l-4 border-indigo-600 dark:border-indigo-500'
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/30 border-l-4 border-transparent'
                                   }`}
                                 >
                                   {item.label}
