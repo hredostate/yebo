@@ -7,11 +7,14 @@
  * - Integration with existing AppRouter component
  */
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import SectionLayout from '../components/layouts/SectionLayout';
 import { SECTION_CONFIGS } from './sectionConfig';
-import AppRouter from '../components/AppRouter';
+import Spinner from '../components/common/Spinner';
+
+// Lazy load AppRouter to match existing pattern
+const AppRouter = lazy(() => import('../components/AppRouter'));
 
 interface RouterConfigProps {
   currentView: string;
@@ -29,7 +32,11 @@ const ViewRenderer: React.FC<{ view: string; data: any; actions: any }> = ({
   data, 
   actions 
 }) => {
-  return <AppRouter currentView={view} data={data} actions={actions} />;
+  return (
+    <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+      <AppRouter currentView={view} data={data} actions={actions} />
+    </Suspense>
+  );
 };
 
 /**
