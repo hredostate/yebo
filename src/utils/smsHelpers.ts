@@ -11,7 +11,7 @@
  * - Academic year patterns in parentheses: (2024/2025)
  * - Academic year patterns without parentheses: 2024/2025
  * - Academic year patterns with dashes: 2024-2025
- * - Standalone years in range 2020-2039
+ * - Standalone years in range 2020-2099 (covers academic years)
  * 
  * @param text - The text to sanitize
  * @returns Sanitized text with year patterns removed
@@ -20,10 +20,15 @@ export function sanitizeForSms(text: string): string {
     if (!text) return text;
     
     return text
-        .replace(/\s*\(\d{4}\/\d{4}\)/g, '')  // Remove "(2024/2025)" patterns
-        .replace(/\s*\d{4}\/\d{4}/g, '')       // Remove "2024/2025" patterns
-        .replace(/\s*\d{4}-\d{4}/g, '')        // Remove "2024-2025" patterns
-        .replace(/\b(202[0-9]|203[0-9])\b/g, '') // Remove standalone years 2020-2039
-        .replace(/\s+/g, ' ')                  // Clean up extra spaces
+        // Remove academic year patterns in parentheses like "(2024/2025)"
+        .replace(/\s*\(\d{4}\/\d{4}\)/g, '')
+        // Remove academic year patterns with slash like "2024/2025"
+        .replace(/\s*\b\d{4}\/\d{4}\b/g, '')
+        // Remove academic year patterns with dash like "2024-2025"
+        .replace(/\s*\b\d{4}-\d{4}\b/g, '')
+        // Remove standalone years 2020-2099 (covers current and near future academic years)
+        .replace(/\b(20[2-9][0-9]|210[0-9])\b/g, '')
+        // Clean up extra spaces
+        .replace(/\s+/g, ' ')
         .trim();
 }
