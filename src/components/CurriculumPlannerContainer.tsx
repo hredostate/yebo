@@ -13,6 +13,7 @@ type Props = {
   curricula: Curriculum[];
   curriculumWeeks: CurriculumWeek[];
   onApprove: (plan: LessonPlan) => Promise<void>;
+  onSubmitForReview?: (plan: LessonPlan) => Promise<void>;
 };
 
 const CurriculumPlannerContainer: React.FC<Props> = (props) => {
@@ -28,6 +29,7 @@ const CurriculumPlannerContainer: React.FC<Props> = (props) => {
         curricula={props.curricula}
         curriculumWeeks={props.curriculumWeeks}
         onApprove={props.onApprove}
+        onSubmitForReview={props.onSubmitForReview}
     />
   );
 };

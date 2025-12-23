@@ -28,6 +28,7 @@ interface CurriculumPlannerViewProps {
   curricula: Curriculum[];
   curriculumWeeks: CurriculumWeek[];
   onApprove: (plan: LessonPlan) => Promise<void>;
+  onSubmitForReview?: (plan: LessonPlan) => Promise<void>;
 }
 
 const getWeekStartDate = (date: Date): Date => {
@@ -50,6 +51,7 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
     curricula,
     curriculumWeeks,
     onApprove,
+    onSubmitForReview,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -178,20 +180,41 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
        <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 min-h-[300px]">
         {selectedAssignmentId ? (
           plansForWeek.length > 0 ? (
-            plansForWeek.map(plan => (
-              <div key={plan.id} className="p-4 bg-slate-500/10 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">{plan.title || (plan.plan_type === 'freeform' ? 'Freeform Plan' : 'Structured Plan')}</h3>
-                    <p className="text-sm text-slate-500">Last updated: {new Date(plan.updated_at).toLocaleString()}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleViewPlan(plan)} className="px-3 py-1 bg-blue-600 text-white rounded-md">View Details</button>
-                    <button onClick={() => plan.plan_type === 'freeform' ? handleOpenFreeformEditor(plan) : handleOpenStructuredEditor(plan)} className="px-3 py-1 bg-slate-500/20 rounded-md">Edit</button>
+            plansForWeek.map(plan => {
+              const getStatusBadge = (status: string) => {
+                const styles: Record<string, string> = {
+                  draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                  submitted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                  under_review: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                  revision_required: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+                };
+                return (
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${styles[status] || styles.draft}`}>
+                    {status.replace('_', ' ').toUpperCase()}
+                  </span>
+                );
+              };
+              
+              return (
+                <div key={plan.id} className="p-4 bg-slate-500/10 rounded-lg mb-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-lg text-slate-800 dark:text-white">{plan.title || (plan.plan_type === 'freeform' ? 'Freeform Plan' : 'Structured Plan')}</h3>
+                        {getStatusBadge(plan.status)}
+                      </div>
+                      <p className="text-sm text-slate-500">Last updated: {new Date(plan.updated_at).toLocaleString()}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleViewPlan(plan)} className="px-3 py-1 bg-blue-600 text-white rounded-md">View Details</button>
+                      <button onClick={() => plan.plan_type === 'freeform' ? handleOpenFreeformEditor(plan) : handleOpenStructuredEditor(plan)} className="px-3 py-1 bg-slate-500/20 rounded-md">Edit</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-16">
               <p className="text-slate-500">No lesson plan submitted for this week.</p>
@@ -215,6 +238,7 @@ const CurriculumPlannerView: React.FC<CurriculumPlannerViewProps> = ({
         userProfile={userProfile}
         teams={teams}
         onApprove={onApprove}
+        onSubmitForReview={onSubmitForReview}
       />
       
       {isPlanEditorOpen && <LessonPlanEditorModal 

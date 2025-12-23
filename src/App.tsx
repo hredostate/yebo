@@ -5394,6 +5394,16 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         }
    }, [addToast]);
 
+    const handleSubmitLessonPlanForReview = useCallback(async (plan: LessonPlan) => {
+        const { error } = await Offline.update('lesson_plans', { status: 'submitted' }, { id: plan.id });
+        if (error) {
+            addToast("Failed to submit plan for review.", "error");
+        } else {
+            setLessonPlans(prev => prev.map(p => p.id === plan.id ? { ...p, status: 'submitted' } : p));
+            addToast("Lesson plan submitted for review.", "success");
+        }
+    }, [addToast]);
+
     // --- Score Entry Handlers ---
     const handleSaveScores = useCallback(async (scores: Partial<ScoreEntry>[]): Promise<boolean> => {
         const supabase = requireSupabaseClient();
@@ -7025,6 +7035,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleAnalyzeLessonPlan,
                                         handleCopyLessonPlan,
                                         handleApproveLessonPlan,
+                                        handleSubmitLessonPlanForReview,
                                         handleSaveScores,
                                         handleUpdateScore,
                                         handleSubmitScoresForReview,
@@ -7291,6 +7302,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleAnalyzeLessonPlan,
                                     handleCopyLessonPlan,
                                     handleApproveLessonPlan,
+                                    handleSubmitLessonPlanForReview,
                                     handleSaveScores,
                                     handleUpdateScore,
                                     handleSubmitScoresForReview,

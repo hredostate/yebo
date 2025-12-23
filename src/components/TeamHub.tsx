@@ -460,8 +460,24 @@ const TeamHub: React.FC<TeamHubProps> = ({
         return lessonPlans.filter(plan => plan.author_id === currentUser.id);
     }, [lessonPlans, myTeam, currentUser.id, isAdmin]);
 
+    // Console logging for debugging
+    console.log('[TeamHub] Current user:', currentUser.id, currentUser.role);
+    console.log('[TeamHub] My team:', myTeam);
+    console.log('[TeamHub] All lesson plans:', lessonPlans.length);
+    console.log('[TeamHub] Relevant plans:', relevantPlans.length);
+    console.log('[TeamHub] Plans by status:', {
+        draft: relevantPlans.filter(p => p.status === 'draft').length,
+        submitted: relevantPlans.filter(p => p.status === 'submitted').length,
+        under_review: relevantPlans.filter(p => p.status === 'under_review').length,
+        approved: relevantPlans.filter(p => p.status === 'approved').length,
+        rejected: relevantPlans.filter(p => p.status === 'rejected').length,
+        revision_required: relevantPlans.filter(p => p.status === 'revision_required').length,
+    });
+
+    const drafts = relevantPlans.filter(p => p.status === 'draft');
     const pendingReview = relevantPlans.filter(p => p.status === 'submitted' || p.status === 'under_review');
     const approved = relevantPlans.filter(p => p.status === 'approved');
+    const needsAttention = relevantPlans.filter(p => p.status === 'rejected' || p.status === 'revision_required');
 
     // Coverage feedback data
     const coverageReportData = useMemo(() => {
@@ -746,62 +762,104 @@ const TeamHub: React.FC<TeamHubProps> = ({
     );
 
     // Lesson Plans Tab
-    const renderLessonPlansTab = () => (
-        <div className="space-y-6 animate-fade-in">
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-                    <ClockIcon className="w-6 h-6 mr-2 text-orange-500" />
-                    Pending Review ({pendingReview.length})
-                </h3>
-                <div className="space-y-3">
-                    {pendingReview.map(plan => (
-                        <div key={plan.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                            <div>
-                                <p className="font-semibold text-slate-900 dark:text-white">{plan.title || 'Untitled Plan'}</p>
-                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    {plan.author?.name} • {plan.subject} • Week of {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
-                                </p>
-                            </div>
-                            {(isAdmin || isMyTeamLead) && (
-                                <button
-                                    onClick={() => setReviewingPlan(plan)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                                >
-                                    Review →
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                    {pendingReview.length === 0 && (
-                        <p className="text-center text-slate-500 dark:text-slate-400 py-4">No plans pending review.</p>
-                    )}
-                </div>
-            </div>
+    const renderLessonPlansTab = () => {
+        const getStatusBadge = (status: string) => {
+            const styles: Record<string, string> = {
+                draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                submitted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                under_review: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                revision_required: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+            };
+            return (
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${styles[status] || styles.draft}`}>
+                    {status.replace('_', ' ').toUpperCase()}
+                </span>
+            );
+        };
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-                    <CheckCircleIcon className="w-6 h-6 mr-2 text-green-500" />
-                    Approved Plans ({approved.length})
-                </h3>
-                <div className="space-y-3">
-                    {approved.slice(0, 10).map(plan => (
-                        <div key={plan.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                            <div>
-                                <p className="font-semibold text-slate-900 dark:text-white">{plan.title || 'Untitled Plan'}</p>
-                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    {plan.author?.name} • {plan.subject} • Week of {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
-                                </p>
-                            </div>
-                            <CheckCircleIcon className="w-6 h-6 text-green-500" />
+        const renderPlanItem = (plan: LessonPlan, showReviewButton: boolean = false) => (
+            <div key={plan.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-slate-900 dark:text-white">{plan.title || 'Untitled Plan'}</p>
+                        {getStatusBadge(plan.status)}
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {plan.author?.name} • {plan.subject} • Week of {plan.week_start_date ? new Date(plan.week_start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
+                    </p>
+                </div>
+                {showReviewButton && (isAdmin || isMyTeamLead) && (
+                    <button
+                        onClick={() => setReviewingPlan(plan)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium ml-4"
+                    >
+                        Review →
+                    </button>
+                )}
+            </div>
+        );
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                {/* Needs Attention Section */}
+                {needsAttention.length > 0 && (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                            <ExclamationTriangleIcon className="w-6 h-6 mr-2 text-red-500" />
+                            Needs Attention ({needsAttention.length})
+                        </h3>
+                        <div className="space-y-3">
+                            {needsAttention.map(plan => renderPlanItem(plan, false))}
                         </div>
-                    ))}
-                    {approved.length === 0 && (
-                        <p className="text-center text-slate-500 dark:text-slate-400 py-4">No approved plans yet.</p>
-                    )}
+                    </div>
+                )}
+
+                {/* Pending Review Section */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <ClockIcon className="w-6 h-6 mr-2 text-orange-500" />
+                        Pending Review ({pendingReview.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {pendingReview.map(plan => renderPlanItem(plan, true))}
+                        {pendingReview.length === 0 && (
+                            <p className="text-center text-slate-500 dark:text-slate-400 py-4">No plans pending review.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Drafts Section */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <FileTextIcon className="w-6 h-6 mr-2 text-slate-500" />
+                        Drafts ({drafts.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {drafts.map(plan => renderPlanItem(plan, false))}
+                        {drafts.length === 0 && (
+                            <p className="text-center text-slate-500 dark:text-slate-400 py-4">No draft plans.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Approved Section */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <CheckCircleIcon className="w-6 h-6 mr-2 text-green-500" />
+                        Approved Plans ({approved.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {approved.slice(0, 10).map(plan => renderPlanItem(plan, false))}
+                        {approved.length === 0 && (
+                            <p className="text-center text-slate-500 dark:text-slate-400 py-4">No approved plans yet.</p>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     // Coverage Tab
     const renderCoverageTab = () => (
