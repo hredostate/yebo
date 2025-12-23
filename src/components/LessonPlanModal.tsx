@@ -12,15 +12,18 @@ interface LessonPlanModalProps {
   userProfile: UserProfile;
   teams: Team[];
   onApprove: (plan: LessonPlan) => Promise<void>;
+  onSubmitForReview?: (plan: LessonPlan) => Promise<void>;
 }
 
 type Tab = 'Content' | 'AI Analysis';
 
-const LessonPlanModal: React.FC<LessonPlanModalProps> = ({ isOpen, onClose, plan, onAnalyzeLessonPlan, onCopy, userProfile, teams, onApprove }) => {
+const LessonPlanModal: React.FC<LessonPlanModalProps> = ({ isOpen, onClose, plan, onAnalyzeLessonPlan, onCopy, userProfile, teams, onApprove, onSubmitForReview }) => {
   const [activeTab, setActiveTab] = useState<Tab>('Content');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<LessonPlanAnalysis | null>(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   useEffect(() => {
     if (plan) {
@@ -44,6 +47,15 @@ const LessonPlanModal: React.FC<LessonPlanModalProps> = ({ isOpen, onClose, plan
       setIsApproving(true);
       await onApprove(plan);
       setIsApproving(false);
+  }
+
+  const handleSubmitForReview = async () => {
+      if (!onSubmitForReview) return;
+      setIsSubmitting(true);
+      await onSubmitForReview(plan);
+      setIsSubmitting(false);
+      setShowSubmitConfirm(false);
+      onClose();
   }
 
   const isAuthor = plan.author_id === userProfile.id;
@@ -161,6 +173,15 @@ const LessonPlanModal: React.FC<LessonPlanModalProps> = ({ isOpen, onClose, plan
                 {canCopy && (
                     <button onClick={() => onCopy(plan)} className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700">Copy Plan</button>
                 )}
+                {isAuthor && plan.status === 'draft' && onSubmitForReview && (
+                    <button 
+                        onClick={() => setShowSubmitConfirm(true)} 
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700 flex items-center min-w-[180px] justify-center"
+                    >
+                        {isSubmitting ? <Spinner size="sm"/> : 'Submit for Review'}
+                    </button>
+                )}
                 {canApprove && (
                     <button onClick={handleApprove} disabled={isApproving} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center min-w-[180px] justify-center">
                         {isApproving ? <Spinner size="sm"/> : 'Approve Plan'}
@@ -169,6 +190,33 @@ const LessonPlanModal: React.FC<LessonPlanModalProps> = ({ isOpen, onClose, plan
             </div>
             <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 ml-auto">Close</button>
         </div>
+
+        {/* Submit for Review Confirmation Dialog */}
+        {showSubmitConfirm && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl max-w-md m-4">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Submit for Review?</h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">
+                        Are you sure you want to submit this lesson plan for review? It will be sent to your team lead for approval.
+                    </p>
+                    <div className="flex gap-2 justify-end">
+                        <button 
+                            onClick={() => setShowSubmitConfirm(false)}
+                            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSubmitForReview}
+                            disabled={isSubmitting}
+                            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center min-w-[120px] justify-center"
+                        >
+                            {isSubmitting ? <Spinner size="sm"/> : 'Confirm'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );
