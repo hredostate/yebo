@@ -1421,7 +1421,59 @@ export const useAppLogic = () => {
         handleSaveAssessmentStructure: async () => true,
         handleDeleteAssessmentStructure: async () => true,
         handleImportLegacyAssignments: async () => true,
-        handleUpdateClassEnrollment: async () => true,
+        handleUpdateClassEnrollment: async (classId: number, termId: number, studentIds: number[]) => {
+            const supabase = requireSupabaseClient();
+            if (!userProfile || !('school_id' in userProfile)) return false;
+            
+            try {
+                // Step 1: Get current enrollments for this class and term
+                const { data: currentEnrollments } = await supabase
+                    .from('academic_class_students')
+                    .select('student_id')
+                    .eq('academic_class_id', classId)
+                    .eq('enrolled_term_id', termId);
+                
+                const currentIds = new Set(currentEnrollments?.map(e => e.student_id) || []);
+                const newIds = new Set(studentIds);
+                
+                // Step 2: Remove students no longer enrolled
+                const toRemove = [...currentIds].filter(id => !newIds.has(id));
+                if (toRemove.length > 0) {
+                    await supabase
+                        .from('academic_class_students')
+                        .delete()
+                        .eq('academic_class_id', classId)
+                        .eq('enrolled_term_id', termId)
+                        .in('student_id', toRemove);
+                }
+                
+                // Step 3: Add new enrollments using upsert
+                const enrollmentsToUpsert = studentIds.map(studentId => ({
+                    academic_class_id: classId,
+                    student_id: studentId,
+                    enrolled_term_id: termId,
+                    manually_enrolled: true,
+                }));
+                
+                const { error } = await supabase
+                    .from('academic_class_students')
+                    .upsert(enrollmentsToUpsert, {
+                        onConflict: 'academic_class_id,student_id,enrolled_term_id'
+                    });
+                
+                if (error) {
+                    addToast(`Error updating enrollments: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                addToast('Enrollments updated successfully', 'success');
+                fetchData();
+                return true;
+            } catch (error: any) {
+                addToast(`Error: ${error.message}`, 'error');
+                return false;
+            }
+        },
         handleCreateLeaveRequest: async (data: any) => {
              if(!userProfile || !('id' in userProfile)) return false;
              const { error } = await Offline.insert('leave_requests', { ...data, requester_id: userProfile.id, school_id: userProfile.school_id });
