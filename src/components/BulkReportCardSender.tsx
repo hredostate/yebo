@@ -58,12 +58,13 @@ const BulkReportCardSender: React.FC<BulkReportCardSenderProps> = ({
             // Get term details
             const { data: term } = await supabase
                 .from('terms')
-                .select('name')
+                .select('term_label, session_label')
                 .eq('id', termId)
                 .single();
 
             if (term) {
-                setTermName(term.name);
+                // Use only term_label (e.g., "First Term") to avoid session year in SMS
+                setTermName(term.term_label);
             }
 
             // Get class details
