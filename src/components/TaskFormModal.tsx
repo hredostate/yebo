@@ -79,18 +79,18 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     setIsSubmitting(false);
   };
   
-  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
+  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl glass-panel-strong text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:text-sm";
 
   return (
-    <div className="modal-responsive bg-black/30 backdrop-blur-sm animate-fade-in">
-      <div className="modal-content-responsive rounded-none md:rounded-2xl border-0 md:border md:border-slate-200/60 bg-white/80 p-4 sm:p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full md:max-w-lg m-0 md:m-4 overflow-y-auto">
+    <div className="modal-responsive bg-black/50 backdrop-blur-md animate-fade-in">
+      <div className="modal-content-responsive rounded-none md:rounded-2xl glass-panel-strong p-4 sm:p-6 shadow-glass-strong w-full md:max-w-lg m-0 md:m-4 overflow-y-auto border-0 md:border">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">Create New Task</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white dark:text-white">Create New Task</h2>
             <button 
               type="button" 
               onClick={onClose} 
-              className="md:hidden touch-target text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              className="md:hidden touch-target text-slate-200 hover:bg-white/20 dark:hover:bg-slate-800/50 rounded-lg focus-visible-ring"
               aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,27 +100,27 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           </div>
           
           {initialData && (
-              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+              <div className="p-2 glass-panel-subtle border border-blue-400/30 rounded-md text-sm text-blue-200 dark:text-blue-300 flex items-center gap-2 backdrop-blur-md">
                   <WandIcon className="w-4 h-4" />
                   <span>Pre-filled by AI Copilot</span>
               </div>
           )}
 
-          {error && <p className="text-red-500 text-sm bg-red-500/10 p-2 rounded-md">{error}</p>}
+          {error && <p className="text-red-300 text-sm bg-red-500/20 border border-red-400/30 p-2 rounded-md backdrop-blur-sm">{error}</p>}
           
           <div>
-            <label htmlFor="title" className="block text-sm font-medium">Title</label>
+            <label htmlFor="title" className="block text-sm font-medium text-slate-100">Title</label>
             <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} maxLength={255} required className={commonInputClasses} />
           </div>
           
           <div>
-            <label htmlFor="description" className="block text-sm font-medium">Description</label>
+            <label htmlFor="description" className="block text-sm font-medium text-slate-100">Description</label>
             <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className={commonInputClasses}></textarea>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="assignee" className="block text-sm font-medium">Assign To</label>
+              <label htmlFor="assignee" className="block text-sm font-medium text-slate-100">Assign To</label>
               <SearchableSelect
                 options={users.map(user => ({ value: user.id, label: user.name }))}
                 value={assigneeId}
@@ -129,7 +129,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
               />
             </div>
             <div>
-              <label htmlFor="priority" className="block text-sm font-medium">Priority</label>
+              <label htmlFor="priority" className="block text-sm font-medium text-slate-100">Priority</label>
               <select id="priority" value={priority} onChange={e => setPriority(e.target.value as TaskPriority)} className={commonInputClasses}>
                 {(Object.values(TaskPriority) as string[]).map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -138,11 +138,11 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="due-date" className="block text-sm font-medium">Due Date</label>
+                <label htmlFor="due-date" className="block text-sm font-medium text-slate-100">Due Date</label>
                 <input type="date" id="due-date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className={commonInputClasses} />
             </div>
             <div>
-              <label htmlFor="reminder" className="block text-sm font-medium">Reminder</label>
+              <label htmlFor="reminder" className="block text-sm font-medium text-slate-100">Reminder</label>
               <select id="reminder" value={reminder} onChange={e => setReminder(e.target.value)} className={commonInputClasses}>
                 <option value="">No reminder</option>
                 <option value="5">5 minutes before due</option>
@@ -154,8 +154,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="touch-target px-4 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="touch-target px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
+            <button type="button" onClick={onClose} className="touch-target px-4 glass-panel-subtle text-white font-semibold rounded-lg transition-all focus-visible-ring">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="touch-target px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center min-w-[120px] justify-center shadow-lg shadow-indigo-600/30 focus-visible-ring">
                 {isSubmitting ? <Spinner size="sm" /> : 'Create Task'}
             </button>
           </div>
