@@ -236,6 +236,13 @@ body {
     @apply rounded-2xl;
   }
 
+  /* Hover effect for glass panels */
+  .glass-panel-subtle:hover,
+  .hover-glass-enhance:hover {
+    background: var(--glass-fill);
+    border-color: var(--glass-border-strong);
+  }
+
   .glass-panel-hover {
     @apply transition-all duration-300 ease-out hover:scale-[1.01] hover:shadow-xl;
   }

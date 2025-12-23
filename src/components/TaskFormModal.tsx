@@ -79,7 +79,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     setIsSubmitting(false);
   };
   
-  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl glass-panel-subtle text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:text-sm";
+  const commonInputClasses = "mt-1 block w-full pl-3 pr-10 py-3 min-h-touch text-base rounded-xl glass-panel text-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:text-sm";
 
   return (
     <div className="modal-responsive bg-black/50 backdrop-blur-md animate-fade-in">
@@ -154,7 +154,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="touch-target px-4 glass-panel-subtle text-white font-semibold rounded-lg hover:glass-panel transition-all focus-visible-ring">Cancel</button>
+            <button type="button" onClick={onClose} className="touch-target px-4 glass-panel-subtle text-white font-semibold rounded-lg transition-all focus-visible-ring">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="touch-target px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center min-w-[120px] justify-center shadow-lg shadow-indigo-600/30 focus-visible-ring">
                 {isSubmitting ? <Spinner size="sm" /> : 'Create Task'}
             </button>

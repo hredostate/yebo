@@ -504,7 +504,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
 
         {/* User Profile Footer */}
         <div className="pt-4 mt-4 border-t border-white/20 dark:border-slate-700/40">
-           <div className="flex items-center gap-3 p-2 rounded-xl glass-panel-subtle hover:glass-panel transition-all cursor-pointer group focus-visible-ring" onClick={() => onNavigate(role === 'Student' ? VIEWS.STUDENT_PROFILE_EDIT : VIEWS.PROFILE)}>
+           <div className="flex items-center gap-3 p-2 rounded-xl glass-panel-subtle transition-all cursor-pointer group focus-visible-ring" onClick={() => onNavigate(role === 'Student' ? VIEWS.STUDENT_PROFILE_EDIT : VIEWS.PROFILE)}>
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg ring-2 ring-white/30 dark:ring-slate-800/50 overflow-hidden flex-shrink-0 group-hover:scale-110 transition-transform">
                 {avatarUrl ? (
                     <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />

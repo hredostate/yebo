@@ -133,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
         {/* Device Counter */}
         {!deviceLoading && deviceCount > 0 && (
           <div
-            className="hidden sm:flex items-center gap-2 rounded-full glass-panel-subtle px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:glass-panel cursor-help"
+            className="hidden sm:flex items-center gap-2 rounded-full glass-panel-subtle px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors cursor-help"
             title={`You are logged in on ${deviceCount} of 2 allowed devices`}
           >
             <svg className={`w-4 h-4 ${getDeviceCountColor()}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
