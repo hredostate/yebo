@@ -36,6 +36,7 @@ export function generateReportToken(): string {
  * Handles various URL formats and edge cases:
  * - /report/<token> (backward compatible)
  * - /report/<token>/<slug> (canonical with student name slug)
+ * - /report/<token>/<slug>/print (print route)
  * - Strips `:1` suffix, query params, hash fragments
  * - Removes forward slashes from token
  * 
@@ -51,6 +52,7 @@ export function parsePublicReportTokenFromLocation(location?: Location): string 
     if (!reportPath) return '';
     
     // Take only the first path segment (before any /)
+    // This handles /report/<token>, /report/<token>/<slug>, and /report/<token>/<slug>/print
     const firstSegment = reportPath.split('/')[0];
     if (!firstSegment) return '';
     
