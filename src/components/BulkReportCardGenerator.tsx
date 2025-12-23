@@ -315,6 +315,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
 
   /**
    * Renders multiple canvases for a student report, splitting subjects across pages if needed
+   * Now with improved styling to match print output
    */
   const renderReportCanvases = async (student: StudentWithDebt, layoutOverride?: string, watermarkText?: string): Promise<HTMLCanvasElement[]> => {
     try {
@@ -380,6 +381,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         classReportConfig ? { report_config: classReportConfig } : null
       );
 
+      // Pre-load school logo to ensure it's in cache before rendering
+      if (baseUnifiedData.school?.logoUrl) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve();
+          img.onerror = () => resolve(); // Continue even if logo fails
+          img.src = baseUnifiedData.school.logoUrl!;
+        });
+      }
+
       // Split subjects into pages if needed
       const subjects = baseUnifiedData.subjects || [];
       const pages: any[][] = [];
@@ -404,13 +416,17 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
           subjects: pages[pageIndex],
         };
 
-        // Create temporary container off-screen
+        // Create temporary container off-screen with proper print classes
         const tempContainer = document.createElement('div');
+        tempContainer.className = 'report-print-root'; // Apply print root class
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
         tempContainer.style.top = '0';
         tempContainer.style.width = '794px'; // A4 width at 96dpi
         tempContainer.style.height = '1123px'; // A4 height at 96dpi
+        tempContainer.style.background = '#ffffff';
+        tempContainer.style.colorAdjust = 'exact';
+        tempContainer.style.webkitPrintColorAdjust = 'exact';
         document.body.appendChild(tempContainer);
 
         // Render UnifiedReportCard component
@@ -418,19 +434,22 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         
         root.render(<UnifiedReportCard data={pageData} watermark={watermark} />);
 
-        // Wait for render to complete
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Wait longer for render to complete and images to load
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Capture as canvas
+        // Capture as canvas with improved settings
         const canvas = await html2canvas(tempContainer, {
           scale: 2,
           useCORS: true,
+          allowTaint: false,
           logging: false,
           backgroundColor: '#ffffff',
           width: 794,
           height: 1123,
           windowWidth: 794,
           windowHeight: 1123,
+          imageTimeout: 15000, // 15s timeout for images
+          removeContainer: false, // Keep container for debugging if needed
         });
 
         // Cleanup

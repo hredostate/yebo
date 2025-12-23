@@ -6764,12 +6764,24 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     // This prevents authenticated app routing from hijacking public report URLs
     const pathname = window.location.pathname;
     if (pathname.startsWith('/report/')) {
-        const PublicReportView = React.lazy(() => import('./components/PublicReportView'));
-        return (
-            <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>}>
-                <PublicReportView />
-            </React.Suspense>
-        );
+        // Check if this is a print route (/report/:token/:slug?/print)
+        const isPrintRoute = pathname.includes('/print');
+        
+        if (isPrintRoute) {
+            const PublicReportPrintView = React.lazy(() => import('./components/PublicReportPrintView'));
+            return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>}>
+                    <PublicReportPrintView />
+                </React.Suspense>
+            );
+        } else {
+            const PublicReportView = React.lazy(() => import('./components/PublicReportView'));
+            return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" /></div>}>
+                    <PublicReportView />
+                </React.Suspense>
+            );
+        }
     }
 
     if (pathname.startsWith('/activate')) {
