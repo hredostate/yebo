@@ -11,6 +11,8 @@ import { DownloadIcon } from './common/icons';
 import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
 import { matchComponentScore } from '../utils/reportCardHelpers';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import type { ReportCardAnnouncement } from '../types';
+import { AnnouncementDisplay } from './ResultSheetDesigns';
 
 // RPC response types
 interface RPCSubject {
@@ -192,6 +194,7 @@ const PublicReportView: React.FC = () => {
         rate: number;
     } | null>(null);
     const [gradingScheme, setGradingScheme] = useState<GradingScheme | null>(null);
+    const [announcements, setAnnouncements] = useState<ReportCardAnnouncement[]>([]);
 
     // Calculate component score columns using useMemo for performance
     // This hook must be called before any conditional returns to satisfy React's Rules of Hooks
@@ -343,6 +346,20 @@ const PublicReportView: React.FC = () => {
                         }
                     }
                 }
+            }
+
+            // Fetch announcements for this term (including global ones)
+            const { data: announcementsData, error: announcementsError } = await supabase
+                .from('report_card_announcements')
+                .select('*')
+                .eq('is_active', true)
+                .or(`term_id.eq.${report.term_id},term_id.is.null`)
+                .order('display_order', { ascending: true });
+
+            if (announcementsError) {
+                console.warn('Error fetching announcements:', announcementsError);
+            } else {
+                setAnnouncements(announcementsData || []);
             }
 
             // Update URL to canonical format with student slug (preserving hash)
@@ -743,6 +760,9 @@ const PublicReportView: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Header Announcements */}
+                    <AnnouncementDisplay announcements={announcements} position="header" />
+
                     <div className="px-8 py-8 space-y-8 relative z-10">
                         {/* Student Identity Section */}
                         <div className="page-break-avoid">
@@ -974,6 +994,9 @@ const PublicReportView: React.FC = () => {
                             </div>
                         )}
 
+                        {/* Above Signatures Announcements */}
+                        <AnnouncementDisplay announcements={announcements} position="above_signatures" />
+
                         {/* Signature Block */}
                         <div className="signature-block pt-6 border-t border-slate-200 page-break-avoid">
                             <div className="grid md:grid-cols-2 gap-8">
@@ -1001,6 +1024,9 @@ const PublicReportView: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Footer Announcements */}
+                        <AnnouncementDisplay announcements={announcements} position="footer" />
 
                         {/* Footer */}
                         <div className="pt-4 text-center page-break-avoid">
