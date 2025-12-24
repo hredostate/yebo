@@ -74,14 +74,56 @@ export interface Student {
     arm_id?: number | null;
     campus_id?: number | null; // Campus assignment
     date_of_birth?: string;
-    parent_phone_number_1?: string;
-    parent_phone_number_2?: string;
+    
+    // ============================================
+    // PARENT CONTACT INFORMATION (Single Source of Truth)
+    // ============================================
+    /**
+     * Father's full name
+     * This is the canonical field for father's information
+     */
     father_name?: string;
+    /**
+     * Father's phone number
+     * This is the canonical field for father's contact phone
+     */
     father_phone?: string;
+    /**
+     * Father's email address
+     * This is the canonical field for father's contact email
+     */
     father_email?: string;
+    /**
+     * Mother's full name
+     * This is the canonical field for mother's information
+     */
     mother_name?: string;
+    /**
+     * Mother's phone number
+     * This is the canonical field for mother's contact phone
+     */
     mother_phone?: string;
+    /**
+     * Mother's email address
+     * This is the canonical field for mother's contact email
+     */
     mother_email?: string;
+    
+    // ============================================
+    // DEPRECATED FIELDS (Backward Compatibility Only)
+    // ============================================
+    /**
+     * @deprecated Use father_phone instead
+     * Kept for backward compatibility only
+     */
+    parent_phone_number_1?: string;
+    /**
+     * @deprecated Use mother_phone instead
+     * Kept for backward compatibility only
+     */
+    parent_phone_number_2?: string;
+    // ============================================
+    
     address?: string;
     email?: string;
     status?: StudentStatus;
@@ -1930,8 +1972,21 @@ export interface StudentFormData {
     date_of_birth: string;
     status: StudentStatus;
     reward_points?: number;
+    
+    // Parent contact information (canonical fields)
+    father_name?: string;
+    father_phone?: string;
+    father_email?: string;
+    mother_name?: string;
+    mother_phone?: string;
+    mother_email?: string;
+    
+    // Deprecated fields (backward compatibility)
+    /** @deprecated Use father_phone instead */
     parent_phone_number_1?: string;
+    /** @deprecated Use mother_phone instead */
     parent_phone_number_2?: string;
+    
     class_id?: number | null;
     arm_id?: number | null;
     address?: string;
