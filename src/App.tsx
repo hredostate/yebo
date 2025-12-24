@@ -838,6 +838,12 @@ const App: React.FC = () => {
             console.log('[Auth] User data already loaded, skipping fetch');
             return;
         }
+        
+        // Additional guard: If profile and userType are already set and we're not booting, skip
+        if (!forceRefresh && userProfile && userType && !booting) {
+            console.log('[Auth] Profile already loaded, skipping fetch');
+            return;
+        }
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
         
@@ -1426,17 +1432,24 @@ const App: React.FC = () => {
                         // Check for pending policy acknowledgments
                         await checkPendingPolicies(staffProfile as UserProfile, 'staff');
                         
-                        // Navigate to staff default view only if no target view exists
+                        // Navigate to staff default view only if no target view exists and initial navigation not handled
                         const currentHash = decodeURIComponent(window.location.hash.substring(1) || '');
                         const targetView = initialTargetView.current;
                         
-                        if (targetView && !hasHandledInitialNavigation.current && !AUTH_ONLY_VIEWS.includes(targetView)) {
-                            // We have a stored target view from initial load - navigate there
-                            console.log('[Auth] Restoring staff to initial target view:', targetView);
-                            setCurrentView(targetView);
-                        } else if (!currentHash || currentHash.includes('access_token=') || currentHash.includes('error=')) {
-                            // No valid hash or target view - go to dashboard
-                            setCurrentView(VIEWS.DASHBOARD);
+                        // Only set view if initial navigation hasn't been handled yet
+                        if (!hasHandledInitialNavigation.current) {
+                            if (targetView && !AUTH_ONLY_VIEWS.includes(targetView)) {
+                                // We have a stored target view from initial load - navigate there
+                                console.log('[Auth] Restoring staff to initial target view:', targetView);
+                                setCurrentView(targetView);
+                            } else {
+                                // Check if we're on the root path before defaulting to dashboard
+                                const currentPath = window.location.pathname;
+                                if (!currentHash || currentHash.includes('access_token=') || currentHash.includes('error=') || currentPath === '/' || currentPath === '') {
+                                    // No valid hash or target view, and on root path - go to dashboard
+                                    setCurrentView(VIEWS.DASHBOARD);
+                                }
+                            }
                         }
                         
                         // Load background data (Phase 2) asynchronously
@@ -1600,7 +1613,7 @@ const App: React.FC = () => {
         } finally {
             isFetchingRef.current = false;
         }
-    }, [addToast, handleLogout]);
+    }, [addToast, handleLogout, userProfile, userType, booting]);
     
     // Store fetchData in a ref to avoid it being a dependency in effects
     const fetchDataRef = useRef(fetchData);

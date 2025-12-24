@@ -104,6 +104,8 @@ export const SECTION_CONFIGS: Record<string, SectionConfig> = {
     maxVisibleTabs: 5,
     tabs: [
       { id: 'student-roster', label: 'Student Roster', path: '/student-affairs/student-roster', view: VIEWS.STUDENT_ROSTER, permission: 'manage-students' },
+      { id: 'student-accounts', label: 'Student Accounts', path: '/student-affairs/student-accounts', view: VIEWS.STUDENT_ACCOUNTS, permission: 'manage-students' },
+      { id: 'parent-accounts', label: 'Parent Accounts', path: '/student-affairs/parent-accounts', view: VIEWS.PARENT_ACCOUNTS, permission: 'manage-students' },
       { id: 'intervention-plans', label: 'Intervention Plans', path: '/student-affairs/intervention-plans', view: VIEWS.INTERVENTION_PLANS, permission: 'manage-students' },
       { id: 'absence-requests', label: 'Absence Requests', path: '/student-affairs/absence-requests', view: VIEWS.ABSENCE_REQUESTS, permission: 'view-dashboard' },
       { id: 'subject-choices', label: 'Subject Choices', path: '/student-affairs/subject-choices', view: VIEWS.STUDENT_SUBJECT_CHOICES_ADMIN, permission: 'manage-students' },

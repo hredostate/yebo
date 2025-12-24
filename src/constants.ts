@@ -104,6 +104,7 @@ export const VIEWS = {
   BULLETIN_BOARD: 'Bulletin Board',
   STUDENT_ROSTER: 'Student Roster',
   STUDENT_ACCOUNTS: 'Student Accounts',
+  PARENT_ACCOUNTS: 'Parent Accounts',
   STUDENT_PROFILE: 'Student Profile',
   INTERVENTION_PLANS: 'Intervention Plans',
   ANALYTICS: 'Analytics',
