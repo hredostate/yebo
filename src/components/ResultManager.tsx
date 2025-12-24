@@ -42,11 +42,14 @@ interface ResultManagerProps {
     addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     onNavigate?: (view: string) => void;
     userProfile?: UserProfile;
+    onRefresh?: () => Promise<void>;
+    lastRefreshed?: Date;
 }
 
 const ResultManager: React.FC<ResultManagerProps> = ({ 
     terms, academicAssignments, academicClassStudents, academicClasses, scoreEntries, users, onLockScores, onResetSubmission, onUnlockClass, userPermissions, 
-    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate, userProfile 
+    students, studentTermReports, studentTermReportSubjects, gradingSchemes, schoolConfig, onUpdateComments, onGenerateReportComment, addToast, onNavigate, userProfile,
+    onRefresh, lastRefreshed 
 }) => {
     const [selectedTermId, setSelectedTermId] = useState<number | ''>('');
     const [isProcessing, setIsProcessing] = useState<number | null>(null); // assignment ID
@@ -93,6 +96,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
     
     // State for comment generation mode (Comment Bank vs AI)
     const [useCommentBank, setUseCommentBank] = useState(true);
+    
+    // State for refresh functionality
+    const [isRefreshing, setIsRefreshing] = useState(false);
     
     // State for recalculate grades functionality
     const [isRecalculatingGrades, setIsRecalculatingGrades] = useState(false);
@@ -1075,6 +1081,34 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         }
     };
 
+    // Refresh data handler
+    const handleRefresh = async () => {
+        if (!onRefresh) return;
+        
+        setIsRefreshing(true);
+        try {
+            await onRefresh();
+            addToast('Data refreshed successfully', 'success');
+        } catch (error: any) {
+            addToast(`Refresh failed: ${error.message}`, 'error');
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+    
+    // Format last refreshed time
+    const formatLastRefreshed = () => {
+        if (!lastRefreshed) return 'Never';
+        
+        const now = new Date();
+        const diff = Math.floor((now.getTime() - lastRefreshed.getTime()) / 1000); // seconds
+        
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+        return lastRefreshed.toLocaleString();
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
@@ -1146,6 +1180,27 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                 Academic Goals
                             </button>
                         </div>
+                        {/* Refresh Button and Last Synced Indicator */}
+                        {onRefresh && (
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={handleRefresh} 
+                                    disabled={isRefreshing}
+                                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
+                                    title="Refresh data from backend"
+                                >
+                                    {isRefreshing ? (
+                                        <Spinner size="sm"/>
+                                    ) : (
+                                        <RefreshIcon className="w-4 h-4" />
+                                    )}
+                                    Refresh
+                                </button>
+                                <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                                    Last synced: {formatLastRefreshed()}
+                                </span>
+                            </div>
+                        )}
                         <button 
                             onClick={handleGeneratePrincipalComments} 
                             disabled={!!isGeneratingComments}
@@ -1189,15 +1244,21 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         <h3 className="text-lg font-bold">{c.name}</h3>
                                         <p className="text-xs text-slate-500">{c.studentCount} students</p>
                                     </div>
-                                    {c.isFullyLocked ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
-                                            <LockClosedIcon className="w-3 h-3"/> All Locked
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
-                                            {c.lockedAssignments}/{c.totalAssignments} Locked
-                                        </span>
-                                    )}
+                                    <div className="flex flex-col gap-1 items-end">
+                                        {c.isFullyLocked ? (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-bold shadow-sm border border-green-200 dark:border-green-800">
+                                                <LockClosedIcon className="w-3 h-3"/> All Locked
+                                            </span>
+                                        ) : c.lockedAssignments === 0 ? (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs font-bold shadow-sm border border-red-200 dark:border-red-800">
+                                                <LockClosedIcon className="w-3 h-3"/> Unlocked
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-bold shadow-sm border border-yellow-200 dark:border-yellow-800">
+                                                <LockClosedIcon className="w-3 h-3"/> {c.lockedAssignments}/{c.totalAssignments} Locked
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 <div className="space-y-2 text-sm mb-4">
@@ -1402,15 +1463,15 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                         <td className="p-3">{as.teacher?.name}</td>
                                         <td className="p-3 text-center">
                                             {as.is_locked ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
+                                                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-bold shadow-sm border border-green-200 dark:border-green-800">
                                                     <LockClosedIcon className="w-3 h-3"/> Locked
                                                 </span>
                                             ) : as.submitted_at ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">
+                                                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-bold shadow-sm border border-blue-200 dark:border-blue-800">
                                                     <CheckCircleIcon className="w-3 h-3"/> Submitted
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
+                                                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-bold shadow-sm border border-yellow-200 dark:border-yellow-800">
                                                     Pending
                                                 </span>
                                             )}

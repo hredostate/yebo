@@ -762,6 +762,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 addToast={actions.addToast}
                 onNavigate={actions.setCurrentView}
                 userProfile={data.userProfile}
+                onRefresh={actions.handleRefreshData}
+                lastRefreshed={data.lastRefreshed}
              />;
         case VIEWS.SCORE_REVIEW:
              return <ScoreReviewView 
