@@ -557,6 +557,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeactivateUser={actions.handleDeactivateUser}
                 onUpdateEmploymentStatus={actions.handleUpdateEmploymentStatus}
                 onUpdateUserCampus={actions.handleUpdateUserCampus}
+                currentUserProfile={data.userProfile as UserProfile}
              />;
         case VIEWS.ROLE_MANAGEMENT:
              return <RoleManager 

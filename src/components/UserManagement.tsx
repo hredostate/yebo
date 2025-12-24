@@ -6,6 +6,8 @@ import Spinner from './common/Spinner';
 import { SearchIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import Pagination from './common/Pagination';
+import { useCampusScope } from '../contexts/CampusScopeContext';
+import { filterUsersByCampus, getEffectiveCampusId } from '../utils/campusFiltering';
 
 // Helper function for status styling
 const getStatusStyling = (status: EmploymentStatus | undefined): string => {
@@ -91,18 +93,24 @@ interface UserManagementProps {
     onDeactivateUser: (userId: string, isActive: boolean) => Promise<void>;
     onUpdateUserCampus: (userId: string, campusId: number | null) => Promise<void>;
     onUpdateEmploymentStatus?: (userId: string, status: EmploymentStatus) => Promise<void>;
+    currentUserProfile?: UserProfile;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, campuses = [], onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus, onUpdateEmploymentStatus }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, campuses = [], onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus, onUpdateEmploymentStatus, currentUserProfile }) => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<EmploymentStatus | 'all'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 15;
+    
+    // Get campus scope context
+    const { isSitewideView } = useCampusScope();
+    const currentUserCampusId = getEffectiveCampusId(currentUserProfile);
 
     const filteredUsers = useMemo(() => {
-        let filtered = users;
+        // First apply campus filtering
+        let filtered = filterUsersByCampus(users, currentUserCampusId, isSitewideView);
         
         // Filter by status
         if (statusFilter !== 'all') {
@@ -123,7 +131,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
         }
         
         return filtered;
-    }, [users, searchTerm, statusFilter]);
+    }, [users, searchTerm, statusFilter, isSitewideView, currentUserCampusId]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
