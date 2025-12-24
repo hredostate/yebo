@@ -24,34 +24,34 @@ html {
 :root {
   /* Shared design tokens to keep the experience consistent across modules */
   --surface: 255 255 255;
-  --surface-muted: 248 250 252;
-  --surface-dark: 15 23 42;
-  --brand: 37 99 235;
-  --brand-2: 14 165 233;
-  --card-shadow: 0 30px 60px rgba(15, 23, 42, 0.14);
+  --surface-muted: 241 245 249;
+  --surface-dark: 13 25 44;
+  --brand: 79 70 229;
+  --brand-2: 56 189 248;
+  --card-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
   
   /* Glassmorphism Design Tokens */
-  --glass-fill: rgba(255, 255, 255, 0.82);
-  --glass-fill-strong: rgba(255, 255, 255, 0.92);
-  --glass-fill-subtle: rgba(255, 255, 255, 0.62);
-  --glass-border: rgba(148, 163, 184, 0.22);
-  --glass-border-strong: rgba(148, 163, 184, 0.36);
-  --glass-blur: 26px;
-  --glass-blur-strong: 36px;
-  --glass-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
-  --glass-shadow-strong: 0 20px 60px rgba(15, 23, 42, 0.16);
+  --glass-fill: rgba(255, 255, 255, 0.75);
+  --glass-fill-strong: rgba(255, 255, 255, 0.85);
+  --glass-fill-subtle: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-border-strong: rgba(255, 255, 255, 0.6);
+  --glass-blur: 24px;
+  --glass-blur-strong: 32px;
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-shadow-strong: 0 12px 40px rgba(31, 38, 135, 0.2);
   
   /* Background & Ink Tokens */
-  --bg-base: #f8fafc;
-  --bg-surface: #ffffff;
+  --bg-base: #0f172a;
+  --bg-surface: #1e293b;
   --ink-primary: #0f172a;
-  --ink-secondary: #334155;
-  --ink-muted: #64748b;
+  --ink-secondary: #475569;
+  --ink-muted: #94a3b8;
   
   /* Accent Tokens */
-  --accent-primary: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-focus: #3b82f6;
+  --accent-primary: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-focus: #6366f1;
   
   /* Enhanced Borders & Radius */
   --radius-base: 12px;
@@ -114,10 +114,10 @@ html {
 }
 
 body {
-  /* Bright, crisp base with premium gradients */
-  @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
+  /* Deep, cinematic base with premium gradients */
+  @apply bg-slate-950 text-slate-900 dark:text-slate-100;
   font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
-  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 45%, #ede9fe 100%);
+  background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
   background-attachment: fixed;
 }
 
