@@ -31,18 +31,21 @@ html {
   --card-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
   
   /* Enhanced Light Mode Glassmorphism */
-  --glass-fill: rgba(255, 255, 255, 0.92);
-  --glass-fill-strong: rgba(255, 255, 255, 0.98);
-  --glass-fill-subtle: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(99, 102, 241, 0.12);
-  --glass-border-strong: rgba(99, 102, 241, 0.20);
-  --glass-blur: 24px;
-  --glass-blur-strong: 32px;
-  --glass-shadow: 0 4px 24px rgba(99, 102, 241, 0.08);
-  --glass-shadow-strong: 0 8px 32px rgba(99, 102, 241, 0.12);
+  --glass-fill: rgba(255, 255, 255, 0.97);
+  --glass-fill-strong: rgba(255, 255, 255, 1);
+  --glass-fill-subtle: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-border-strong: rgba(0, 0, 0, 0.12);
+  --glass-border-accent: rgba(37, 99, 235, 0.25);
+  --glass-blur: 16px;
+  --glass-blur-strong: 24px;
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --glass-shadow-strong: 0 8px 40px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --glass-shadow-hover: 0 12px 50px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08);
   
   /* Background & Ink Tokens */
-  --bg-base: #0f172a;
+  --bg-base: #f0f2f5;
+  --bg-backdrop: #e5e7eb;
   --bg-surface: #1e293b;
   
   /* Light Mode Ink Colors - High Contrast for Legibility */
@@ -54,6 +57,7 @@ html {
   --accent-primary: #4f46e5;
   --accent-hover: #4338ca;
   --accent-focus: #6366f1;
+  --accent-success: #10b981;
   
   /* Enhanced Borders & Radius */
   --radius-base: 12px;
@@ -67,16 +71,19 @@ html {
   --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   
   /* Dark Mode Glassmorphism */
-  --glass-fill: rgba(15, 23, 42, 0.70);
-  --glass-fill-strong: rgba(15, 23, 42, 0.85);
-  --glass-fill-subtle: rgba(15, 23, 42, 0.50);
-  --glass-border: rgba(148, 163, 184, 0.20);
-  --glass-border-strong: rgba(148, 163, 184, 0.30);
+  --glass-fill: rgba(31, 41, 55, 0.95);
+  --glass-fill-strong: rgba(31, 41, 55, 0.98);
+  --glass-fill-subtle: rgba(31, 41, 55, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-border-strong: rgba(255, 255, 255, 0.15);
+  --glass-border-accent: rgba(96, 165, 250, 0.30);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.40);
   --glass-shadow-strong: 0 12px 40px rgba(0, 0, 0, 0.50);
+  --glass-shadow-hover: 0 16px 60px rgba(0, 0, 0, 0.60);
   
   /* Dark Background & Ink */
   --bg-base: #020617;
+  --bg-backdrop: #020617;
   --bg-surface: #0f172a;
   --ink-primary: #f8fafc;
   --ink-secondary: #cbd5e1;
@@ -153,7 +160,7 @@ body {
 
 /* Light Mode Background */
 body:not(.dark) {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 40%, #eef2ff 100%);
+  background: linear-gradient(180deg, #f0f2f5 0%, #e4e6e9 100%);
   background-attachment: fixed;
 }
 
@@ -306,7 +313,7 @@ body:not(.dark) .app-surface::before {
     -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    @apply rounded-2xl;
+    border-radius: var(--radius-lg);
   }
   
   .glass-panel-strong {
@@ -315,7 +322,7 @@ body:not(.dark) .app-surface::before {
     -webkit-backdrop-filter: blur(var(--glass-blur-strong));
     border: 1px solid var(--glass-border-strong);
     box-shadow: var(--glass-shadow-strong);
-    @apply rounded-2xl;
+    border-radius: var(--radius-lg);
   }
   
   .glass-panel-subtle {
@@ -324,23 +331,24 @@ body:not(.dark) .app-surface::before {
     -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    @apply rounded-2xl;
+    border-radius: var(--radius-lg);
   }
 
   /* Hover effect for glass panels */
   .glass-panel-subtle:hover,
   .hover-glass-enhance:hover {
     background: var(--glass-fill);
-    border-color: var(--glass-border-strong);
+    border-color: var(--glass-border-accent);
+    box-shadow: var(--glass-shadow-hover);
   }
 
   .glass-panel-hover {
-    @apply transition-all duration-300 ease-out hover:scale-[1.01] hover:shadow-xl;
+    @apply transition-all duration-300 ease-out hover:scale-[1.01];
   }
   
   .glass-panel-hover:hover {
-    box-shadow: 0 16px 48px rgba(79, 70, 229, 0.25);
-    border-color: rgba(99, 102, 241, 0.40);
+    box-shadow: var(--glass-shadow-hover);
+    border-color: var(--glass-border-accent);
   }
   
   .card-hover {
@@ -461,6 +469,28 @@ body:not(.dark) .app-surface::before {
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
     }
+  }
+
+  /* New Utility Classes for WhatsApp-inspired design */
+  .card-elevated {
+    @apply bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+
+  .sidebar-glass {
+    background: var(--glass-fill-strong);
+    backdrop-filter: blur(var(--glass-blur-strong));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+    border-right: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .header-glass {
+    background: var(--glass-fill-strong);
+    backdrop-filter: blur(var(--glass-blur-strong));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 }
 
