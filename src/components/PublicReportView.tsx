@@ -10,6 +10,7 @@ import Spinner from './common/Spinner';
 import { DownloadIcon } from './common/icons';
 import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/reportUrlHelpers';
 import { matchComponentScore } from '../utils/reportCardHelpers';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // RPC response types
 interface RPCSubject {
@@ -86,6 +87,28 @@ const getOrdinalSuffix = (n: number): string => {
     return s[(v - 20) % 10] || s[v] || s[0];
 };
 
+// PerformanceChart component for displaying subject performance graph
+const PerformanceChart: React.FC<{ data: { name: string, score: number }[], themeColor: string }> = ({ data, themeColor }) => {
+    return (
+        <div className="mt-6 mb-6 border rounded-lg p-4 bg-slate-50 page-break-inside-avoid">
+            <h4 className="text-center font-bold mb-2 text-slate-700 uppercase text-xs">Academic Performance Overview</h4>
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data} margin={{ top: 5, right: 20, bottom: 40, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} tick={{fontSize: 10}} interval={0} />
+                    <YAxis domain={[0, 100]} hide />
+                    <Tooltip cursor={{fill: 'transparent'}} />
+                    <Bar dataKey="score" fill={themeColor} radius={[4, 4, 0, 0]}>
+                        {data.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.score < 50 ? '#ef4444' : themeColor} />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
+    );
+};
+
 const PublicReportView: React.FC = () => {
     // Use centralized token parsing that handles all edge cases
     const token = parsePublicReportTokenFromLocation();
@@ -112,6 +135,7 @@ const PublicReportView: React.FC = () => {
         total: number;
         rate: number;
     } | null>(null);
+    const [gradingScheme, setGradingScheme] = useState<any>(null);
 
     // Calculate component score columns using useMemo for performance
     // This hook must be called before any conditional returns to satisfy React's Rules of Hooks
@@ -223,7 +247,7 @@ const PublicReportView: React.FC = () => {
                 if (enrollment?.academic_class_id) {
                     const { data: classData } = await supabase
                         .from('academic_classes')
-                        .select('report_config')
+                        .select('report_config, grading_scheme_id')
                         .eq('id', enrollment.academic_class_id)
                         .maybeSingle();
                     
@@ -236,6 +260,40 @@ const PublicReportView: React.FC = () => {
                         }
                         if (classData.report_config.schoolNameOverride) {
                             setSchoolName(classData.report_config.schoolNameOverride);
+                        }
+                    }
+                    
+                    // Fetch grading scheme if available
+                    if (classData?.grading_scheme_id) {
+                        const { data: scheme } = await supabase
+                            .from('grading_schemes')
+                            .select('*, rules:grading_scheme_rules(*)')
+                            .eq('id', classData.grading_scheme_id)
+                            .maybeSingle();
+                        
+                        if (scheme) {
+                            setGradingScheme(scheme);
+                        }
+                    }
+                    
+                    // If no class grading scheme, try to get school's active grading scheme
+                    if (!classData?.grading_scheme_id && studentData?.school_id) {
+                        const { data: schoolConfig } = await supabase
+                            .from('school_config')
+                            .select('active_grading_scheme_id')
+                            .eq('school_id', studentData.school_id)
+                            .maybeSingle();
+                        
+                        if (schoolConfig?.active_grading_scheme_id) {
+                            const { data: scheme } = await supabase
+                                .from('grading_schemes')
+                                .select('*, rules:grading_scheme_rules(*)')
+                                .eq('id', schoolConfig.active_grading_scheme_id)
+                                .maybeSingle();
+                            
+                            if (scheme) {
+                                setGradingScheme(scheme);
+                            }
                         }
                     }
                 }
@@ -404,13 +462,29 @@ const PublicReportView: React.FC = () => {
     const formatDate = (value?: string) =>
         value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
-    const gradeLegend = [
-        { label: 'A · Excellent', range: '90 - 100', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-        { label: 'B · Very Good', range: '80 - 89', color: 'bg-sky-100 text-sky-800 border-sky-300' },
-        { label: 'C · Good', range: '70 - 79', color: 'bg-amber-100 text-amber-900 border-amber-300' },
-        { label: 'D · Fair', range: '60 - 69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-        { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
-    ];
+    // Apply customization settings
+    const themeColor = classReportConfig?.colorTheme || '#4F46E5'; // Default to indigo-600
+    const showGraph = classReportConfig?.showGraph || false;
+    const showSubjectPosition = classReportConfig?.showSubjectPosition !== false;
+    const showArmPosition = classReportConfig?.showArmPosition !== false;
+    const showLevelPosition = classReportConfig?.showLevelPosition !== false;
+
+    // Build grading legend from actual grading scheme or use hardcoded default
+    const gradeLegend = gradingScheme?.rules 
+        ? gradingScheme.rules
+            .sort((a: any, b: any) => b.min_score - a.min_score) // Sort by score descending
+            .map((rule: any) => ({
+                label: `${rule.grade_label}${rule.remark ? ' · ' + rule.remark : ''}`,
+                range: `${rule.min_score} - ${rule.max_score}`,
+                color: getGradeColorClasses(rule.grade_label)
+            }))
+        : [
+            { label: 'A · Excellent', range: '90 - 100', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+            { label: 'B · Very Good', range: '80 - 89', color: 'bg-sky-100 text-sky-800 border-sky-300' },
+            { label: 'C · Good', range: '70 - 79', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+            { label: 'D · Fair', range: '60 - 69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+            { label: 'E/F · Needs Support', range: '0 - 59', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+        ];
 
     return (
         <div className="report-print-root min-h-screen bg-slate-50 py-8 px-4 print:bg-white print:p-0">
@@ -566,7 +640,8 @@ const PublicReportView: React.FC = () => {
                         </div>
                         <button
                             onClick={handlePrint}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                            className="flex items-center gap-2 px-5 py-2.5 text-white rounded-lg hover:opacity-90 transition-colors font-medium shadow-sm"
+                            style={{ backgroundColor: themeColor }}
                         >
                             <DownloadIcon className="w-5 h-5" />
                             Print / Save PDF
@@ -584,7 +659,7 @@ const PublicReportView: React.FC = () => {
                     </div>
                     
                     {/* Header Section */}
-                    <div className="report-header-accent relative bg-white border-b-4 border-indigo-600 px-8 py-8 page-break-avoid">
+                    <div className="report-header-accent relative bg-white border-b-4 px-8 py-8 page-break-avoid" style={{ borderColor: themeColor }}>
                         <div className="relative z-10 flex items-start gap-6">
                             {/* School Logo */}
                             <div className="flex-shrink-0">
@@ -602,7 +677,7 @@ const PublicReportView: React.FC = () => {
                                 <h2 className="text-xl font-bold text-slate-900 uppercase tracking-wide mb-1">
                                     {schoolName}
                                 </h2>
-                                <div className="h-0.5 w-16 bg-indigo-600 mb-3"></div>
+                                <div className="h-0.5 w-16 mb-3" style={{ backgroundColor: themeColor }}></div>
                                 <h3 className="text-2xl font-bold text-slate-800 mb-2">
                                     Student Academic Report Card
                                 </h3>
@@ -648,12 +723,14 @@ const PublicReportView: React.FC = () => {
                                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Level</p>
                                     <p className="text-base font-semibold text-slate-900">{levelName || 'N/A'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Class</p>
-                                    <p className="text-base font-semibold text-slate-900">
-                                        {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)}${totalInArm ? ` of ${totalInArm}` : ''}` : '—'}
-                                    </p>
-                                </div>
+                                {showArmPosition && (
+                                    <div>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Class</p>
+                                        <p className="text-base font-semibold text-slate-900">
+                                            {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)}${totalInArm ? ` of ${totalInArm}` : ''}` : '—'}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -664,29 +741,31 @@ const PublicReportView: React.FC = () => {
                             </h4>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-3xl font-bold text-indigo-600">{reportData.average_score?.toFixed(1)}%</p>
+                                    <p className="text-3xl font-bold" style={{ color: themeColor }}>{reportData.average_score?.toFixed(1)}%</p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Average Score</p>
                                 </div>
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-3xl font-bold text-indigo-600">{reportData.total_score}</p>
+                                    <p className="text-3xl font-bold" style={{ color: themeColor }}>{reportData.total_score}</p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Total Points</p>
                                 </div>
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-3xl font-bold text-indigo-600">{subjectCount}</p>
+                                    <p className="text-3xl font-bold" style={{ color: themeColor }}>{subjectCount}</p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Subjects</p>
                                 </div>
                                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-lg font-bold text-indigo-600 truncate">
+                                    <p className="text-lg font-bold truncate" style={{ color: themeColor }}>
                                         {bestSubject ? bestSubject.subject_name : '—'}
                                     </p>
                                     <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Best Subject</p>
                                 </div>
-                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-lg font-bold text-indigo-600">
-                                        {positionInLevel ? `${positionInLevel}${getOrdinalSuffix(positionInLevel)}${totalInLevel ? ` / ${totalInLevel}` : ''}` : '—'}
-                                    </p>
-                                    <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Level</p>
-                                </div>
+                                {showLevelPosition && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                                        <p className="text-lg font-bold" style={{ color: themeColor }}>
+                                            {positionInLevel ? `${positionInLevel}${getOrdinalSuffix(positionInLevel)}${totalInLevel ? ` / ${totalInLevel}` : ''}` : '—'}
+                                        </p>
+                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Level</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -721,11 +800,24 @@ const PublicReportView: React.FC = () => {
                                         <p className="text-2xl font-bold text-slate-700">{attendance.total}</p>
                                         <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Total Days</p>
                                     </div>
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                                        <p className="text-2xl font-bold text-indigo-600">{attendance.rate.toFixed(1)}%</p>
-                                        <p className="text-xs text-indigo-700 uppercase tracking-wider mt-1">Attendance Rate</p>
+                                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: themeColor + '15', borderColor: themeColor + '30', borderWidth: '1px' }}>
+                                        <p className="text-2xl font-bold" style={{ color: themeColor }}>{attendance.rate.toFixed(1)}%</p>
+                                        <p className="text-xs uppercase tracking-wider mt-1" style={{ color: themeColor }}>Attendance Rate</p>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Performance Chart */}
+                        {showGraph && reportData.subjects && reportData.subjects.length > 0 && (
+                            <div className="page-break-avoid">
+                                <PerformanceChart 
+                                    data={reportData.subjects.map(s => ({ 
+                                        name: s.subject_name, 
+                                        score: s.total_score 
+                                    }))} 
+                                    themeColor={themeColor} 
+                                />
                             </div>
                         )}
 
@@ -747,7 +839,9 @@ const PublicReportView: React.FC = () => {
                                                         ))}
                                                         <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Score</th>
                                                         <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Grade</th>
-                                                        <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Position</th>
+                                                        {showSubjectPosition && (
+                                                            <th className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Position</th>
+                                                        )}
                                                         <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Remark</th>
                                                     </tr>
                                                 </thead>
@@ -775,9 +869,11 @@ const PublicReportView: React.FC = () => {
                                                                     {subject.grade_label}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-4 py-3 text-center text-sm text-slate-700">
-                                                                {subject.subject_position || '—'}
-                                                            </td>
+                                                            {showSubjectPosition && (
+                                                                <td className="px-4 py-3 text-center text-sm text-slate-700">
+                                                                    {subject.subject_position || '—'}
+                                                                </td>
+                                                            )}
                                                             <td className="px-4 py-3 text-sm text-slate-700">
                                                                 {subject.remark || '—'}
                                                             </td>
