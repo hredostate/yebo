@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment, Subject } from '../types';
+import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment, Subject, ReportCardAnnouncement } from '../types';
 import { EmploymentStatus } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
@@ -19,6 +19,7 @@ import UserManagement from './UserManagement';
 import AssessmentStructureManager from './AssessmentStructureManager';
 import EnrollmentSyncTool from './EnrollmentSyncTool';
 import StudentSubjectEnrollmentManager from './admin/StudentSubjectEnrollmentManager';
+import ReportCardAnnouncementsManager from './ReportCardAnnouncementsManager';
 
 // Props interface for the component
 interface SuperAdminConsoleProps {
@@ -39,6 +40,7 @@ interface SuperAdminConsoleProps {
     inventory: InventoryItem[];
     rewards: RewardStoreItem[];
     assessmentStructures: AssessmentStructure[];
+    reportCardAnnouncements: ReportCardAnnouncement[];
     onSaveRole: (roleData: RoleDetails) => Promise<void>;
     onUpdateRoleAssignments: (roleId: number, userIds: string[]) => Promise<void>;
     onSaveSchoolConfig: (config: Partial<SchoolConfig>) => Promise<boolean>;
@@ -63,6 +65,8 @@ interface SuperAdminConsoleProps {
     onDeleteInventoryItem: (id: number) => Promise<boolean>;
     onSaveReward: (reward: Partial<RewardStoreItem>) => Promise<boolean>;
     onDeleteReward: (rewardId: number) => Promise<boolean>;
+    onSaveReportCardAnnouncement: (announcement: Partial<ReportCardAnnouncement>) => Promise<boolean>;
+    onDeleteReportCardAnnouncement: (id: number) => Promise<boolean>;
     onInviteUser: (email: string, role: RoleTitle) => Promise<void>;
     onUpdateUser: (userId: string, userData: Partial<UserProfile>) => Promise<boolean>;
     onDeleteUser: (userId: string) => Promise<boolean>;
@@ -92,7 +96,7 @@ interface SuperAdminConsoleProps {
     onRefreshData: () => Promise<void>;
 }
 
-type AdminTab = 'Branding' | 'Roles' | 'Users' | 'Structure' | 'Grading' | 'Inventory' | 'Rewards' | 'Audit Log' | 'Advanced';
+type AdminTab = 'Branding' | 'Roles' | 'Users' | 'Structure' | 'Grading' | 'Inventory' | 'Rewards' | 'Announcements' | 'Audit Log' | 'Advanced';
 
 const tabs: { name: AdminTab; permission: string }[] = [
     { name: 'Branding', permission: 'school.console.branding_edit' },
@@ -102,6 +106,7 @@ const tabs: { name: AdminTab; permission: string }[] = [
     { name: 'Grading', permission: 'school.console.structure_edit' },
     { name: 'Inventory', permission: 'school.console.structure_edit' },
     { name: 'Rewards', permission: 'school.console.structure_edit' },
+    { name: 'Announcements', permission: 'school.console.branding_edit' },
     { name: 'Audit Log', permission: 'school.console.view_audit_log' },
     { name: 'Advanced', permission: '*' }, // Super Admin only
 ];
@@ -323,7 +328,14 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                 return <InventoryManager inventory={inventory} onSave={onSaveInventoryItem} onDelete={onDeleteInventoryItem} />;
             case 'Rewards':
                 return <RewardsManager rewards={rewards} onSave={onSaveReward} onDelete={onDeleteReward} />;
-
+            case 'Announcements':
+                return <ReportCardAnnouncementsManager 
+                    announcements={props.reportCardAnnouncements || []}
+                    terms={terms}
+                    onSaveAnnouncement={props.onSaveReportCardAnnouncement}
+                    onDeleteAnnouncement={props.onDeleteReportCardAnnouncement}
+                    addToast={addToast}
+                />;
             case 'Audit Log':
                 return <AuditLogView logs={auditLogs} />;
             

@@ -3278,5 +3278,45 @@ CREATE POLICY "Paystack recipients manage" ON public.paystack_recipients
     USING (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'))
     WITH CHECK (user_has_permission('manage-payroll') OR user_has_permission('manage-finance'));
 
+-- Report Card Announcements
+CREATE TABLE IF NOT EXISTS public.report_card_announcements (
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER REFERENCES public.schools(id) ON DELETE CASCADE,
+    term_id INTEGER REFERENCES public.terms(id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    display_position VARCHAR(50) DEFAULT 'footer',
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for report card announcements
+ALTER TABLE public.report_card_announcements ENABLE ROW LEVEL SECURITY;
+
+-- Policies for report card announcements
+DROP POLICY IF EXISTS "Report card announcements view all" ON public.report_card_announcements;
+CREATE POLICY "Report card announcements view all" ON public.report_card_announcements
+    FOR SELECT TO authenticated
+    USING (school_id IN (SELECT school_id FROM public.user_profiles WHERE id = auth.uid()));
+
+DROP POLICY IF EXISTS "Report card announcements manage" ON public.report_card_announcements;
+CREATE POLICY "Report card announcements manage" ON public.report_card_announcements
+    FOR ALL TO authenticated
+    USING (user_has_permission('school.console.branding_edit') OR user_has_permission('*'))
+    WITH CHECK (user_has_permission('school.console.branding_edit') OR user_has_permission('*'));
+
+-- Add public access policy for announcements (for public report card view)
+DROP POLICY IF EXISTS "Public can view active announcements" ON public.report_card_announcements;
+CREATE POLICY "Public can view active announcements" ON public.report_card_announcements
+    FOR SELECT TO anon
+    USING (is_active = true);
+
+-- Create index for performance
+CREATE INDEX IF NOT EXISTS idx_report_card_announcements_school_term 
+    ON public.report_card_announcements(school_id, term_id);
+CREATE INDEX IF NOT EXISTS idx_report_card_announcements_active 
+    ON public.report_card_announcements(school_id, is_active, display_order);
+
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload config';

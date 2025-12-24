@@ -912,6 +912,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 classSubjects={data.classSubjects}
                 inventory={data.inventory}
                 rewards={data.rewards}
+                reportCardAnnouncements={data.reportCardAnnouncements}
                 assessmentStructures={data.assessmentStructures}
                 onSaveRole={actions.handleSaveRole}
                 onUpdateRoleAssignments={actions.handleUpdateRoleAssignments}
@@ -937,6 +938,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeleteInventoryItem={actions.handleDeleteInventoryItem}
                 onSaveReward={actions.handleSaveReward}
                 onDeleteReward={actions.handleDeleteReward}
+                onSaveReportCardAnnouncement={actions.handleSaveReportCardAnnouncement}
+                onDeleteReportCardAnnouncement={actions.handleDeleteReportCardAnnouncement}
                 onInviteUser={actions.handleInviteUser}
                 onUpdateUser={actions.handleUpdateUser}
                 onDeleteUser={actions.handleDeleteUser}

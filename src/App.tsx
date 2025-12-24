@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Com
 import type { Session, User } from '@supabase/auth-js';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment, ReportCardAnnouncement } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -445,6 +445,7 @@ const App: React.FC = () => {
     const [teachingEntities, setTeachingEntities] = useState<TeachingAssignment[]>([]);
     const [socialMediaAnalytics, setSocialMediaAnalytics] = useState<SocialMediaAnalytics[]>(MOCK_SOCIAL_ACCOUNTS ? MOCK_SOCIAL_ANALYTICS : []);
     const [socialAccounts, setSocialAccounts] = useState<SocialAccount | null>(MOCK_SOCIAL_ACCOUNTS);
+    const [reportCardAnnouncements, setReportCardAnnouncements] = useState<ReportCardAnnouncement[]>([]);
     
     const [schoolConfig, setSchoolConfig] = useState<SchoolConfig | null>(null);
     const [terms, setTerms] = useState<Term[]>([]);
@@ -1262,6 +1263,7 @@ const App: React.FC = () => {
                             supabase.from('teaching_entities').select('*, teacher:user_profiles!user_id(name), class:classes(name), arm:arms(name), subject:subjects(name))'),
                             fetchOrders(),
                             supabase.from('staff_certifications').select('*, uploader:user_profiles!uploaded_by(name)').order('uploaded_at', { ascending: false }),
+                            supabase.from('report_card_announcements').select('*').order('display_order', { ascending: true }),
                         ];
                         
                         // Load critical data first (Phase 1)
@@ -1413,6 +1415,7 @@ const App: React.FC = () => {
                             setTeachingEntities(getData(50));
                             setOrders(getData(51));
                             setStaffCertifications(getData(52));
+                            setReportCardAnnouncements(getData(53));
 
                             const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
                                 ...scheme,
@@ -6171,6 +6174,40 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         }
     }, [addToast]);
 
+    // --- Report Card Announcement Handlers ---
+    const handleSaveReportCardAnnouncement = useCallback(async (announcement: Partial<ReportCardAnnouncement>): Promise<boolean> => {
+        if (!userProfile) return false;
+        try {
+            if (announcement.id) {
+                const { error } = await Offline.update('report_card_announcements', { ...announcement, updated_at: new Date().toISOString() }, { id: announcement.id });
+                if (error) { addToast(error.message, 'error'); return false; }
+                setReportCardAnnouncements(prev => prev.map(a => a.id === announcement.id ? { ...a, ...announcement, updated_at: new Date().toISOString() } as ReportCardAnnouncement : a));
+            } else {
+                const { data, error } = await Offline.insert('report_card_announcements', { ...announcement, school_id: userProfile.school_id });
+                if (error || !data) { addToast(error?.message || 'Failed to create announcement', 'error'); return false; }
+                setReportCardAnnouncements(prev => [...prev, data as ReportCardAnnouncement]);
+            }
+            addToast('Announcement saved.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [userProfile, addToast]);
+
+    const handleDeleteReportCardAnnouncement = useCallback(async (id: number): Promise<boolean> => {
+        try {
+            const { error } = await Offline.del('report_card_announcements', { id });
+            if (error) { addToast(error.message, 'error'); return false; }
+            setReportCardAnnouncements(prev => prev.filter(a => a.id !== id));
+            addToast('Announcement deleted.', 'success');
+            return true;
+        } catch (e: any) {
+            addToast(`Error: ${e.message}`, 'error');
+            return false;
+        }
+    }, [addToast]);
+
     const handleRedeemReward = useCallback(async (rewardId: number, studentId: number): Promise<boolean> => {
         if (!userProfile) return false;
         try {
@@ -6913,6 +6950,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         studentTermReports,
                                         studentTermReportSubjects,
                                         auditLogs,
+                                        reportCardAnnouncements,
                                         todaysCheckinForDashboard,
                                         navContext,
                                         userPermissions,
@@ -7038,6 +7076,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleDeleteInventoryItem,
                                         handleSaveReward,
                                         handleDeleteReward,
+                                        handleSaveReportCardAnnouncement,
+                                        handleDeleteReportCardAnnouncement,
                                         handleRedeemReward,
                                         handleRunPayroll,
                                         handleUpdateUserPayroll,
@@ -7182,6 +7222,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     studentTermReports,
                                     studentTermReportSubjects,
                                     auditLogs,
+                                    reportCardAnnouncements,
                                     todaysCheckinForDashboard,
                                     navContext,
                                     userPermissions,
