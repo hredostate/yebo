@@ -107,11 +107,11 @@ const CreateStaffAccountModal: React.FC<CreateStaffAccountModalProps> = ({
                             value={formData.phone_number}
                             onChange={e => setFormData({ ...formData, phone_number: e.target.value })}
                             required
-                            placeholder="+234..."
+                            placeholder="e.g., +1234567890"
                             className={inputClasses}
                         />
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Required for sending login credentials via SMS
+                            Required for sending login credentials via SMS (include country code)
                         </p>
                     </div>
 

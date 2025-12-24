@@ -30,8 +30,9 @@ const extractUsername = (email: string): string => {
 
 // Helper function to check if user has login account
 const hasLoginAccount = (user: UserProfile): boolean => {
-    // If email ends with @upsshub.com, they have a generated account
-    return user.email.includes('@upsshub.com') || user.email.includes('@');
+    // Users with @upsshub.com have generated accounts, 
+    // or users with any email have an account
+    return !!user.email && user.email.trim().length > 0;
 };
 
 // --- Main User Management Component ---

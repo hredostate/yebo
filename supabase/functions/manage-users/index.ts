@@ -148,6 +148,22 @@ serve(async (req) => {
   }
 
   /**
+   * Helper function to generate a unique username from a name
+   */
+  function generateUsername(name: string, suffix?: string): string {
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const uniqueSuffix = suffix || `${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 100)}`;
+    return `${cleanName}${uniqueSuffix}`;
+  }
+
+  /**
+   * Helper function to generate a strong password
+   */
+  function generateStaffPassword(): string {
+    return `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+  }
+
+  /**
    * Helper function to send staff credentials via SMS
    * Uses the existing messaging system with staff-specific templates
    */
@@ -973,10 +989,9 @@ serve(async (req) => {
             throw new Error("Missing required fields: name, role, or school_id");
         }
 
-        // Generate username from name
-        const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const username = `${cleanName}${Date.now().toString().slice(-4)}`;
-        const password = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+        // Generate username and password using helper functions
+        const username = generateUsername(name);
+        const password = generateStaffPassword();
         const email = `${username}@upsshub.com`; // Internal email, not used for delivery
 
         console.log(`Creating staff account for ${name} with username: ${username}`);
@@ -1065,10 +1080,9 @@ serve(async (req) => {
                     continue;
                 }
 
-                // Generate username from name
-                const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const username = `${cleanName}${Date.now().toString().slice(-4)}`;
-                const password = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+                // Generate username and password using helper functions
+                const username = generateUsername(name);
+                const password = generateStaffPassword();
                 const email = `${username}@upsshub.com`;
 
                 const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
@@ -1156,7 +1170,8 @@ serve(async (req) => {
             throw new Error("Missing 'userId' for password reset");
         }
 
-        const newPassword = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+        // Generate new password using helper function
+        const newPassword = generateStaffPassword();
         console.log('Attempting to reset password for staff user ID:', userId);
 
         // Get current auth user to preserve metadata
