@@ -103,6 +103,7 @@ export const VIEWS = {
   TASK_BOARD: 'Task Board',
   BULLETIN_BOARD: 'Bulletin Board',
   STUDENT_ROSTER: 'Student Roster',
+  STUDENT_ACCOUNTS: 'Student Accounts',
   STUDENT_PROFILE: 'Student Profile',
   INTERVENTION_PLANS: 'Intervention Plans',
   ANALYTICS: 'Analytics',

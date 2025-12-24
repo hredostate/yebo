@@ -74,6 +74,7 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 const TimetableView = lazy(() => import('./TimetableView'));
 const SurveyListView = lazy(() => import('./SurveyListView'));
 const StudentListView = lazy(() => import('./StudentListView'));
+const StudentAccountsView = lazy(() => import('./StudentAccountsView'));
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
 const HRPayrollModule = lazy(() => import('./HRPayrollModule'));
@@ -382,6 +383,17 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeleteStudent={actions.handleDeleteStudent}
                 onBulkDeleteStudents={actions.handleBulkDeleteStudents}
                 onGenerateActivationLinks={actions.handleGenerateActivationLinks}
+            />;
+        case VIEWS.STUDENT_ACCOUNTS:
+            return <StudentAccountsView
+                students={data.students}
+                allClasses={data.allClasses}
+                allArms={data.allArms}
+                onBulkCreateStudentAccounts={actions.handleBulkCreateStudentAccounts}
+                onBulkRetrievePasswords={actions.handleBulkRetrievePasswords}
+                onGenerateActivationLinks={actions.handleGenerateActivationLinks}
+                addToast={actions.addToast}
+                onViewStudent={actions.setSelectedStudent}
             />;
         case VIEWS.STUDENT_PROFILE:
             if (param1) {

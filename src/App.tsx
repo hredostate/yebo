@@ -3392,6 +3392,27 @@ Return a JSON object with:
         }
     }, [userProfile, session]);
 
+    const handleBulkRetrievePasswords = useCallback(async (studentIds: number[]) => {
+        const supabase = requireSupabaseClient();
+        if (!userProfile) return { success: false, credentials: [] };
+
+        try {
+            const { data, error } = await supabase.functions.invoke('manage-users', {
+                body: { action: 'bulk_retrieve_passwords', studentIds }
+            });
+
+            if (error) {
+                console.warn("Edge function invoke error:", error);
+                throw new Error("Edge function unavailable");
+            }
+
+            return { success: true, credentials: data.credentials || [] };
+        } catch (e: any) {
+            console.error("Bulk password retrieval error:", e);
+            return { success: false, credentials: [] };
+        }
+    }, [userProfile]);
+
     const handleGenerateActivationLinks = useCallback(async (
         studentIds: number[],
         options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string }
@@ -7105,6 +7126,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         handleSaveSocialLinks,
                                         handleOpenCreateStudentAccountModal,
                                         handleBulkCreateStudentAccounts,
+                                        handleBulkRetrievePasswords,
                                         handleGenerateActivationLinks,
                                         handleCreateStudentAccount,
                                         handleResetStudentPassword,
@@ -7373,6 +7395,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleSaveSocialLinks,
                                     handleOpenCreateStudentAccountModal,
                                     handleBulkCreateStudentAccounts,
+                                    handleBulkRetrievePasswords,
                                     handleGenerateActivationLinks,
                                     handleCreateStudentAccount,
                                     handleResetStudentPassword,
