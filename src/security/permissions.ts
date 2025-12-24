@@ -116,3 +116,16 @@ export const useCan = (context: PermissionContext) => {
   return (action: PermissionAction, resource: PermissionResource, resourceOwnerId?: string | null) =>
     can(context, action, resource, resourceOwnerId);
 };
+
+/**
+ * Check if user can view sitewide data across all campuses
+ * Only super_admin and school_admin roles should have this permission
+ */
+export const canViewSitewide = (context: PermissionContext): boolean => {
+  // Check for explicit permission
+  if (hasExplicitPermission('view-sitewide', context)) return true;
+  
+  // Check role-based access
+  const role = normalizeRole(context.role);
+  return role === 'super_admin' || role === 'school_admin';
+};
