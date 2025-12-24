@@ -42,6 +42,7 @@ export const useAppLogic = () => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   // Data
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -347,6 +348,9 @@ export const useAppLogic = () => {
             // Mock Data for things not yet fully DB driven or for demo
             setSocialMediaAnalytics(MOCK_SOCIAL_ANALYTICS);
             setSocialAccounts(MOCK_SOCIAL_ACCOUNTS);
+            
+            // Update last refreshed timestamp
+            setLastRefreshed(new Date());
 
           } catch (e) {
               console.error("Fetch Error", e);
@@ -375,6 +379,9 @@ export const useAppLogic = () => {
                  setSurveys(getData(1));
                  // taken surveys
                  setAnnouncements(getData(3));
+                 
+                 // Update last refreshed timestamp
+                 setLastRefreshed(new Date());
              } catch (e) { console.error(e); }
       }
   }, [userProfile, userType]);
@@ -710,6 +717,11 @@ export const useAppLogic = () => {
       }
   }, [addToast, fetchData]);
 
+  // Refresh data handler - explicitly triggers a data refresh
+  const handleRefreshData = useCallback(async () => {
+      await fetchData();
+  }, [fetchData]);
+
   // ... (Implement other handlers similarly using Offline or supabase directly)
   // For brevity, I will implement the remaining critical ones and genericize the rest in the return.
 
@@ -724,7 +736,7 @@ export const useAppLogic = () => {
         payrollRuns, payrollItems, payrollAdjustments, leaveRequests, orders, socialAccounts, checkinAnomalies, weeklyRatings,
         scoreEntries, studentTermReportSubjects, coverageVotes, curricula, curriculumWeeks, lessonPlans, assessments, assessmentScores,
         classGroups, surveys, roles, terms, academicClasses, schoolSettings, isPositiveModalOpen, isTourOpen, isAIBulkResponseModalOpen,
-        selectedStudent, coverageData, reviewEvidence, learningMaterials
+        selectedStudent, coverageData, reviewEvidence, learningMaterials, lastRefreshed
     },
     actions: {
         setCurrentView,
@@ -737,6 +749,7 @@ export const useAppLogic = () => {
         setIsPositiveModalOpen,
         setIsTourOpen,
         setIsAIBulkResponseModalOpen,
+        handleRefreshData,
         
         // Implemented Actions
         handleSaveInventoryItem,
