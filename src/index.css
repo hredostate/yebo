@@ -24,34 +24,34 @@ html {
 :root {
   /* Shared design tokens to keep the experience consistent across modules */
   --surface: 255 255 255;
-  --surface-muted: 241 245 249;
-  --surface-dark: 13 25 44;
-  --brand: 79 70 229;
-  --brand-2: 56 189 248;
-  --card-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+  --surface-muted: 248 250 252;
+  --surface-dark: 15 23 42;
+  --brand: 37 99 235;
+  --brand-2: 14 165 233;
+  --card-shadow: 0 30px 60px rgba(15, 23, 42, 0.14);
   
   /* Glassmorphism Design Tokens */
-  --glass-fill: rgba(255, 255, 255, 0.75);
-  --glass-fill-strong: rgba(255, 255, 255, 0.85);
-  --glass-fill-subtle: rgba(255, 255, 255, 0.50);
-  --glass-border: rgba(255, 255, 255, 0.40);
-  --glass-border-strong: rgba(255, 255, 255, 0.60);
-  --glass-blur: 24px;
-  --glass-blur-strong: 32px;
-  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
-  --glass-shadow-strong: 0 12px 40px rgba(31, 38, 135, 0.20);
+  --glass-fill: rgba(255, 255, 255, 0.82);
+  --glass-fill-strong: rgba(255, 255, 255, 0.92);
+  --glass-fill-subtle: rgba(255, 255, 255, 0.62);
+  --glass-border: rgba(148, 163, 184, 0.22);
+  --glass-border-strong: rgba(148, 163, 184, 0.36);
+  --glass-blur: 26px;
+  --glass-blur-strong: 36px;
+  --glass-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --glass-shadow-strong: 0 20px 60px rgba(15, 23, 42, 0.16);
   
   /* Background & Ink Tokens */
-  --bg-base: #0f172a;
-  --bg-surface: #1e293b;
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
   --ink-primary: #0f172a;
-  --ink-secondary: #475569;
-  --ink-muted: #94a3b8;
+  --ink-secondary: #334155;
+  --ink-muted: #64748b;
   
   /* Accent Tokens */
-  --accent-primary: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-focus: #6366f1;
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-focus: #3b82f6;
   
   /* Enhanced Borders & Radius */
   --radius-base: 12px;
@@ -114,10 +114,10 @@ html {
 }
 
 body {
-  /* Deeper neutral base with subtle gradients for premium glassmorphism */
-  @apply bg-slate-900 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
+  /* Bright, crisp base with premium gradients */
+  @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
   font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 45%, #ede9fe 100%);
   background-attachment: fixed;
 }
 
@@ -138,9 +138,10 @@ body {
   inset: 0;
   pointer-events: none;
   background: 
-    radial-gradient(ellipse at 20% 30%, rgba(79, 70, 229, 0.08), transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(56, 189, 248, 0.08), transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.05), transparent 60%);
+    radial-gradient(ellipse at 15% 20%, rgba(59, 130, 246, 0.14), transparent 45%),
+    radial-gradient(ellipse at 85% 15%, rgba(14, 165, 233, 0.16), transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.12), transparent 55%),
+    radial-gradient(ellipse at 30% 85%, rgba(56, 189, 248, 0.12), transparent 55%);
 }
 
 .app-panel {
