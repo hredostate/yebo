@@ -378,11 +378,9 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 allArms={data.allArms}
                 users={data.users}
                 teachingAssignments={data.academicAssignments}
-                onBulkCreateStudentAccounts={actions.handleBulkCreateStudentAccounts}
-                onBulkDeleteAccounts={actions.handleBulkDeleteStudentAccounts}
                 onDeleteStudent={actions.handleDeleteStudent}
                 onBulkDeleteStudents={actions.handleBulkDeleteStudents}
-                onGenerateActivationLinks={actions.handleGenerateActivationLinks}
+                addToast={actions.addToast}
             />;
         case VIEWS.STUDENT_ACCOUNTS:
             return <StudentAccountsView
@@ -391,6 +389,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 allArms={data.allArms}
                 onBulkCreateStudentAccounts={actions.handleBulkCreateStudentAccounts}
                 onBulkRetrievePasswords={actions.handleBulkRetrievePasswords}
+                onBulkDeleteAccounts={actions.handleBulkDeleteStudentAccounts}
                 onGenerateActivationLinks={actions.handleGenerateActivationLinks}
                 addToast={actions.addToast}
                 onViewStudent={actions.setSelectedStudent}

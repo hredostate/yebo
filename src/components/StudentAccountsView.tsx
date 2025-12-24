@@ -14,6 +14,7 @@ interface StudentAccountsViewProps {
   allArms: BaseDataObject[];
   onBulkCreateStudentAccounts: (studentIds: number[]) => Promise<{ success: boolean; message: string; credentials?: CreatedCredential[] }>;
   onBulkRetrievePasswords: (studentIds: number[]) => Promise<{ success: boolean; credentials?: CreatedCredential[] }>;
+  onBulkDeleteAccounts?: (userIds: string[]) => Promise<{ success: boolean; deleted: number; total: number }>;
   onGenerateActivationLinks: (
     studentIds: number[],
     options: { expiryHours: number; phoneField: 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone'; template: string; sendSms?: boolean }
@@ -401,6 +402,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
     allArms,
     onBulkCreateStudentAccounts,
     onBulkRetrievePasswords,
+    onBulkDeleteAccounts,
     onGenerateActivationLinks,
     addToast,
     onViewStudent,
@@ -418,6 +420,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
     const [credentials, setCredentials] = useState<CreatedCredential[] | null>(null);
     const [isGeneratingAccounts, setIsGeneratingAccounts] = useState(false);
     const [isRetrievingPasswords, setIsRetrievingPasswords] = useState(false);
+    const [isDeletingAccounts, setIsDeletingAccounts] = useState(false);
     
     // Activation Links Modal
     const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
@@ -574,6 +577,48 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
             addToast(error.message || 'Failed to retrieve passwords', 'error');
         } finally {
             setIsRetrievingPasswords(false);
+        }
+    };
+
+    const handleBulkDeleteAccounts = async () => {
+        if (!onBulkDeleteAccounts) return;
+        
+        if (selectedIds.size === 0) {
+            addToast('Please select at least one student', 'error');
+            return;
+        }
+        
+        // Get user_ids from selected students that have accounts
+        const studentsWithAccounts = students.filter(s => selectedIds.has(s.id) && s.user_id);
+        const userIds = studentsWithAccounts.map(s => s.user_id!);
+        
+        if (userIds.length === 0) {
+            addToast('None of the selected students have login accounts to delete', 'info');
+            return;
+        }
+        
+        if (!window.confirm(`WARNING: You are about to DELETE ${userIds.length} login accounts. This action cannot be undone!\n\nThe affected students will no longer be able to log in.`)) {
+            return;
+        }
+        
+        // Double confirmation
+        if (!window.confirm(`FINAL WARNING: Are you absolutely sure you want to delete ${userIds.length} accounts?`)) {
+            return;
+        }
+        
+        setIsDeletingAccounts(true);
+        try {
+            const result = await onBulkDeleteAccounts(userIds);
+            if (result.success) {
+                setSelectedIds(new Set());
+                addToast(`Successfully deleted ${result.deleted} of ${result.total} accounts`, 'success');
+            } else {
+                addToast('Failed to delete accounts', 'error');
+            }
+        } catch (error: any) {
+            addToast(error.message || 'Failed to delete accounts', 'error');
+        } finally {
+            setIsDeletingAccounts(false);
         }
     };
 
@@ -766,6 +811,17 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
                             {isRetrievingPasswords ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
                             Retrieve Passwords
                         </button>
+                        
+                        {onBulkDeleteAccounts && (
+                            <button
+                                onClick={handleBulkDeleteAccounts}
+                                disabled={isDeletingAccounts}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isDeletingAccounts ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
+                                Delete Accounts
+                            </button>
+                        )}
                         
                         <button
                             onClick={handleExportCredentials}
