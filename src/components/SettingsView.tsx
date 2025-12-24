@@ -5,6 +5,7 @@ import BrandingSettings from './BrandingSettings';
 import PaymentGatewaySettings from './PaymentGatewaySettings';
 import KudiSmsSettings from './KudiSmsSettings';
 import GroqSettings from './GroqSettings';
+import StudentProfileFieldsSettings from './StudentProfileFieldsSettings';
 import Spinner from './common/Spinner';
 import DATABASE_SCHEMA, { DICTIONARY_FIX_SQL, RESEED_DATA_SQL, ATTENDANCE_FIX_SQL } from '../databaseSchema';
 
@@ -13,9 +14,10 @@ interface SettingsViewProps {
     schoolConfig: SchoolConfig | null; // Added prop
     onSaveSettings: (data: Partial<SchoolSettings>) => Promise<boolean>;
     onSaveSchoolConfig?: (config: Partial<SchoolConfig>) => Promise<boolean>; // Added prop
+    addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-type SettingsTab = 'School Identity' | 'System Appearance' | 'Payment Gateway' | 'Messaging Gateway' | 'AI Configuration' | 'Data' | 'Maintenance';
+type SettingsTab = 'School Identity' | 'System Appearance' | 'Payment Gateway' | 'Messaging Gateway' | 'AI Configuration' | 'Student Profile' | 'Data' | 'Maintenance';
 
 const TabButton: React.FC<{ label: string; tabId: SettingsTab; isActive: boolean; onClick: (tab: SettingsTab) => void; }> = ({ label, tabId, isActive, onClick }) => {
     const tabKey = tabId.toLowerCase().replace(/\s+/g, '-');
@@ -40,7 +42,7 @@ const TabButton: React.FC<{ label: string; tabId: SettingsTab; isActive: boolean
 };
 
 
-const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onSaveSettings, onSaveSchoolConfig }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onSaveSettings, onSaveSchoolConfig, addToast }) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>('School Identity');
     const [copyStatuses, setCopyStatuses] = useState<Record<string, 'idle' | 'copied' | 'error'>>({});
 
@@ -108,6 +110,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
                 return settings ? <KudiSmsSettings schoolId={settings.id} /> : null;
             case 'AI Configuration':
                 return settings ? <GroqSettings schoolId={settings.id} /> : null;
+            case 'Student Profile':
+                return settings ? (
+                    <StudentProfileFieldsSettings 
+                        schoolId={settings.id} 
+                        addToast={addToast}
+                    />
+                ) : null;
             case 'Data':
                 return (
                     <div className="space-y-6">
@@ -289,6 +298,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
                         <TabButton label="Payment Gateway" tabId="Payment Gateway" isActive={activeTab === 'Payment Gateway'} onClick={setActiveTab} />
                         <TabButton label="Messaging Gateway" tabId="Messaging Gateway" isActive={activeTab === 'Messaging Gateway'} onClick={setActiveTab} />
                         <TabButton label="AI Configuration" tabId="AI Configuration" isActive={activeTab === 'AI Configuration'} onClick={setActiveTab} />
+                        <TabButton label="Student Profile" tabId="Student Profile" isActive={activeTab === 'Student Profile'} onClick={setActiveTab} />
                         <TabButton label="Data" tabId="Data" isActive={activeTab === 'Data'} onClick={setActiveTab} />
                         <TabButton label="Maintenance" tabId="Maintenance" isActive={activeTab === 'Maintenance'} onClick={setActiveTab} />
                     </nav>

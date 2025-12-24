@@ -1003,6 +1003,9 @@ const StudentFinanceView: React.FC<{
                             schoolId={userProfile.school_id}
                             campusId={userProfile.campus_id}
                             addToast={addToast}
+                            currentUserId={userProfile.id}
+                            allClasses={classes}
+                            allCampuses={[]}
                         />
                     </div>
                 )}

@@ -557,7 +557,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeactivateUser={actions.handleDeactivateUser}
                 onUpdateEmploymentStatus={actions.handleUpdateEmploymentStatus}
                 onUpdateUserCampus={actions.handleUpdateUserCampus}
-                currentUserProfile={data.userProfile as UserProfile}
+                onCreateStaffAccount={actions.handleCreateStaffAccount}
+                onResetStaffPassword={actions.handleResetStaffPassword}
              />;
         case VIEWS.ROLE_MANAGEMENT:
              return <RoleManager 
@@ -867,6 +868,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolConfig={data.schoolConfig}
                 onSaveSettings={actions.handleUpdateSchoolSettings} 
                 onSaveSchoolConfig={actions.handleUpdateSchoolConfig}
+                addToast={actions.addToast}
              />;
         case VIEWS.SUBMISSION_SETTINGS:
              return <LessonPlanSubmissionSettings

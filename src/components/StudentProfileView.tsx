@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Student, ReportRecord, PositiveBehaviorRecord, StudentAward, UserProfile, AIProfileInsight, BaseDataObject, StudentTermReport, CreatedCredential } from '../types';
+import type { Student, ReportRecord, PositiveBehaviorRecord, StudentAward, UserProfile, AIProfileInsight, BaseDataObject, StudentTermReport, CreatedCredential, DedicatedVirtualAccount } from '../types';
 import { StudentStatus, ReportType } from '../types';
 import { STUDENT_STATUSES } from '../constants';
 import Spinner from './common/Spinner';
@@ -9,6 +9,7 @@ import { VIEWS } from '../constants';
 import ParentCommunicationModal from './ParentCommunicationModal';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import { mapSupabaseError } from '../utils/errorHandling';
+import * as dvaService from '../services/dvaService';
 
 interface StudentProfileViewProps {
     student: Student;
@@ -35,7 +36,7 @@ interface StudentProfileViewProps {
     onDeleteStudent?: (studentId: number) => Promise<boolean>;
 }
 
-type ProfileTab = 'Overview' | 'Conduct' | 'Reports' | 'Term Reports' | 'Positive Behavior' | 'Spotlight Awards' | 'AI Insights';
+type ProfileTab = 'Overview' | 'Conduct' | 'Reports' | 'Term Reports' | 'Positive Behavior' | 'Spotlight Awards' | 'AI Insights' | 'Virtual Account';
 
 // Define which report types are visible to students
 // Currently, all ReportType values are internal staff reports
@@ -80,6 +81,11 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [isDeletingStudent, setIsDeletingStudent] = useState(false);
     const [isResendingCredentials, setIsResendingCredentials] = useState(false);
+    
+    // DVA state
+    const [dva, setDva] = useState<DedicatedVirtualAccount | null>(null);
+    const [loadingDVA, setLoadingDVA] = useState(false);
+    const [sendingDVASMS, setSendingDVASMS] = useState(false);
 
     // Editing state
     const [isEditing, setIsEditing] = useState(false);
@@ -97,6 +103,60 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
         if (cleaned.startsWith('0')) return `+234${cleaned.slice(1)}`;
         if (/^[1-9][0-9]{9,}$/g.test(cleaned)) return `+234${cleaned}`;
         return null;
+    };
+
+    // Load DVA data when Virtual Account tab becomes active
+    useEffect(() => {
+        if (activeTab === 'Virtual Account' && !dva && !loadingDVA) {
+            loadDVAData();
+        }
+    }, [activeTab]);
+
+    const loadDVAData = async () => {
+        setLoadingDVA(true);
+        const supabase = requireSupabaseClient();
+        try {
+            const { data, error } = await supabase
+                .from('dedicated_virtual_accounts')
+                .select('*')
+                .eq('student_id', student.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error loading DVA:', error);
+            } else if (data) {
+                setDva(data);
+            }
+        } catch (error) {
+            console.error('Error loading DVA:', error);
+        } finally {
+            setLoadingDVA(false);
+        }
+    };
+
+    const handleSendDVAToParents = async () => {
+        if (!dva) return;
+
+        setSendingDVASMS(true);
+        try {
+            const result = await dvaService.sendDVADetailsToParents(
+                student,
+                dva,
+                student.school_id,
+                currentUser.id
+            );
+
+            if (result.sent > 0) {
+                addToast(`DVA details sent to ${result.sent} parent(s)`, 'success');
+            } else {
+                addToast('No parent phone numbers found or SMS failed', 'error');
+            }
+        } catch (error: any) {
+            console.error('Error sending DVA details:', error);
+            addToast('Failed to send DVA details: ' + error.message, 'error');
+        } finally {
+            setSendingDVASMS(false);
+        }
     };
 
     const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -670,6 +730,108 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                         </div>
                     </div>
                 )
+            case 'Virtual Account':
+                if (loadingDVA) {
+                    return <div className="text-center p-10"><Spinner size="lg"/><p className="mt-2 text-slate-500">Loading virtual account...</p></div>;
+                }
+                
+                return (
+                    <div className="space-y-6">
+                        <div className="p-6 border border-slate-200 dark:border-slate-700 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                                <span>💳</span> Virtual Payment Account
+                            </h3>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                                A dedicated bank account for school fee payments
+                            </p>
+
+                            {dva ? (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Bank Name</p>
+                                            <p className="text-lg font-semibold text-slate-800 dark:text-white">{dva.bank_name}</p>
+                                        </div>
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Account Name</p>
+                                            <p className="text-lg font-semibold text-slate-800 dark:text-white">{dva.account_name}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border-2 border-blue-500 dark:border-blue-600">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Account Number</p>
+                                                <p className="text-3xl font-mono font-bold text-blue-600 dark:text-blue-400">{dva.account_number}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(dva.account_number);
+                                                    addToast('Account number copied!', 'success');
+                                                }}
+                                                className="px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 text-sm font-medium"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-slate-600 dark:text-slate-400">Status:</span>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                            dva.active
+                                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                                        }`}>
+                                            {dva.active ? '● Active' : '● Inactive'}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                        <button
+                                            onClick={handleSendDVAToParents}
+                                            disabled={sendingDVASMS || !dva.active}
+                                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed font-medium"
+                                        >
+                                            {sendingDVASMS ? <Spinner size="sm" /> : 'Send to Parents'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                onNavigate(VIEWS.STUDENT_FINANCE);
+                                            }}
+                                            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 font-medium"
+                                        >
+                                            Manage DVAs
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <p className="text-slate-600 dark:text-slate-400 mb-4">
+                                        No virtual account has been created for this student yet.
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            onNavigate(VIEWS.STUDENT_FINANCE);
+                                        }}
+                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                                    >
+                                        Create Virtual Account
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Payment Instructions</h4>
+                                <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
+                                    <li>Use this account number for all school fee payments</li>
+                                    <li>Payments are automatically tracked and reconciled</li>
+                                    <li>Share account details with parents via SMS using the button above</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )
             case 'Overview':
             default:
                  return (
@@ -871,7 +1033,8 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                    <TabButton tabName="Term Reports" />
                    <TabButton tabName="Positive Behavior" />
                    <TabButton tabName="Spotlight Awards" />
-                   <TabButton tabName="AI Insights" icon={<WandIcon className="w-4 h-4" />} />
+                   {!isStudentViewer && <TabButton tabName="AI Insights" icon={<WandIcon className="w-4 h-4" />} />}
+                   {!isStudentViewer && <TabButton tabName="Virtual Account" icon={<span className="w-4 h-4">💳</span>} />}
                 </div>
             </div>
 

@@ -153,6 +153,36 @@ export interface Student {
     emergency_contact_relationship?: string;
 }
 
+export type ProfileFieldType = 'text' | 'email' | 'phone' | 'date' | 'textarea' | 'select' | 'photo';
+
+export interface ProfileFieldConfig {
+    id: number;
+    school_id: number;
+    field_name: string;
+    field_label: string;
+    field_type: ProfileFieldType;
+    is_custom: boolean;
+    is_editable_by_student: boolean;
+    is_required: boolean;
+    display_order: number;
+    field_options?: { options: string[] } | null;
+    placeholder_text?: string;
+    validation_rules?: Record<string, any> | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CustomFieldValue {
+    id: number;
+    school_id: number;
+    student_id: number;
+    field_config_id: number;
+    field_value: string | null;
+    created_at: string;
+    updated_at: string;
+    field_config?: ProfileFieldConfig;
+}
+
 export enum StudentStatus {
     Active = 'Active',
     DisciplinarySuspension = 'Disciplinary Suspension',
@@ -2035,6 +2065,7 @@ export type NotificationType =
     'student_credentials' | 
     'password_reset' | 
     'payslip_published' | 
+    'dva_account_created' |
     'general';
 
 export interface NotificationChannelConfig {
