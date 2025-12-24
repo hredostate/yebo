@@ -889,8 +889,6 @@ const StudentProfileView: React.FC<StudentProfileViewProps> = ({
                                    <EditableField label="Enrollment Status" value={formData.status || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, status: v as any}))} type="status-select" />
                                    <EditableField label="Date of Birth" value={formData.date_of_birth || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, date_of_birth: v}))} type="date" />
                                    <EditableField label="Email" value={formData.email || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, email: v}))} />
-                                   <EditableField label="Parent's Phone 1" value={formData.parent_phone_number_1 || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, parent_phone_number_1: v}))} />
-                                   <EditableField label="Parent's Phone 2" value={formData.parent_phone_number_2 || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, parent_phone_number_2: v}))} />
                                    <EditableField label="Address" value={formData.address || ''} isEditing={isEditing} onChange={v => setFormData(p => ({...p, address: v}))} type="textarea" className="col-span-full" />
                                 </div>
                             </div>
