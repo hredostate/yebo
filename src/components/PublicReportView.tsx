@@ -29,6 +29,28 @@ interface RPCSubject {
     component_scores?: Record<string, number>;
 }
 
+// Grade legend item interface
+interface GradeLegendItem {
+    label: string;
+    range: string;
+    color: string;
+}
+
+// Grading scheme interfaces
+interface GradingSchemeRule {
+    min_score: number;
+    max_score: number;
+    grade_label: string;
+    remark?: string;
+}
+
+interface GradingScheme {
+    id: number;
+    school_id: number;
+    scheme_name: string;
+    rules: GradingSchemeRule[];
+}
+
 interface PublicReportData {
     id: number;
     student_id: number;
@@ -87,6 +109,25 @@ const getOrdinalSuffix = (n: number): string => {
     return s[(v - 20) % 10] || s[v] || s[0];
 };
 
+// Helper function to convert hex color to rgba
+const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Helper function to fetch grading scheme
+const fetchGradingSchemeById = async (supabase: any, schemeId: number): Promise<GradingScheme | null> => {
+    const { data: scheme } = await supabase
+        .from('grading_schemes')
+        .select('*, rules:grading_scheme_rules(*)')
+        .eq('id', schemeId)
+        .maybeSingle();
+    
+    return scheme || null;
+};
+
 // PerformanceChart component for displaying subject performance graph
 const PerformanceChart: React.FC<{ data: { name: string, score: number }[], themeColor: string }> = ({ data, themeColor }) => {
     return (
@@ -135,7 +176,7 @@ const PublicReportView: React.FC = () => {
         total: number;
         rate: number;
     } | null>(null);
-    const [gradingScheme, setGradingScheme] = useState<any>(null);
+    const [gradingScheme, setGradingScheme] = useState<GradingScheme | null>(null);
 
     // Calculate component score columns using useMemo for performance
     // This hook must be called before any conditional returns to satisfy React's Rules of Hooks
@@ -265,12 +306,7 @@ const PublicReportView: React.FC = () => {
                     
                     // Fetch grading scheme if available
                     if (classData?.grading_scheme_id) {
-                        const { data: scheme } = await supabase
-                            .from('grading_schemes')
-                            .select('*, rules:grading_scheme_rules(*)')
-                            .eq('id', classData.grading_scheme_id)
-                            .maybeSingle();
-                        
+                        const scheme = await fetchGradingSchemeById(supabase, classData.grading_scheme_id);
                         if (scheme) {
                             setGradingScheme(scheme);
                         }
@@ -285,12 +321,7 @@ const PublicReportView: React.FC = () => {
                             .maybeSingle();
                         
                         if (schoolConfig?.active_grading_scheme_id) {
-                            const { data: scheme } = await supabase
-                                .from('grading_schemes')
-                                .select('*, rules:grading_scheme_rules(*)')
-                                .eq('id', schoolConfig.active_grading_scheme_id)
-                                .maybeSingle();
-                            
+                            const scheme = await fetchGradingSchemeById(supabase, schoolConfig.active_grading_scheme_id);
                             if (scheme) {
                                 setGradingScheme(scheme);
                             }
@@ -471,10 +502,10 @@ const PublicReportView: React.FC = () => {
     const orientation = classReportConfig?.orientation || 'portrait';
 
     // Build grading legend from actual grading scheme or use hardcoded default
-    const gradeLegend = gradingScheme?.rules 
+    const gradeLegend: GradeLegendItem[] = gradingScheme?.rules 
         ? gradingScheme.rules
-            .sort((a: any, b: any) => b.min_score - a.min_score) // Sort by score descending
-            .map((rule: any) => ({
+            .sort((a: GradingSchemeRule, b: GradingSchemeRule) => b.min_score - a.min_score) // Sort by score descending
+            .map((rule: GradingSchemeRule) => ({
                 label: `${rule.grade_label}${rule.remark ? ' · ' + rule.remark : ''}`,
                 range: `${rule.min_score} - ${rule.max_score}`,
                 color: getGradeColorClasses(rule.grade_label)
@@ -801,7 +832,7 @@ const PublicReportView: React.FC = () => {
                                         <p className="text-2xl font-bold text-slate-700">{attendance.total}</p>
                                         <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Total Days</p>
                                     </div>
-                                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: themeColor + '15', borderColor: themeColor + '30', borderWidth: '1px' }}>
+                                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: hexToRgba(themeColor, 0.1), borderColor: hexToRgba(themeColor, 0.2), borderWidth: '1px' }}>
                                         <p className="text-2xl font-bold" style={{ color: themeColor }}>{attendance.rate.toFixed(1)}%</p>
                                         <p className="text-xs uppercase tracking-wider mt-1" style={{ color: themeColor }}>Attendance Rate</p>
                                     </div>
@@ -890,7 +921,7 @@ const PublicReportView: React.FC = () => {
                                 <div className="grade-legend mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 page-break-avoid">
                                     <p className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-2">Grading Scale</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
-                                        {gradeLegend.map((grade: { label: string; range: string; color: string }) => (
+                                        {gradeLegend.map((grade: GradeLegendItem) => (
                                             <div key={grade.label} className={`px-2 py-1 rounded border ${grade.color} font-medium text-center`}>
                                                 <div className="font-bold">{grade.label.split('·')[0]}</div>
                                                 <div className="text-[10px] opacity-80">{grade.range}</div>
