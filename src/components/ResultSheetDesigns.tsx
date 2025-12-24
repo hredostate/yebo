@@ -1,6 +1,7 @@
 
 import React from 'react';
-import type { StudentTermReport, Student, GradingScheme, SchoolConfig, Term, AssessmentComponent } from '../types';
+import type { StudentTermReport, Student, GradingScheme, SchoolConfig, Term, AssessmentComponent, ReportCardAnnouncement } from '../types';
+import { sanitize } from '../utils/reportCardHelpers';
 
 interface ResultSheetProps {
     report: StudentTermReport;
@@ -24,7 +25,33 @@ interface ResultSheetProps {
     classSize: number;
     gradeLevelPosition?: number;
     gradeLevelSize?: number;
+    announcements?: ReportCardAnnouncement[];
 }
+
+// Component to render announcements based on position
+export const AnnouncementDisplay: React.FC<{ 
+    announcements: ReportCardAnnouncement[]; 
+    position: 'header' | 'footer' | 'above_signatures';
+}> = ({ announcements, position }) => {
+    const filtered = announcements
+        .filter(a => a.display_position === position)
+        .sort((a, b) => a.display_order - b.display_order);
+
+    if (filtered.length === 0) return null;
+
+    return (
+        <div className="my-4 page-break-inside-avoid">
+            {filtered.map((announcement, idx) => (
+                <div 
+                    key={announcement.id} 
+                    className={`p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm ${idx > 0 ? 'mt-2' : ''}`}
+                >
+                    <div className="text-blue-900 whitespace-pre-wrap">{sanitize(announcement.message)}</div>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 // Helper function to get ordinal suffix (1st, 2nd, 3rd, etc.)
 const getOrdinal = (n: number | undefined | null): string => {
@@ -36,7 +63,7 @@ const getOrdinal = (n: number | undefined | null): string => {
 
 // Design 1: Modern Gradient Card Design
 export const ModernGradientResultSheet: React.FC<ResultSheetProps> = ({
-    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize
+    report, student, subjects, assessmentComponents, gradingScheme, schoolConfig, term, classPosition, classSize, gradeLevelPosition, gradeLevelSize, announcements = []
 }) => {
     const getGradeColor = (grade: string) => {
         const colors: Record<string, string> = {
@@ -91,6 +118,11 @@ export const ModernGradientResultSheet: React.FC<ResultSheetProps> = ({
                         <p className="text-lg font-bold text-indigo-600 mt-1">{report.average_score?.toFixed(1)}%</p>
                     </div>
                 </div>
+
+                {/* Header Announcements */}
+                {announcements && announcements.length > 0 && (
+                    <AnnouncementDisplay announcements={announcements} position="header" />
+                )}
 
                 {/* Subjects as Cards */}
                 <h2 className="text-xl font-bold text-slate-800 mb-4">Subject Performance</h2>

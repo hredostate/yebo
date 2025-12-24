@@ -2947,3 +2947,16 @@ export interface GeneratedReport {
     parentRecommendations: string[];
     generatedAt: string;
 }
+
+// Report Card Announcements
+export interface ReportCardAnnouncement {
+    id: number;
+    school_id: number;
+    term_id?: number | null;
+    message: string;
+    is_active: boolean;
+    display_position: 'header' | 'footer' | 'above_signatures';
+    display_order: number;
+    created_at?: string;
+    updated_at?: string;
+}

@@ -16,7 +16,7 @@ interface UnifiedReportCardProps {
 }
 
 export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, watermark }) => {
-  const { student, school, term, subjects, summary, comments, attendance, assessmentComponents, config } = data;
+  const { student, school, term, subjects, summary, comments, attendance, assessmentComponents, config, announcements = [] } = data;
 
   // Configuration
   const themeColor = config?.colorTheme || '#1e3a8a';
@@ -27,6 +27,11 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
   const showLevelRanking = config?.showLevelRanking !== false; // default true
   const showArmRanking = config?.showArmRanking !== false; // default true
   const showSubjectPosition = config?.showSubjectPosition !== false; // default true
+  
+  // Filter announcements by position
+  const headerAnnouncements = announcements.filter(a => a.display_position === 'header').sort((a, b) => a.display_order - b.display_order);
+  const footerAnnouncements = announcements.filter(a => a.display_position === 'footer').sort((a, b) => a.display_order - b.display_order);
+  const signatureAnnouncements = announcements.filter(a => a.display_position === 'above_signatures').sort((a, b) => a.display_order - b.display_order);
 
   // Determine if we have level ranking data
   const hasLevelRanking = hasValidRanking(summary.positionInLevel, summary.totalStudentsInLevel);
@@ -78,6 +83,29 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
             </strong>
           </div>
         </div>
+
+        {/* Header Announcements */}
+        {headerAnnouncements.length > 0 && (
+          <div style={{ margin: '3mm 0', pageBreakInside: 'avoid' }}>
+            {headerAnnouncements.map((announcement) => (
+              <div 
+                key={announcement.id}
+                style={{
+                  padding: '2mm 3mm',
+                  background: '#eff6ff',
+                  border: '0.5pt solid #93c5fd',
+                  borderRadius: '1mm',
+                  marginBottom: '2mm',
+                  fontSize: '9pt',
+                  color: '#1e40af',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {sanitize(announcement.message)}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="urc-summary-cards">
@@ -245,6 +273,28 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
         </div>
 
         {/* Comments */}
+        {signatureAnnouncements.length > 0 && (
+          <div style={{ margin: '3mm 0', pageBreakInside: 'avoid' }}>
+            {signatureAnnouncements.map((announcement) => (
+              <div 
+                key={announcement.id}
+                style={{
+                  padding: '2mm 3mm',
+                  background: '#eff6ff',
+                  border: '0.5pt solid #93c5fd',
+                  borderRadius: '1mm',
+                  marginBottom: '2mm',
+                  fontSize: '9pt',
+                  color: '#1e40af',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {sanitize(announcement.message)}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="urc-comments">
           <div className="urc-comment-box">
             <h4 className="urc-comment-title">{sanitize(teacherLabel)}'s Remark</h4>
@@ -265,6 +315,29 @@ export const UnifiedReportCard: React.FC<UnifiedReportCardProps> = ({ data, wate
             </div>
           </div>
         </div>
+
+        {/* Footer Announcements */}
+        {footerAnnouncements.length > 0 && (
+          <div style={{ margin: '3mm 0', pageBreakInside: 'avoid' }}>
+            {footerAnnouncements.map((announcement) => (
+              <div 
+                key={announcement.id}
+                style={{
+                  padding: '2mm 3mm',
+                  background: '#eff6ff',
+                  border: '0.5pt solid #93c5fd',
+                  borderRadius: '1mm',
+                  marginBottom: '2mm',
+                  fontSize: '9pt',
+                  color: '#1e40af',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {sanitize(announcement.message)}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="urc-footer">

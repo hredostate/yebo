@@ -76,6 +76,14 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
   const [isSharingLinks, setIsSharingLinks] = useState(false);
   const [shareExpiryHours, setShareExpiryHours] = useState(72);
   const [shareResults, setShareResults] = useState<Array<{ studentName: string; link?: string; error?: string }>>([]);
+  
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<Array<{
+    id: number;
+    message: string;
+    display_position: 'header' | 'footer' | 'above_signatures';
+    display_order: number;
+  }>>([]);
 
   // Utility function to sanitize strings for safe HTML rendering and filenames
   const sanitizeString = (str: string): string => {
@@ -151,6 +159,20 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     setIsLoading(true);
     try {
       const supabase = requireSupabaseClient();
+      
+      // Fetch announcements for this term (including global ones)
+      const { data: announcementsData, error: announcementsError } = await supabase
+        .from('report_card_announcements')
+        .select('id, message, display_position, display_order')
+        .eq('is_active', true)
+        .or(`term_id.eq.${termId},term_id.is.null`)
+        .order('display_order', { ascending: true });
+
+      if (announcementsError) {
+        console.warn('Error fetching announcements:', announcementsError);
+      } else {
+        setAnnouncements(announcementsData || []);
+      }
       
       // Get students in this class
       const { data: enrollments, error: enrollError } = await supabase
@@ -414,6 +436,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
         const pageData = {
           ...baseUnifiedData,
           subjects: pages[pageIndex],
+          announcements: announcements, // Add announcements to page data
         };
 
         // Create temporary container off-screen with proper print classes

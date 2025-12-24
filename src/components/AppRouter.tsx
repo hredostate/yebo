@@ -181,6 +181,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         studentId={Number(param1)} 
                         termId={Number(param2)} 
                         onBack={() => actions.setCurrentView(VIEWS.STUDENT_REPORTS)} 
+                        announcements={data.reportCardAnnouncements}
                     />;
                  }
                  return <div>Report not found.</div>;
@@ -912,6 +913,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 classSubjects={data.classSubjects}
                 inventory={data.inventory}
                 rewards={data.rewards}
+                reportCardAnnouncements={data.reportCardAnnouncements}
                 assessmentStructures={data.assessmentStructures}
                 onSaveRole={actions.handleSaveRole}
                 onUpdateRoleAssignments={actions.handleUpdateRoleAssignments}
@@ -937,6 +939,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onDeleteInventoryItem={actions.handleDeleteInventoryItem}
                 onSaveReward={actions.handleSaveReward}
                 onDeleteReward={actions.handleDeleteReward}
+                onSaveReportCardAnnouncement={actions.handleSaveReportCardAnnouncement}
+                onDeleteReportCardAnnouncement={actions.handleDeleteReportCardAnnouncement}
                 onInviteUser={actions.handleInviteUser}
                 onUpdateUser={actions.handleUpdateUser}
                 onDeleteUser={actions.handleDeleteUser}
@@ -990,7 +994,12 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
         case VIEWS.STUDENT_REPORT:
              // Viewer for individual student report
              if (param1 && param2) {
-                return <StudentReportView studentId={Number(param1)} termId={Number(param2)} onBack={() => actions.setCurrentView(VIEWS.STUDENT_ROSTER)} />;
+                return <StudentReportView 
+                    studentId={Number(param1)} 
+                    termId={Number(param2)} 
+                    onBack={() => actions.setCurrentView(VIEWS.STUDENT_ROSTER)} 
+                    announcements={data.reportCardAnnouncements}
+                />;
              }
              return <div>Report not found.</div>;
         case VIEWS.HR_PAYROLL:
