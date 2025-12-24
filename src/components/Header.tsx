@@ -7,6 +7,9 @@ import { count as getQueueCount } from '../offline/queue';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon } from './common/icons';
 import { getActiveSessionCount } from '../services/sessionManager';
+import { canViewSitewide } from '../security/permissions';
+import CampusScopeToggle from './CampusScopeToggle';
+import { useCampusScope } from '../contexts/CampusScopeContext';
 
 const useOfflineStatus = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -93,12 +96,20 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   isDarkMode: boolean;
   toggleTheme: () => void;
+  userPermissions?: string[];
 }
 
-const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotificationsAsRead, onNavigate, onToggleSidebar, isDarkMode, toggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotificationsAsRead, onNavigate, onToggleSidebar, isDarkMode, toggleTheme, userPermissions = [] }) => {
   const { isOnline, queueLength, isSyncing, handleSync } = useOfflineStatus();
   const { deviceCount, loading: deviceLoading } = useDeviceCounter(userProfile);
   const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  // Check if user can view sitewide data
+  const userCanViewSitewide = canViewSitewide({
+    role: 'role' in userProfile ? userProfile.role : null,
+    permissions: userPermissions,
+    userId: userProfile.id
+  });
 
   // Determine color based on device count
   const getDeviceCountColor = () => {
@@ -129,6 +140,13 @@ const Header: React.FC<HeaderProps> = ({ userProfile, notifications, onMarkNotif
         <button onClick={toggleTheme} className="touch-target rounded-full text-slate-100 dark:text-slate-400 hover:bg-white/20 dark:hover:bg-slate-800/50 transition-colors focus-visible-ring">
             {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
         </button>
+
+        {/* Campus Scope Toggle (Admin Only) */}
+        {userCanViewSitewide && (
+          <div className="hidden sm:flex">
+            <CampusScopeToggle />
+          </div>
+        )}
 
         {/* Device Counter */}
         {!deviceLoading && deviceCount > 0 && (

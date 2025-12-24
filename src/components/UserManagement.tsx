@@ -76,9 +76,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const [currentPage, setCurrentPage] = useState(1);
     const [credentialsResults, setCredentialsResults] = useState<any[] | null>(null);
     const ITEMS_PER_PAGE = 15;
+    
+    // Get campus scope context
+    const { isSitewideView } = useCampusScope();
+    const currentUserCampusId = getEffectiveCampusId(currentUserProfile);
 
     const filteredUsers = useMemo(() => {
-        let filtered = users;
+        // First apply campus filtering
+        let filtered = filterUsersByCampus(users, currentUserCampusId, isSitewideView);
         
         // Filter by status
         if (statusFilter !== 'all') {
@@ -99,7 +104,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         }
         
         return filtered;
-    }, [users, searchTerm, statusFilter]);
+    }, [users, searchTerm, statusFilter, isSitewideView, currentUserCampusId]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);

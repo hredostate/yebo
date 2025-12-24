@@ -19,7 +19,8 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 import { fetchAllStudents } from './utils/studentPagination';
 import { updateSessionHeartbeat, terminateCurrentSession } from './services/sessionManager';
 import { clearUserPersistedState } from './hooks/usePersistedState';
-import { canManagePayroll, canViewOwnPayslip, canViewPayroll, useCan } from './security/permissions';
+import { canManagePayroll, canViewOwnPayslip, canViewPayroll, useCan, canViewSitewide } from './security/permissions';
+import { CampusScopeProvider } from './contexts/CampusScopeContext';
 import {
     AUTH_ONLY_VIEWS,
     getInitialTargetViewFromHash,
@@ -276,6 +277,7 @@ const App: React.FC = () => {
     }, [session?.user?.id, userPermissions, userProfile, userType]);
 
     const canAccess = useCan(permissionContext);
+    const userCanViewSitewide = useMemo(() => canViewSitewide(permissionContext), [permissionContext]);
     
     // Theme Management
     const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -6959,6 +6961,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     if (userType === 'student') {
         // Student specific layout
         return (
+            <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
             <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
               <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
                 <Sidebar
@@ -6981,6 +6984,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                         isDarkMode={isDarkMode}
                         toggleTheme={toggleTheme}
+                        userPermissions={[]}
                     />
                     <main className="app-surface">
                          <ErrorBoundary>
@@ -7227,11 +7231,13 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                  <Toast toasts={toasts} removeToast={removeToast} />
              </div>
             </RouterWrapper>
+            </CampusScopeProvider>
         )
     }
 
     // Staff Layout
     return (
+        <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
         <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
           <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
             <Sidebar
@@ -7254,6 +7260,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     isDarkMode={isDarkMode}
                     toggleTheme={toggleTheme}
+                    userPermissions={userPermissions}
                 />
                 <main className="app-surface">
                     <div className="page-wrapper">
@@ -7582,6 +7589,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             />
         </div>
         </RouterWrapper>
+        </CampusScopeProvider>
     );
 };
 
