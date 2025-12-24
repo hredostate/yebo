@@ -289,8 +289,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         
         return (
             <div className="mb-10 animate-fade-in">
-                <h3 className="text-sm font-bold text-slate-200 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-white/20 dark:border-slate-700/40 pb-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block shadow-lg shadow-indigo-500/50"></span>
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-4 border-b border-slate-200 dark:border-white/20 pb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 inline-block shadow-lg shadow-indigo-500/50"></span>
                     {title}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
@@ -323,13 +323,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white dark:text-white tracking-tight">Dashboard</h1>
-                    <p className="text-sm sm:text-base text-slate-200 dark:text-slate-200 mt-1">Welcome back, <span className="font-semibold text-indigo-300 dark:text-indigo-400">{userProfile.name}</span>.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-200 mt-1">Welcome back, <span className="font-semibold text-indigo-600 dark:text-indigo-400">{userProfile.name}</span>.</p>
                 </div>
                 <div className="flex gap-3 w-full sm:w-auto">
                     <button 
                       onClick={() => setIsCustomizeModalOpen(true)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 min-h-touch glass-panel-strong text-white dark:text-slate-100 font-semibold rounded-xl hover:shadow-glass-hover transition-all w-full sm:w-auto touch-target focus-visible-ring"
+                      className="flex items-center justify-center gap-2 px-4 py-2 min-h-touch glass-panel-strong text-slate-700 dark:text-slate-100 border border-indigo-200 dark:border-transparent font-semibold rounded-xl hover:shadow-lg hover:border-indigo-300 dark:hover:shadow-glass-hover transition-all duration-200 neon-glow w-full sm:w-auto touch-target focus-visible-ring"
                     >
                         <CogIcon className="w-5 h-5" />
                         <span className="sm:inline">Customize</span>
@@ -345,13 +345,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
             <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {summaryStats.map((stat) => (
-                    <div key={stat.label} className="glass-panel-strong rounded-2xl p-4 shadow-glass flex items-center justify-between">
+                    <div key={stat.label} className="glass-panel-strong rounded-2xl p-4 shadow-glass flex items-center justify-between border border-indigo-100 dark:border-transparent">
                         <div>
-                            <p className="text-xs font-semibold uppercase text-slate-300">{stat.label}</p>
-                            <p className="text-2xl font-bold text-white dark:text-white">{stat.value}</p>
-                            <p className="text-xs text-slate-300 mt-1">{stat.hint}</p>
+                            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-300">{stat.label}</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">{stat.hint}</p>
                         </div>
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/30 border border-indigo-400/40 flex items-center justify-center text-indigo-200 dark:text-indigo-300 text-sm font-bold backdrop-blur-sm">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-500/30 border border-indigo-200 dark:border-indigo-400/40 flex items-center justify-center text-indigo-600 dark:text-indigo-200 text-sm font-bold">
                             ✓
                         </div>
                     </div>
