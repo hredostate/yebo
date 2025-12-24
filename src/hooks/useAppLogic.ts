@@ -384,7 +384,7 @@ export const useAppLogic = () => {
                  setLastRefreshed(new Date());
              } catch (e) { console.error(e); }
       }
-  }, [userProfile, userType, userPermissions]);
+  }, [userProfile, userType]);
 
   useEffect(() => {
       fetchData();

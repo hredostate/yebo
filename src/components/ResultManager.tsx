@@ -1089,8 +1089,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         try {
             await onRefresh();
             addToast('Data refreshed successfully', 'success');
-        } catch (error: any) {
-            addToast(`Refresh failed: ${error.message}`, 'error');
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+            addToast(`Refresh failed: ${errorMessage}`, 'error');
         } finally {
             setIsRefreshing(false);
         }
@@ -1106,7 +1107,15 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (diff < 60) return 'Just now';
         if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
         if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
-        return lastRefreshed.toLocaleString();
+        
+        // Use consistent date formatting with locale
+        return lastRefreshed.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     return (
