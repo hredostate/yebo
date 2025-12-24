@@ -841,7 +841,7 @@ const App: React.FC = () => {
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
         
-        // Reset dataLoadedRef at the start to ensure clean state
+        // Reset dataLoadedRef to allow refetch (safe because isFetchingRef prevents concurrent calls)
         dataLoadedRef.current = false;
         isFetchingRef.current = true;
         lastFetchedTimestamp.current = now;
@@ -1025,8 +1025,8 @@ const App: React.FC = () => {
                 }
                 
                 // Batch roles and permissions updates separately from profile state.
-                // This allows the UI to render the profile first, then update permissions
-                // in a separate batch, preventing a large single render cycle.
+                // startTransition marks these as non-urgent, allowing React to prioritize
+                // more critical updates and interrupt if needed, improving perceived performance.
                 startTransition(() => {
                     setRoles(rolesMap);
                     setUserPermissions(Array.from(perms));
