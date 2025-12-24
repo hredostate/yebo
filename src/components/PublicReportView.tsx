@@ -468,6 +468,7 @@ const PublicReportView: React.FC = () => {
     const showSubjectPosition = classReportConfig?.showSubjectPosition !== false;
     const showArmPosition = classReportConfig?.showArmPosition !== false;
     const showLevelPosition = classReportConfig?.showLevelPosition !== false;
+    const orientation = classReportConfig?.orientation || 'portrait';
 
     // Build grading legend from actual grading scheme or use hardcoded default
     const gradeLegend = gradingScheme?.rules 
@@ -492,7 +493,7 @@ const PublicReportView: React.FC = () => {
 {`
     @media print {
         @page {
-            size: A4 portrait;
+            size: A4 ${orientation};
             margin: 15mm;
         }
         
