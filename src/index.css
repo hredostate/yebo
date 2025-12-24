@@ -125,6 +125,7 @@ body {
 .app-shell {
   @apply relative min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300;
   background: transparent;
+  color: var(--ink-primary);
 }
 
 .app-surface {
@@ -151,6 +152,7 @@ body {
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  color: var(--ink-primary);
 }
 
 .dark .app-panel {
@@ -202,7 +204,11 @@ body {
   }
   
   button:focus-visible {
-    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900;
+    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-white;
+  }
+
+  .dark button:focus-visible {
+    @apply ring-offset-slate-900;
   }
   
   button:active {
