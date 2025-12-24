@@ -181,6 +181,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         studentId={Number(param1)} 
                         termId={Number(param2)} 
                         onBack={() => actions.setCurrentView(VIEWS.STUDENT_REPORTS)} 
+                        announcements={data.reportCardAnnouncements}
                     />;
                  }
                  return <div>Report not found.</div>;
@@ -993,7 +994,12 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
         case VIEWS.STUDENT_REPORT:
              // Viewer for individual student report
              if (param1 && param2) {
-                return <StudentReportView studentId={Number(param1)} termId={Number(param2)} onBack={() => actions.setCurrentView(VIEWS.STUDENT_ROSTER)} />;
+                return <StudentReportView 
+                    studentId={Number(param1)} 
+                    termId={Number(param2)} 
+                    onBack={() => actions.setCurrentView(VIEWS.STUDENT_ROSTER)} 
+                    announcements={data.reportCardAnnouncements}
+                />;
              }
              return <div>Report not found.</div>;
         case VIEWS.HR_PAYROLL:

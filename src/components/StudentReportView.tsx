@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import type { StudentTermReportDetails, GradingScheme, StudentInvoice, Student, StudentTermReport, Term, SchoolConfig } from '../types';
+import type { StudentTermReportDetails, GradingScheme, StudentInvoice, Student, StudentTermReport, Term, SchoolConfig, ReportCardAnnouncement } from '../types';
 import Spinner from './common/Spinner';
 import { LockClosedIcon, ShieldIcon } from './common/icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -15,6 +15,7 @@ interface StudentReportViewProps {
   termId: number;
   onBack: () => void;
   isStudentUser?: boolean; // True if logged in user is a student
+  announcements?: ReportCardAnnouncement[]; // Optional announcements to display on report card
 }
 
 interface CompositeSubject {
@@ -128,7 +129,7 @@ const AttendanceSummary: React.FC<{ attendance: AttendanceData }> = ({ attendanc
     );
 };
 
-const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId, onBack, isStudentUser = false }) => {
+const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId, onBack, isStudentUser = false, announcements = [] }) => {
   const [reportDetails, setReportDetails] = useState<StudentTermReportDetails | null>(null);
   const [compositeData, setCompositeData] = useState<CompositeSubject[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,6 +140,11 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
   const [assessmentComponents, setAssessmentComponents] = useState<Array<{ name: string; max_score: number }> | null>(null);
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
+
+  // Filter active announcements for current term (including global ones)
+  const activeAnnouncements = announcements.filter(a => 
+    a.is_active && (a.term_id === null || a.term_id === termId)
+  ).sort((a, b) => a.display_order - b.display_order);
 
   const handleSendToParent = async () => {
     if (!reportDetails?.student?.parent_phone_number_1) {
@@ -949,6 +955,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       classPosition: summary.positionInArm,
       classSize: estimatedClassSize,
       campusPercentile: summary.campusPercentile,
+      announcements: activeAnnouncements,
     };
   };
 
