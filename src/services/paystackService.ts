@@ -357,3 +357,38 @@ export async function deactivateDedicatedVirtualAccount(
         throw new Error(result.message || 'Failed to deactivate dedicated virtual account');
     }
 }
+
+/**
+ * Bulk create DVAs for multiple students
+ * Returns array of successful DVA creations and errors
+ */
+export async function bulkCreateDVAs(
+    secretKey: string,
+    students: Student[],
+    preferredBank: string
+): Promise<{
+    successful: Array<{ student: Student; dva: PaystackDVAResponse }>;
+    failed: Array<{ student: Student; error: string }>;
+}> {
+    const successful: Array<{ student: Student; dva: PaystackDVAResponse }> = [];
+    const failed: Array<{ student: Student; error: string }> = [];
+
+    for (const student of students) {
+        try {
+            // Create customer
+            const customerId = await createOrGetPaystackCustomer(secretKey, student);
+            
+            // Create DVA
+            const dva = await createDedicatedVirtualAccount(secretKey, customerId, preferredBank);
+            
+            successful.push({ student, dva });
+        } catch (error: any) {
+            failed.push({
+                student,
+                error: error.message || 'Unknown error'
+            });
+        }
+    }
+
+    return { successful, failed };
+}

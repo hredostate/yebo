@@ -2035,6 +2035,7 @@ export type NotificationType =
     'student_credentials' | 
     'password_reset' | 
     'payslip_published' | 
+    'dva_account_created' |
     'general';
 
 export interface NotificationChannelConfig {

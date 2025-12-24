@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import type { Student, DedicatedVirtualAccount, BankProvider, PaystackApiSettings } from '../types';
+import type { Student, DedicatedVirtualAccount, BankProvider, PaystackApiSettings, BaseDataObject, Campus } from '../types';
 import Spinner from './common/Spinner';
 import * as paystackService from '../services/paystackService';
+import * as dvaService from '../services/dvaService';
 import { mapSupabaseError } from '../utils/errorHandling';
 
 interface DVAManagerProps {
@@ -10,9 +11,20 @@ interface DVAManagerProps {
     schoolId: number;
     campusId?: number | null;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+    currentUserId?: string;
+    allClasses?: BaseDataObject[];
+    allCampuses?: Campus[];
 }
 
-const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, addToast }) => {
+const DVAManager: React.FC<DVAManagerProps> = ({ 
+    students, 
+    schoolId, 
+    campusId, 
+    addToast,
+    currentUserId = '',
+    allClasses = [],
+    allCampuses = []
+}) => {
     const [dvaList, setDvaList] = useState<DedicatedVirtualAccount[]>([]);
     const [bankProviders, setBankProviders] = useState<BankProvider[]>([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +33,13 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
     const [selectedBank, setSelectedBank] = useState<string>('');
     const [apiSettings, setApiSettings] = useState<PaystackApiSettings | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // New state for enhanced features
+    const [selectedCampusFilter, setSelectedCampusFilter] = useState<number | null>(null);
+    const [selectedClassFilter, setSelectedClassFilter] = useState<number | null>(null);
+    const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+    const [bulkCreating, setBulkCreating] = useState(false);
+    const [sendingSMS, setSendingSMS] = useState<number | null>(null);
 
     useEffect(() => {
         loadData();
@@ -30,6 +49,19 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
         setLoading(true);
         const supabase = requireSupabaseClient();
         try {
+            // Fetch campuses if not provided
+            if (!allCampuses || allCampuses.length === 0) {
+                const { data: campusesData } = await supabase
+                    .from('campuses')
+                    .select('*')
+                    .eq('school_id', schoolId);
+                
+                if (campusesData) {
+                    // Store in local state or use as is
+                    // For now, we'll just note they should be passed as props
+                }
+            }
+
             // Fetch API settings for this campus or default
             const { data: settingsData, error: settingsError } = await supabase
                 .from('paystack_api_settings')
@@ -167,6 +199,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
             return;
         }
 
+        const supabase = requireSupabaseClient();
         try {
             // Deactivate on Paystack
             if (dva.paystack_account_id) {
@@ -192,6 +225,208 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
             addToast('Failed to deactivate DVA: ' + userFriendlyMessage, 'error');
         }
     };
+
+    // New handler: Send DVA details to parents via SMS
+    const handleSendToParents = async (dva: DedicatedVirtualAccount) => {
+        if (!dva.student_id) {
+            addToast('Student information missing', 'error');
+            return;
+        }
+
+        setSendingSMS(dva.id);
+        try {
+            const student = students.find(s => s.id === dva.student_id);
+            if (!student) {
+                throw new Error('Student not found');
+            }
+
+            const result = await dvaService.sendDVADetailsToParents(
+                student,
+                dva,
+                schoolId,
+                currentUserId
+            );
+
+            if (result.sent > 0) {
+                addToast(`DVA details sent to ${result.sent} parent(s)`, 'success');
+            } else {
+                addToast('No parent phone numbers found or SMS failed', 'error');
+            }
+        } catch (error: any) {
+            console.error('Error sending DVA details:', error);
+            addToast('Failed to send DVA details: ' + error.message, 'error');
+        } finally {
+            setSendingSMS(null);
+        }
+    };
+
+    // New handler: Bulk create DVAs
+    const handleBulkCreateDVAs = async () => {
+        if (selectedStudents.size === 0) {
+            addToast('Please select at least one student', 'error');
+            return;
+        }
+
+        if (!selectedBank) {
+            addToast('Please select a preferred bank', 'error');
+            return;
+        }
+
+        if (!apiSettings) {
+            addToast('API settings not configured', 'error');
+            return;
+        }
+
+        const confirmed = confirm(
+            `Create DVAs for ${selectedStudents.size} student(s)? This may take a few moments.`
+        );
+        if (!confirmed) return;
+
+        setBulkCreating(true);
+        const supabase = requireSupabaseClient();
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+            const studentsToCreate = students.filter(s => selectedStudents.has(s.id));
+
+            for (const student of studentsToCreate) {
+                try {
+                    const dva = await dvaService.generateDVAForStudent(
+                        student,
+                        schoolId,
+                        selectedBank
+                    );
+
+                    // Add to list
+                    setDvaList(prev => [dva, ...prev]);
+
+                    // Send SMS to parents
+                    try {
+                        await dvaService.sendDVADetailsToParents(
+                            student,
+                            dva,
+                            schoolId,
+                            currentUserId
+                        );
+                    } catch (smsError) {
+                        console.error('SMS send failed:', smsError);
+                        // Don't fail the whole operation if SMS fails
+                    }
+
+                    successCount++;
+                } catch (error: any) {
+                    console.error(`Failed to create DVA for ${student.name}:`, error);
+                    failCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                addToast(`Successfully created ${successCount} DVA(s)`, 'success');
+            }
+            if (failCount > 0) {
+                addToast(`Failed to create ${failCount} DVA(s)`, 'error');
+            }
+
+            // Clear selection
+            setSelectedStudents(new Set());
+        } catch (error: any) {
+            console.error('Bulk create error:', error);
+            addToast('Bulk creation failed: ' + error.message, 'error');
+        } finally {
+            setBulkCreating(false);
+        }
+    };
+
+    // New handler: Regenerate DVA
+    const handleRegenerateDVA = async (studentId: number) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student) {
+            addToast('Student not found', 'error');
+            return;
+        }
+
+        if (!selectedBank) {
+            addToast('Please select a bank for the new account', 'error');
+            return;
+        }
+
+        const confirmed = confirm(
+            `Regenerate DVA for ${student.name}? The old account will be deactivated and a new one created.`
+        );
+        if (!confirmed) return;
+
+        setCreating(true);
+        try {
+            const newDVA = await dvaService.regenerateDVA(
+                studentId,
+                schoolId,
+                selectedBank,
+                currentUserId
+            );
+
+            // Update list
+            setDvaList(prev => prev.filter(d => d.student_id !== studentId).concat(newDVA));
+
+            addToast('DVA regenerated successfully and sent to parents', 'success');
+        } catch (error: any) {
+            console.error('Error regenerating DVA:', error);
+            addToast('Failed to regenerate DVA: ' + error.message, 'error');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // Toggle student selection
+    const toggleStudentSelection = (studentId: number) => {
+        const newSelection = new Set(selectedStudents);
+        if (newSelection.has(studentId)) {
+            newSelection.delete(studentId);
+        } else {
+            newSelection.add(studentId);
+        }
+        setSelectedStudents(newSelection);
+    };
+
+    // Toggle select all
+    const toggleSelectAll = () => {
+        if (selectedStudents.size === filteredStudentsWithoutDVA.length) {
+            setSelectedStudents(new Set());
+        } else {
+            setSelectedStudents(new Set(filteredStudentsWithoutDVA.map(s => s.id)));
+        }
+    };
+
+    // Filtered students based on campus, class, and search
+    const filteredStudentsWithoutDVA = useMemo(() => {
+        let filtered = students.filter(
+            s => !dvaList.some(dva => dva.student_id === s.id)
+        );
+
+        // Apply campus filter
+        if (selectedCampusFilter) {
+            filtered = filtered.filter(s => 
+                s.campus_id === selectedCampusFilter ||
+                (s.class_id && allClasses.find(c => c.id === s.class_id)?.campus_id === selectedCampusFilter)
+            );
+        }
+
+        // Apply class filter
+        if (selectedClassFilter) {
+            filtered = filtered.filter(s => s.class_id === selectedClassFilter);
+        }
+
+        // Apply search filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(s =>
+                s.name.toLowerCase().includes(query) ||
+                s.admission_number?.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [students, dvaList, selectedCampusFilter, selectedClassFilter, searchQuery, allClasses]);
 
     // Students without DVA
     const studentsWithoutDVA = students.filter(
@@ -253,12 +488,151 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                     <p className="text-sm text-amber-600 dark:text-amber-400">Students Without DVA</p>
                     <p className="text-2xl font-bold text-amber-900 dark:text-amber-200">
-                        {studentsWithoutDVA.length}
+                        {students.filter(s => !dvaList.some(dva => dva.student_id === s.id)).length}
                     </p>
                 </div>
             </div>
 
-            {/* Create DVA Form */}
+            {/* Filters */}
+            <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
+                <h4 className="font-medium text-slate-800 dark:text-white mb-4">
+                    Filters & Search
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            Search
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Name or admission number..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        />
+                    </div>
+                    {allCampuses.length > 0 && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                Campus
+                            </label>
+                            <select
+                                value={selectedCampusFilter || ''}
+                                onChange={(e) => setSelectedCampusFilter(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                            >
+                                <option value="">All Campuses</option>
+                                {allCampuses.map(campus => (
+                                    <option key={campus.id} value={campus.id}>
+                                        {campus.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {allClasses.length > 0 && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                Class
+                            </label>
+                            <select
+                                value={selectedClassFilter || ''}
+                                onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                            >
+                                <option value="">All Classes</option>
+                                {allClasses.map(cls => (
+                                    <option key={cls.id} value={cls.id}>
+                                        {cls.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            Bank
+                        </label>
+                        <select
+                            value={selectedBank}
+                            onChange={(e) => setSelectedBank(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        >
+                            <option value="">Select bank...</option>
+                            {bankProviders.map(bank => (
+                                <option key={bank.provider_slug} value={bank.provider_slug}>
+                                    {bank.bank_name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bulk Actions */}
+            {filteredStudentsWithoutDVA.length > 0 && (
+                <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedStudents.size === filteredStudentsWithoutDVA.length && filteredStudentsWithoutDVA.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    Select All ({selectedStudents.size} selected)
+                                </span>
+                            </label>
+                        </div>
+                        {selectedStudents.size > 0 && (
+                            <button
+                                onClick={handleBulkCreateDVAs}
+                                disabled={bulkCreating || !selectedBank}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {bulkCreating ? (
+                                    <>
+                                        <Spinner size="sm" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    `Generate ${selectedStudents.size} DVA(s)`
+                                )}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Student List */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {filteredStudentsWithoutDVA.map(student => (
+                            <label
+                                key={student.id}
+                                className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedStudents.has(student.id)}
+                                    onChange={() => toggleStudentSelection(student.id)}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <div className="flex-1">
+                                    <div className="font-medium text-slate-800 dark:text-white">
+                                        {student.name}
+                                    </div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                                        {student.admission_number && `${student.admission_number} • `}
+                                        {student.class?.name || 'No class'}
+                                    </div>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Create Single DVA Form (legacy) */}
             <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
                 <h4 className="font-medium text-slate-800 dark:text-white mb-4">
                     Create New DVA
@@ -323,7 +697,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
                 />
             </div>
 
-            {/* DVA List */}
+            {/* Existing DVAs */}
             <div className="space-y-3">
                 <h4 className="font-medium text-slate-700 dark:text-slate-300">
                     Existing Virtual Accounts ({filteredDVAs.length})
@@ -384,14 +758,30 @@ const DVAManager: React.FC<DVAManagerProps> = ({ students, schoolId, campusId, a
                                         </div>
                                     </div>
                                 </div>
-                                <div>
+                                <div className="flex flex-col gap-2">
                                     {dva.active && (
-                                        <button
-                                            onClick={() => handleDeactivateDVA(dva)}
-                                            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                                        >
-                                            Deactivate
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => handleSendToParents(dva)}
+                                                disabled={sendingSMS === dva.id}
+                                                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 min-w-[100px]"
+                                            >
+                                                {sendingSMS === dva.id ? <Spinner size="sm" /> : 'Send to Parent'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleRegenerateDVA(dva.student_id)}
+                                                disabled={creating}
+                                                className="px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:bg-amber-400 min-w-[100px]"
+                                            >
+                                                Regenerate
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeactivateDVA(dva)}
+                                                className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 min-w-[100px]"
+                                            >
+                                                Delete
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
