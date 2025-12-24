@@ -12,6 +12,7 @@ import { createStudentSlug, parsePublicReportTokenFromLocation } from '../utils/
 import { matchComponentScore } from '../utils/reportCardHelpers';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { ReportCardAnnouncement } from '../types';
+import { AnnouncementDisplay } from './ResultSheetDesigns';
 
 // RPC response types
 interface RPCSubject {
@@ -760,18 +761,7 @@ const PublicReportView: React.FC = () => {
                     </div>
 
                     {/* Header Announcements */}
-                    {announcements.filter(a => a.display_position === 'header').length > 0 && (
-                        <div className="px-8 py-4 bg-blue-50 border-y border-blue-200">
-                            {announcements
-                                .filter(a => a.display_position === 'header')
-                                .map(announcement => (
-                                    <div key={announcement.id} className="text-sm text-slate-700 mb-2 last:mb-0">
-                                        {announcement.message}
-                                    </div>
-                                ))
-                            }
-                        </div>
-                    )}
+                    <AnnouncementDisplay announcements={announcements} position="header" />
 
                     <div className="px-8 py-8 space-y-8 relative z-10">
                         {/* Student Identity Section */}
@@ -1005,18 +995,7 @@ const PublicReportView: React.FC = () => {
                         )}
 
                         {/* Above Signatures Announcements */}
-                        {announcements.filter(a => a.display_position === 'above_signatures').length > 0 && (
-                            <div className="py-4 px-6 bg-amber-50 border border-amber-200 rounded-lg">
-                                {announcements
-                                    .filter(a => a.display_position === 'above_signatures')
-                                    .map(announcement => (
-                                        <div key={announcement.id} className="text-sm text-slate-700 mb-2 last:mb-0">
-                                            {announcement.message}
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        )}
+                        <AnnouncementDisplay announcements={announcements} position="above_signatures" />
 
                         {/* Signature Block */}
                         <div className="signature-block pt-6 border-t border-slate-200 page-break-avoid">
@@ -1047,18 +1026,7 @@ const PublicReportView: React.FC = () => {
                         </div>
 
                         {/* Footer Announcements */}
-                        {announcements.filter(a => a.display_position === 'footer').length > 0 && (
-                            <div className="py-4 px-6 bg-green-50 border border-green-200 rounded-lg">
-                                {announcements
-                                    .filter(a => a.display_position === 'footer')
-                                    .map(announcement => (
-                                        <div key={announcement.id} className="text-sm text-slate-700 mb-2 last:mb-0">
-                                            {announcement.message}
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        )}
+                        <AnnouncementDisplay announcements={announcements} position="footer" />
 
                         {/* Footer */}
                         <div className="pt-4 text-center page-break-avoid">
