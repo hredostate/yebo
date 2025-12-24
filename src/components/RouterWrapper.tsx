@@ -57,24 +57,41 @@ const LocationSync: React.FC<{
 }> = ({ currentView, setCurrentView }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isUpdatingRef = React.useRef(false);
 
-  // Sync location changes to currentView state
+  // Sync location changes to currentView state (path → view)
+  // This runs when the user clicks a link or uses browser back/forward
+  // Note: Only depends on location.pathname to prevent circular updates
   useEffect(() => {
+    if (isUpdatingRef.current) {
+      isUpdatingRef.current = false;
+      return;
+    }
+    
     const view = pathToView(location.pathname);
     if (view && view !== currentView) {
       console.log('[RouterWrapper] Location changed, updating currentView:', location.pathname, '→', view);
+      isUpdatingRef.current = true;
       setCurrentView(view);
     }
-  }, [location.pathname, currentView, setCurrentView]);
+  }, [location.pathname, setCurrentView]);
 
-  // Sync currentView changes to location (for backward compatibility with legacy setCurrentView calls)
+  // Sync currentView changes to location (view → path)
+  // This is for backward compatibility with legacy setCurrentView calls
+  // Note: Only depends on currentView to prevent circular updates
   useEffect(() => {
+    if (isUpdatingRef.current) {
+      isUpdatingRef.current = false;
+      return;
+    }
+    
     const path = viewToPath(currentView);
     if (path && path !== location.pathname) {
       console.log('[RouterWrapper] currentView changed, navigating to:', currentView, '→', path);
+      isUpdatingRef.current = true;
       navigate(path, { replace: true });
     }
-  }, [currentView, location.pathname, navigate]);
+  }, [currentView, navigate]);
 
   return null;
 };

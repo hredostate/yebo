@@ -336,7 +336,7 @@ const App: React.FC = () => {
     const profileLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isDesktopLayout, setIsDesktopLayout] = useState(() => getIsDesktopLayout());
     const [isSidebarOpen, setIsSidebarOpen] = useState(() => getIsDesktopLayout());
-    const [hash, setHash] = useState(window.location.hash);
+    // Note: hash state removed - using BrowserRouter path-based navigation
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(min-width: 1024px)');
@@ -1599,62 +1599,9 @@ const App: React.FC = () => {
         }
     }, [schoolSettings]);
 
-    useEffect(() => {
-        const currentHash = decodeURIComponent(window.location.hash.substring(1));
-        let targetView = currentView || VIEWS.DASHBOARD;
-        
-        // Handle leading slash if present - with safety checks
-        if (targetView && typeof targetView === 'string' && targetView.startsWith('/')) {
-            targetView = targetView.substring(1);
-        }
-        let targetHash = currentHash;
-        if (targetHash && targetHash.startsWith('/')) {
-            targetHash = targetHash.substring(1);
-        }
-        
-        // Ignore auth tokens in hash logic to prevent view loop
-        if (targetHash.includes('access_token=') || targetHash.includes('error=')) {
-            return; 
-        }
-
-        // Save current view to localStorage for recovery after auth redirects
-        if (targetView && !AUTH_ONLY_VIEWS.includes(targetView)) {
-            localStorage.setItem('sg360_last_view', targetView);
-        }
-
-        // Do not override hash if currentView is Dashboard but hash is something else (e.g. a public page)
-        // Only sync if they are truly different and we want to enforce state -> URL sync
-        if (targetView !== targetHash && targetHash !== 'student-login' && targetHash !== 'public-ratings' && targetHash !== 'teacher-login') {
-             console.log('[App] Syncing currentView to hash:', targetView, 'current hash:', targetHash);
-             window.location.hash = targetView;
-        }
-    }, [currentView]);
-
-    useEffect(() => {
-        const handleHashChange = () => {
-            try {
-                let hash = decodeURIComponent(window.location.hash.substring(1));
-                if (hash.startsWith('/')) hash = hash.substring(1);
-                
-                // Ignore auth tokens in hash
-                if (hash.includes('access_token=') || hash.includes('error=')) {
-                    return; 
-                }
-                
-                // If hash is empty, try to restore from localStorage or use Dashboard
-                const targetView = hash || localStorage.getItem('sg360_last_view') || VIEWS.DASHBOARD;
-                console.log('[App] Hash changed - setting currentView to:', targetView, 'from hash:', hash);
-                setCurrentView(targetView);
-            } catch (e) {
-                console.warn("Error decoding hash:", e);
-            }
-        };
-        
-        window.addEventListener('hashchange', handleHashChange);
-        // Trigger once on mount to capture initial hash
-        handleHashChange();
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
+    // Note: Hash sync removed - using BrowserRouter path-based navigation instead
+    // The RouterWrapper component handles the bi-directional sync between paths and currentView state
+    // Keeping this comment for historical context during the migration
 
     // Redirect authenticated users away from auth-only views
     useEffect(() => {
@@ -1715,12 +1662,7 @@ const App: React.FC = () => {
         }
     }, [currentView, students, selectedStudent]);
     
-    useEffect(() => {
-        const handleHashChange = () => setHash(window.location.hash);
-        window.addEventListener('hashchange', handleHashChange);
-        setHash(window.location.hash);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
+    // Note: Hash state management removed - using BrowserRouter path-based navigation
     
     // Redirect students only when they try to access unauthorized views
     // This should only trigger after authentication is complete (not during boot)
