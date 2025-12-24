@@ -266,15 +266,37 @@ body:not(.dark) .app-surface::before {
     animation: neon-flash 0.3s ease-out;
   }
   
+  /* Disable neon flash for users with motion sensitivity */
+  @media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled),
+    [role="button"]:active:not(:disabled) {
+      animation: none;
+      /* Provide alternative feedback with border */
+      outline: 2px solid rgba(99, 102, 241, 0.5);
+      outline-offset: 2px;
+    }
+  }
+  
   /* Neon glow utility class for special emphasis */
   .neon-glow {
     box-shadow: 0 0 10px rgba(99, 102, 241, 0.4), 
                 0 0 20px rgba(99, 102, 241, 0.2);
+    /* Add subtle border for accessibility */
+    border: 1px solid rgba(99, 102, 241, 0.15);
   }
   
   .neon-glow:hover {
     box-shadow: 0 0 15px rgba(99, 102, 241, 0.6), 
                 0 0 30px rgba(99, 102, 241, 0.3);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+  
+  /* Alternative for users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .neon-glow:hover {
+      box-shadow: none;
+      border-color: rgba(99, 102, 241, 0.4);
+    }
   }
   
   /* Enhanced Glassmorphism Primitives */
