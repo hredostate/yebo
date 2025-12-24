@@ -84,9 +84,9 @@ export interface EnterpriseTheme {
 
 export const enterprise: EnterpriseTheme = {
   // Shell & Layout
-  shell: "min-h-screen bg-slate-50 text-slate-900",
+  shell: "min-h-screen bg-gradient-to-br from-white via-slate-50 to-indigo-50 text-slate-900",
   layout: "mx-auto max-w-[1400px] px-4 py-6",
-  panel: "bg-white border border-slate-200 rounded-xl shadow-sm",
+  panel: "bg-white/95 backdrop-blur-sm border border-slate-200/80 rounded-xl shadow-sm shadow-indigo-500/5",
   panelHeader: "px-6 py-4 border-b border-slate-200",
   panelTitle: "text-lg font-semibold tracking-tight text-slate-900",
   panelSubTitle: "text-sm text-slate-600 mt-1",
@@ -140,7 +140,7 @@ export const enterprise: EnterpriseTheme = {
     "disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
 
   // Cards
-  card: "bg-white border border-slate-200 rounded-xl shadow-sm",
+  card: "bg-white border border-slate-200 rounded-xl shadow-sm shadow-indigo-500/5 hover:shadow-md hover:shadow-indigo-500/10 transition-shadow",
   cardHeader: "px-5 py-4 border-b border-slate-200",
   cardTitle: "text-sm font-semibold text-slate-900",
   cardBody: "p-5",
