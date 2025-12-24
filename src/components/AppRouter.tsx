@@ -868,6 +868,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolConfig={data.schoolConfig}
                 onSaveSettings={actions.handleUpdateSchoolSettings} 
                 onSaveSchoolConfig={actions.handleUpdateSchoolConfig}
+                addToast={actions.addToast}
              />;
         case VIEWS.SUBMISSION_SETTINGS:
              return <LessonPlanSubmissionSettings
