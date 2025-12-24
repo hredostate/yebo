@@ -1,6 +1,6 @@
 import type { SmsResult } from '../services/activationLinks';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Student, BaseDataObject, CreatedCredential } from '../types';
 import { DownloadIcon, LockClosedIcon, CheckCircleIcon, CloseIcon, SearchIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -25,10 +25,10 @@ interface StudentAccountsViewProps {
 // Credentials Modal Component
 const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => void }> = ({ results, onClose }) => {
     const handleExport = () => {
-        const exportData = results.map((res: any) => {
+        const exportData = results.map((res) => {
             const username = res.username || (res.email ? res.email.replace('@upsshub.com', '') : 'N/A');
             const msgResults = res.messagingResults || [];
-            const phone1 = msgResults.find((m: any) => m.phone)?.phone || '';
+            const phone1 = msgResults.find(m => m.phone)?.phone || '';
             const phone2 = msgResults[1]?.phone || '';
             
             return {
@@ -46,9 +46,9 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
     };
     
     // Calculate messaging stats
-    const messagingStats = results.reduce((acc, res: any) => {
+    const messagingStats = results.reduce((acc, res) => {
         if (res.messagingResults && Array.isArray(res.messagingResults)) {
-            res.messagingResults.forEach((msg: any) => {
+            res.messagingResults.forEach((msg) => {
                 if (msg.success) {
                     acc.sent++;
                 } else {
@@ -95,9 +95,9 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                             </tr>
                         </thead>
                         <tbody>
-                            {results.map((res: any, index) => {
+                            {results.map((res, index) => {
                                 const msgResults = res.messagingResults || [];
-                                const sentCount = msgResults.filter((m: any) => m.success).length;
+                                const sentCount = msgResults.filter(m => m.success).length;
                                 const failCount = msgResults.length - sentCount;
                                 const displayUsername = res.username || (res.email ? res.email.replace('@upsshub.com', '') : 'N/A');
                                 
@@ -477,7 +477,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
     }, [filteredStudents, currentPage, itemsPerPage]);
 
     // Reset page when filters change
-    useMemo(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, accountFilter, classFilter, armFilter]);
 
