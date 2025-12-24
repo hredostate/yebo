@@ -111,14 +111,29 @@ const getOrdinalSuffix = (n: number): string => {
 
 // Helper function to convert hex color to rgba
 const hexToRgba = (hex: string, alpha: number): string => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
+    // Ensure hex starts with #
+    const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
+    
+    // Handle both 3-digit and 6-digit hex codes
+    let r: number, g: number, b: number;
+    
+    if (cleanHex.length === 4) {
+        // 3-digit hex: #RGB -> #RRGGBB
+        r = parseInt(cleanHex[1] + cleanHex[1], 16);
+        g = parseInt(cleanHex[2] + cleanHex[2], 16);
+        b = parseInt(cleanHex[3] + cleanHex[3], 16);
+    } else {
+        // 6-digit hex: #RRGGBB
+        r = parseInt(cleanHex.slice(1, 3), 16);
+        g = parseInt(cleanHex.slice(3, 5), 16);
+        b = parseInt(cleanHex.slice(5, 7), 16);
+    }
+    
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 // Helper function to fetch grading scheme
-const fetchGradingSchemeById = async (supabase: any, schemeId: number): Promise<GradingScheme | null> => {
+const fetchGradingSchemeById = async (supabase: ReturnType<typeof requireSupabaseClient>, schemeId: number): Promise<GradingScheme | null> => {
     const { data: scheme } = await supabase
         .from('grading_schemes')
         .select('*, rules:grading_scheme_rules(*)')
