@@ -995,7 +995,7 @@ const App: React.FC = () => {
                     };
                     rolesMap[normalized.title] = normalized;
                 });
-                
+
                 const { data: userRoleAssignmentsRes } = await supabase.from('user_role_assignments').select('*');
                 const perms = new Set<string>();
                 const primaryRolePermissions = rolesMap[(staffProfile as UserProfile).role]?.permissions || [];
@@ -1098,7 +1098,7 @@ const App: React.FC = () => {
                     setUserPermissions([]);
                 });
                 lastFetchedUserId.current = user.id;
-                
+
                 const { data: studentReports } = await supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', studentRecord.id).order('created_at', { ascending: false });
                 if (studentReports) {
                     startTransition(() => {
