@@ -29,7 +29,6 @@ const DVAManager: React.FC<DVAManagerProps> = ({
     const [bankProviders, setBankProviders] = useState<BankProvider[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
-    const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
     const [selectedBank, setSelectedBank] = useState<string>('');
     const [apiSettings, setApiSettings] = useState<PaystackApiSettings | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -109,85 +108,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({
         }
     };
 
-    const handleCreateDVA = async () => {
-        if (!selectedStudent || !selectedBank || !apiSettings) {
-            addToast('Please select a student and bank', 'error');
-            return;
-        }
 
-        const student = students.find(s => s.id === selectedStudent);
-        if (!student) {
-            addToast('Student not found', 'error');
-            return;
-        }
-
-        // Validate student data before creating DVA
-        if (!student.name || student.name.trim() === '') {
-            addToast('Student name is missing. Please update student information first.', 'error');
-            return;
-        }
-
-        // Check if DVA already exists
-        const existingDVA = dvaList.find(dva => dva.student_id === selectedStudent);
-        if (existingDVA) {
-            addToast('This student already has a dedicated virtual account', 'error');
-            return;
-        }
-
-        setCreating(true);
-        const supabase = requireSupabaseClient();
-        try {
-            // Create or get Paystack customer
-            const customerId = await paystackService.createOrGetPaystackCustomer(
-                apiSettings.secret_key,
-                student
-            );
-
-            // Create dedicated virtual account
-            const dvaResponse = await paystackService.createDedicatedVirtualAccount(
-                apiSettings.secret_key,
-                customerId,
-                selectedBank
-            );
-
-            // Save to database
-            const { data, error } = await supabase
-                .from('dedicated_virtual_accounts')
-                .insert([{
-                    school_id: schoolId,
-                    student_id: selectedStudent,
-                    account_number: dvaResponse.data.account_number,
-                    account_name: dvaResponse.data.account_name,
-                    bank_name: dvaResponse.data.bank.name,
-                    bank_slug: dvaResponse.data.bank.slug,
-                    bank_id: dvaResponse.data.bank.id,
-                    currency: dvaResponse.data.currency,
-                    active: dvaResponse.data.active,
-                    assigned: dvaResponse.data.assigned,
-                    paystack_account_id: dvaResponse.data.id,
-                    paystack_customer_id: customerId
-                }])
-                .select('*, student:students(name, admission_number)')
-                .single();
-
-            if (error) throw error;
-
-            setDvaList([data, ...dvaList]);
-            addToast('Dedicated Virtual Account created successfully!', 'success');
-            setSelectedStudent(null);
-            setSelectedBank('');
-        } catch (error: any) {
-            console.error('Error creating DVA:', error);
-            const userFriendlyMessage = mapSupabaseError(error);
-            // Provide more specific error message
-            const errorMsg = error.message && error.message.includes('Paystack')
-                ? error.message
-                : 'Failed to create DVA: ' + userFriendlyMessage;
-            addToast(errorMsg, 'error');
-        } finally {
-            setCreating(false);
-        }
-    };
 
     const handleDeactivateDVA = async (dva: DedicatedVirtualAccount) => {
         if (!confirm(`Are you sure you want to deactivate the virtual account for ${dva.student?.name}?`)) {
@@ -428,11 +349,6 @@ const DVAManager: React.FC<DVAManagerProps> = ({
         return filtered;
     }, [students, dvaList, selectedCampusFilter, selectedClassFilter, searchQuery, allClasses]);
 
-    // Students without DVA
-    const studentsWithoutDVA = students.filter(
-        s => !dvaList.some(dva => dva.student_id === s.id)
-    );
-
     // Filtered DVA list
     const filteredDVAs = dvaList.filter(dva =>
         dva.student?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -569,9 +485,12 @@ const DVAManager: React.FC<DVAManagerProps> = ({
                 </div>
             </div>
 
-            {/* Bulk Actions */}
+            {/* Create Virtual Accounts */}
             {filteredStudentsWithoutDVA.length > 0 && (
                 <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
+                    <h4 className="font-medium text-slate-800 dark:text-white mb-4">
+                        Students Without Virtual Account
+                    </h4>
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
@@ -632,70 +551,7 @@ const DVAManager: React.FC<DVAManagerProps> = ({
                 </div>
             )}
 
-            {/* Create Single DVA Form (legacy) */}
-            <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900/40">
-                <h4 className="font-medium text-slate-800 dark:text-white mb-4">
-                    Create New DVA
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Select Student
-                        </label>
-                        <select
-                            value={selectedStudent || ''}
-                            onChange={(e) => setSelectedStudent(Number(e.target.value))}
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                            disabled={creating}
-                        >
-                            <option value="">Choose a student...</option>
-                            {studentsWithoutDVA.map(student => (
-                                <option key={student.id} value={student.id}>
-                                    {student.name} {student.admission_number ? `(${student.admission_number})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Preferred Bank
-                        </label>
-                        <select
-                            value={selectedBank}
-                            onChange={(e) => setSelectedBank(e.target.value)}
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                            disabled={creating}
-                        >
-                            <option value="">Choose a bank...</option>
-                            {bankProviders.map(bank => (
-                                <option key={bank.provider_slug} value={bank.provider_slug}>
-                                    {bank.bank_name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={handleCreateDVA}
-                            disabled={creating || !selectedStudent || !selectedBank}
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
-                        >
-                            {creating ? <Spinner size="sm" /> : 'Create DVA'}
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            {/* Search */}
-            <div>
-                <input
-                    type="text"
-                    placeholder="Search by student name, admission number, or account number..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-            </div>
 
             {/* Existing DVAs */}
             <div className="space-y-3">
