@@ -4411,6 +4411,92 @@ Student Achievement Data: ${JSON.stringify(studentAchievementData)}`;
         addToast(`Invitation sent to ${email} for role ${role}.`, 'success');
     }, [addToast]);
 
+    const handleCreateStaffAccount = useCallback(async (data: {
+        name: string;
+        role: RoleTitle;
+        phone_number: string;
+        campus_id?: number;
+        sendSms?: boolean;
+    }) => {
+        const supabase = requireSupabaseClient();
+        if (!userProfile) return { success: false };
+
+        try {
+            const { data: result, error } = await supabase.functions.invoke('manage-users', {
+                body: {
+                    action: 'create_staff_account',
+                    ...data,
+                    school_id: userProfile.school_id
+                }
+            });
+
+            if (error) {
+                console.error("Edge function invoke error:", error);
+                addToast(`Failed to create staff account: ${error.message}`, 'error');
+                return { success: false };
+            }
+
+            if (result?.error) {
+                addToast(`Failed to create staff account: ${result.error}`, 'error');
+                return { success: false };
+            }
+
+            addToast(`Staff account created successfully for ${data.name}`, 'success');
+            
+            // Refresh users list
+            if (session?.user) {
+                fetchDataRef.current(session.user, true);
+            }
+
+            return {
+                success: true,
+                credential: result.credential,
+                messagingResults: result.messagingResults
+            };
+        } catch (e: any) {
+            console.error("Staff account creation error:", e);
+            addToast(`Error creating staff account: ${e.message}`, 'error');
+            return { success: false };
+        }
+    }, [userProfile, session, addToast]);
+
+    const handleResetStaffPassword = useCallback(async (userId: string) => {
+        const supabase = requireSupabaseClient();
+        if (!userProfile) return { success: false };
+
+        try {
+            const { data: result, error } = await supabase.functions.invoke('manage-users', {
+                body: {
+                    action: 'reset_staff_password',
+                    userId
+                }
+            });
+
+            if (error) {
+                console.error("Edge function invoke error:", error);
+                addToast(`Failed to reset password: ${error.message}`, 'error');
+                return { success: false };
+            }
+
+            if (result?.error) {
+                addToast(`Failed to reset password: ${result.error}`, 'error');
+                return { success: false };
+            }
+
+            addToast('Password reset successfully', 'success');
+
+            return {
+                success: true,
+                password: result.password,
+                messagingResults: result.messagingResults
+            };
+        } catch (e: any) {
+            console.error("Staff password reset error:", e);
+            addToast(`Error resetting password: ${e.message}`, 'error');
+            return { success: false };
+        }
+    }, [userProfile, addToast]);
+
     const handleUpdateUser = useCallback(async (userId: string, userData: Partial<UserProfile>): Promise<boolean> => {
         const supabase = requireSupabaseClient();
         try {

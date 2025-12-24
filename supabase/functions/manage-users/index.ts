@@ -147,6 +147,95 @@ serve(async (req) => {
     return { messagingResults };
   }
 
+  /**
+   * Helper function to send staff credentials via SMS
+   * Uses the existing messaging system with staff-specific templates
+   */
+  async function sendCredentialsToStaff(params: {
+    staffName: string;
+    username: string;
+    password: string;
+    schoolId: number;
+    staffPhone?: string;
+    isPasswordReset?: boolean;
+  }): Promise<{
+    messagingResults: Array<{
+      phone: string;
+      success: boolean;
+      channel?: string;
+      error?: string;
+    }>;
+  }> {
+    const { staffName, username, password, schoolId, staffPhone, isPasswordReset } = params;
+    const messagingResults: Array<{ phone: string; success: boolean; channel?: string; error?: string }> = [];
+
+    // Get school name for the message
+    let schoolName = 'UPSS';
+    try {
+      const { data: school } = await supabaseAdmin
+        .from('schools')
+        .select('name')
+        .eq('id', schoolId)
+        .single();
+      if (school?.name) {
+        schoolName = school.name;
+      }
+    } catch (e) {
+      console.error('Failed to fetch school name:', e);
+    }
+
+    // Template name based on whether it's a reset or new credential
+    const templateName = isPasswordReset ? 'staff_password_reset' : 'staff_credentials';
+
+    if (!staffPhone) {
+      console.log(`No phone number for staff: ${staffName}`);
+      return { messagingResults };
+    }
+
+    try {
+      // Prepare variables for the template
+      const variables = isPasswordReset 
+        ? { staff_name: staffName, password, school_name: schoolName }
+        : { staff_name: staffName, username, password, school_name: schoolName };
+
+      // Try to send via the messaging system
+      const { data: result, error: sendError } = await supabaseAdmin.functions.invoke(
+        'kudisms-send',
+        {
+          body: {
+            phone_number: staffPhone,
+            school_id: schoolId,
+            template_name: templateName,
+            variables: variables
+          }
+        }
+      );
+
+      if (sendError || !result?.success) {
+        messagingResults.push({
+          phone: staffPhone,
+          success: false,
+          error: sendError?.message || result?.error || 'Failed to send message'
+        });
+      } else {
+        messagingResults.push({
+          phone: staffPhone,
+          success: true,
+          channel: result.channel || 'sms'
+        });
+      }
+    } catch (error: any) {
+      console.error(`Error sending credentials to ${staffPhone}:`, error);
+      messagingResults.push({
+        phone: staffPhone,
+        success: false,
+        error: error.message || 'Unknown error'
+      });
+    }
+
+    return { messagingResults };
+  }
+
   try {
     // Safely parse body
     let body;
@@ -869,6 +958,258 @@ serve(async (req) => {
 
         console.log('Staff email updated successfully in auth.users');
         return new Response(JSON.stringify({ success: true, message: 'Staff email updated successfully' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // Create a single staff account without email verification
+    if (action === 'create_staff_account') {
+        console.log('create_staff_account action called');
+        
+        const { name, role, phone_number, school_id, campus_id } = body;
+        
+        if (!name || !role || !school_id) {
+            throw new Error("Missing required fields: name, role, or school_id");
+        }
+
+        // Generate username from name
+        const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const username = `${cleanName}${Date.now().toString().slice(-4)}`;
+        const password = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+        const email = `${username}@upsshub.com`; // Internal email, not used for delivery
+
+        console.log(`Creating staff account for ${name} with username: ${username}`);
+
+        const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
+            email: email,
+            password: password,
+            email_confirm: true, // Skip email verification
+            user_metadata: {
+                name: name,
+                username: username,
+                user_type: 'staff',
+                initial_password: password,
+                school_id: school_id,
+                role: role
+            }
+        });
+
+        if (userError) {
+            console.error('Failed to create staff auth user:', userError);
+            throw new Error(`Failed to create staff account: ${userError.message}`);
+        }
+
+        console.log('Staff auth user created:', user.user.id);
+
+        // Create user_profiles entry (should be auto-created by trigger, but we'll update it)
+        const { error: profileError } = await supabaseAdmin
+            .from('user_profiles')
+            .update({
+                phone_number: phone_number,
+                campus_id: campus_id
+            })
+            .eq('id', user.user.id);
+
+        if (profileError) {
+            console.error('Failed to update user profile:', profileError);
+        }
+
+        // Send credentials via SMS to phone_number
+        let messagingResults: any[] = [];
+        if (phone_number) {
+            const result = await sendCredentialsToStaff({
+                staffName: name,
+                username,
+                password,
+                schoolId: school_id,
+                staffPhone: phone_number,
+                isPasswordReset: false
+            });
+            messagingResults = result.messagingResults;
+        }
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            credential: { username, password },
+            messagingResults
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // Bulk create staff accounts
+    if (action === 'bulk_create_staff_accounts') {
+        console.log('bulk_create_staff_accounts action called');
+        
+        const { staffData } = body;
+        
+        if (!staffData || !Array.isArray(staffData)) {
+            throw new Error("Missing or invalid 'staffData' array");
+        }
+
+        console.log(`Processing bulk create for ${staffData.length} staff members`);
+        const results = [];
+
+        for (const staff of staffData) {
+            try {
+                const { name, role, phone_number, school_id, campus_id } = staff;
+                
+                if (!name || !role || !school_id) {
+                    results.push({ 
+                        name: name || 'Unknown', 
+                        status: 'Failed', 
+                        error: 'Missing required fields' 
+                    });
+                    continue;
+                }
+
+                // Generate username from name
+                const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const username = `${cleanName}${Date.now().toString().slice(-4)}`;
+                const password = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+                const email = `${username}@upsshub.com`;
+
+                const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
+                    email: email,
+                    password: password,
+                    email_confirm: true,
+                    user_metadata: {
+                        name: name,
+                        username: username,
+                        user_type: 'staff',
+                        initial_password: password,
+                        school_id: school_id,
+                        role: role
+                    }
+                });
+
+                if (userError) {
+                    results.push({ 
+                        name, 
+                        status: 'Failed', 
+                        error: userError.message 
+                    });
+                    continue;
+                }
+
+                // Update user profile with phone and campus
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({
+                        phone_number: phone_number,
+                        campus_id: campus_id
+                    })
+                    .eq('id', user.user.id);
+
+                // Send credentials via SMS
+                let messagingResults: any[] = [];
+                if (phone_number) {
+                    const result = await sendCredentialsToStaff({
+                        staffName: name,
+                        username,
+                        password,
+                        schoolId: school_id,
+                        staffPhone: phone_number,
+                        isPasswordReset: false
+                    });
+                    messagingResults = result.messagingResults;
+                }
+
+                results.push({ 
+                    name, 
+                    username, 
+                    password, 
+                    status: 'Success',
+                    messagingResults 
+                });
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error: any) {
+                console.error(`Error creating staff account for ${staff.name}:`, error);
+                results.push({ 
+                    name: staff.name || 'Unknown', 
+                    status: 'Failed', 
+                    error: error.message 
+                });
+            }
+        }
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            credentials: results 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // Reset staff password
+    if (action === 'reset_staff_password') {
+        console.log('reset_staff_password action called');
+        
+        const { userId } = body;
+        
+        if (!userId) {
+            throw new Error("Missing 'userId' for password reset");
+        }
+
+        const newPassword = `Staff${Math.floor(1000 + Math.random() * 9000)}!`;
+        console.log('Attempting to reset password for staff user ID:', userId);
+
+        // Get current auth user to preserve metadata
+        const { data: authUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+        
+        if (getUserError || !authUser?.user) {
+            throw new Error(`Failed to get user: ${getUserError?.message || 'User not found'}`);
+        }
+
+        // Update password using admin API
+        const currentMetadata = authUser.user.user_metadata || {};
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            {
+                password: newPassword,
+                user_metadata: {
+                    ...currentMetadata,
+                    initial_password: newPassword
+                }
+            }
+        );
+
+        if (updateError) {
+            throw new Error(`Failed to update password: ${updateError.message}`);
+        }
+
+        console.log('Password reset successful');
+
+        // Get user's phone number from user_profiles
+        const { data: userProfile } = await supabaseAdmin
+            .from('user_profiles')
+            .select('phone_number, name, school_id')
+            .eq('id', userId)
+            .single();
+
+        let messagingResults: any[] = [];
+        if (userProfile?.phone_number) {
+            const result = await sendCredentialsToStaff({
+                staffName: userProfile.name || 'Staff Member',
+                username: '', // Not needed for password reset
+                password: newPassword,
+                schoolId: userProfile.school_id,
+                staffPhone: userProfile.phone_number,
+                isPasswordReset: true
+            });
+            messagingResults = result.messagingResults;
+        }
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            password: newPassword,
+            messagingResults 
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
         });

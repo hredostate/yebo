@@ -6,6 +6,8 @@ import Spinner from './common/Spinner';
 import { SearchIcon } from './common/icons';
 import SearchableSelect from './common/SearchableSelect';
 import Pagination from './common/Pagination';
+import CreateStaffAccountModal from './CreateStaffAccountModal';
+import StaffCredentialsModal from './StaffCredentialsModal';
 
 // Helper function for status styling
 const getStatusStyling = (status: EmploymentStatus | undefined): string => {
@@ -18,67 +20,19 @@ const getStatusStyling = (status: EmploymentStatus | undefined): string => {
     return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
 };
 
-// --- Invite User Modal (Component-scoped) ---
-interface InviteUserModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onInviteUser: (email: string, role: RoleTitle) => Promise<void>;
-    roles: RoleTitle[];
-}
-
-const InviteUserModal: React.FC<InviteUserModalProps> = ({ isOpen, onClose, onInviteUser, roles }) => {
-    const [email, setEmail] = useState('');
-    const [role, setRole] = useState<RoleTitle>('Teacher');
-    const [isInviting, setIsInviting] = useState(false);
-
-    if (!isOpen) return null;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsInviting(true);
-        await onInviteUser(email, role);
-        setIsInviting(false);
-        setEmail('');
-        setRole('Teacher');
-        onClose();
-    };
-    
-    const inputClasses = "mt-1 block w-full pl-3 pr-10 py-2 text-base rounded-xl border border-slate-300 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
-
-    return (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in">
-            <div className="rounded-2xl border border-slate-200/60 bg-white/80 p-6 backdrop-blur-xl shadow-2xl dark:border-slate-800/60 dark:bg-slate-900/80 w-full max-w-md m-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Invite New User</h2>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            required
-                            className={inputClasses}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="role" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Assign Role</label>
-                        <select id="role" value={role} onChange={e => setRole(e.target.value as RoleTitle)} className={inputClasses}>
-                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                    </div>
-                    <div className="flex justify-end space-x-3 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-500/20 text-slate-800 dark:text-white font-semibold rounded-lg hover:bg-slate-500/30">Cancel</button>
-                        <button type="submit" disabled={isInviting} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 flex items-center min-w-[120px] justify-center">
-                            {isInviting ? <Spinner size="sm" /> : 'Send Invite'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
+// Helper function to extract username from email
+const extractUsername = (email: string): string => {
+    if (email.includes('@upsshub.com')) {
+        return email.replace('@upsshub.com', '');
+    }
+    return email.split('@')[0];
 };
 
+// Helper function to check if user has login account
+const hasLoginAccount = (user: UserProfile): boolean => {
+    // If email ends with @upsshub.com, they have a generated account
+    return user.email.includes('@upsshub.com') || user.email.includes('@');
+};
 
 // --- Main User Management Component ---
 interface UserManagementProps {
@@ -91,14 +45,35 @@ interface UserManagementProps {
     onDeactivateUser: (userId: string, isActive: boolean) => Promise<void>;
     onUpdateUserCampus: (userId: string, campusId: number | null) => Promise<void>;
     onUpdateEmploymentStatus?: (userId: string, status: EmploymentStatus) => Promise<void>;
+    onCreateStaffAccount?: (data: {
+        name: string;
+        role: RoleTitle;
+        phone_number: string;
+        campus_id?: number;
+        sendSms?: boolean;
+    }) => Promise<{ success: boolean; credential?: { username: string; password: string }; messagingResults?: any[] }>;
+    onResetStaffPassword?: (userId: string) => Promise<{ success: boolean; password?: string; messagingResults?: any[] }>;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, campuses = [], onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateUserCampus, onUpdateEmploymentStatus }) => {
-    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+const UserManagement: React.FC<UserManagementProps> = ({ 
+    users = [], 
+    roles, 
+    campuses = [], 
+    onInviteUser, 
+    onUpdateUser, 
+    onDeleteUser, 
+    onDeactivateUser, 
+    onUpdateUserCampus, 
+    onUpdateEmploymentStatus,
+    onCreateStaffAccount,
+    onResetStaffPassword
+}) => {
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<EmploymentStatus | 'all'>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [credentialsResults, setCredentialsResults] = useState<any[] | null>(null);
     const ITEMS_PER_PAGE = 15;
 
     const filteredUsers = useMemo(() => {
@@ -137,6 +112,49 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
         setCurrentPage(1);
     }
 
+    const handleCreateAccount = async (data: {
+        name: string;
+        role: RoleTitle;
+        phone_number: string;
+        campus_id?: number;
+        sendSms?: boolean;
+    }) => {
+        if (!onCreateStaffAccount) return { success: false };
+        
+        const result = await onCreateStaffAccount(data);
+        if (result.success && result.credential) {
+            // Show credentials modal
+            setCredentialsResults([{
+                name: data.name,
+                username: result.credential.username,
+                password: result.credential.password,
+                status: 'Success' as const,
+                messagingResults: result.messagingResults
+            }]);
+        }
+        return result;
+    };
+
+    const handleResetPassword = async (userId: string, userName: string) => {
+        if (!onResetStaffPassword) return;
+        
+        if (!confirm(`Reset password for ${userName}? A new password will be generated and sent via SMS.`)) {
+            return;
+        }
+
+        const result = await onResetStaffPassword(userId);
+        if (result.success && result.password) {
+            // Show credentials modal
+            setCredentialsResults([{
+                name: userName,
+                username: '',
+                password: result.password,
+                status: 'Success' as const,
+                messagingResults: result.messagingResults
+            }]);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in w-full overflow-hidden">
             <div className="flex justify-between items-center">
@@ -144,7 +162,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">User Management</h1>
                     <p className="text-slate-600 dark:text-slate-300 mt-1">Manage all staff accounts in the system.</p>
                 </div>
-                <button onClick={() => setIsInviteModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Invite New User</button>
+                <button 
+                    onClick={() => setIsCreateModalOpen(true)} 
+                    className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+                >
+                    Create Staff Account
+                </button>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4">
@@ -174,11 +197,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
             
             <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 overflow-hidden min-w-0">
                 <div className="overflow-x-auto -mx-4 px-4">
-                    <table className="w-full text-sm text-left min-w-[800px]">
+                    <table className="w-full text-sm text-left min-w-[900px]">
                         <thead className="text-xs uppercase bg-slate-500/10">
                             <tr>
                                 <th className="px-6 py-3 whitespace-nowrap">Name</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Email</th>
+                                <th className="px-6 py-3 whitespace-nowrap">Username</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Role</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Status</th>
                                 <th className="px-6 py-3 whitespace-nowrap">Campus</th>
@@ -189,7 +213,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                             {paginatedUsers.map(user => (
                                 <tr key={user.id} className="border-b border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-500/10">
                                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{user.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs">{user.email}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {user.email.includes('@upsshub.com') ? (
+                                            <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                                                {extractUsername(user.email)}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-400 text-xs">—</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{user.role}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <select
@@ -219,6 +252,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                                         >
                                             Edit
                                         </button>
+                                        {onResetStaffPassword && user.email.includes('@upsshub.com') && (
+                                            <button 
+                                                onClick={() => handleResetPassword(user.id, user.name)} 
+                                                className="font-medium text-green-600 dark:text-green-400 hover:underline"
+                                            >
+                                                Reset Password
+                                            </button>
+                                        )}
                                         <button 
                                             onClick={() => {
                                                 if (confirm(`Are you sure you want to delete ${user.name}?`)) {
@@ -234,7 +275,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                             ))}
                             {filteredUsers.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">No users found.</td>
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">No users found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -250,12 +291,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                 />
             </div>
 
-            <InviteUserModal 
-                isOpen={isInviteModalOpen}
-                onClose={() => setIsInviteModalOpen(false)}
-                onInviteUser={onInviteUser}
-                roles={Object.keys(roles) as RoleTitle[]}
-            />
+            {onCreateStaffAccount && (
+                <CreateStaffAccountModal 
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onCreateAccount={handleCreateAccount}
+                    roles={Object.keys(roles) as RoleTitle[]}
+                    campuses={campuses}
+                />
+            )}
+
+            {credentialsResults && (
+                <StaffCredentialsModal
+                    results={credentialsResults}
+                    onClose={() => setCredentialsResults(null)}
+                />
+            )}
             
             {editingUser && (
                 <EditUserModal
