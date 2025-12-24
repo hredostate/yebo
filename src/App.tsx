@@ -840,6 +840,9 @@ const App: React.FC = () => {
         }
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
+        
+        // Reset dataLoadedRef at the start to ensure clean state
+        dataLoadedRef.current = false;
         isFetchingRef.current = true;
         lastFetchedTimestamp.current = now;
         setIsProfileLoading(true);
@@ -1021,7 +1024,9 @@ const App: React.FC = () => {
                     perms.add('view-dashboard');
                 }
                 
-                // Batch roles and permissions updates
+                // Batch roles and permissions updates separately from profile state.
+                // This allows the UI to render the profile first, then update permissions
+                // in a separate batch, preventing a large single render cycle.
                 startTransition(() => {
                     setRoles(rolesMap);
                     setUserPermissions(Array.from(perms));
@@ -1628,12 +1633,13 @@ const App: React.FC = () => {
             lastProcessedAuthEvent.current = eventKey;
             
             // Memoize session comparison - only process if user ID changed
-            if (session?.user?.id) {
-                if (sessionUserIdRef.current === session.user.id) {
+            const currentUserId = session?.user?.id;
+            if (currentUserId) {
+                if (sessionUserIdRef.current === currentUserId) {
                     console.log('[Auth] Same user session, skipping state update');
                     return;
                 }
-                sessionUserIdRef.current = session.user.id;
+                sessionUserIdRef.current = currentUserId;
             } else {
                 sessionUserIdRef.current = null;
             }
