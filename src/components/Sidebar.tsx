@@ -22,6 +22,13 @@ interface NavItemConfig {
   id: string;
   label: string;
   permission?: string;
+  subtabs?: SubtabConfig[];
+}
+
+interface SubtabConfig {
+  id: string;
+  label: string;
+  permission?: string;
 }
 
 // Flat Navigation Configuration (reverted from hierarchical structure)
@@ -58,20 +65,34 @@ const NAV_STRUCTURE: NavGroup[] = [
     icon: BookOpenIcon,
     items: [
       { id: VIEWS.TIMETABLE, label: 'Timetable', permission: 'view-dashboard' },
-      { id: VIEWS.LESSON_PLANNER, label: 'Lesson Plans', permission: 'view-my-lesson-plans|manage-curriculum' },
-      { id: VIEWS.TEAM_LESSON_HUB, label: 'Team Lesson Hub', permission: 'manage-curriculum' },
-      { id: VIEWS.COVERAGE_ANALYTICS, label: 'Coverage Analytics', permission: 'manage-curriculum' },
+      { 
+        id: VIEWS.CURRICULUM_HUB, 
+        label: 'Curriculum Hub', 
+        permission: 'view-my-lesson-plans|manage-curriculum',
+        subtabs: [
+          { id: VIEWS.LESSON_PLANNER, label: 'My Plans', permission: 'view-my-lesson-plans|manage-curriculum' },
+          { id: VIEWS.TEAM_LESSON_HUB, label: 'Team Hub', permission: 'manage-curriculum' },
+          { id: VIEWS.LEARNING_MATERIALS, label: 'Materials', permission: 'view-my-lesson-plans|manage-curriculum' },
+          { id: VIEWS.CURRICULUM_MANAGER, label: 'Map', permission: 'view-curriculum-readonly|manage-curriculum' },
+          { id: VIEWS.COVERAGE_ANALYTICS, label: 'Analytics', permission: 'manage-curriculum' },
+          { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload', permission: 'manage-curriculum' },
+          { id: VIEWS.COVERAGE_FEEDBACK, label: 'Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
+        ]
+      },
       { id: VIEWS.HOMEWORK_MANAGER, label: 'Homework Manager', permission: 'view-my-lesson-plans|manage-curriculum' },
-      { id: VIEWS.LEARNING_MATERIALS, label: 'Learning Materials', permission: 'view-my-lesson-plans|manage-curriculum' },
       { id: VIEWS.NOTES_COMPLIANCE, label: 'Notes Compliance', permission: 'view-my-lesson-plans|manage-curriculum' },
-      { id: VIEWS.GRADEBOOK, label: 'My Gradebook', permission: 'score_entries.edit_self' },
-      { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
+      { 
+        id: VIEWS.GRADES_RESULTS_HUB, 
+        label: 'Grades & Results', 
+        permission: 'score_entries.edit_self',
+        subtabs: [
+          { id: VIEWS.GRADEBOOK, label: 'Gradebook', permission: 'score_entries.edit_self' },
+          { id: VIEWS.ASSESSMENT_MANAGER, label: 'Assessments', permission: 'score_entries.edit_self' },
+          { id: VIEWS.RESULT_MANAGER, label: 'Results', permission: 'results.lock_and_publish' },
+          { id: VIEWS.SCORE_REVIEW, label: 'Review', permission: 'score_entries.view_all' },
+        ]
+      },
       { id: VIEWS.CLASSES_ATTENDANCE, label: 'Class Groups', permission: 'take-class-attendance|manage-class-groups' },
-      { id: VIEWS.CURRICULUM_MANAGER, label: 'Curriculum Map', permission: 'view-curriculum-readonly|manage-curriculum' },
-      { id: VIEWS.TEACHING_ASSIGNMENTS, label: 'Workload Analysis', permission: 'manage-curriculum' },
-      { id: VIEWS.RESULT_MANAGER, label: 'Result Manager', permission: 'results.lock_and_publish' },
-      { id: VIEWS.SCORE_REVIEW, label: 'Score Review', permission: 'score_entries.view_all' },
-      { id: VIEWS.COVERAGE_FEEDBACK, label: 'Coverage Feedback', permission: 'view-my-coverage-feedback|view-coverage-feedback' },
     ]
   },
   {
@@ -86,9 +107,16 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.STUDENT_SUBJECT_CHOICES_ADMIN, label: 'Subject Choices', permission: 'manage-students' },
       { id: VIEWS.ID_CARDS, label: 'ID Card Generator', permission: 'manage-students' },
       { id: VIEWS.REWARDS_STORE, label: 'Rewards Store', permission: 'manage-students' },
-      { id: VIEWS.TRANSPORT_MANAGER, label: 'Transport Manager', permission: 'transport.routes.manage' },
-      { id: VIEWS.TEACHER_TRANSPORT_GROUPS, label: 'My Transport Groups', permission: 'transport.attendance.mark' },
-      { id: VIEWS.TEACHER_TRANSPORT_ATTENDANCE, label: 'Transport Attendance', permission: 'transport.attendance.mark' },
+      { 
+        id: VIEWS.TRANSPORT_HUB, 
+        label: 'Transport', 
+        permission: 'transport.routes.manage|transport.attendance.mark',
+        subtabs: [
+          { id: VIEWS.TRANSPORT_MANAGER, label: 'Routes', permission: 'transport.routes.manage' },
+          { id: VIEWS.TEACHER_TRANSPORT_GROUPS, label: 'My Groups', permission: 'transport.attendance.mark' },
+          { id: VIEWS.TEACHER_TRANSPORT_ATTENDANCE, label: 'Attendance', permission: 'transport.attendance.mark' },
+        ]
+      },
     ]
   },
   {
@@ -96,18 +124,33 @@ const NAV_STRUCTURE: NavGroup[] = [
     label: 'Staff & Operations',
     icon: UserCircleIcon,
     items: [
-      { id: VIEWS.USER_MANAGEMENT, label: 'User Directory', permission: 'manage-users' },
-      { id: VIEWS.ROLE_MANAGEMENT, label: 'Roles & Access', permission: 'manage-roles' },
-      { id: VIEWS.TEAM_HUB, label: 'Team Hub', permission: 'manage-teams' },
+      { 
+        id: VIEWS.USERS_TEAMS_HUB, 
+        label: 'Users & Teams', 
+        permission: 'manage-users|manage-roles|manage-teams',
+        subtabs: [
+          { id: VIEWS.USER_MANAGEMENT, label: 'Directory', permission: 'manage-users' },
+          { id: VIEWS.ROLE_MANAGEMENT, label: 'Roles', permission: 'manage-roles' },
+          { id: VIEWS.TEAM_HUB, label: 'Teams', permission: 'manage-teams' },
+          { id: VIEWS.ROLE_DIRECTORY, label: 'Role Directory', permission: 'manage-roles' },
+        ]
+      },
       { id: VIEWS.TEACHER_ATTENDANCE, label: 'Attendance Monitor', permission: 'view-teacher-attendance' },
       { id: VIEWS.TEACHER_RATINGS, label: 'Teacher Ratings', permission: 'view-teacher-ratings' },
       { id: VIEWS.TEACHER_PULSE, label: 'Teacher Pulse', permission: 'view-dashboard' },
       { id: VIEWS.LEAVE_APPROVALS, label: 'Leave Approvals', permission: 'manage-users' },
       { id: VIEWS.MANUALS, label: 'Manuals', permission: 'view-dashboard' },
-      { id: VIEWS.HR_PAYROLL, label: 'HR & Payroll', permission: 'view-dashboard' },
-      { id: VIEWS.STUDENT_FINANCE, label: 'Bursary (Fees)', permission: 'manage-finance' },
-      { id: VIEWS.STOREFRONT, label: 'School Store', permission: 'view-dashboard' },
-      { id: VIEWS.STORE_MANAGER, label: 'Store Manager', permission: 'manage-orders' },
+      { 
+        id: VIEWS.FINANCE_STORE_HUB, 
+        label: 'Finance & Store', 
+        permission: 'view-dashboard',
+        subtabs: [
+          { id: VIEWS.HR_PAYROLL, label: 'Payroll', permission: 'view-dashboard' },
+          { id: VIEWS.STUDENT_FINANCE, label: 'Fees', permission: 'manage-finance' },
+          { id: VIEWS.STOREFRONT, label: 'Store', permission: 'view-dashboard' },
+          { id: VIEWS.STORE_MANAGER, label: 'Manager', permission: 'manage-orders' },
+        ]
+      },
       { id: VIEWS.COMPLIANCE_TRACKER, label: 'Compliance Tracker', permission: 'view-compliance-tracker' },
       { id: VIEWS.SUPPORT_HUB, label: 'Support Hub', permission: 'manage-tasks' },
       { id: VIEWS.SURVEY_MANAGER, label: 'Survey Manager', permission: 'manage-surveys' },
@@ -119,19 +162,39 @@ const NAV_STRUCTURE: NavGroup[] = [
     label: 'Administration',
     icon: ShieldIcon,
     items: [
-      { id: VIEWS.SETTINGS, label: 'Global Settings', permission: 'manage-settings' },
-      { id: VIEWS.SUBMISSION_SETTINGS, label: 'Submission Settings', permission: 'manage-settings' },
-      { id: VIEWS.AI_STRATEGIC_CENTER, label: 'AI Strategic Center', permission: 'view-school-health-overview' },
-      { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictive Analytics', permission: 'view-predictive-analytics' },
+      { 
+        id: VIEWS.SETTINGS_HUB, 
+        label: 'Settings', 
+        permission: 'manage-settings',
+        subtabs: [
+          { id: VIEWS.SETTINGS, label: 'General', permission: 'manage-settings' },
+          { id: VIEWS.SUBMISSION_SETTINGS, label: 'Submissions', permission: 'manage-settings' },
+        ]
+      },
+      { 
+        id: VIEWS.ANALYTICS_HUB, 
+        label: 'Analytics & Insights', 
+        permission: 'view-analytics|view-school-health-overview',
+        subtabs: [
+          { id: VIEWS.ANALYTICS, label: 'Dashboard', permission: 'view-analytics' },
+          { id: VIEWS.DATA_ANALYSIS, label: 'AI Analysis', permission: 'view-analytics' },
+          { id: VIEWS.CAMPUS_STATISTICS, label: 'Campus Stats', permission: 'view-campus-stats' },
+          { id: VIEWS.PREDICTIVE_ANALYTICS, label: 'Predictions', permission: 'view-predictive-analytics' },
+          { id: VIEWS.AI_STRATEGIC_CENTER, label: 'Strategic', permission: 'view-school-health-overview' },
+        ]
+      },
       { id: VIEWS.SUPER_ADMIN_CONSOLE, label: 'Super Admin Console', permission: 'school.console.view' },
       { id: VIEWS.DATA_UPLOAD, label: 'Data Upload', permission: 'access-data-uploader' },
-      { id: VIEWS.LIVING_POLICY, label: 'Living Policy', permission: 'manage-living-policy' },
-      { id: VIEWS.POLICY_QUERY, label: 'Policy Query', permission: 'query-living-policy' },
-      { id: VIEWS.POLICY_STATEMENTS, label: 'Policy Statements', permission: 'manage-living-policy' },
-      { id: VIEWS.ANALYTICS, label: 'Analytics Dashboard', permission: 'view-analytics' },
-      { id: VIEWS.DATA_ANALYSIS, label: 'AI Data Analysis', permission: 'view-analytics' },
-      { id: VIEWS.CAMPUS_STATISTICS, label: 'Campus Statistics', permission: 'view-campus-stats' },
-      { id: VIEWS.ROLE_DIRECTORY, label: 'Role Directory', permission: 'manage-roles' },
+      { 
+        id: VIEWS.POLICY_HUB, 
+        label: 'Policy Hub', 
+        permission: 'manage-living-policy|query-living-policy',
+        subtabs: [
+          { id: VIEWS.LIVING_POLICY, label: 'Policies', permission: 'manage-living-policy' },
+          { id: VIEWS.POLICY_QUERY, label: 'Query', permission: 'query-living-policy' },
+          { id: VIEWS.POLICY_STATEMENTS, label: 'Statements', permission: 'manage-living-policy' },
+        ]
+      },
       { id: VIEWS.GUARDIAN_COMMAND, label: 'Guardian Command', permission: 'view-dashboard' },
     ]
   }
@@ -217,6 +280,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
     });
   };
 
+  // Helper function to get first accessible subtab
+  const getFirstAccessibleSubtab = (item: NavItemConfig): string | null => {
+    if (!item.subtabs || item.subtabs.length === 0) return null;
+    
+    for (const subtab of item.subtabs) {
+      if (hasPermission(subtab.permission, subtab.id)) {
+        return subtab.id;
+      }
+    }
+    return null;
+  };
+
   const hasPermission = (permission?: string, itemId?: string) => {
     if (itemId === VIEWS.HR_PAYROLL) {
       // Allow access if user can view payroll (admin) OR view their own payroll (all users)
@@ -239,6 +314,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
       const visibleItems = group.items.filter(item => {
         const matchesSearch = searchQuery === '' || item.label.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesPermission = hasPermission(item.permission, item.id) || item.id === VIEWS.DASHBOARD || item.id === VIEWS.PROFILE;
+        
+        // For hub items with subtabs, check if at least one subtab is accessible
+        if (item.subtabs && item.subtabs.length > 0) {
+          const hasAccessibleSubtab = item.subtabs.some(subtab => hasPermission(subtab.permission, subtab.id));
+          return matchesSearch && hasAccessibleSubtab;
+        }
+        
         return matchesSearch && matchesPermission;
       });
 
@@ -333,7 +415,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                           
                           {/* Items */}
                           {group.items.map(item => {
-                            const isActive = baseView === item.id;
+                            // Check if current view matches the item or any of its subtabs
+                            const isActive = baseView === item.id || 
+                              (item.subtabs && item.subtabs.some(subtab => baseView === subtab.id));
                             return (
                               <li key={item.id}>
                                 <a
@@ -347,7 +431,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, userProfile,
                                       onNavigate(item.label);
                                     } else {
                                       console.log('[Sidebar] Navigating to:', item.id, 'from:', currentView);
-                                      onNavigate(item.id); 
+                                      
+                                      // If item has subtabs, navigate to first accessible subtab
+                                      if (item.subtabs && item.subtabs.length > 0) {
+                                        const firstSubtab = getFirstAccessibleSubtab(item);
+                                        if (firstSubtab) {
+                                          onNavigate(firstSubtab);
+                                        } else {
+                                          console.warn('[Sidebar] No accessible subtabs for hub:', item.label);
+                                        }
+                                      } else {
+                                        onNavigate(item.id);
+                                      }
                                     }
                                     setSearchQuery(''); 
                                   }}

@@ -183,6 +183,15 @@ export const VIEWS = {
   TRANSPORT_SIGN_UP: 'Transport Sign-Up',
   TEACHER_TRANSPORT_GROUPS: 'Transport Groups',
   TEACHER_TRANSPORT_ATTENDANCE: 'Transport Attendance',
+  // Hub Views (consolidation)
+  POLICY_HUB: 'Policy Hub',
+  CURRICULUM_HUB: 'Curriculum Hub',
+  GRADES_RESULTS_HUB: 'Grades & Results Hub',
+  ANALYTICS_HUB: 'Analytics & Insights Hub',
+  TRANSPORT_HUB: 'Transport Hub',
+  SETTINGS_HUB: 'Settings Hub',
+  USERS_TEAMS_HUB: 'Users & Teams Hub',
+  FINANCE_STORE_HUB: 'Finance & Store Hub',
 } as const;
 
 export const STUDENT_STATUSES = [
