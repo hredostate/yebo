@@ -473,7 +473,7 @@ body:not(.dark) .app-surface::before {
 
   /* New Utility Classes for WhatsApp-inspired design */
   .card-elevated {
-    @apply bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800;
+    @apply bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
   }
 
