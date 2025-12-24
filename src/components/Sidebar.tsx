@@ -80,6 +80,7 @@ const NAV_STRUCTURE: NavGroup[] = [
     icon: UsersIcon,
     items: [
       { id: VIEWS.STUDENT_ROSTER, label: 'Student Roster', permission: 'manage-students' },
+      { id: VIEWS.STUDENT_ACCOUNTS, label: 'Student Accounts', permission: 'manage-students' },
       { id: VIEWS.INTERVENTION_PLANS, label: 'Intervention Plans', permission: 'manage-students' },
       { id: VIEWS.ABSENCE_REQUESTS, label: 'Absence Requests', permission: 'view-dashboard' },
       { id: VIEWS.STUDENT_SUBJECT_CHOICES_ADMIN, label: 'Subject Choices', permission: 'manage-students' },

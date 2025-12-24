@@ -1468,6 +1468,12 @@ export interface CreatedCredential {
     password?: string;
     status: 'Success' | 'Failed' | 'Error' | 'Skipped';
     error?: string;
+    messagingResults?: Array<{
+        phone: string;
+        success: boolean;
+        channel?: string;
+        error?: string;
+    }>;
 }
 
 export interface NavigationContext {
