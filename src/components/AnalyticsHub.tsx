@@ -8,7 +8,6 @@ import { VIEWS } from '../constants';
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const DataAnalysisView = lazy(() => import('./DataAnalysisView'));
 const CampusStatsReport = lazy(() => import('./CampusStatsReport'));
-const ForesightView = lazy(() => import('./ForesightView'));
 const AIStrategicCenterView = lazy(() => import('./AIStrategicCenterView'));
 
 interface AnalyticsHubProps {
@@ -68,7 +67,7 @@ const AnalyticsHub: React.FC<AnalyticsHubProps> = ({
       case 'ai_analysis':
         return (
           <Suspense fallback={<Spinner />}>
-            <DataAnalysisView userProfile={userProfile} addToast={addToast} />
+            <DataAnalysisView addToast={addToast} />
           </Suspense>
         );
       case 'campus_stats':
@@ -78,10 +77,12 @@ const AnalyticsHub: React.FC<AnalyticsHubProps> = ({
           </Suspense>
         );
       case 'predictions':
+        // Navigate to the actual view since it requires complex props
+        onNavigate(VIEWS.PREDICTIVE_ANALYTICS);
         return (
-          <Suspense fallback={<Spinner />}>
-            <ForesightView userProfile={userProfile} addToast={addToast} />
-          </Suspense>
+          <div className="text-center py-12">
+            <p className="text-slate-600 dark:text-slate-400">Redirecting to Predictive Analytics...</p>
+          </div>
         );
       case 'strategic':
         return (

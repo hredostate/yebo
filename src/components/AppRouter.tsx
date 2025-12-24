@@ -85,7 +85,6 @@ const AnalyticsHub = lazy(() => import('./AnalyticsHub'));
 const TransportHub = lazy(() => import('./TransportHub'));
 const SettingsHub = lazy(() => import('./SettingsHub'));
 const UsersTeamsHub = lazy(() => import('./UsersTeamsHub'));
-const FinanceStoreHub = lazy(() => import('./FinanceStoreHub'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
 const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
