@@ -251,7 +251,7 @@ const ActivationLinksModal: React.FC<{
                                 </label>
                                 <select
                                     value={phoneField}
-                                    onChange={(e) => setPhoneField(e.target.value as any)}
+                                    onChange={(e) => setPhoneField(e.target.value as 'parent_phone_number_1' | 'parent_phone_number_2' | 'student_phone')}
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                                 >
                                     <option value="parent_phone_number_1">Parent Phone 1</option>
@@ -701,7 +701,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
                     
                     <select
                         value={accountFilter}
-                        onChange={(e) => setAccountFilter(e.target.value as any)}
+                        onChange={(e) => setAccountFilter(e.target.value as 'all' | 'with' | 'without')}
                         className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     >
                         <option value="all">All Students</option>
