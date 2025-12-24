@@ -121,7 +121,15 @@ const StudentProfileFieldsSettings: React.FC<StudentProfileFieldsSettingsProps> 
 
             // Add options for select type
             if (newField.field_type === 'select' && newField.field_options.length > 0) {
-                fieldData.field_options = { options: newField.field_options };
+                // Filter out empty options
+                const validOptions = newField.field_options.filter(opt => opt.trim() !== '');
+                if (validOptions.length > 0) {
+                    fieldData.field_options = { options: validOptions };
+                } else {
+                    addToast('Please provide at least one valid option for the dropdown', 'error');
+                    setIsSaving(false);
+                    return;
+                }
             }
 
             const { data, error } = await supabase
@@ -285,7 +293,8 @@ const StudentProfileFieldsSettings: React.FC<StudentProfileFieldsSettingsProps> 
                                     <div className="font-medium text-slate-900 dark:text-white">{field.field_label}</div>
                                     <div className="text-sm text-slate-500 dark:text-slate-400">
                                         Type: {field.field_type} • Field: {field.field_name}
-                                        {field.field_options && ' • ' + field.field_options.options.length + ' options'}
+                                        {field.field_options?.options && field.field_options.options.length > 0 && 
+                                            ` • ${field.field_options.options.length} options`}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">

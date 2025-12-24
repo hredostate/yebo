@@ -132,35 +132,47 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
           }
         });
 
-        const { error } = await supabase
-          .from('students')
-          .update(updateData)
-          .eq('id', studentProfile.student_record_id);
+        // Only update if there are actual changes
+        if (Object.keys(updateData).length > 0) {
+          const { error } = await supabase
+            .from('students')
+            .update(updateData)
+            .eq('id', studentProfile.student_record_id);
 
-        if (error) throw error;
+          if (error) throw error;
+        }
       }
 
-      // Update custom field values
+      // Update custom field values - batch operations
       const editableCustomFields = fieldConfigs
         .filter(f => f.is_custom && f.is_editable_by_student);
 
-      for (const config of editableCustomFields) {
-        const value = customFieldValues[config.id] || '';
-        
-        // Upsert custom field value
-        const { error } = await supabase
-          .from('student_custom_field_values')
-          .upsert({
-            school_id: studentProfile.school_id,
-            student_id: studentProfile.student_record_id,
-            field_config_id: config.id,
-            field_value: value,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'student_id,field_config_id'
-          });
+      if (editableCustomFields.length > 0) {
+        // Prepare all upserts
+        const upsertPromises = editableCustomFields.map(config => {
+          const value = customFieldValues[config.id] || '';
+          
+          return supabase
+            .from('student_custom_field_values')
+            .upsert({
+              school_id: studentProfile.school_id,
+              student_id: studentProfile.student_record_id,
+              field_config_id: config.id,
+              field_value: value,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'student_id,field_config_id'
+            });
+        });
 
-        if (error) throw error;
+        // Execute all upserts in parallel
+        const results = await Promise.all(upsertPromises);
+        
+        // Check for errors
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+          throw new Error(`Failed to update ${errors.length} custom field(s)`);
+        }
       }
 
       addToast('Profile updated successfully!', 'success');
@@ -452,9 +464,13 @@ const StudentProfileEdit: React.FC<StudentProfileEditProps> = ({
                           <option value="Friend">Friend</option>
                           <option value="Other">Other</option>
                         </>
-                      ) : config.field_options?.options.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
+                      ) : config.field_options?.options && config.field_options.options.length > 0 ? (
+                        config.field_options.options.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))
+                      ) : (
+                        <option value="" disabled>No options available</option>
+                      )}
                     </select>
                   ) : (
                     <input

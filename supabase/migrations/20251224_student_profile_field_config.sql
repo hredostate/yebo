@@ -57,7 +57,7 @@ USING (
 -- Create custom field value storage table for extensibility
 CREATE TABLE IF NOT EXISTS public.student_custom_field_values (
     id SERIAL PRIMARY KEY,
-    school_id INTEGER NOT NULL,
+    school_id INTEGER NOT NULL REFERENCES public.school_config(school_id) ON DELETE CASCADE,
     student_id INTEGER NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
     field_config_id INTEGER NOT NULL REFERENCES public.student_profile_field_configs(id) ON DELETE CASCADE,
     field_value TEXT,
