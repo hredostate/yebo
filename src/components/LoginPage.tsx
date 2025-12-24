@@ -52,7 +52,10 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
     try {
       const supabase = requireSupabaseClient();
       if (authView === 'login') {
-        const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
+        // If email doesn't contain @, treat as username and append @upsshub.com
+        const loginEmail = email.includes('@') ? email : `${email.toLowerCase()}@upsshub.com`;
+        
+        const { data, error } = await (supabase.auth as any).signInWithPassword({ email: loginEmail, password });
         if (error) throw error;
         
         // Check device limit before allowing login
@@ -189,8 +192,8 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
               )}
               
               <label className="grid gap-1">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Email</span>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your-email@school.com" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Email or Username</span>
+                <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your-email@school.com or username" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
               </label>
 
               <label className="grid gap-1">
