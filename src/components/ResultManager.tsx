@@ -1090,6 +1090,8 @@ const ResultManager: React.FC<ResultManagerProps> = ({
             await onRefresh();
             addToast('Data refreshed successfully', 'success');
         } catch (error) {
+            // Log the full error for debugging
+            console.error('Refresh failed:', error);
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
             addToast(`Refresh failed: ${errorMessage}`, 'error');
         } finally {
@@ -1108,8 +1110,9 @@ const ResultManager: React.FC<ResultManagerProps> = ({
         if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
         if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
         
-        // Use consistent date formatting with locale
-        return lastRefreshed.toLocaleString('en-US', {
+        // Use user's browser locale or fallback to en-US
+        const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
+        return lastRefreshed.toLocaleString(locale, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
@@ -1195,7 +1198,7 @@ const ResultManager: React.FC<ResultManagerProps> = ({
                                 <button 
                                     onClick={handleRefresh} 
                                     disabled={isRefreshing}
-                                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
+                                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                     title="Refresh data from backend"
                                 >
                                     {isRefreshing ? (
