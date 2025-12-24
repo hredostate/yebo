@@ -33,9 +33,9 @@ html {
   /* Glassmorphism Design Tokens */
   --glass-fill: rgba(255, 255, 255, 0.82);
   --glass-fill-strong: rgba(255, 255, 255, 0.92);
-  --glass-fill-subtle: rgba(255, 255, 255, 0.62);
-  --glass-border: rgba(148, 163, 184, 0.22);
-  --glass-border-strong: rgba(148, 163, 184, 0.36);
+  --glass-fill-subtle: rgba(255, 255, 255, 0.68);
+  --glass-border: rgba(148, 163, 184, 0.18);
+  --glass-border-strong: rgba(148, 163, 184, 0.3);
   --glass-blur: 26px;
   --glass-blur-strong: 36px;
   --glass-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
@@ -114,10 +114,16 @@ html {
 }
 
 body {
-  /* Bright, crisp base with premium gradients */
-  @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
+  /* Clean, prestigious base with premium gradients */
+  @apply bg-slate-50 text-slate-900 dark:text-slate-100;
   font-feature-settings: "cv02" 1, "cv03" 1, "calt" 1, "zero" 1;
-  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 45%, #ede9fe 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 45%, #eef2ff 100%);
+  background-attachment: fixed;
+  color: var(--ink-primary);
+}
+
+.dark body {
+  background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
   background-attachment: fixed;
 }
 
@@ -125,6 +131,7 @@ body {
 .app-shell {
   @apply relative min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-300;
   background: transparent;
+  color: var(--ink-primary);
 }
 
 .app-surface {
@@ -151,6 +158,7 @@ body {
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  color: var(--ink-primary);
 }
 
 .dark .app-panel {
@@ -202,7 +210,11 @@ body {
   }
   
   button:focus-visible {
-    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900;
+    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-white;
+  }
+
+  .dark button:focus-visible {
+    @apply ring-offset-slate-900;
   }
   
   button:active {
