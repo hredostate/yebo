@@ -7385,6 +7385,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleDeactivateUser,
                                     handleUpdateEmploymentStatus,
                                     handleUpdateUserCampus,
+                                    handleCreateStaffAccount,
+                                    handleResetStaffPassword,
                                     handleSaveRole,
                                     handleUpdateRoleAssignments,
                                     handleCreateTeam,
