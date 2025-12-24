@@ -172,9 +172,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ users = [], roles, camp
                 </select>
             </div>
             
-            <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+            <div className="rounded-2xl border border-slate-200/60 bg-white/60 p-4 backdrop-blur-xl shadow-xl dark:border-slate-800/60 dark:bg-slate-900/40 overflow-hidden min-w-0">
+                <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full text-sm text-left min-w-[800px]">
                         <thead className="text-xs uppercase bg-slate-500/10">
                             <tr>
                                 <th className="px-6 py-3 whitespace-nowrap">Name</th>

@@ -78,7 +78,7 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
   }, [filteredLogs]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 w-full overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
          <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">System Audit Log</h2>
@@ -116,7 +116,7 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
       </div>
 
       <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-lg border border-slate-200/60 dark:border-slate-800/60">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-sm text-left min-w-[700px]">
           <thead className="text-xs uppercase bg-slate-100 dark:bg-slate-800 sticky top-0 text-slate-700 dark:text-slate-300">
             <tr>
               <th className="px-6 py-3">Timestamp</th>
@@ -131,8 +131,8 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-slate-500">{new Date(log.created_at).toLocaleString()}</td>
                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.actor?.name || 'Unknown User'}</td>
                 <td className="px-6 py-4 font-mono text-xs text-blue-600 dark:text-blue-400">{log.action}</td>
-                <td className="px-6 py-4">
-                  <div className="text-xs text-slate-600 dark:text-slate-400 font-mono max-w-md truncate hover:whitespace-normal hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded cursor-help transition-all" title={JSON.stringify(log.details, null, 2)}>
+                <td className="px-6 py-4 max-w-[300px]">
+                  <div className="text-xs text-slate-600 dark:text-slate-400 font-mono truncate hover:whitespace-normal hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded cursor-help transition-all overflow-hidden" title={JSON.stringify(log.details, null, 2)}>
                     {JSON.stringify(log.details)}
                   </div>
                 </td>
