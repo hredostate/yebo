@@ -61,6 +61,7 @@ const LocationSync: React.FC<{
 
   // Sync location changes to currentView state (path → view)
   // This runs when the user clicks a link or uses browser back/forward
+  // Note: Only depends on location.pathname to prevent circular updates
   useEffect(() => {
     if (isUpdatingRef.current) {
       isUpdatingRef.current = false;
@@ -77,6 +78,7 @@ const LocationSync: React.FC<{
 
   // Sync currentView changes to location (view → path)
   // This is for backward compatibility with legacy setCurrentView calls
+  // Note: Only depends on currentView to prevent circular updates
   useEffect(() => {
     if (isUpdatingRef.current) {
       isUpdatingRef.current = false;

@@ -62,6 +62,7 @@ const LocationSync: React.FC<{
   const isUpdatingRef = React.useRef(false);
 
   // Sync location changes to currentView state (path → view)
+  // Note: Only depends on location.pathname to prevent circular updates
   useEffect(() => {
     if (isUpdatingRef.current) {
       isUpdatingRef.current = false;
@@ -77,6 +78,7 @@ const LocationSync: React.FC<{
   }, [location.pathname, setCurrentView]);
 
   // Sync currentView changes to location (view → path)
+  // Note: Only depends on currentView to prevent circular updates
   useEffect(() => {
     if (isUpdatingRef.current) {
       isUpdatingRef.current = false;
