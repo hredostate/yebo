@@ -1230,6 +1230,396 @@ serve(async (req) => {
         });
     }
 
+    // ============================================================================
+    // PARENT ACCOUNT MANAGEMENT ACTIONS
+    // ============================================================================
+
+    if (action === 'create_parent_account') {
+        const { name, phone_number, phone_number_2, student_ids, relationship, school_id } = body;
+        
+        if (!name || !phone_number || !student_ids || student_ids.length === 0) {
+            throw new Error('Name, phone number, and at least one student are required');
+        }
+        
+        console.log(`Creating parent account for: ${name}`);
+        
+        // Generate credentials
+        const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const username = `parent_${cleanName}${Date.now().toString().slice(-4)}`;
+        const password = `Parent${Math.floor(1000 + Math.random() * 9000)}!`;
+        const email = `${username}@upsshub.com`;
+        
+        // Create auth user
+        const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: {
+                name,
+                username,
+                user_type: 'parent',
+                initial_password: password,
+                school_id,
+                phone_number
+            }
+        });
+        
+        if (userError) throw userError;
+        
+        console.log(`Parent auth user created: ${user.user.id}`);
+        
+        // Update parent profile with additional fields
+        if (phone_number_2) {
+            await supabaseAdmin.from('parent_profiles').update({
+                phone_number_2,
+            }).eq('id', user.user.id);
+        }
+        
+        // Link to students
+        const linkResults = [];
+        for (const studentId of student_ids) {
+            const { error: linkError } = await supabaseAdmin.from('parent_student_links').insert({
+                parent_id: user.user.id,
+                student_id: studentId,
+                relationship: relationship || 'Guardian',
+                is_primary_contact: student_ids.indexOf(studentId) === 0
+            });
+            
+            if (linkError) {
+                console.error(`Failed to link to student ${studentId}:`, linkError);
+                linkResults.push({ studentId, success: false, error: linkError.message });
+            } else {
+                linkResults.push({ studentId, success: true });
+            }
+        }
+        
+        // Send credentials via SMS
+        const messagingResults: any[] = [];
+        
+        // Get school name
+        let schoolName = 'UPSS';
+        try {
+            const { data: school } = await supabaseAdmin
+                .from('schools')
+                .select('name')
+                .eq('id', school_id)
+                .single();
+            if (school?.name) {
+                schoolName = school.name;
+            }
+        } catch (e) {
+            console.error('Failed to fetch school name:', e);
+        }
+        
+        // Send to primary phone
+        try {
+            const { data: result, error: sendError } = await supabaseAdmin.functions.invoke(
+                'kudisms-send',
+                {
+                    body: {
+                        phone_number: phone_number,
+                        school_id: school_id,
+                        template_name: 'parent_credentials',
+                        variables: {
+                            parent_name: name,
+                            username,
+                            password,
+                            school_name: schoolName,
+                            app_url: 'https://upss.ng'
+                        }
+                    }
+                }
+            );
+            
+            if (sendError || !result?.success) {
+                messagingResults.push({
+                    phone: phone_number,
+                    success: false,
+                    error: sendError?.message || result?.error || 'Failed to send message'
+                });
+            } else {
+                messagingResults.push({
+                    phone: phone_number,
+                    success: true,
+                    channel: result.channel || 'sms'
+                });
+            }
+        } catch (error: any) {
+            console.error(`Error sending credentials to ${phone_number}:`, error);
+            messagingResults.push({
+                phone: phone_number,
+                success: false,
+                error: error.message || 'Unknown error'
+            });
+        }
+        
+        // Send to secondary phone if provided
+        if (phone_number_2) {
+            try {
+                const { data: result, error: sendError } = await supabaseAdmin.functions.invoke(
+                    'kudisms-send',
+                    {
+                        body: {
+                            phone_number: phone_number_2,
+                            school_id: school_id,
+                            template_name: 'parent_credentials',
+                            variables: {
+                                parent_name: name,
+                                username,
+                                password,
+                                school_name: schoolName,
+                                app_url: 'https://upss.ng'
+                            }
+                        }
+                    }
+                );
+                
+                if (sendError || !result?.success) {
+                    messagingResults.push({
+                        phone: phone_number_2,
+                        success: false,
+                        error: sendError?.message || result?.error || 'Failed to send message'
+                    });
+                } else {
+                    messagingResults.push({
+                        phone: phone_number_2,
+                        success: true,
+                        channel: result.channel || 'sms'
+                    });
+                }
+            } catch (error: any) {
+                console.error(`Error sending credentials to ${phone_number_2}:`, error);
+                messagingResults.push({
+                    phone: phone_number_2,
+                    success: false,
+                    error: error.message || 'Unknown error'
+                });
+            }
+        }
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            credential: { username, password },
+            linkResults,
+            messagingResults 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    if (action === 'link_parent_to_student') {
+        const { parent_id, student_id, relationship } = body;
+        
+        if (!parent_id || !student_id || !relationship) {
+            throw new Error('parent_id, student_id, and relationship are required');
+        }
+        
+        const { error } = await supabaseAdmin.from('parent_student_links').insert({
+            parent_id,
+            student_id,
+            relationship
+        });
+        
+        if (error) throw error;
+        
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    if (action === 'unlink_parent_from_student') {
+        const { parent_id, student_id } = body;
+        
+        if (!parent_id || !student_id) {
+            throw new Error('parent_id and student_id are required');
+        }
+        
+        const { error } = await supabaseAdmin
+            .from('parent_student_links')
+            .delete()
+            .eq('parent_id', parent_id)
+            .eq('student_id', student_id);
+        
+        if (error) throw error;
+        
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    if (action === 'bulk_create_parent_accounts') {
+        const { school_id } = body;
+        
+        if (!school_id) {
+            throw new Error('school_id is required');
+        }
+        
+        console.log(`Bulk creating parent accounts for school ${school_id}`);
+        
+        // Get all students with parent contact information
+        const { data: students, error: studentsError } = await supabaseAdmin
+            .from('students')
+            .select('id, name, father_name, father_phone, mother_name, mother_phone, school_id')
+            .eq('school_id', school_id);
+        
+        if (studentsError) throw studentsError;
+        
+        const results: any[] = [];
+        const createdParents = new Map<string, string>(); // phone -> parent_id
+        
+        for (const student of students || []) {
+            // Process father
+            if (student.father_name && student.father_phone) {
+                const phone = student.father_phone.trim();
+                
+                if (!createdParents.has(phone)) {
+                    try {
+                        const cleanName = student.father_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const username = `parent_${cleanName}${Date.now().toString().slice(-4)}`;
+                        const password = `Parent${Math.floor(1000 + Math.random() * 9000)}!`;
+                        const email = `${username}@upsshub.com`;
+                        
+                        const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
+                            email,
+                            password,
+                            email_confirm: true,
+                            user_metadata: {
+                                name: student.father_name,
+                                username,
+                                user_type: 'parent',
+                                initial_password: password,
+                                school_id: student.school_id,
+                                phone_number: phone
+                            }
+                        });
+                        
+                        if (!userError && user) {
+                            createdParents.set(phone, user.user.id);
+                            
+                            // Link to student
+                            await supabaseAdmin.from('parent_student_links').insert({
+                                parent_id: user.user.id,
+                                student_id: student.id,
+                                relationship: 'Father',
+                                is_primary_contact: true
+                            });
+                            
+                            results.push({
+                                name: student.father_name,
+                                phone,
+                                username,
+                                status: 'Success'
+                            });
+                        } else {
+                            results.push({
+                                name: student.father_name,
+                                phone,
+                                status: 'Failed',
+                                error: userError?.message
+                            });
+                        }
+                    } catch (error: any) {
+                        results.push({
+                            name: student.father_name,
+                            phone,
+                            status: 'Error',
+                            error: error.message
+                        });
+                    }
+                } else {
+                    // Parent already created, just link
+                    const parentId = createdParents.get(phone);
+                    await supabaseAdmin.from('parent_student_links').insert({
+                        parent_id: parentId,
+                        student_id: student.id,
+                        relationship: 'Father'
+                    });
+                }
+            }
+            
+            // Process mother
+            if (student.mother_name && student.mother_phone) {
+                const phone = student.mother_phone.trim();
+                
+                if (!createdParents.has(phone)) {
+                    try {
+                        const cleanName = student.mother_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const username = `parent_${cleanName}${Date.now().toString().slice(-4)}`;
+                        const password = `Parent${Math.floor(1000 + Math.random() * 9000)}!`;
+                        const email = `${username}@upsshub.com`;
+                        
+                        const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
+                            email,
+                            password,
+                            email_confirm: true,
+                            user_metadata: {
+                                name: student.mother_name,
+                                username,
+                                user_type: 'parent',
+                                initial_password: password,
+                                school_id: student.school_id,
+                                phone_number: phone
+                            }
+                        });
+                        
+                        if (!userError && user) {
+                            createdParents.set(phone, user.user.id);
+                            
+                            // Link to student
+                            await supabaseAdmin.from('parent_student_links').insert({
+                                parent_id: user.user.id,
+                                student_id: student.id,
+                                relationship: 'Mother',
+                                is_primary_contact: false
+                            });
+                            
+                            results.push({
+                                name: student.mother_name,
+                                phone,
+                                username,
+                                status: 'Success'
+                            });
+                        } else {
+                            results.push({
+                                name: student.mother_name,
+                                phone,
+                                status: 'Failed',
+                                error: userError?.message
+                            });
+                        }
+                    } catch (error: any) {
+                        results.push({
+                            name: student.mother_name,
+                            phone,
+                            status: 'Error',
+                            error: error.message
+                        });
+                    }
+                } else {
+                    // Parent already created, just link
+                    const parentId = createdParents.get(phone);
+                    await supabaseAdmin.from('parent_student_links').insert({
+                        parent_id: parentId,
+                        student_id: student.id,
+                        relationship: 'Mother'
+                    });
+                }
+            }
+        }
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            results,
+            totalProcessed: results.length
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
     throw new Error(`Unknown action: ${action}`);
 
   } catch (error) {

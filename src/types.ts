@@ -3052,3 +3052,42 @@ export interface ReportCardAnnouncement {
     created_at?: string;
     updated_at?: string;
 }
+
+// Parent/Guardian Account System
+export interface ParentProfile {
+    id: string;
+    school_id: number;
+    name: string;
+    email?: string;
+    phone_number: string;
+    phone_number_2?: string;
+    address?: string;
+    occupation?: string;
+    avatar_url?: string;
+    created_at: string;
+}
+
+export interface ParentStudentLink {
+    id: number;
+    parent_id: string;
+    student_id: number;
+    relationship: 'Father' | 'Mother' | 'Guardian' | 'Other';
+    is_primary_contact: boolean;
+    can_view_reports: boolean;
+    can_view_finances: boolean;
+    can_view_attendance: boolean;
+    can_communicate: boolean;
+    created_at: string;
+    student?: Student;
+    parent?: ParentProfile;
+}
+
+export interface LinkedChild extends Student {
+    relationship: string;
+    permissions: {
+        canViewReports: boolean;
+        canViewFinances: boolean;
+        canViewAttendance: boolean;
+        canCommunicate: boolean;
+    };
+}

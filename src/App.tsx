@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Com
 import type { Session, User } from '@supabase/auth-js';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment, ReportCardAnnouncement } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment, ReportCardAnnouncement, ParentProfile, LinkedChild, ParentStudentLink } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -43,6 +43,8 @@ import StudentPortal from './components/StudentPortal';
 import PublicTeacherRatingsView from './components/PublicTeacherRatingsView';
 import LandingPage from './components/LandingPage';
 import StudentLoginPage from './components/StudentLoginPage';
+import ParentLoginPage from './components/ParentLoginPage';
+import ParentDashboard from './components/ParentDashboard';
 import AIBulkResponseModal from './components/AIBulkResponseModal';
 import TaskFormModal from './components/TaskFormModal';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
@@ -264,8 +266,13 @@ const transformClassGroupsWithStudentNames = (data: ClassGroupData | ClassGroupD
 const App: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | StudentProfile | null | undefined>(undefined);
-    const [userType, setUserType] = useState<'staff' | 'student' | null>(null);
+    const [userType, setUserType] = useState<'staff' | 'student' | 'parent' | null>(null);
     const [userPermissions, setUserPermissions] = useState<string[]>([]);
+    
+    // Parent-specific state
+    const [parentProfile, setParentProfile] = useState<ParentProfile | null>(null);
+    const [linkedChildren, setLinkedChildren] = useState<LinkedChild[]>([]);
+    const [selectedChild, setSelectedChild] = useState<LinkedChild | null>(null);
 
     const permissionContext = useMemo(() => {
         const resolvedRole = userProfile && 'role' in userProfile ? userProfile.role : userType === 'student' ? 'Student' : null;
@@ -842,6 +849,7 @@ const App: React.FC = () => {
         try {
             let staffProfile: any = null;
             let studentProfile: any = null;
+            let parentProfile: any = null;
             let staffProfileError: any = null;
             let studentProfileError: any = null;
             
@@ -896,7 +904,16 @@ const App: React.FC = () => {
                     console.log('[Auth] Staff profile found');
                  }
             }
-            // If legacy/unknown, try both but prioritize student if found
+            // If metadata says parent, ONLY check parent profile.
+            else if (metadataUserType === 'parent') {
+                 console.log('[Auth] Fetching parent profile...');
+                 const parentRes = await supabase.from('parent_profiles').select('*').eq('id', user.id).maybeSingle();
+                 parentProfile = parentRes.data;
+                 if (parentProfile) {
+                    console.log('[Auth] Parent profile found');
+                 }
+            }
+            // If legacy/unknown, try all but prioritize student if found
             else {
                  console.log('[Auth] Legacy/unknown user type, checking both profiles...');
                  // Check student first
@@ -1081,7 +1098,62 @@ const App: React.FC = () => {
                     setCurrentView(VIEWS.STUDENT_DASHBOARD);
                 }
                 return;
-            } else {
+            } 
+            // --- PROCESS PARENT PROFILE ---
+            else if (parentProfile) {
+                console.log('[Auth] Processing parent profile...');
+                setParentProfile(parentProfile as ParentProfile);
+                setUserProfile(parentProfile as any); // Set as userProfile for session checks
+                setUserType('parent');
+                lastFetchedUserId.current = user.id;
+                
+                // Load linked children
+                const { data: links, error: linksError } = await supabase
+                    .from('parent_student_links')
+                    .select(`
+                        *,
+                        student:students(
+                            *,
+                            class:classes(*),
+                            arm:arms(*)
+                        )
+                    `)
+                    .eq('parent_id', user.id);
+                
+                if (linksError) {
+                    console.error('[Auth] Error loading parent-student links:', linksError);
+                } else if (links) {
+                    const children: LinkedChild[] = links
+                        .filter(link => link.student)
+                        .map(link => ({
+                            ...link.student,
+                            relationship: link.relationship,
+                            permissions: {
+                                canViewReports: link.can_view_reports,
+                                canViewFinances: link.can_view_finances,
+                                canViewAttendance: link.can_view_attendance,
+                                canCommunicate: link.can_communicate
+                            }
+                        }));
+                    
+                    setLinkedChildren(children);
+                    setSelectedChild(children[0] || null);
+                }
+                
+                setUserPermissions(['view-parent-dashboard']); // Basic parent permissions
+                
+                // Clear timeout and mark as loaded successfully
+                if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
+                setIsProfileLoading(false);
+                isFetchingRef.current = false;
+                console.log('[Auth] Parent profile loaded successfully');
+                setBooting(false);
+                
+                // Navigate to parent dashboard
+                setCurrentView('parent-dashboard');
+                return;
+            } 
+            else {
                 console.error('[Auth] No profile found for user');
                 setUserProfile(null);
                 setUserType(null);
@@ -6893,9 +6965,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     }
 
     if (!session) {
-        if (currentView === 'student-login') return <StudentLoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'teacher-login') setCurrentView('teacher-login'); else if (view === 'public-ratings') setCurrentView('public-ratings'); }} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
+        if (currentView === 'student-login') return <StudentLoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'teacher-login') setCurrentView('teacher-login'); else if (view === 'parent-login') setCurrentView('parent-login'); else if (view === 'public-ratings') setCurrentView('public-ratings'); }} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
+        if (currentView === 'parent-login') return <ParentLoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'teacher-login') setCurrentView('teacher-login'); else if (view === 'student-login') setCurrentView('student-login'); }} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
         if (currentView === 'public-ratings') return <PublicTeacherRatingsView onShowLogin={() => setCurrentView('teacher-login')} />;
-        if (currentView === 'teacher-login') return <LoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'student-login') setCurrentView('student-login'); }} />;
+        if (currentView === 'teacher-login') return <LoginPage onNavigate={(view) => { if(view === 'landing') setCurrentView('landing'); else if (view === 'student-login') setCurrentView('student-login'); else if (view === 'parent-login') setCurrentView('parent-login'); }} />;
         // Landing page default
         return <LandingPage onNavigate={(view) => setCurrentView(view)} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
     }
@@ -6956,6 +7029,19 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     
     if (!userProfile) {
         return <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950"><Spinner size="lg" text="Loading profile..." /></div>;
+    }
+    
+    if (userType === 'parent') {
+        // Parent specific layout
+        return (
+            <ParentDashboard
+                parentProfile={parentProfile!}
+                linkedChildren={linkedChildren}
+                selectedChild={selectedChild}
+                onSelectChild={setSelectedChild}
+                onLogout={handleLogout}
+            />
+        );
     }
     
     if (userType === 'student') {

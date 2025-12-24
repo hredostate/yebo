@@ -9,7 +9,7 @@ import { createSession, isDeviceLimitReached, terminateOldestSession } from '../
 import DeviceLimitModal from './DeviceLimitModal';
 
 type AuthViewMode = 'login' | 'signup' | 'forgot_password';
-type AuthView = 'landing' | 'teacher-login' | 'student-login' | 'public-ratings';
+type AuthView = 'landing' | 'teacher-login' | 'student-login' | 'parent-login' | 'public-ratings';
 
 interface StudentLoginPageProps {
   onNavigate: (view: AuthView) => void;
