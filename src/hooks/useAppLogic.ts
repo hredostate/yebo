@@ -19,7 +19,7 @@ import type {
   CalendarEvent, LivingPolicySnippet, NavigationContext, StudentAward,
   CoverageVote, CreatedCredential, RoleTitle, TaskStatus, StudentProfile,
   UserRoleAssignment, StudentTermReportSubject, ScoreEntry, AtRiskTeacher,
-  LessonPlanCoverage, LessonPlanReviewEvidence
+  LessonPlanCoverage, LessonPlanReviewEvidence, ReportCardAnnouncement
 } from '../types';
 import { VIEWS, CLASS_TEACHER_SUBJECT_PLACEHOLDER } from '../constants';
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_SOCIAL_ANALYTICS } from '../services/mockData';
@@ -115,6 +115,7 @@ export const useAppLogic = () => {
   const [coverageData, setCoverageData] = useState<LessonPlanCoverage[]>([]);
   const [reviewEvidence, setReviewEvidence] = useState<LessonPlanReviewEvidence[]>([]);
   const [learningMaterials, setLearningMaterials] = useState<any[]>([]);
+  const [reportCardAnnouncements, setReportCardAnnouncements] = useState<ReportCardAnnouncement[]>([]);
   
   // UI States passed to children
   const [isPositiveModalOpen, setIsPositiveModalOpen] = useState(false);
@@ -255,6 +256,7 @@ export const useAppLogic = () => {
                 supabase.from('lesson_plan_coverage').select('*'),
                 supabase.from('lesson_plan_review_evidence').select('*, reviewer:user_profiles(name)'),
                 supabase.from('learning_materials').select('*'),
+                supabase.from('report_card_announcements').select('*').order('display_order'),
             ]);
 
             // Helper to safely extract data from result - always returns array for array types
@@ -344,6 +346,7 @@ export const useAppLogic = () => {
             setCoverageData(getData(38));
             setReviewEvidence(getData(39));
             setLearningMaterials(getData(40));
+            setReportCardAnnouncements(getData(41));
             
             // Mock Data for things not yet fully DB driven or for demo
             setSocialMediaAnalytics(MOCK_SOCIAL_ANALYTICS);
@@ -423,6 +426,86 @@ export const useAppLogic = () => {
        setInventory(prev => prev.filter(i => i.id !== id));
        return true;
   }, [addToast]);
+
+  // Report Card Announcements
+  const handleSaveReportCardAnnouncement = useCallback(async (announcement: Partial<ReportCardAnnouncement>) => {
+      if (!userProfile || !('school_id' in userProfile)) return false;
+      const supabase = requireSupabaseClient();
+      
+      try {
+          if (announcement.id) {
+              // Update existing
+              const { error } = await supabase
+                  .from('report_card_announcements')
+                  .update({
+                      message: announcement.message,
+                      term_id: announcement.term_id,
+                      display_position: announcement.display_position,
+                      is_active: announcement.is_active,
+                      display_order: announcement.display_order,
+                      updated_at: new Date().toISOString()
+                  })
+                  .eq('id', announcement.id);
+              
+              if (error) {
+                  console.error('Error updating announcement:', error);
+                  addToast(`Error: ${error.message}`, 'error');
+                  return false;
+              }
+          } else {
+              // Insert new
+              const { error } = await supabase
+                  .from('report_card_announcements')
+                  .insert({
+                      school_id: userProfile.school_id,
+                      message: announcement.message,
+                      term_id: announcement.term_id || null,
+                      display_position: announcement.display_position || 'footer',
+                      is_active: announcement.is_active !== false,
+                      display_order: announcement.display_order || 0
+                  });
+              
+              if (error) {
+                  console.error('Error creating announcement:', error);
+                  addToast(`Error: ${error.message}`, 'error');
+                  return false;
+              }
+          }
+          
+          addToast(announcement.id ? 'Announcement updated' : 'Announcement created', 'success');
+          fetchData();
+          return true;
+      } catch (error: any) {
+          console.error('Error saving announcement:', error);
+          addToast(`Error: ${error.message}`, 'error');
+          return false;
+      }
+  }, [userProfile, addToast, fetchData]);
+
+  const handleDeleteReportCardAnnouncement = useCallback(async (id: number) => {
+      const supabase = requireSupabaseClient();
+      
+      try {
+          const { error } = await supabase
+              .from('report_card_announcements')
+              .delete()
+              .eq('id', id);
+          
+          if (error) {
+              console.error('Error deleting announcement:', error);
+              addToast(`Error: ${error.message}`, 'error');
+              return false;
+          }
+          
+          addToast('Announcement deleted', 'success');
+          fetchData();
+          return true;
+      } catch (error: any) {
+          console.error('Error deleting announcement:', error);
+          addToast(`Error: ${error.message}`, 'error');
+          return false;
+      }
+  }, [addToast, fetchData]);
 
   // Roles
   const handleSaveRole = useCallback(async (roleData: RoleDetails) => {
@@ -736,7 +819,7 @@ export const useAppLogic = () => {
         payrollRuns, payrollItems, payrollAdjustments, leaveRequests, orders, socialAccounts, checkinAnomalies, weeklyRatings,
         scoreEntries, studentTermReportSubjects, coverageVotes, curricula, curriculumWeeks, lessonPlans, assessments, assessmentScores,
         classGroups, surveys, roles, terms, academicClasses, schoolSettings, isPositiveModalOpen, isTourOpen, isAIBulkResponseModalOpen,
-        selectedStudent, coverageData, reviewEvidence, learningMaterials, lastRefreshed
+        selectedStudent, coverageData, reviewEvidence, learningMaterials, lastRefreshed, reportCardAnnouncements
     },
     actions: {
         setCurrentView,
@@ -754,6 +837,8 @@ export const useAppLogic = () => {
         // Implemented Actions
         handleSaveInventoryItem,
         handleDeleteInventoryItem,
+        handleSaveReportCardAnnouncement,
+        handleDeleteReportCardAnnouncement,
         handleSaveRole,
         handleUpdateRoleAssignments,
         handleInviteUser,
