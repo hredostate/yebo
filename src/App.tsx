@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Component } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Component, startTransition } from 'react';
 import type { Session, User } from '@supabase/auth-js';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
@@ -339,6 +339,9 @@ const App: React.FC = () => {
     const lastFetchedUserId = useRef<string | null>(null);
     const lastFetchedTimestamp = useRef<number>(0);
     const isFetchingRef = useRef(false);
+    const dataLoadedRef = useRef(false);
+    const lastProcessedAuthEvent = useRef<string | null>(null);
+    const sessionUserIdRef = useRef<string | null>(null);
     const [dbError, setDbError] = useState<string | null>(null);
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -619,6 +622,12 @@ const App: React.FC = () => {
                 clearUserPersistedState(userProfile.id);
             }
             
+            // Reset auth-related refs
+            dataLoadedRef.current = false;
+            lastFetchedUserId.current = null;
+            lastProcessedAuthEvent.current = null;
+            sessionUserIdRef.current = null;
+            
             // Clear session state first
             setSession(null);
             setUserProfile(null);
@@ -653,6 +662,10 @@ const App: React.FC = () => {
                 console.log("Offline logout successful locally.");
             }
             // Even if signOut fails, ensure local state is cleared
+            dataLoadedRef.current = false;
+            lastFetchedUserId.current = null;
+            lastProcessedAuthEvent.current = null;
+            sessionUserIdRef.current = null;
             setSession(null);
             setUserProfile(null);
             setUserType(null);
@@ -821,12 +834,15 @@ const App: React.FC = () => {
         }
         
         // If not forcing refresh and data already loaded for this user, skip
-        if (!forceRefresh && isSameUser && userProfileRef.current) {
+        if (!forceRefresh && isSameUser && dataLoadedRef.current && userProfileRef.current) {
             console.log('[Auth] User data already loaded, skipping fetch');
             return;
         }
 
         console.log('[Auth] Starting profile fetch for user:', user.id);
+        
+        // Reset dataLoadedRef to allow refetch (safe because isFetchingRef prevents concurrent calls)
+        dataLoadedRef.current = false;
         isFetchingRef.current = true;
         lastFetchedTimestamp.current = now;
         setIsProfileLoading(true);
@@ -956,8 +972,12 @@ const App: React.FC = () => {
             // --- PROCESS STAFF PROFILE ---
             if (staffProfile) {
                 console.log('[Auth] Processing staff profile...');
-                setUserProfile(staffProfile as UserProfile);
-                setUserType('staff');
+                
+                // Batch initial state updates with startTransition to minimize re-renders
+                startTransition(() => {
+                    setUserProfile(staffProfile as UserProfile);
+                    setUserType('staff');
+                });
                 lastFetchedUserId.current = user.id;
 
                 const { data: rolesData, error: rolesError } = await supabase.from('roles').select('*');
@@ -978,7 +998,6 @@ const App: React.FC = () => {
                     };
                     rolesMap[normalized.title] = normalized;
                 });
-                setRoles(rolesMap);
 
                 const { data: userRoleAssignmentsRes } = await supabase.from('user_role_assignments').select('*');
                 const perms = new Set<string>();
@@ -1005,8 +1024,14 @@ const App: React.FC = () => {
                     perms.add('view-dashboard');
                 }
                 
-                setUserPermissions(Array.from(perms));
-                setUserRoleAssignments(userRoleAssignmentsRes || []);
+                // Batch roles and permissions updates separately from profile state.
+                // startTransition marks these as non-urgent, allowing React to prioritize
+                // more critical updates and interrupt if needed, improving perceived performance.
+                startTransition(() => {
+                    setRoles(rolesMap);
+                    setUserPermissions(Array.from(perms));
+                    setUserRoleAssignments(userRoleAssignmentsRes || []);
+                });
 
                 if (!(staffProfile as UserProfile).has_seen_tour) {
                     supabase.from('user_profiles').update({ has_seen_tour: true }).eq('id', (staffProfile as UserProfile).id).then(({ error }) => {
@@ -1070,17 +1095,27 @@ const App: React.FC = () => {
                     arm_name: armName,
                     email: user.email
                 };
-                setUserProfile(profile);
-                setUserType('student');
+                
+                // Batch student profile state updates
+                startTransition(() => {
+                    setUserProfile(profile);
+                    setUserType('student');
+                    setUserPermissions([]);
+                });
                 lastFetchedUserId.current = user.id;
-                setUserPermissions([]); 
+
                 const { data: studentReports } = await supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', studentRecord.id).order('created_at', { ascending: false });
-                if (studentReports) setStudentTermReports(studentReports as any);
+                if (studentReports) {
+                    startTransition(() => {
+                        setStudentTermReports(studentReports as any);
+                    });
+                }
                 
                 // Clear timeout and mark as loaded successfully
                 if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                 setIsProfileLoading(false);
                 isFetchingRef.current = false;
+                dataLoadedRef.current = true;
                 console.log('[Auth] Student profile loaded successfully');
                 setBooting(false);
                 
@@ -1102,9 +1137,13 @@ const App: React.FC = () => {
             // --- PROCESS PARENT PROFILE ---
             else if (parentProfile) {
                 console.log('[Auth] Processing parent profile...');
-                setParentProfile(parentProfile as ParentProfile);
-                setUserProfile(parentProfile as any); // Set as userProfile for session checks
-                setUserType('parent');
+                
+                // Batch parent profile state updates
+                startTransition(() => {
+                    setParentProfile(parentProfile as ParentProfile);
+                    setUserProfile(parentProfile as any); // Set as userProfile for session checks
+                    setUserType('parent');
+                });
                 lastFetchedUserId.current = user.id;
                 
                 // Load linked children
@@ -1136,16 +1175,18 @@ const App: React.FC = () => {
                             }
                         }));
                     
-                    setLinkedChildren(children);
-                    setSelectedChild(children[0] || null);
+                    startTransition(() => {
+                        setLinkedChildren(children);
+                        setSelectedChild(children[0] || null);
+                        setUserPermissions(['view-parent-dashboard']); // Basic parent permissions
+                    });
                 }
-                
-                setUserPermissions(['view-parent-dashboard']); // Basic parent permissions
                 
                 // Clear timeout and mark as loaded successfully
                 if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                 setIsProfileLoading(false);
                 isFetchingRef.current = false;
+                dataLoadedRef.current = true;
                 console.log('[Auth] Parent profile loaded successfully');
                 setBooting(false);
                 
@@ -1378,6 +1419,7 @@ const App: React.FC = () => {
                         if (profileLoadTimeoutRef.current) clearTimeout(profileLoadTimeoutRef.current);
                         setIsProfileLoading(false);
                         isFetchingRef.current = false;
+                        dataLoadedRef.current = true;
                         setBooting(false);
                         console.log('[Auth] Critical data loaded, checking for target view...');
                         
@@ -1582,6 +1624,26 @@ const App: React.FC = () => {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
+            // Deduplicate events - create unique key from event and user ID
+            const eventKey = `${event}_${session?.user?.id || 'null'}`;
+            if (lastProcessedAuthEvent.current === eventKey) {
+                console.log('[Auth] Duplicate event, skipping:', event);
+                return;
+            }
+            lastProcessedAuthEvent.current = eventKey;
+            
+            // Memoize session comparison - only process if user ID changed
+            const currentUserId = session?.user?.id;
+            if (currentUserId) {
+                if (sessionUserIdRef.current === currentUserId) {
+                    console.log('[Auth] Same user session, skipping state update');
+                    return;
+                }
+                sessionUserIdRef.current = currentUserId;
+            } else {
+                sessionUserIdRef.current = null;
+            }
+            
             setSession(session);
             
             if (event === 'PASSWORD_RECOVERY') {
