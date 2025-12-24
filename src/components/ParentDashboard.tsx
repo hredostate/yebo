@@ -6,10 +6,8 @@ import ChildSwitcher from './parent/ChildSwitcher';
 import Spinner from './common/Spinner';
 import { 
     HomeIcon, 
-    DocumentIcon, 
+    FileTextIcon, 
     CalendarIcon, 
-    CurrencyIcon, 
-    ChatIcon,
     UserCircleIcon 
 } from './common/icons';
 
@@ -77,9 +75,9 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({
 
     const tabs = [
         { id: 'overview' as DashboardTab, label: 'Overview', icon: HomeIcon },
-        { id: 'reports' as DashboardTab, label: 'Report Cards', icon: DocumentIcon },
+        { id: 'reports' as DashboardTab, label: 'Report Cards', icon: FileTextIcon },
         { id: 'attendance' as DashboardTab, label: 'Attendance', icon: CalendarIcon },
-        { id: 'fees' as DashboardTab, label: 'Fees', icon: CurrencyIcon },
+        { id: 'fees' as DashboardTab, label: 'Fees', icon: FileTextIcon },
         { id: 'profile' as DashboardTab, label: 'Profile', icon: UserCircleIcon },
     ];
 
