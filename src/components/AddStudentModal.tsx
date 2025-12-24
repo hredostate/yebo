@@ -17,8 +17,15 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
   const [name, setName] = useState('');
   const [dob, setDob] = useState('');
   const [status, setStatus] = useState<StudentStatus>(StudentStatus.DistanceLearner);
-  const [parentPhoneNumber1, setParentPhoneNumber1] = useState('');
-  const [parentPhoneNumber2, setParentPhoneNumber2] = useState('');
+  
+  // Parent contact information - using specific fields
+  const [fatherName, setFatherName] = useState('');
+  const [fatherPhone, setFatherPhone] = useState('');
+  const [fatherEmail, setFatherEmail] = useState('');
+  const [motherName, setMotherName] = useState('');
+  const [motherPhone, setMotherPhone] = useState('');
+  const [motherEmail, setMotherEmail] = useState('');
+  
   const [classId, setClassId] = useState<string>('');
   const [armId, setArmId] = useState<string>('');
   const [address, setAddress] = useState('');
@@ -39,8 +46,13 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
       date_of_birth: dob,
       status,
       reward_points: 0,
-      parent_phone_number_1: parentPhoneNumber1,
-      parent_phone_number_2: parentPhoneNumber2,
+      // Use specific parent fields
+      father_name: fatherName,
+      father_phone: fatherPhone,
+      father_email: fatherEmail,
+      mother_name: motherName,
+      mother_phone: motherPhone,
+      mother_email: motherEmail,
       class_id: classId ? Number(classId) : null,
       arm_id: armId ? Number(armId) : null,
       address,
@@ -52,8 +64,12 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
         setName('');
         setDob('');
         setStatus(StudentStatus.DistanceLearner);
-        setParentPhoneNumber1('');
-        setParentPhoneNumber2('');
+        setFatherName('');
+        setFatherPhone('');
+        setFatherEmail('');
+        setMotherName('');
+        setMotherPhone('');
+        setMotherEmail('');
         setClassId('');
         setArmId('');
         setAddress('');
@@ -108,14 +124,41 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onAd
               <label htmlFor="address" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Address</label>
               <textarea id="address" value={address} onChange={e => setAddress(e.target.value)} rows={2} className={commonInputClasses}></textarea>
             </div>
-            <div>
-              <label htmlFor="parent-phone-1" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Parent's Phone Number 1</label>
-              <input type="tel" id="parent-phone-1" value={parentPhoneNumber1} onChange={e => setParentPhoneNumber1(e.target.value)} className={commonInputClasses} />
+            
+            {/* Father Contact Information */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-3">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Father's Contact Information</h3>
+              <div>
+                <label htmlFor="father-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Father's Name</label>
+                <input type="text" id="father-name" value={fatherName} onChange={e => setFatherName(e.target.value)} className={commonInputClasses} placeholder="e.g., John Doe" />
+              </div>
+              <div>
+                <label htmlFor="father-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Father's Phone Number</label>
+                <input type="tel" id="father-phone" value={fatherPhone} onChange={e => setFatherPhone(e.target.value)} className={commonInputClasses} placeholder="e.g., +234..." />
+              </div>
+              <div>
+                <label htmlFor="father-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Father's Email (Optional)</label>
+                <input type="email" id="father-email" value={fatherEmail} onChange={e => setFatherEmail(e.target.value)} className={commonInputClasses} placeholder="e.g., father@example.com" />
+              </div>
             </div>
-             <div>
-              <label htmlFor="parent-phone-2" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Parent's Phone Number 2</label>
-              <input type="tel" id="parent-phone-2" value={parentPhoneNumber2} onChange={e => setParentPhoneNumber2(e.target.value)} className={commonInputClasses} />
+            
+            {/* Mother Contact Information */}
+            <div className="bg-pink-50 dark:bg-pink-900/20 p-4 rounded-lg space-y-3">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mother's Contact Information</h3>
+              <div>
+                <label htmlFor="mother-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Mother's Name</label>
+                <input type="text" id="mother-name" value={motherName} onChange={e => setMotherName(e.target.value)} className={commonInputClasses} placeholder="e.g., Jane Doe" />
+              </div>
+              <div>
+                <label htmlFor="mother-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Mother's Phone Number</label>
+                <input type="tel" id="mother-phone" value={motherPhone} onChange={e => setMotherPhone(e.target.value)} className={commonInputClasses} placeholder="e.g., +234..." />
+              </div>
+              <div>
+                <label htmlFor="mother-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Mother's Email (Optional)</label>
+                <input type="email" id="mother-email" value={motherEmail} onChange={e => setMotherEmail(e.target.value)} className={commonInputClasses} placeholder="e.g., mother@example.com" />
+              </div>
             </div>
+            
             <div>
               <label htmlFor="student-status" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
               <select id="student-status" value={status} onChange={e => setStatus(e.target.value as StudentStatus)} className={commonInputClasses}>

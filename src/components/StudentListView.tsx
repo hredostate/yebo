@@ -525,12 +525,14 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     { key: 'status', label: 'Status', header: 'Status' },
     { key: 'has_account', label: 'Has Account', header: 'Has Account' },
     { key: 'date_of_birth', label: 'Date of Birth', header: 'Date of Birth' },
-    { key: 'guardian_phone', label: 'Guardian Contact', header: 'Guardian Contact' },
     { key: 'address', label: 'Address', header: 'Address' },
-    { key: 'parent_phone_number_1', label: 'Parent Phone 1', header: 'Parent Phone 1' },
-    { key: 'parent_phone_number_2', label: 'Parent Phone 2', header: 'Parent Phone 2' },
+    // Parent contact information - canonical fields
     { key: 'father_name', label: 'Father Name', header: 'Father Name' },
+    { key: 'father_phone', label: 'Father Phone', header: 'Father Phone' },
+    { key: 'father_email', label: 'Father Email', header: 'Father Email' },
     { key: 'mother_name', label: 'Mother Name', header: 'Mother Name' },
+    { key: 'mother_phone', label: 'Mother Phone', header: 'Mother Phone' },
+    { key: 'mother_email', label: 'Mother Email', header: 'Mother Email' },
     { key: 'campus', label: 'Campus', header: 'Campus' },
   ];
 
@@ -577,12 +579,14 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       status: (s) => s.status || '',
       has_account: (s) => s.user_id ? 'Yes' : 'No',
       date_of_birth: (s) => s.date_of_birth || '',
-      guardian_phone: (s) => s.guardian_phone || '',
       address: (s) => s.address || '',
-      parent_phone_number_1: (s) => s.parent_phone_number_1 || '',
-      parent_phone_number_2: (s) => s.parent_phone_number_2 || '',
+      // Parent contact information - canonical fields
       father_name: (s) => s.father_name || '',
+      father_phone: (s) => s.father_phone || '',
+      father_email: (s) => s.father_email || '',
       mother_name: (s) => s.mother_name || '',
+      mother_phone: (s) => s.mother_phone || '',
+      mother_email: (s) => s.mother_email || '',
       campus: (s) => s.campus?.name || '',
     };
 
@@ -648,11 +652,16 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     dob: ['Date of Birth', 'date_of_birth', 'DOB', 'dob', 'Birth Date', 'birth_date', 'Birthday', 'DATE OF BIRTH', 'Date Of Birth'],
     address: ['Address', 'address', 'Home Address', 'home_address', 'ADDRESS', 'Residential Address'],
     status: ['Status', 'status', 'Student Status', 'STATUS'],
+    // Parent contact information - canonical fields with backward compatibility
+    fatherName: ['Father Name', 'father_name', 'Father', 'Dad Name', 'FATHER NAME', "Father's Name"],
+    fatherPhone: ['Father Phone', 'father_phone', 'Father Phone Number', 'father_phone_number', "Father's Phone", 'Dad Phone', 'FATHER PHONE'],
+    fatherEmail: ['Father Email', 'father_email', 'Father Email Address', "Father's Email", 'Dad Email', 'FATHER EMAIL'],
+    motherName: ['Mother Name', 'mother_name', 'Mother', 'Mom Name', 'MOTHER NAME', "Mother's Name"],
+    motherPhone: ['Mother Phone', 'mother_phone', 'Mother Phone Number', 'mother_phone_number', "Mother's Phone", 'Mom Phone', 'MOTHER PHONE'],
+    motherEmail: ['Mother Email', 'mother_email', 'Mother Email Address', "Mother's Email", 'Mom Email', 'MOTHER EMAIL'],
+    // Legacy field mappings (for backward compatibility with old CSV files)
     parentPhone1: ['Parent Phone 1', 'parent_phone_number_1', 'Parent Phone', 'parent_phone', 'Guardian Phone', 'Phone 1', 'phone_1', 'Phone', 'Contact', 'PARENT PHONE 1'],
     parentPhone2: ['Parent Phone 2', 'parent_phone_number_2', 'Phone 2', 'phone_2', 'Alt Phone', 'Alternative Phone', 'PARENT PHONE 2'],
-    guardianContact: ['Guardian Contact', 'guardian_phone', 'Guardian Phone', 'guardian_contact', 'Emergency Contact', 'GUARDIAN CONTACT'],
-    fatherName: ['Father Name', 'father_name', 'Father', 'Dad Name', 'FATHER NAME', "Father's Name"],
-    motherName: ['Mother Name', 'mother_name', 'Mother', 'Mom Name', 'MOTHER NAME', "Mother's Name"]
   };
 
   // Helper function for flexible CSV header matching
@@ -678,10 +687,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       'Date of Birth',
       'Address',
       'Status',
-      'Parent Phone 1',
-      'Parent Phone 2',
       'Father Name',
-      'Mother Name'
+      'Father Phone',
+      'Father Email',
+      'Mother Name',
+      'Mother Phone',
+      'Mother Email'
     ];
     const sampleRow = [
       'John Doe',
@@ -692,10 +703,12 @@ const StudentListView: React.FC<StudentListViewProps> = ({
       '2010-05-15',
       '123 Main Street',
       'Active',
+      'Mr. John Doe Sr.',
       '08012345678',
+      'father@email.com',
+      'Mrs. Jane Doe',
       '08087654321',
-      'Mr. Doe',
-      'Mrs. Doe'
+      'mother@email.com'
     ];
     const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
     
@@ -814,11 +827,18 @@ const StudentListView: React.FC<StudentListViewProps> = ({
         const dateOfBirth = getColumnValue(row, CSV_HEADER_VARIATIONS.dob);
         const address = getColumnValue(row, CSV_HEADER_VARIATIONS.address);
         const status = getColumnValue(row, CSV_HEADER_VARIATIONS.status) || 'Active';
-        const parentPhone1 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone1);
-        const parentPhone2 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone2);
-        const guardianContact = getColumnValue(row, CSV_HEADER_VARIATIONS.guardianContact);
+        
+        // Parent contact information - canonical fields
         const fatherName = getColumnValue(row, CSV_HEADER_VARIATIONS.fatherName);
+        const fatherPhone = getColumnValue(row, CSV_HEADER_VARIATIONS.fatherPhone);
+        const fatherEmail = getColumnValue(row, CSV_HEADER_VARIATIONS.fatherEmail);
         const motherName = getColumnValue(row, CSV_HEADER_VARIATIONS.motherName);
+        const motherPhone = getColumnValue(row, CSV_HEADER_VARIATIONS.motherPhone);
+        const motherEmail = getColumnValue(row, CSV_HEADER_VARIATIONS.motherEmail);
+        
+        // Legacy field support (for backward compatibility)
+        const legacyParentPhone1 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone1);
+        const legacyParentPhone2 = getColumnValue(row, CSV_HEADER_VARIATIONS.parentPhone2);
 
         const studentData: any = {
           name,
@@ -829,12 +849,13 @@ const StudentListView: React.FC<StudentListViewProps> = ({
           status: status,
           class_id,
           arm_id,
-          parent_phone_number_1: parentPhone1,
-          parent_phone_number_2: parentPhone2,
+          // Use specific parent fields, fall back to legacy fields if needed
           father_name: fatherName,
+          father_phone: fatherPhone || legacyParentPhone1, // Fall back to legacy if specific field empty
+          father_email: fatherEmail,
           mother_name: motherName,
-          // Use guardian contact if provided, otherwise fall back to parent phone 1
-          guardian_phone: guardianContact || parentPhone1,
+          mother_phone: motherPhone || legacyParentPhone2, // Fall back to legacy if specific field empty
+          mother_email: motherEmail,
         };
 
         studentsToImport.push(studentData);
