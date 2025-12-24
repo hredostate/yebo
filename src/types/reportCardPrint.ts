@@ -103,6 +103,12 @@ export interface UnifiedReportCardData {
   assessmentComponents?: AssessmentComponentDef[];
   gradeRules?: GradeRule[];
   config?: PrintConfig;
+  announcements?: Array<{
+    id: number;
+    message: string;
+    display_position: 'header' | 'footer' | 'above_signatures';
+    display_order: number;
+  }>;
 }
 
 export type WatermarkType = 'DRAFT' | 'FINAL' | 'NONE';
