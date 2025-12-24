@@ -36,8 +36,12 @@ export const SidebarLink: React.FC<SidebarLinkProps> = ({
     if (onClick) {
       onClick();
     }
-    // Call onNavigate for backward compatibility with legacy state sync
-    onNavigate(viewId);
+    
+    // Only call onNavigate for legacy navigation mode
+    // In new navigation mode, React Router and LocationSync handle the sync
+    if (!useNewNav) {
+      onNavigate(viewId);
+    }
   };
 
   if (useNewNav) {
