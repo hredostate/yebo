@@ -51,6 +51,8 @@ export const VIEW_TO_PATH: Record<string, string> = {
   
   // Student Affairs
   [VIEWS.STUDENT_ROSTER]: '/student-affairs/student-roster',
+  [VIEWS.STUDENT_ACCOUNTS]: '/student-affairs/student-accounts',
+  [VIEWS.PARENT_ACCOUNTS]: '/student-affairs/parent-accounts',
   [VIEWS.INTERVENTION_PLANS]: '/student-affairs/intervention-plans',
   [VIEWS.ABSENCE_REQUESTS]: '/student-affairs/absence-requests',
   [VIEWS.STUDENT_SUBJECT_CHOICES_ADMIN]: '/student-affairs/subject-choices',

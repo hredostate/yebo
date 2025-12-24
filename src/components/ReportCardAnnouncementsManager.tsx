@@ -63,6 +63,12 @@ const ReportCardAnnouncementsManager: React.FC<ReportCardAnnouncementsManagerPro
             addToast('Message is required', 'error');
             return;
         }
+        
+        if (!onSaveAnnouncement) {
+            console.error('onSaveAnnouncement handler not provided');
+            addToast('Unable to save announcement - handler not configured', 'error');
+            return;
+        }
 
         setIsSaving(true);
         try {
@@ -112,11 +118,15 @@ const ReportCardAnnouncementsManager: React.FC<ReportCardAnnouncementsManagerPro
     };
 
     const handleMoveUp = async (announcement: ReportCardAnnouncement) => {
+        if (!onSaveAnnouncement) return;
+        
         const newOrder = Math.max(0, announcement.display_order - 1);
         await onSaveAnnouncement({ id: announcement.id, display_order: newOrder });
     };
 
     const handleMoveDown = async (announcement: ReportCardAnnouncement) => {
+        if (!onSaveAnnouncement) return;
+        
         const newOrder = announcement.display_order + 1;
         await onSaveAnnouncement({ id: announcement.id, display_order: newOrder });
     };
