@@ -4,7 +4,7 @@ import { Aurora, GridBackdrop } from './common/Background';
 import { ShieldIcon, SunIcon, MoonIcon } from './common/icons';
 import { SCHOOL_LOGO_URL } from '../constants';
 
-type AuthView = 'landing' | 'teacher-login' | 'student-login' | 'public-ratings';
+type AuthView = 'landing' | 'teacher-login' | 'student-login' | 'parent-login' | 'public-ratings';
 
 interface LandingPageProps {
   onNavigate: (view: AuthView) => void;
@@ -94,12 +94,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isDarkMode, toggl
                             onClick={() => onNavigate('teacher-login')}
                         />
                         <ChoiceCard
+                            icon="👨‍👩‍👧‍👦"
+                            title="Parent / Guardian Portal"
+                            description="View your children's reports, attendance, fees, and communicate with school."
+                            ctaLabel="Go to Parent Login"
+                            onClick={() => onNavigate('parent-login')}
+                            accent
+                        />
+                        <ChoiceCard
                             icon="🎓"
                             title="Student Portal"
                             description="Access approved lesson plans, rate lessons & teachers, and view your progress."
                             ctaLabel="Go to Student Login"
                             onClick={() => onNavigate('student-login')}
-                            accent
                         />
                     </div>
                 </section>
