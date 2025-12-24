@@ -2,7 +2,7 @@ import type { SmsResult } from '../services/activationLinks';
 
 import React, { useState, useMemo } from 'react';
 import type { Student, BaseDataObject, CreatedCredential } from '../types';
-import { DownloadIcon, KeyIcon, CheckCircleIcon, CloseIcon, SearchIcon } from './common/icons';
+import { DownloadIcon, LockClosedIcon, CheckCircleIcon, CloseIcon, SearchIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { exportToCsv } from '../utils/export';
 import Pagination from './common/Pagination';
@@ -658,7 +658,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                        <KeyIcon className="w-8 h-8 text-blue-600" />
+                        <LockClosedIcon className="w-8 h-8 text-blue-600" />
                         Student Accounts
                     </h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-1">
@@ -746,7 +746,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
                             disabled={isGeneratingAccounts}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
-                            {isGeneratingAccounts ? <Spinner size="sm" /> : <KeyIcon className="w-4 h-4" />}
+                            {isGeneratingAccounts ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
                             Generate Accounts
                         </button>
                         
@@ -754,7 +754,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
                             onClick={handleOpenActivationModal}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                         >
-                            <KeyIcon className="w-4 h-4" />
+                            <LockClosedIcon className="w-4 h-4" />
                             Generate Activation Links
                         </button>
                         
@@ -763,7 +763,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
                             disabled={isRetrievingPasswords}
                             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
-                            {isRetrievingPasswords ? <Spinner size="sm" /> : <KeyIcon className="w-4 h-4" />}
+                            {isRetrievingPasswords ? <Spinner size="sm" /> : <LockClosedIcon className="w-4 h-4" />}
                             Retrieve Passwords
                         </button>
                         
