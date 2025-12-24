@@ -191,7 +191,6 @@ export const VIEWS = {
   TRANSPORT_HUB: 'Transport Hub',
   SETTINGS_HUB: 'Settings Hub',
   USERS_TEAMS_HUB: 'Users & Teams Hub',
-  FINANCE_STORE_HUB: 'Finance & Store Hub',
 } as const;
 
 export const STUDENT_STATUSES = [

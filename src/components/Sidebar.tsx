@@ -140,17 +140,10 @@ const NAV_STRUCTURE: NavGroup[] = [
       { id: VIEWS.TEACHER_PULSE, label: 'Teacher Pulse', permission: 'view-dashboard' },
       { id: VIEWS.LEAVE_APPROVALS, label: 'Leave Approvals', permission: 'manage-users' },
       { id: VIEWS.MANUALS, label: 'Manuals', permission: 'view-dashboard' },
-      { 
-        id: VIEWS.FINANCE_STORE_HUB, 
-        label: 'Finance & Store', 
-        permission: 'view-dashboard',
-        subtabs: [
-          { id: VIEWS.HR_PAYROLL, label: 'Payroll', permission: 'view-dashboard' },
-          { id: VIEWS.STUDENT_FINANCE, label: 'Fees', permission: 'manage-finance' },
-          { id: VIEWS.STOREFRONT, label: 'Store', permission: 'view-dashboard' },
-          { id: VIEWS.STORE_MANAGER, label: 'Manager', permission: 'manage-orders' },
-        ]
-      },
+      { id: VIEWS.HR_PAYROLL, label: 'HR & Payroll', permission: 'view-dashboard' },
+      { id: VIEWS.STUDENT_FINANCE, label: 'Bursary (Fees)', permission: 'manage-finance' },
+      { id: VIEWS.STOREFRONT, label: 'School Store', permission: 'view-dashboard' },
+      { id: VIEWS.STORE_MANAGER, label: 'Store Manager', permission: 'manage-orders' },
       { id: VIEWS.COMPLIANCE_TRACKER, label: 'Compliance Tracker', permission: 'view-compliance-tracker' },
       { id: VIEWS.SUPPORT_HUB, label: 'Support Hub', permission: 'manage-tasks' },
       { id: VIEWS.SURVEY_MANAGER, label: 'Survey Manager', permission: 'manage-surveys' },
