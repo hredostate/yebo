@@ -1,6 +1,7 @@
 
 import React from 'react';
 import type { StudentTermReport, Student, GradingScheme, SchoolConfig, Term, AssessmentComponent, ReportCardAnnouncement } from '../types';
+import { sanitize } from '../utils/reportCardHelpers';
 
 interface ResultSheetProps {
     report: StudentTermReport;
@@ -45,7 +46,7 @@ export const AnnouncementDisplay: React.FC<{
                     key={announcement.id} 
                     className={`p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm ${idx > 0 ? 'mt-2' : ''}`}
                 >
-                    <div className="text-blue-900 whitespace-pre-wrap">{announcement.message}</div>
+                    <div className="text-blue-900 whitespace-pre-wrap">{sanitize(announcement.message)}</div>
                 </div>
             ))}
         </div>

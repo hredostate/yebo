@@ -261,6 +261,7 @@ const ReportCardAnnouncementsManager: React.FC<ReportCardAnnouncementsManagerPro
                             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                 <h4 className="text-sm font-semibold text-slate-700 mb-2">Preview:</h4>
                                 <div className="p-3 bg-white border border-slate-200 rounded text-sm text-slate-800">
+                                    {/* React automatically escapes text content, preventing XSS */}
                                     {formData.message}
                                 </div>
                             </div>
@@ -324,6 +325,7 @@ const ReportCardAnnouncementsManager: React.FC<ReportCardAnnouncementsManagerPro
                                             Order: {announcement.display_order}
                                         </span>
                                     </div>
+                                    {/* React automatically escapes text content, preventing XSS */}
                                     <p className="text-sm text-slate-800 whitespace-pre-wrap">{announcement.message}</p>
                                 </div>
 
