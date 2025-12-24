@@ -889,7 +889,7 @@ const PublicReportView: React.FC = () => {
                                 <div className="grade-legend mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 page-break-avoid">
                                     <p className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-2">Grading Scale</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
-                                        {gradeLegend.map((grade) => (
+                                        {gradeLegend.map((grade: { label: string; range: string; color: string }) => (
                                             <div key={grade.label} className={`px-2 py-1 rounded border ${grade.color} font-medium text-center`}>
                                                 <div className="font-bold">{grade.label.split('·')[0]}</div>
                                                 <div className="text-[10px] opacity-80">{grade.range}</div>
