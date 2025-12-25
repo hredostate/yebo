@@ -70,7 +70,11 @@ export const ExpandablePanel: React.FC<ExpandablePanelProps> = ({
     }
     
     return () => {
-      document.body.style.overflow = originalOverflow;
+      if (originalOverflow) {
+        document.body.style.overflow = originalOverflow;
+      } else {
+        document.body.style.removeProperty('overflow');
+      }
     };
   }, [isExpanded]);
 
