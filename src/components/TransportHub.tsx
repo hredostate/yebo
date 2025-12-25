@@ -44,6 +44,9 @@ const TransportHub: React.FC<TransportHubProps> = ({
   ];
 
   // Navigate to the selected view
+  // Note: TransportHub uses a router pattern instead of inline rendering because
+  // transport components require complex props (schoolId, currentTermId, etc.) that
+  // aren't available at the hub level. This is an intentional design choice.
   const handleSectionClick = (view: string) => {
     onNavigate(view);
   };

@@ -77,7 +77,8 @@ const AnalyticsHub: React.FC<AnalyticsHubProps> = ({
           </Suspense>
         );
       case 'predictions':
-        // Navigate to the actual view since it requires complex props
+        // Note: PredictiveAnalyticsDashboard requires complex props not available at hub level
+        // So we navigate to the actual view instead of rendering inline
         onNavigate(VIEWS.PREDICTIVE_ANALYTICS);
         return (
           <div className="text-center py-12">
