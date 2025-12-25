@@ -30,7 +30,8 @@ import {
 } from './hooks/useInitialView';
 
 import LoginPage from './components/LoginPage';
-import AppShell from './components/layout/AppShell';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 import EnvironmentSetupError from './components/EnvironmentSetupError';
 import DatabaseSetupError from './components/DatabaseSetupError';
 import PositiveBehaviorModal from './components/PositiveBehaviorModal';
@@ -474,6 +475,9 @@ const App: React.FC = () => {
     const [livingPolicy, setLivingPolicy] = useState<LivingPolicySnippet[]>([]);
     const [pendingPolicies, setPendingPolicies] = useState<PolicyStatement[]>([]);
     const [showPolicyGate, setShowPolicyGate] = useState(false);
+
+    // Sidebar state
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const todaysCheckinForDashboard = useMemo(() => {
         if (!userProfile || !teacherCheckins) return null;
@@ -7097,21 +7101,36 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return (
             <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
             <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-              <AppShell
-                user={{
-                    name: (userProfile as StudentProfile)?.full_name ?? 'Student',
-                    role: 'Student',
-                }}
-                onLogout={handleLogout}
-                isDarkMode={isDarkMode}
-                onToggleTheme={toggleTheme}
-              >
-                <div className="app-surface">
-                     <ErrorBoundary>
-                         <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                            <AppRouter
-                                currentView={currentView}
-                                data={{
+              <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+                <Sidebar
+                  currentView={currentView}
+                  onNavigate={setCurrentView}
+                  userProfile={userProfile as StudentProfile}
+                  userPermissions={userPermissions}
+                  onLogout={handleLogout}
+                  isSidebarOpen={isSidebarOpen}
+                  setIsSidebarOpen={setIsSidebarOpen}
+                  canAccess={canAccess}
+                />
+                <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                  <Header
+                    userProfile={userProfile as StudentProfile}
+                    onLogout={handleLogout}
+                    notifications={notifications}
+                    onMarkNotificationsAsRead={() => {}}
+                    onNavigate={setCurrentView}
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    isDarkMode={isDarkMode}
+                    toggleTheme={toggleTheme}
+                    userPermissions={userPermissions}
+                  />
+                  <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    <div className="app-surface">
+                      <ErrorBoundary>
+                        <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                          <AppRouter
+                            currentView={currentView}
+                            data={{
                                     userProfile,
                                     userType,
                                     users,
@@ -7346,8 +7365,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                             />
                          </Suspense>
                      </ErrorBoundary>
+                    </div>
+                  </main>
                 </div>
-              </AppShell>
+              </div>
               <Toast toasts={toasts} removeToast={removeToast} />
             </RouterWrapper>
             </CampusScopeProvider>
@@ -7358,22 +7379,37 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     return (
         <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
         <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-          <AppShell
-            user={{
-                name: (userProfile as UserProfile)?.name ?? 'Guardian',
-                role: (userProfile as UserProfile)?.role ?? 'Staff',
-            }}
-            onLogout={handleLogout}
-            isDarkMode={isDarkMode}
-            onToggleTheme={toggleTheme}
-          >
-            <div className="app-surface">
-                <div className="page-wrapper">
-                        <ErrorBoundary>
-                            <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                                <AppRouter
-                                    currentView={currentView}
-                                    data={{
+          <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+            <Sidebar
+              currentView={currentView}
+              onNavigate={setCurrentView}
+              userProfile={userProfile as UserProfile}
+              userPermissions={userPermissions}
+              onLogout={handleLogout}
+              isSidebarOpen={isSidebarOpen}
+              setIsSidebarOpen={setIsSidebarOpen}
+              canAccess={canAccess}
+            />
+            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+              <Header
+                userProfile={userProfile as UserProfile}
+                onLogout={handleLogout}
+                notifications={notifications}
+                onMarkNotificationsAsRead={() => {}}
+                onNavigate={setCurrentView}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                isDarkMode={isDarkMode}
+                toggleTheme={toggleTheme}
+                userPermissions={userPermissions}
+              />
+              <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="app-surface">
+                  <div className="page-wrapper">
+                    <ErrorBoundary>
+                      <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                        <AppRouter
+                          currentView={currentView}
+                          data={{
                                     userProfile,
                                     userType,
                                     users,
@@ -7637,8 +7673,10 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         onNavigate={handleAINavigation}
                      />
                     </div>
-                </div>
-          </AppShell>
+                  </div>
+                </main>
+              </div>
+            </div>
           <Toast toasts={toasts} removeToast={removeToast} />
             
             {/* Policy Acknowledgment Gate */}
