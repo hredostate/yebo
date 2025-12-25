@@ -550,6 +550,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users}
                 roles={data.roles}
                 campuses={data.campuses}
+                currentUserProfile={data.userProfile}
                 onInviteUser={actions.handleInviteUser}
                 onUpdateUser={actions.handleUpdateUser}
                 onDeleteUser={actions.handleDeleteUser}
@@ -912,6 +913,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
         case VIEWS.SUPER_ADMIN_CONSOLE:
              return <SuperAdminConsole 
                 userPermissions={data.userPermissions}
+                userProfile={data.userProfile}
                 schoolConfig={data.schoolConfig}
                 terms={data.terms}
                 academicClasses={data.academicClasses}

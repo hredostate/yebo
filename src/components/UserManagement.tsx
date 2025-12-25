@@ -8,6 +8,8 @@ import SearchableSelect from './common/SearchableSelect';
 import Pagination from './common/Pagination';
 import CreateStaffAccountModal from './CreateStaffAccountModal';
 import StaffCredentialsModal from './StaffCredentialsModal';
+import { useCampusScope } from '../contexts/CampusScopeContext';
+import { getEffectiveCampusId, filterUsersByCampus } from '../utils/campusFiltering';
 
 // Helper function for status styling
 const getStatusStyling = (status: EmploymentStatus | undefined): string => {
@@ -40,6 +42,7 @@ interface UserManagementProps {
     users: UserProfile[];
     roles: Record<string, RoleDetails>;
     campuses: Campus[];
+    currentUserProfile: UserProfile | null;
     onInviteUser: (email: string, role: RoleTitle) => Promise<void>;
     onUpdateUser: (userId: string, userData: Partial<UserProfile>) => Promise<boolean>;
     onDeleteUser: (userId: string) => Promise<boolean>;
@@ -60,6 +63,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     users = [], 
     roles, 
     campuses = [], 
+    currentUserProfile,
     onInviteUser, 
     onUpdateUser, 
     onDeleteUser, 

@@ -24,6 +24,7 @@ import ReportCardAnnouncementsManager from './ReportCardAnnouncementsManager';
 // Props interface for the component
 interface SuperAdminConsoleProps {
     userPermissions: string[];
+    userProfile: UserProfile | null;
     schoolConfig: SchoolConfig | null;
     terms: Term[];
     academicClasses: AcademicClass[];
@@ -114,6 +115,7 @@ const tabs: { name: AdminTab; permission: string }[] = [
 const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
     const {
         userPermissions = [],
+        userProfile,
         addToast,
         teacherShifts = [],
         onSaveShift,
@@ -200,6 +202,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                 return <UserManagement 
                     users={users} 
                     roles={rolesAsRecord} 
+                    currentUserProfile={userProfile}
                     onInviteUser={onInviteUser}
                     onUpdateUser={onUpdateUser}
                     onDeleteUser={onDeleteUser}
