@@ -1,11 +1,18 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
-import type { UserProfile, TeachingAssignment, LessonPlan, ClassGroup } from '../types';
+import type { 
+    UserProfile, 
+    TeachingAssignment, 
+    LessonPlan, 
+    ClassGroup, 
+    StudentProfile,
+    AcademicClass,
+    Subject 
+} from '../types';
 import { 
     ChartBarIcon, UsersIcon, DocumentTextIcon, ClipboardIcon, FolderIcon, 
-    CheckCircleIcon, EditIcon, MapIcon, ClockIcon, BookOpenIcon 
+    CheckCircleIcon, EditIcon, MapIcon, ClockIcon, BookOpenIcon, ClipboardListIcon
 } from './common/icons';
 import Spinner from './common/Spinner';
-import { useCan } from '../security/permissions';
 
 // Lazy load sub-components to break circular dependencies
 const TeacherPulseView = lazy(() => import('./TeacherPulseView'));
@@ -37,13 +44,13 @@ type ModuleSection =
 interface TeachingWorkspaceModuleProps {
     userProfile: UserProfile;
     users: UserProfile[];
-    students: any[];
+    students: StudentProfile[];
     teachingAssignments: TeachingAssignment[];
     lessonPlans: LessonPlan[];
     classGroups: ClassGroup[];
-    allClasses: any[];
-    allArms: any[];
-    allSubjects: any[];
+    allClasses: AcademicClass[];
+    allArms: { id: number; name: string; class_id: number }[];
+    allSubjects: Subject[];
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
     userPermissions: string[];
     onUpdateClassGroupMembers: (groupId: number, studentIds: number[]) => Promise<boolean>;
@@ -161,7 +168,7 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
         { 
             id: 'assessments' as const, 
             label: 'Assessments', 
-            icon: ClipboardIcon, 
+            icon: ClipboardListIcon, 
             show: canEditScores 
         },
         { 
