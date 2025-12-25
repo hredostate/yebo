@@ -9,9 +9,9 @@
  * - Content outlet
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDownIcon } from '../common/icons';
+import { ChevronDownIcon, ExpandIcon, CollapseIcon } from '../common/icons';
 import type { SectionConfig, SectionTab, PinnedItem } from '../../routing/sectionConfig';
 import { filterTabsByPermissions } from '../../routing/sectionConfig';
 import { enterprise } from '../../styles/enterpriseTheme';
@@ -50,6 +50,20 @@ export const SectionLayout: React.FC<SectionLayoutProps> = ({
     navigate(item.path);
   };
 
+  // Handle Esc key to collapse expanded mode
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isExpandedMode) {
+        setIsExpandedMode(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isExpandedMode]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Section Header */}
@@ -61,10 +75,15 @@ export const SectionLayout: React.FC<SectionLayoutProps> = ({
             </h1>
             <button
               onClick={() => setIsExpandedMode(!isExpandedMode)}
-              className="px-3 py-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors border border-slate-200 dark:border-slate-600"
-              title="Toggle expanded launcher mode"
+              className="p-2 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              title={isExpandedMode ? 'Collapse' : 'Expand'}
+              aria-label={isExpandedMode ? 'Collapse' : 'Expand'}
             >
-              {isExpandedMode ? 'Collapse' : 'Expand'}
+              {isExpandedMode ? (
+                <CollapseIcon className="w-5 h-5" />
+              ) : (
+                <ExpandIcon className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
