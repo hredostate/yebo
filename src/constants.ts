@@ -149,6 +149,7 @@ export const VIEWS = {
   MY_LEAVE: 'My Leave',
   LEAVE_APPROVALS: 'Leave Approvals',
   MY_ADJUSTMENTS: 'My Adjustments',
+  TEACHING_WORKSPACE: 'Teaching Workspace',
   STUDENT_FINANCE: 'Student Finance',
   TIMETABLE: 'Timetable',
   ID_CARDS: 'ID Cards',

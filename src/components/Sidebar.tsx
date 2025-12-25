@@ -53,6 +53,14 @@ const NAV_STRUCTURE: NavGroup[] = [
     ]
   },
   {
+    id: 'teaching',
+    label: 'Teaching Workspace',
+    icon: BookOpenIcon,
+    items: [
+      { id: VIEWS.TEACHING_WORKSPACE, label: 'Teaching Hub', permission: 'view-my-lesson-plans|manage-curriculum|score_entries.edit_self' },
+    ]
+  },
+  {
     id: 'academics',
     label: 'Academics',
     icon: BookOpenIcon,

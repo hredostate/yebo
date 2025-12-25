@@ -78,6 +78,7 @@ const StudentAccountsView = lazy(() => import('./StudentAccountsView'));
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
 const HRPayrollModule = lazy(() => import('./HRPayrollModule'));
+const TeachingWorkspaceModule = lazy(() => import('./TeachingWorkspaceModule'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
 const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
@@ -1043,6 +1044,26 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onSubmitLeaveRequest={actions.handleCreateLeaveRequest}
                 onApproveLeaveRequest={actions.handleApproveLeaveRequest}
                 teams={data.teams}
+             />;
+        case VIEWS.TEACHING_WORKSPACE:
+             return <TeachingWorkspaceModule 
+                userProfile={data.userProfile}
+                users={data.users}
+                students={data.students}
+                teachingAssignments={data.academicAssignments}
+                lessonPlans={data.lessonPlans}
+                classGroups={data.classGroups}
+                allClasses={data.allClasses}
+                allArms={data.allArms}
+                allSubjects={data.allSubjects}
+                addToast={actions.addToast}
+                userPermissions={data.userPermissions}
+                onUpdateClassGroupMembers={actions.handleUpdateClassGroupMembers}
+                onSaveAttendanceSchedule={actions.handleSaveAttendanceSchedule}
+                onDeleteAttendanceSchedule={actions.handleDeleteAttendanceSchedule}
+                onSaveAttendanceRecord={actions.handleSaveAttendanceRecord}
+                onCreateClassAssignment={actions.handleCreateClassAssignment}
+                onDeleteClassAssignment={actions.handleDeleteClassAssignment}
              />;
         case VIEWS.MY_PAYROLL:
              return <MyPayrollView 
