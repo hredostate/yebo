@@ -106,15 +106,6 @@ export const VIEW_TO_PATH: Record<string, string> = {
   [VIEWS.ROLE_DIRECTORY]: '/admin/role-directory',
   [VIEWS.GUARDIAN_COMMAND]: '/admin/guardian-command',
   
-  // Hub Views
-  [VIEWS.POLICY_HUB]: '/admin/policy-hub',
-  [VIEWS.CURRICULUM_HUB]: '/academics/curriculum-hub',
-  [VIEWS.GRADES_RESULTS_HUB]: '/academics/grades-results-hub',
-  [VIEWS.ANALYTICS_HUB]: '/admin/analytics-hub',
-  [VIEWS.TRANSPORT_HUB]: '/transport/transport-hub',
-  [VIEWS.SETTINGS_HUB]: '/admin/settings-hub',
-  [VIEWS.USERS_TEAMS_HUB]: '/hr/users-teams-hub',
-  
   // Student Portal Views
   [VIEWS.STUDENT_PORTAL]: '/student/portal',
   [VIEWS.STUDENT_DASHBOARD]: '/student/dashboard',
