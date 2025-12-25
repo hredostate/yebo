@@ -30,8 +30,7 @@ import {
 } from './hooks/useInitialView';
 
 import LoginPage from './components/LoginPage';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
+import AppShell from './components/layout/AppShell';
 import EnvironmentSetupError from './components/EnvironmentSetupError';
 import DatabaseSetupError from './components/DatabaseSetupError';
 import PositiveBehaviorModal from './components/PositiveBehaviorModal';
@@ -308,8 +307,6 @@ const App: React.FC = () => {
 
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-    const getIsDesktopLayout = () => window.matchMedia('(min-width: 1024px)').matches;
-
     const [currentView, setCurrentView] = useState(() => {
         try {
             let hash = decodeURIComponent(window.location.hash.substring(1));
@@ -346,31 +343,7 @@ const App: React.FC = () => {
     const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(false);
     const profileLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [isDesktopLayout, setIsDesktopLayout] = useState(() => getIsDesktopLayout());
-    const [isSidebarOpen, setIsSidebarOpen] = useState(() => getIsDesktopLayout());
     // Note: hash state removed - using BrowserRouter path-based navigation
-
-    useEffect(() => {
-        const mediaQuery = window.matchMedia('(min-width: 1024px)');
-
-        const handleLayoutChange = (event: MediaQueryListEvent) => {
-            setIsDesktopLayout(event.matches);
-        };
-
-        setIsDesktopLayout(mediaQuery.matches);
-        mediaQuery.addEventListener('change', handleLayoutChange);
-
-        return () => mediaQuery.removeEventListener('change', handleLayoutChange);
-    }, []);
-
-    useEffect(() => {
-        // Keep the sidebar pinned open on desktop, default to drawer on mobile/tablet
-        if (isDesktopLayout) {
-            setIsSidebarOpen(true);
-        } else {
-            setIsSidebarOpen(false);
-        }
-    }, [isDesktopLayout]);
     
     // Store the initial target view from URL hash to preserve it across auth redirects
     const initialTargetView = useInitialTargetView();
@@ -7124,273 +7097,258 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
         return (
             <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
             <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-              <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
-                <Sidebar
-                    currentView={currentView}
-                    onNavigate={setCurrentView}
-                    userProfile={userProfile as StudentProfile}
-                    userPermissions={[]} // Students have no permissions array
-                    onLogout={handleLogout}
-                    isSidebarOpen={isSidebarOpen}
-                    setIsSidebarOpen={setIsSidebarOpen}
-                    canAccess={canAccess}
-                />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header
-                        userProfile={userProfile as StudentProfile}
-                        onLogout={handleLogout}
-                        notifications={notifications}
-                        onMarkNotificationsAsRead={() => { /* impl */ }}
-                        onNavigate={setCurrentView}
-                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                        isDarkMode={isDarkMode}
-                        toggleTheme={toggleTheme}
-                        userPermissions={[]}
-                    />
-                    <main className="app-surface">
-                         <ErrorBoundary>
-                             <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
-                                <AppRouter
-                                    currentView={currentView}
-                                    data={{
-                                        userProfile,
-                                        userType,
-                                        users,
-                                        reports,
-                                        students,
-                                        tasks,
-                                        announcements,
-                                        notifications,
-                                        positiveRecords,
-                                        studentAwards,
-                                        staffAwards,
-                                        interventionPlans,
-                                        sipLogs,
-                                        lessonPlans,
-                                        schoolSettings,
-                                        livingPolicy,
-                                        calendarEvents,
-                                        inventory,
-                                        allSubjects,
-                                        allClasses,
-                                        allArms,
-                                        classSubjects,
-                                        surveys,
-                                        classGroups,
-                                        roles,
-                                        userRoleAssignments,
-                                        teams,
-                                        teamPulse,
-                                        teamFeedback,
-                                        curricula,
-                                        curriculumWeeks,
-                                        academicClasses,
-                                        academicAssignments,
-                                        academicClassStudents,
-                                        scoreEntries,
-                                        gradingSchemes,
-                                        schoolConfig,
-                                        terms,
-                                        assessments,
-                                        assessmentScores,
-                                        assessmentStructures,
-                                        atRiskStudents,
-                                        atRiskTeachers,
-                                        socialMediaAnalytics,
-                                        policyInquiries,
-                                        curriculumReport,
-                                        taskSuggestions,
-                                        areFallbackSuggestions,
-                                        alerts,
-                                        coverageVotes,
-                                        rewards,
-                                        payrollRuns,
-                                        payrollItems,
-                                        payrollAdjustments,
-                                        campuses,
-                                        teacherCheckins,
-                                        leaveTypes,
-                                        leaveRequests,
-                                        absenceRequests,
-                                        teacherShifts,
-                                        teachingEntities,
-                                        orders,
-                                        socialAccounts,
-                                        checkinAnomalies,
-                                        weeklyRatings,
-                                        staffCertifications,
-                                        studentTermReports,
-                                        studentTermReportSubjects,
-                                        auditLogs,
-                                        reportCardAnnouncements,
-                                        todaysCheckinForDashboard,
-                                        navContext,
-                                        userPermissions,
-                                        isDarkMode,
-                                        schoolHealthReport,
-                                        improvementPlan,
-                                    }}
-                                    actions={{
-                                        setCurrentView,
-                                        setSelectedStudent: (s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); },
-                                        setIsPositiveModalOpen,
-                                        handleLogout,
-                                        toggleTheme,
-                                        addToast,
-                                        handleAddReport,
-                                        handleAssignReport,
-                                        handleAddReportComment,
-                                        handleDeleteReport,
-                                        handleUpdateReportStatusAndResponse,
-                                        handleBulkDeleteReports,
-                                        handleBulkAssignReports,
-                                        handleBulkUpdateReportStatus,
-                                        handleOpenAIBulkResponseModal,
-                                        handleUpdateTaskStatus,
-                                        handleAddTask,
-                                        handleAddAnnouncement,
-                                        handleUpdateAnnouncement,
-                                        handleDeleteAnnouncement,
-                                        handleAddStudent,
-                                        handleUpdateStudent,
-                                        handleGenerateStudentAwards,
-                                        handleGenerateStudentInsight,
-                                        handleCreateSIP,
-                                        handleAddSIPLog,
-                                        handleUpdateSIP,
-                                        handleRunWeeklyComplianceCheck,
-                                        handleUpdateClassGroupMembers,
-                                        handleSaveAttendanceSchedule,
-                                        handleDeleteAttendanceSchedule,
-                                        handleSaveAttendanceRecord,
-                                        handleCreateClassAssignment,
-                                        handleDeleteClassAssignment,
-                                        handleSaveSurvey,
-                                        handleDeleteSurvey,
-                                        handleSaveCalendarEvent,
-                                        handleUpdateCalendarEvent,
-                                        handleDeleteCalendarEvent,
-                                        handleNavigation: handleAINavigation,
-                                        handleInviteUser,
-                                        handleUpdateUser,
-                                        handleDeleteUser,
-                                        handleDeactivateUser,
-                                        handleUpdateEmploymentStatus,
-                                        handleUpdateUserCampus,
-                                        handleSaveRole,
-                                        handleUpdateRoleAssignments,
-                                        handleCreateTeam,
-                                        handleUpdateTeam,
-                                        handleDeleteTeam,
-                                        handleUpdateTeamMembers,
-                                        handleSaveTeamFeedback,
-                                        handleSaveCurriculum,
-                                        handleSaveLessonPlan,
-                                        handleAnalyzeLessonPlan,
-                                        handleCopyLessonPlan,
-                                        handleApproveLessonPlan,
-                                        handleSubmitLessonPlanForReview,
-                                        handleSaveScores,
-                                        handleUpdateScore,
-                                        handleSubmitScoresForReview,
-                                        handleSaveAssessment,
-                                        handleDeleteAssessment,
-                                        handleSaveAssessmentScores,
-                                        handleCopyAssessment,
-                                        handleLockScores,
-                                        handleResetSubmission,
-                                        handleUpdateReportComments,
-                                        handleBulkAddStudents,
-                                        handleAddPolicySnippet,
-                                        handleSavePolicyDocument,
-                                        handleSendEmergencyBroadcast,
-                                        handleUpdateProfile,
-                                        handleUpdateAvatar,
-                                        handleResetPassword,
-                                        handleUpdateEmail,
-                                        handleUpdatePassword,
-                                        handleUploadCertification,
-                                        handleDeleteCertification,
-                                        handleGetCertificationUrl,
-                                        handleUpdateSchoolSettings,
-                                        handleUpdateSchoolConfig,
-                                        handleGenerateStaffAwards,
-                                        handleAnalyzeTeacherRisk,
-                                        handleGeneratePolicyInquiries,
-                                        handleGenerateCurriculumReport,
-                                        handleProcessDailyDigest,
-                                        handleAcceptTaskSuggestion,
-                                        handleDismissTaskSuggestion,
-                                        handleCheckinOut,
-                                        handleAnalyzeCheckinAnomalies,
-                                        handleGenerateHealthReport,
-                                        handleGenerateForesight,
-                                        handleGenerateImprovementPlan,
-                                        handleGenerateCoverageDeviationReport,
-                                        handleSaveTerm,
-                                        handleDeleteTerm,
-                                        handleSaveAcademicClass,
-                                        handleDeleteAcademicClass,
-                                        handleSaveAcademicAssignment,
-                                        handleDeleteAcademicAssignment,
-                                        handleSaveGradingScheme,
-                                        handleDeleteGradingScheme,
-                                        handleSetActiveGradingScheme,
-                                        handleSaveSubject,
-                                        handleDeleteSubject,
-                                        handleSaveClass,
-                                        handleDeleteClass,
-                                        handleSaveArm,
-                                        handleDeleteArm,
-                                        handleSaveClassSubject,
-                                        handleDeleteClassSubject,
-                                        handleSaveInventoryItem,
-                                        handleDeleteInventoryItem,
-                                        handleSaveReward,
-                                        handleDeleteReward,
-                                        handleSaveReportCardAnnouncement,
-                                        handleDeleteReportCardAnnouncement,
-                                        handleRedeemReward,
-                                        handleRunPayroll,
-                                        handleUpdateUserPayroll,
-                                        handleCreateLeaveRequest,
-                                        handleDeleteLeaveRequest,
-                                        handleUpdateLeaveRequestStatus,
-                                        handleApproveLeaveRequest,
-                                        handleCreateAbsenceRequest,
-                                        handleApproveAbsenceRequest,
-                                        handleDenyAbsenceRequest,
-                                        handleSaveCampus,
-                                        handleDeleteCampus,
-                                        handleSaveShift,
-                                        handleDeleteShift,
-                                        handleSaveLeaveType,
-                                        handleDeleteLeaveType,
-                                        handleSaveAssessmentStructure,
-                                        handleDeleteAssessmentStructure,
-                                        handleImportLegacyAssignments,
-                                        handleUpdateClassEnrollment,
-                                        handleCreateOrder,
-                                        handleUpdateOrderStatus,
-                                        handleAddOrderNote,
-                                        handleDeleteOrderNote,
-                                        handleSaveSocialLinks,
-                                        handleOpenCreateStudentAccountModal,
-                                        handleBulkCreateStudentAccounts,
-                                        handleBulkRetrievePasswords,
-                                        handleGenerateActivationLinks,
-                                        handleCreateStudentAccount,
-                                        handleResetStudentPassword,
-                                        handleResetStudentStrikes,
-                                        handleLogCommunication,
-                                    }}
-                                />
-                             </Suspense>
-                         </ErrorBoundary>
-                    </main>
+              <AppShell
+                user={{
+                    name: (userProfile as StudentProfile)?.full_name ?? 'Student',
+                    role: 'Student',
+                }}
+                onLogout={handleLogout}
+                isDarkMode={isDarkMode}
+                onToggleTheme={toggleTheme}
+              >
+                <div className="app-surface">
+                     <ErrorBoundary>
+                         <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
+                            <AppRouter
+                                currentView={currentView}
+                                data={{
+                                    userProfile,
+                                    userType,
+                                    users,
+                                    reports,
+                                    students,
+                                    tasks,
+                                    announcements,
+                                    notifications,
+                                    positiveRecords,
+                                    studentAwards,
+                                    staffAwards,
+                                    interventionPlans,
+                                    sipLogs,
+                                    lessonPlans,
+                                    schoolSettings,
+                                    livingPolicy,
+                                    calendarEvents,
+                                    inventory,
+                                    allSubjects,
+                                    allClasses,
+                                    allArms,
+                                    classSubjects,
+                                    surveys,
+                                    classGroups,
+                                    roles,
+                                    userRoleAssignments,
+                                    teams,
+                                    teamPulse,
+                                    teamFeedback,
+                                    curricula,
+                                    curriculumWeeks,
+                                    academicClasses,
+                                    academicAssignments,
+                                    academicClassStudents,
+                                    scoreEntries,
+                                    gradingSchemes,
+                                    schoolConfig,
+                                    terms,
+                                    assessments,
+                                    assessmentScores,
+                                    assessmentStructures,
+                                    atRiskStudents,
+                                    atRiskTeachers,
+                                    socialMediaAnalytics,
+                                    policyInquiries,
+                                    curriculumReport,
+                                    taskSuggestions,
+                                    areFallbackSuggestions,
+                                    alerts,
+                                    coverageVotes,
+                                    rewards,
+                                    payrollRuns,
+                                    payrollItems,
+                                    payrollAdjustments,
+                                    campuses,
+                                    teacherCheckins,
+                                    leaveTypes,
+                                    leaveRequests,
+                                    absenceRequests,
+                                    teacherShifts,
+                                    teachingEntities,
+                                    orders,
+                                    socialAccounts,
+                                    checkinAnomalies,
+                                    weeklyRatings,
+                                    staffCertifications,
+                                    studentTermReports,
+                                    studentTermReportSubjects,
+                                    auditLogs,
+                                    reportCardAnnouncements,
+                                    todaysCheckinForDashboard,
+                                    navContext,
+                                    userPermissions,
+                                    isDarkMode,
+                                    schoolHealthReport,
+                                    improvementPlan,
+                                }}
+                                actions={{
+                                    setCurrentView,
+                                    setSelectedStudent: (s) => { setSelectedStudent(s); setCurrentView(`${VIEWS.STUDENT_PROFILE}/${s.id}`); },
+                                    setIsPositiveModalOpen,
+                                    handleLogout,
+                                    toggleTheme,
+                                    addToast,
+                                    handleAddReport,
+                                    handleAssignReport,
+                                    handleAddReportComment,
+                                    handleDeleteReport,
+                                    handleUpdateReportStatusAndResponse,
+                                    handleBulkDeleteReports,
+                                    handleBulkAssignReports,
+                                    handleBulkUpdateReportStatus,
+                                    handleOpenAIBulkResponseModal,
+                                    handleUpdateTaskStatus,
+                                    handleAddTask,
+                                    handleAddAnnouncement,
+                                    handleUpdateAnnouncement,
+                                    handleDeleteAnnouncement,
+                                    handleAddStudent,
+                                    handleUpdateStudent,
+                                    handleGenerateStudentAwards,
+                                    handleGenerateStudentInsight,
+                                    handleCreateSIP,
+                                    handleAddSIPLog,
+                                    handleUpdateSIP,
+                                    handleRunWeeklyComplianceCheck,
+                                    handleUpdateClassGroupMembers,
+                                    handleSaveAttendanceSchedule,
+                                    handleDeleteAttendanceSchedule,
+                                    handleSaveAttendanceRecord,
+                                    handleCreateClassAssignment,
+                                    handleDeleteClassAssignment,
+                                    handleSaveSurvey,
+                                    handleDeleteSurvey,
+                                    handleSaveCalendarEvent,
+                                    handleUpdateCalendarEvent,
+                                    handleDeleteCalendarEvent,
+                                    handleNavigation: handleAINavigation,
+                                    handleInviteUser,
+                                    handleUpdateUser,
+                                    handleDeleteUser,
+                                    handleDeactivateUser,
+                                    handleUpdateEmploymentStatus,
+                                    handleUpdateUserCampus,
+                                    handleSaveRole,
+                                    handleUpdateRoleAssignments,
+                                    handleCreateTeam,
+                                    handleUpdateTeam,
+                                    handleDeleteTeam,
+                                    handleUpdateTeamMembers,
+                                    handleSaveTeamFeedback,
+                                    handleSaveCurriculum,
+                                    handleSaveLessonPlan,
+                                    handleAnalyzeLessonPlan,
+                                    handleCopyLessonPlan,
+                                    handleApproveLessonPlan,
+                                    handleSubmitLessonPlanForReview,
+                                    handleSaveScores,
+                                    handleUpdateScore,
+                                    handleSubmitScoresForReview,
+                                    handleSaveAssessment,
+                                    handleDeleteAssessment,
+                                    handleSaveAssessmentScores,
+                                    handleCopyAssessment,
+                                    handleLockScores,
+                                    handleResetSubmission,
+                                    handleUpdateReportComments,
+                                    handleBulkAddStudents,
+                                    handleAddPolicySnippet,
+                                    handleSavePolicyDocument,
+                                    handleSendEmergencyBroadcast,
+                                    handleUpdateProfile,
+                                    handleUpdateAvatar,
+                                    handleResetPassword,
+                                    handleUpdateEmail,
+                                    handleUpdatePassword,
+                                    handleUploadCertification,
+                                    handleDeleteCertification,
+                                    handleGetCertificationUrl,
+                                    handleUpdateSchoolSettings,
+                                    handleUpdateSchoolConfig,
+                                    handleGenerateStaffAwards,
+                                    handleAnalyzeTeacherRisk,
+                                    handleGeneratePolicyInquiries,
+                                    handleGenerateCurriculumReport,
+                                    handleProcessDailyDigest,
+                                    handleAcceptTaskSuggestion,
+                                    handleDismissTaskSuggestion,
+                                    handleCheckinOut,
+                                    handleAnalyzeCheckinAnomalies,
+                                    handleGenerateHealthReport,
+                                    handleGenerateForesight,
+                                    handleGenerateImprovementPlan,
+                                    handleGenerateCoverageDeviationReport,
+                                    handleSaveTerm,
+                                    handleDeleteTerm,
+                                    handleSaveAcademicClass,
+                                    handleDeleteAcademicClass,
+                                    handleSaveAcademicAssignment,
+                                    handleDeleteAcademicAssignment,
+                                    handleSaveGradingScheme,
+                                    handleDeleteGradingScheme,
+                                    handleSetActiveGradingScheme,
+                                    handleSaveSubject,
+                                    handleDeleteSubject,
+                                    handleSaveClass,
+                                    handleDeleteClass,
+                                    handleSaveArm,
+                                    handleDeleteArm,
+                                    handleSaveClassSubject,
+                                    handleDeleteClassSubject,
+                                    handleSaveInventoryItem,
+                                    handleDeleteInventoryItem,
+                                    handleSaveReward,
+                                    handleDeleteReward,
+                                    handleSaveReportCardAnnouncement,
+                                    handleDeleteReportCardAnnouncement,
+                                    handleRedeemReward,
+                                    handleRunPayroll,
+                                    handleUpdateUserPayroll,
+                                    handleCreateLeaveRequest,
+                                    handleDeleteLeaveRequest,
+                                    handleUpdateLeaveRequestStatus,
+                                    handleApproveLeaveRequest,
+                                    handleCreateAbsenceRequest,
+                                    handleApproveAbsenceRequest,
+                                    handleDenyAbsenceRequest,
+                                    handleSaveCampus,
+                                    handleDeleteCampus,
+                                    handleSaveShift,
+                                    handleDeleteShift,
+                                    handleSaveLeaveType,
+                                    handleDeleteLeaveType,
+                                    handleSaveAssessmentStructure,
+                                    handleDeleteAssessmentStructure,
+                                    handleImportLegacyAssignments,
+                                    handleUpdateClassEnrollment,
+                                    handleCreateOrder,
+                                    handleUpdateOrderStatus,
+                                    handleAddOrderNote,
+                                    handleDeleteOrderNote,
+                                    handleSaveSocialLinks,
+                                    handleOpenCreateStudentAccountModal,
+                                    handleBulkCreateStudentAccounts,
+                                    handleBulkRetrievePasswords,
+                                    handleGenerateActivationLinks,
+                                    handleCreateStudentAccount,
+                                    handleResetStudentPassword,
+                                    handleResetStudentStrikes,
+                                    handleLogCommunication,
+                                }}
+                            />
+                         </Suspense>
+                     </ErrorBoundary>
                 </div>
-                 <Toast toasts={toasts} removeToast={removeToast} />
-             </div>
+              </AppShell>
+              <Toast toasts={toasts} removeToast={removeToast} />
             </RouterWrapper>
             </CampusScopeProvider>
         )
@@ -7400,31 +7358,17 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
     return (
         <CampusScopeProvider canViewSitewide={userCanViewSitewide}>
         <RouterWrapper currentView={currentView} setCurrentView={setCurrentView}>
-          <div className={`flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden`}>
-            <Sidebar
-                currentView={currentView}
-                onNavigate={setCurrentView}
-                userProfile={userProfile as UserProfile}
-                userPermissions={userPermissions}
-                onLogout={handleLogout}
-                isSidebarOpen={isSidebarOpen}
-                setIsSidebarOpen={setIsSidebarOpen}
-                canAccess={canAccess}
-            />
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-                <Header
-                    userProfile={userProfile as UserProfile}
-                    onLogout={handleLogout}
-                    notifications={notifications}
-                    onMarkNotificationsAsRead={() => { /* impl */ }}
-                    onNavigate={setCurrentView}
-                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                    isDarkMode={isDarkMode}
-                    toggleTheme={toggleTheme}
-                    userPermissions={userPermissions}
-                />
-                <main className="app-surface">
-                    <div className="page-wrapper">
+          <AppShell
+            user={{
+                name: (userProfile as UserProfile)?.name ?? 'Guardian',
+                role: (userProfile as UserProfile)?.role ?? 'Staff',
+            }}
+            onLogout={handleLogout}
+            isDarkMode={isDarkMode}
+            onToggleTheme={toggleTheme}
+          >
+            <div className="app-surface">
+                <div className="page-wrapper">
                         <ErrorBoundary>
                             <Suspense fallback={<div className="flex justify-center pt-10"><Spinner size="lg" /></div>}>
                                 <AppRouter
@@ -7693,9 +7637,9 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                         onNavigate={handleAINavigation}
                      />
                     </div>
-                </main>
-            </div>
-            <Toast toasts={toasts} removeToast={removeToast} />
+                </div>
+          </AppShell>
+          <Toast toasts={toasts} removeToast={removeToast} />
             
             {/* Policy Acknowledgment Gate */}
             {showPolicyGate && pendingPolicies.length > 0 && userProfile && (
@@ -7748,7 +7692,6 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             <FeedbackWidget
                 userProfile={userProfile as { id: string; school_id: number } | null}
             />
-        </div>
         </RouterWrapper>
         </CampusScopeProvider>
     );
