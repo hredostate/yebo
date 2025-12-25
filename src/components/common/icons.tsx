@@ -355,7 +355,7 @@ export const MaximizeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
 
 export const MinimizeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 15v4.5m0-4.5h4.5m-4.5 0l5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15H4.5M9 15v4.5m0-4.5L3.75 20.25" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V3m0 6H3m6 0l-6-6M15 9h6m-6 0V3m0 6l6-6M9 15v6m0-6H3m6 0l-6 6m6-6h12m-6 0v6m0-6l6 6" />
     </svg>
 );
 

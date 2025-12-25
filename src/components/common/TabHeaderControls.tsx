@@ -51,8 +51,8 @@ export const TabHeaderControls: React.FC<TabHeaderControlsProps> = ({
       <button
         onClick={onToggleExpand}
         className="p-2 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-        title={isExpanded ? 'Exit full screen' : 'Expand'}
-        aria-label={isExpanded ? 'Exit full screen' : 'Expand'}
+        title={isExpanded ? 'Collapse' : 'Expand'}
+        aria-label={isExpanded ? 'Collapse' : 'Expand'}
       >
         {isExpanded ? (
           <CollapseIcon className="w-5 h-5" />
