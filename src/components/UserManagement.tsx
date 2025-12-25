@@ -42,7 +42,7 @@ interface UserManagementProps {
     users: UserProfile[];
     roles: Record<string, RoleDetails>;
     campuses: Campus[];
-    currentUserProfile: UserProfile;
+    currentUserProfile?: UserProfile;
     onInviteUser: (email: string, role: RoleTitle) => Promise<void>;
     onUpdateUser: (userId: string, userData: Partial<UserProfile>) => Promise<boolean>;
     onDeleteUser: (userId: string) => Promise<boolean>;
