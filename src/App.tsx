@@ -7105,6 +7105,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                 onLogout={handleLogout}
                 isDarkMode={isDarkMode}
                 onToggleTheme={toggleTheme}
+                userPermissions={userPermissions}
               >
                 <div className="app-surface">
                      <ErrorBoundary>
@@ -7366,6 +7367,7 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
             onLogout={handleLogout}
             isDarkMode={isDarkMode}
             onToggleTheme={toggleTheme}
+            userPermissions={userPermissions}
           >
             <div className="app-surface">
                 <div className="page-wrapper">

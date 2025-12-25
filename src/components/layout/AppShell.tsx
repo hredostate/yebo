@@ -10,6 +10,7 @@ export interface AppShellProps {
   onLogout?: () => void;
   isDarkMode?: boolean;
   onToggleTheme?: () => void;
+  userPermissions?: string[];
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
@@ -18,6 +19,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onLogout,
   isDarkMode,
   onToggleTheme,
+  userPermissions,
 }) => {
   const {
     collapsed,
@@ -42,6 +44,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             closeMobile={closeMobile}
             onLogout={onLogout}
             user={user}
+            userPermissions={userPermissions}
           />
           <div className="min-w-0 space-y-6">
             <Topbar
