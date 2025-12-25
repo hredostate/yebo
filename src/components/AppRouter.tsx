@@ -78,13 +78,6 @@ const StudentAccountsView = lazy(() => import('./StudentAccountsView'));
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
 const HRPayrollModule = lazy(() => import('./HRPayrollModule'));
-const PolicyHub = lazy(() => import('./PolicyHub'));
-const CurriculumHub = lazy(() => import('./CurriculumHub'));
-const GradesResultsHub = lazy(() => import('./GradesResultsHub'));
-const AnalyticsHub = lazy(() => import('./AnalyticsHub'));
-const TransportHub = lazy(() => import('./TransportHub'));
-const SettingsHub = lazy(() => import('./SettingsHub'));
-const UsersTeamsHub = lazy(() => import('./UsersTeamsHub'));
 const SocialMediaHubView = lazy(() => import('./SocialMediaHubView'));
 const TeacherAttendanceDashboard = lazy(() => import('./TeacherAttendanceDashboard'));
 const PredictiveAnalyticsDashboard = lazy(() => import('./analytics/PredictiveAnalyticsDashboard'));
@@ -557,7 +550,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 users={data.users}
                 roles={data.roles}
                 campuses={data.campuses}
-                currentUserProfile={data.userProfile}
                 onInviteUser={actions.handleInviteUser}
                 onUpdateUser={actions.handleUpdateUser}
                 onDeleteUser={actions.handleDeleteUser}
@@ -629,16 +621,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                   await actions.loadAllData();
                 }}
              />;
-        case VIEWS.USERS_TEAMS_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <UsersTeamsHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
         case VIEWS.CURRICULUM_MANAGER:
              return <CurriculumManager 
                 teachingAssignments={data.teachingEntities} 
@@ -828,26 +810,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 coverageData={data.coverageData || []}
                 addToast={actions.addToast}
              />;
-        case VIEWS.CURRICULUM_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <CurriculumHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
-        case VIEWS.GRADES_RESULTS_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <GradesResultsHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
         case VIEWS.COVERAGE_REPORTING:
              return <CoverageReportingPanel
                 lessonPlans={data.lessonPlans}
@@ -883,17 +845,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 />
             </Suspense>;
 
-        case VIEWS.POLICY_HUB:
-            return <Suspense fallback={<Spinner size="lg" />}>
-                <PolicyHub 
-                    userProfile={data.userProfile}
-                    userPermissions={data.userPermissions}
-                    addToast={actions.addToast}
-                    onNavigate={actions.setCurrentView}
-                    currentView={data.currentView}
-                />
-            </Suspense>;
-
         case VIEWS.EMERGENCY_BROADCAST:
              return <EmergencyBroadcast onSendBroadcast={actions.handleSendEmergencyBroadcast} />;
         case VIEWS.PROFILE:
@@ -923,16 +874,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 schoolId={data.userProfile.school_id}
                 addToast={actions.addToast}
              />;
-        case VIEWS.SETTINGS_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <SettingsHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
         case VIEWS.TEACHER_RATINGS:
              return <StaffTeacherRatingsView 
                 users={data.users} 
@@ -970,7 +911,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
              />;
         case VIEWS.SUPER_ADMIN_CONSOLE:
              return <SuperAdminConsole 
-                userProfile={data.userProfile}
                 userPermissions={data.userPermissions}
                 schoolConfig={data.schoolConfig}
                 terms={data.terms}
@@ -1053,16 +993,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
              />;
         case VIEWS.DATA_ANALYSIS:
              return <DataAnalysisView addToast={actions.addToast} />;
-        case VIEWS.ANALYTICS_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <AnalyticsHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
         case VIEWS.REWARDS_STORE:
              return <RewardsStoreView 
                 rewards={data.rewards}
@@ -1270,16 +1200,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                      />
                  </Suspense>
              );
-        case VIEWS.TRANSPORT_HUB:
-             return <Suspense fallback={<Spinner size="lg" />}>
-                 <TransportHub 
-                     userProfile={data.userProfile}
-                     userPermissions={data.userPermissions}
-                     addToast={actions.addToast}
-                     onNavigate={actions.setCurrentView}
-                     currentView={data.currentView}
-                 />
-             </Suspense>;
         case VIEWS.SURVEYS: // Added fallback for Surveys View
              return <SurveyListView 
                 surveys={data.surveys}
