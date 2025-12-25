@@ -26,4 +26,3 @@ assertEquals(VIEWS.TEACHING_WORKSPACE, 'Teaching Workspace', 'TEACHING_WORKSPACE
 console.log('✅ TEACHING_WORKSPACE constant tests passed\n');
 
 console.log('✅ All Teaching Workspace Module Integration Tests Passed');
-

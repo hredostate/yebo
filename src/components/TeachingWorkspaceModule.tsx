@@ -461,8 +461,13 @@ class ErrorBoundary extends React.Component<
     }
 
     static getDerivedStateFromError(error: Error) {
+        // Log full error for debugging but sanitize what we store
+        console.error('Error caught by Teaching Workspace boundary:', error);
+        
+        // In production, never expose error details
+        // In development, sanitize the message to remove potential sensitive data
         const safeMessage = process.env.NODE_ENV === 'development' 
-            ? (error.message || 'An unexpected error occurred')
+            ? (error.message || 'An unexpected error occurred').replace(/token|password|secret|key|auth/gi, '[REDACTED]')
             : 'An unexpected error occurred';
         return { hasError: true, errorMessage: safeMessage };
     }
