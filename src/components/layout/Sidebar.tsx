@@ -289,6 +289,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
   const isAllPowerful = userPermissions.includes('*');
   const canViewSuperAdmin = isAllPowerful || 
+    userPermissions.includes('school.console.view') ||
     userPermissions.includes('school.console.structure_edit') || 
     userPermissions.includes('school.console.branding_edit') || 
     userPermissions.includes('school.console.role_admin') || 
