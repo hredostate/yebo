@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import type { SurveyWithQuestions, DetailedSurveyResponse } from '../types';
 import Spinner from './common/Spinner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { LivingPolicySnippet, UserProfile, SchoolSettings } from '../types';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import { WandIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';
 import { requireSupabaseClient } from '../services/supabaseClient';
