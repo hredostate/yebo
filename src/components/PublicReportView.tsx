@@ -182,6 +182,7 @@ const PublicReportView: React.FC = () => {
     const [totalInArm, setTotalInArm] = useState<number | null>(null);
     const [positionInLevel, setPositionInLevel] = useState<number | null>(null);
     const [totalInLevel, setTotalInLevel] = useState<number | null>(null);
+    const [positionInLevelFormatted, setPositionInLevelFormatted] = useState<string | null>(null);
     const [armName, setArmName] = useState<string | null>(null);
     const [levelName, setLevelName] = useState<string | null>(null);
     const [attendance, setAttendance] = useState<{
@@ -414,6 +415,7 @@ const PublicReportView: React.FC = () => {
             const extractedTotalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_students_in_arm;
             const extractedPositionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level;
             const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_students_in_level;
+            const extractedPositionInLevelFormatted = rpcData?.summary?.positionInLevelFormatted ?? rpcData?.ranking?.positionInLevelFormatted;
             const extractedArmName = rpcData?.student?.armName ?? rpcData?.student?.arm_name;
             const extractedLevelName = rpcData?.student?.levelName ?? rpcData?.student?.level_name ?? rpcData?.student?.level;
             
@@ -449,6 +451,7 @@ const PublicReportView: React.FC = () => {
             setTotalInArm(extractedTotalInArm);
             setPositionInLevel(extractedPositionInLevel);
             setTotalInLevel(extractedTotalInLevel);
+            setPositionInLevelFormatted(extractedPositionInLevelFormatted);
             setArmName(extractedArmName);
             setLevelName(extractedLevelName);
             setAttendance(extractedAttendance);
@@ -828,9 +831,9 @@ const PublicReportView: React.FC = () => {
                                 {showLevelPosition && (
                                     <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
                                         <p className="text-lg font-bold" style={{ color: themeColor }}>
-                                            {positionInLevel ? `${positionInLevel}${getOrdinalSuffix(positionInLevel)}${totalInLevel ? ` / ${totalInLevel}` : ''}` : '—'}
+                                            {positionInLevelFormatted || '—'}
                                         </p>
-                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Class</p>
+                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Level</p>
                                     </div>
                                 )}
                             </div>
