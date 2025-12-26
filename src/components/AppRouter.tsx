@@ -184,6 +184,7 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                         termId={Number(param2)} 
                         onBack={() => actions.setCurrentView(VIEWS.STUDENT_REPORTS)} 
                         announcements={data.reportCardAnnouncements}
+                        isStudentUser={true}
                     />;
                  }
                  return <div>Report not found.</div>;
