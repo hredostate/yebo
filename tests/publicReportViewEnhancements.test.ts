@@ -110,4 +110,48 @@ const emptyComponentNames = hasNoComponentScores ?
 
 strictEqual(emptyComponentNames.length, 0, 'Should have no component names');
 
+// Test 8: Position in Level formatted string handling
+console.log('Test 8: Position in Level formatted string handling');
+
+interface MockRPCData {
+    summary?: {
+        positionInLevelFormatted?: string;
+    };
+    ranking?: {
+        positionInLevelFormatted?: string;
+    };
+}
+
+// Test with formatted string in summary
+const mockRPCData1: MockRPCData = {
+    summary: {
+        positionInLevelFormatted: '100th out of 167'
+    }
+};
+
+const extractedPositionInLevelFormatted1 = mockRPCData1?.summary?.positionInLevelFormatted ?? mockRPCData1?.ranking?.positionInLevelFormatted;
+strictEqual(extractedPositionInLevelFormatted1, '100th out of 167', 'Should extract formatted position from summary');
+
+// Test with formatted string in ranking
+const mockRPCData2: MockRPCData = {
+    ranking: {
+        positionInLevelFormatted: '5th out of 45'
+    }
+};
+
+const extractedPositionInLevelFormatted2 = mockRPCData2?.summary?.positionInLevelFormatted ?? mockRPCData2?.ranking?.positionInLevelFormatted;
+strictEqual(extractedPositionInLevelFormatted2, '5th out of 45', 'Should extract formatted position from ranking');
+
+// Test with no formatted string
+const mockRPCData3: MockRPCData = {};
+const extractedPositionInLevelFormatted3 = mockRPCData3?.summary?.positionInLevelFormatted ?? mockRPCData3?.ranking?.positionInLevelFormatted;
+strictEqual(extractedPositionInLevelFormatted3, undefined, 'Should return undefined when no formatted position exists');
+
+// Test display fallback
+const displayValue = extractedPositionInLevelFormatted1 || '—';
+strictEqual(displayValue, '100th out of 167', 'Should display formatted value when present');
+
+const displayValueEmpty = extractedPositionInLevelFormatted3 || '—';
+strictEqual(displayValueEmpty, '—', 'Should display fallback when no value');
+
 console.log('✅ All PublicReportView enhancement tests passed!');
