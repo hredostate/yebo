@@ -460,9 +460,15 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                 return <LearningMaterialsManager 
                     materials={materials}
                     lessonPlans={safeLessonPlans}
-                    onUploadMaterial={onUploadMaterial || (async () => {})}
-                    onUpdateMaterial={onUpdateMaterial || (async () => {})}
-                    onDeleteMaterial={onDeleteMaterial || (async () => {})}
+                    onUploadMaterial={onUploadMaterial || (async () => {
+                        addToast('Upload material functionality not available', 'error');
+                    })}
+                    onUpdateMaterial={onUpdateMaterial || (async () => {
+                        addToast('Update material functionality not available', 'error');
+                    })}
+                    onDeleteMaterial={onDeleteMaterial || (async () => {
+                        addToast('Delete material functionality not available', 'error');
+                    })}
                     currentUserId={userProfile.id}
                 />;
 
@@ -488,10 +494,22 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                     academicClassStudents={academicClassStudents}
                     userProfile={userProfile}
                     userPermissions={safeUserPermissions}
-                    onSaveAssessment={onSaveAssessment || (async () => false)}
-                    onDeleteAssessment={onDeleteAssessment || (async () => false)}
-                    onSaveScores={onSaveAssessmentScores || (async () => false)}
-                    onCopyAssessment={onCopyAssessment || (async () => false)}
+                    onSaveAssessment={onSaveAssessment || (async () => {
+                        addToast('Save assessment functionality not available', 'error');
+                        return false;
+                    })}
+                    onDeleteAssessment={onDeleteAssessment || (async () => {
+                        addToast('Delete assessment functionality not available', 'error');
+                        return false;
+                    })}
+                    onSaveScores={onSaveAssessmentScores || (async () => {
+                        addToast('Save scores functionality not available', 'error');
+                        return false;
+                    })}
+                    onCopyAssessment={onCopyAssessment || (async () => {
+                        addToast('Copy assessment functionality not available', 'error');
+                        return false;
+                    })}
                     addToast={addToast}
                 />;
 
@@ -518,7 +536,10 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                     teachingAssignments={safeTeachingAssignments}
                     curricula={curricula}
                     curriculumWeeks={curriculumWeeks}
-                    onSave={onSaveCurriculum || (async () => false)}
+                    onSave={onSaveCurriculum || (async () => {
+                        addToast('Save curriculum functionality not available', 'error');
+                        return false;
+                    })}
                     userProfile={userProfile}
                     teams={teams}
                 />;
@@ -536,9 +557,18 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                     students={realStudents}
                     academicClassStudents={academicClassStudents}
                     userProfile={userProfile}
-                    onCreateAssignment={onCreateTeachingAssignment || (async () => false)}
-                    onDeleteAssignment={onDeleteTeachingAssignment || (async () => false)}
-                    onUpdateClassEnrollment={onUpdateClassEnrollment || (async () => false)}
+                    onCreateAssignment={onCreateTeachingAssignment || (async () => {
+                        addToast('Create teaching assignment functionality not available', 'error');
+                        return false;
+                    })}
+                    onDeleteAssignment={onDeleteTeachingAssignment || (async () => {
+                        addToast('Delete teaching assignment functionality not available', 'error');
+                        return false;
+                    })}
+                    onUpdateClassEnrollment={onUpdateClassEnrollment || (async () => {
+                        addToast('Update class enrollment functionality not available', 'error');
+                        return false;
+                    })}
                 />;
 
             default:
