@@ -58,7 +58,12 @@ const PolicyQueryView: React.FC<PolicyQueryViewProps> = ({ userProfile, schoolSe
         setQueryAnswer('');
         try {
             const aiClient = getAIClient();
-            if (!aiClient) throw new Error("AI Client not available.");
+            if (!aiClient) {
+                addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                return;
+            }
+            
+            console.log('[AI] PolicyQueryView: Starting query', { model: getCurrentModel() });
 
             const snippetsText = policySnippets.map(s => `- ${s.content}`).join('\n');
             const prompt = `You are an assistant for a school teacher. Your task is to answer questions based *only* on the provided school policy snippets. If the answer is not in the snippets, state that clearly. Do not invent information. Format your answer in simple markdown.
@@ -81,8 +86,17 @@ const PolicyQueryView: React.FC<PolicyQueryViewProps> = ({ userProfile, schoolSe
             for await (const chunk of stream) {
                 setQueryAnswer(prev => (prev || '') + (chunk.choices[0]?.delta?.content || ''));
             }
-        } catch (error) {
-            console.error("Policy query failed:", error);
+            
+            console.log('[AI] PolicyQueryView: Query completed', { success: true });
+        } catch (error: any) {
+            console.error('[AI] PolicyQueryView: Query failed', { error: error.message });
+            if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            } else if (error?.status === 401) {
+                addToast('AI authentication failed. Please check your API key.', 'error');
+            } else {
+                addToast('Failed to process query. Please try again.', 'error');
+            }
             setQueryAnswer("Sorry, I encountered an error while trying to answer your question.");
         } finally {
             setIsQuerying(false);
