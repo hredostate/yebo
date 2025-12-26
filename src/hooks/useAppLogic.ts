@@ -361,12 +361,13 @@ export const useAppLogic = () => {
       } else if (userProfile && userType === 'student') {
             // Student Data Fetching
              try {
+                 const studentProfile = userProfile as StudentProfile;
                  const results = await Promise.allSettled([
-                     supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', (userProfile as any).student_record_id),
+                     supabase.from('student_term_reports').select('*, term:terms(*)').eq('student_id', studentProfile.student_record_id),
                      supabase.from('quizzes').select('*, questions:quiz_questions(*)').eq('school_id', userProfile.school_id),
                      supabase.from('quiz_responses').select('quiz_id').eq('user_id', userProfile.id),
                      supabase.from('announcements').select('*, author:user_profiles(name)').eq('school_id', userProfile.school_id).order('created_at', { ascending: false }),
-                     supabase.from('students').select('*').eq('id', (userProfile as any).student_record_id).maybeSingle(),
+                     supabase.from('students').select('*').eq('id', studentProfile.student_record_id).maybeSingle(),
                  ]);
                  // Helper to safely extract data from result - always returns array
                  const getData = (index: number): any[] => {
@@ -391,7 +392,6 @@ export const useAppLogic = () => {
                  };
                  setStudentTermReports(getData(0));
                  setSurveys(getData(1));
-                 // taken surveys
                  setAnnouncements(getData(3));
                  // Set the current student's record
                  const studentRecord = getSingleData(4);
