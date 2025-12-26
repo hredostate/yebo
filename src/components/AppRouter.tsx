@@ -1079,6 +1079,18 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 onApprove={actions.handleApproveLessonPlan}
                 onSubmitForReview={actions.handleSubmitLessonPlanForReview}
                 coverageData={data.coverageData || []}
+                academicAssignments={data.academicAssignments}
+                assessments={data.assessments}
+                assessmentScores={data.assessmentScores}
+                academicClassStudents={data.academicClassStudents}
+                realStudents={data.students}
+                terms={data.terms}
+                onSaveAssessment={actions.handleSaveAssessment}
+                onDeleteAssessment={actions.handleDeleteAssessment}
+                onSaveAssessmentScores={actions.handleSaveAssessmentScores}
+                onCopyAssessment={actions.handleCopyAssessment}
+                onSaveCurriculum={actions.handleSaveCurriculum}
+                onUpdateClassEnrollment={actions.handleUpdateClassEnrollment}
              />;
         case VIEWS.MY_PAYROLL:
              return <MyPayrollView 
