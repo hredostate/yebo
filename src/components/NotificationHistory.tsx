@@ -21,6 +21,7 @@ const NotificationHistory: React.FC<NotificationHistoryProps> = ({ userProfile }
     const loadNotifications = async () => {
         setLoading(true);
         try {
+            const supabase = requireSupabaseClient();
             let query = supabase
                 .from('whatsapp_notifications')
                 .select(`
