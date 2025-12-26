@@ -4,6 +4,7 @@ import SchoolBranding from './SchoolBranding';
 import BrandingSettings from './BrandingSettings';
 import PaymentGatewaySettings from './PaymentGatewaySettings';
 import KudiSmsSettings from './KudiSmsSettings';
+import { GreenApiSettingsComponent } from './GreenApiSettings';
 import GroqSettings from './GroqSettings';
 import StudentProfileFieldsSettings from './StudentProfileFieldsSettings';
 import Spinner from './common/Spinner';
@@ -107,7 +108,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, schoolConfig, onS
             case 'Payment Gateway':
                 return settings ? <PaymentGatewaySettings schoolId={settings.id} /> : null;
             case 'Messaging Gateway':
-                return settings ? <KudiSmsSettings schoolId={settings.id} /> : null;
+                return settings ? (
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">SMS Gateway (KudiSMS)</h3>
+                            <KudiSmsSettings schoolId={settings.id} />
+                        </div>
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">WhatsApp Gateway (Green-API)</h3>
+                            <GreenApiSettingsComponent 
+                                schoolId={settings.id} 
+                                addToast={addToast}
+                            />
+                        </div>
+                    </div>
+                ) : null;
             case 'AI Configuration':
                 return settings ? <GroqSettings schoolId={settings.id} /> : null;
             case 'Student Profile':
