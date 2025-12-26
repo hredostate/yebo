@@ -59,6 +59,19 @@ interface TeachingWorkspaceModuleProps {
     onSaveAttendanceRecord: (record: any) => Promise<boolean>;
     onCreateClassAssignment: (assignment: any) => Promise<boolean>;
     onDeleteClassAssignment: (assignmentId: number) => Promise<boolean>;
+    // Props for sub-components
+    checkinAnomalies?: any[];
+    onAnalyzeCheckinAnomalies?: () => Promise<void>;
+    onNavigate?: (view: string) => void;
+    teams?: any[];
+    onSaveLessonPlan?: (plan: any, generateWithAi: boolean, file: File | null) => Promise<any>;
+    onAnalyzeLessonPlan?: (planId: number) => Promise<any>;
+    onCopyLessonPlan?: (sourcePlan: any, targetEntityIds: number[]) => Promise<boolean>;
+    curricula?: any[];
+    curriculumWeeks?: any[];
+    onApprove?: (plan: any) => Promise<void>;
+    onSubmitForReview?: (plan: any) => Promise<void>;
+    coverageData?: any[];
 }
 
 const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
@@ -79,6 +92,19 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
     onSaveAttendanceRecord,
     onCreateClassAssignment,
     onDeleteClassAssignment,
+    // Sub-component props with safe defaults
+    checkinAnomalies = [],
+    onAnalyzeCheckinAnomalies = async () => {},
+    onNavigate = () => {},
+    teams = [],
+    onSaveLessonPlan,
+    onAnalyzeLessonPlan,
+    onCopyLessonPlan,
+    curricula = [],
+    curriculumWeeks = [],
+    onApprove,
+    onSubmitForReview,
+    coverageData = [],
 }) => {
     // Safe defaults for permissions
     const safeUserPermissions = Array.isArray(userPermissions) ? userPermissions : [];
@@ -338,16 +364,42 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                 );
 
             case 'teacher_pulse':
-                return <TeacherPulseView />;
+                return <TeacherPulseView 
+                    addToast={(msg, type) => addToast(msg, type)}
+                    checkinAnomalies={checkinAnomalies}
+                    onAnalyzeCheckinAnomalies={onAnalyzeCheckinAnomalies}
+                    onNavigate={onNavigate}
+                />;
 
             case 'lesson_plans':
-                return <CurriculumPlannerView />;
+                return <CurriculumPlannerView 
+                    teams={teams}
+                    lessonPlans={safeLessonPlans}
+                    userProfile={userProfile}
+                    onSaveLessonPlan={onSaveLessonPlan || (async () => null)}
+                    onAnalyzeLessonPlan={onAnalyzeLessonPlan || (async () => null)}
+                    teachingAssignments={safeTeachingAssignments}
+                    onCopyLessonPlan={onCopyLessonPlan || (async () => false)}
+                    curricula={curricula}
+                    curriculumWeeks={curriculumWeeks}
+                    onApprove={onApprove || (async () => {})}
+                    onSubmitForReview={onSubmitForReview}
+                />;
 
             case 'coverage_analytics':
-                return <CoverageAnalyticsDashboard />;
+                return <CoverageAnalyticsDashboard 
+                    schoolId={userProfile.school_id}
+                    lessonPlans={safeLessonPlans}
+                    coverageData={coverageData}
+                    addToast={(msg) => addToast(msg.message, msg.type)}
+                />;
 
             case 'homework_manager':
-                return <HomeworkManager />;
+                return <HomeworkManager 
+                    userProfile={userProfile}
+                    teachingAssignments={safeTeachingAssignments}
+                    onNavigate={onNavigate}
+                />;
 
             case 'learning_materials':
                 return <LearningMaterialsManager />;
