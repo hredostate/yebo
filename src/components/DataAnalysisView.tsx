@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import Spinner from './common/Spinner';
 import { ChartBarIcon, WandIcon } from './common/icons';
 import { extractAndParseJson } from '../utils/json';
@@ -87,7 +87,12 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
     setAnalysisResult('');
     try {
         const aiClient = getAIClient();
-        if (!aiClient) throw new Error("AI Client not ready.");
+        if (!aiClient) {
+            addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            return;
+        }
+        
+        console.log('[AI] DataAnalysisView: Starting data analysis', { model: getCurrentModel() });
 
         const prompt = `You are a helpful data analyst for a school administrator. Analyze the following CSV data to answer the user's question.
         Format your response in clear, readable Markdown. Provide a concise summary first, then a more detailed breakdown. Use tables or lists if they help clarify the data.
@@ -108,11 +113,19 @@ const DataAnalysisView: React.FC<DataAnalysisViewProps> = ({ addToast }) => {
         for await (const chunk of stream) {
             setAnalysisResult(prev => prev + (chunk.choices[0]?.delta?.content || ''));
         }
+        
+        console.log('[AI] DataAnalysisView: Data analysis completed', { success: true });
 
-    } catch (err) {
-      console.error(err);
-      addToast('An error occurred during analysis.', 'error');
-      setAnalysisResult("An error occurred. Please check the console for details.");
+    } catch (err: any) {
+      console.error('[AI] DataAnalysisView: Data analysis failed', { error: err.message });
+      if (err?.status === 429 || err?.message?.includes('rate limit')) {
+          addToast('AI rate limit reached. Please try again in a moment.', 'error');
+      } else if (err?.status === 401) {
+          addToast('AI authentication failed. Please check your API key.', 'error');
+      } else {
+          addToast('An error occurred during analysis.', 'error');
+      }
+      setAnalysisResult("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
