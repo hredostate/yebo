@@ -431,7 +431,7 @@ const PublicReportView: React.FC = () => {
                 excused: rpcData.attendance.excused ?? 0,
                 unexcused: rpcData.attendance.unexcused ?? 0,
                 total: rpcData.attendance.total ?? 0,
-                rate: rpcData.attendance.rate ?? 0,
+                rate: rpcData.attendance.attendanceRate ?? rpcData.attendance.rate ?? 0,
             } : null;
 
             setReportData({
@@ -796,9 +796,9 @@ const PublicReportView: React.FC = () => {
                                 </div>
                                 {showArmPosition && (
                                     <div>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Arm</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Class</p>
                                         <p className="text-base font-semibold text-slate-900">
-                                            {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)}${totalInArm ? ` of ${totalInArm}` : ''}` : '—'}
+                                            {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)} out of ${totalInArm || '—'}` : '—'}
                                         </p>
                                     </div>
                                 )}
