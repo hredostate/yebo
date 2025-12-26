@@ -7647,6 +7647,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     handleDeleteInventoryItem,
                                     handleSaveReward,
                                     handleDeleteReward,
+                                    handleSaveReportCardAnnouncement,
+                                    handleDeleteReportCardAnnouncement,
                                     handleRedeemReward,
                                     handleRunPayroll,
                                     handleUpdateUserPayroll,
