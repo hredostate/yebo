@@ -6,7 +6,18 @@ import type {
     ClassGroup, 
     StudentProfile,
     AcademicClass,
-    Subject 
+    Subject,
+    AcademicTeachingAssignment,
+    Assessment,
+    AssessmentScore,
+    Student,
+    AcademicClassStudent,
+    Curriculum,
+    CurriculumWeek,
+    Team,
+    Term,
+    BaseDataObject,
+    LearningMaterial
 } from '../types';
 import { 
     ChartBarIcon, UsersIcon, DocumentTextIcon, ClipboardIcon, FolderIcon, 
@@ -63,15 +74,40 @@ interface TeachingWorkspaceModuleProps {
     checkinAnomalies?: any[];
     onAnalyzeCheckinAnomalies?: () => Promise<void>;
     onNavigate?: (view: string) => void;
-    teams?: any[];
+    teams?: Team[];
     onSaveLessonPlan?: (plan: any, generateWithAi: boolean, file: File | null) => Promise<any>;
     onAnalyzeLessonPlan?: (planId: number) => Promise<any>;
     onCopyLessonPlan?: (sourcePlan: any, targetEntityIds: number[]) => Promise<boolean>;
-    curricula?: any[];
-    curriculumWeeks?: any[];
+    curricula?: Curriculum[];
+    curriculumWeeks?: CurriculumWeek[];
     onApprove?: (plan: any) => Promise<void>;
     onSubmitForReview?: (plan: any) => Promise<void>;
     coverageData?: any[];
+    // Props for TeacherGradebookView, AssessmentManager, etc.
+    academicAssignments?: AcademicTeachingAssignment[];
+    assessments?: Assessment[];
+    assessmentScores?: AssessmentScore[];
+    academicClassStudents?: AcademicClassStudent[];
+    realStudents?: Student[];
+    terms?: Term[];
+    onSaveAssessment?: (data: Partial<Assessment>) => Promise<boolean>;
+    onDeleteAssessment?: (id: number) => Promise<boolean>;
+    onSaveAssessmentScores?: (scores: Partial<AssessmentScore>[]) => Promise<boolean>;
+    onCopyAssessment?: (sourceId: number, targetIds: number[]) => Promise<boolean>;
+    // Props for CurriculumManager
+    onSaveCurriculum?: (teachingAssignmentId: number, weeksData: { week_number: number; expected_topics: string }[]) => Promise<boolean>;
+    // Props for TeachingAssignmentsContainer
+    onCreateTeachingAssignment?: (
+        assignmentData: { teacher_user_id: string; subject_id: number | null; class_id: number; arm_id: number },
+        groupData: { name: string; description: string; group_type: 'class_teacher' | 'subject_teacher' }
+    ) => Promise<boolean>;
+    onDeleteTeachingAssignment?: (groupId: number) => Promise<boolean>;
+    onUpdateClassEnrollment?: (classId: number, termId: number, studentIds: number[]) => Promise<boolean>;
+    // Props for LearningMaterialsManager
+    materials?: LearningMaterial[];
+    onUploadMaterial?: (material: Partial<LearningMaterial>, file?: File) => Promise<void>;
+    onUpdateMaterial?: (id: number, updates: Partial<LearningMaterial>) => Promise<void>;
+    onDeleteMaterial?: (id: number) => Promise<void>;
 }
 
 const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
@@ -105,6 +141,25 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
     onApprove,
     onSubmitForReview,
     coverageData = [],
+    // Props for child components
+    academicAssignments = [],
+    assessments = [],
+    assessmentScores = [],
+    academicClassStudents = [],
+    realStudents = [],
+    terms = [],
+    onSaveAssessment,
+    onDeleteAssessment,
+    onSaveAssessmentScores,
+    onCopyAssessment,
+    onSaveCurriculum,
+    onCreateTeachingAssignment,
+    onDeleteTeachingAssignment,
+    onUpdateClassEnrollment,
+    materials = [],
+    onUploadMaterial,
+    onUpdateMaterial,
+    onDeleteMaterial,
 }) => {
     // Safe defaults for permissions
     const safeUserPermissions = Array.isArray(userPermissions) ? userPermissions : [];
@@ -402,16 +457,61 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                 />;
 
             case 'learning_materials':
-                return <LearningMaterialsManager />;
+                return <LearningMaterialsManager 
+                    materials={materials}
+                    lessonPlans={safeLessonPlans}
+                    onUploadMaterial={onUploadMaterial || (async () => {
+                        addToast('Upload material functionality not available', 'error');
+                    })}
+                    onUpdateMaterial={onUpdateMaterial || (async () => {
+                        addToast('Update material functionality not available', 'error');
+                    })}
+                    onDeleteMaterial={onDeleteMaterial || (async () => {
+                        addToast('Delete material functionality not available', 'error');
+                    })}
+                    currentUserId={userProfile.id}
+                />;
 
             case 'notes_compliance':
-                return <NotesComplianceView />;
+                return <NotesComplianceView 
+                    userProfile={userProfile}
+                    teachingAssignments={academicAssignments}
+                />;
 
             case 'gradebook':
-                return <TeacherGradebookView />;
+                return <TeacherGradebookView 
+                    academicAssignments={academicAssignments}
+                    currentUser={userProfile}
+                    onNavigate={onNavigate}
+                />;
 
             case 'assessments':
-                return <AssessmentManager />;
+                return <AssessmentManager 
+                    academicAssignments={academicAssignments}
+                    assessments={assessments}
+                    assessmentScores={assessmentScores}
+                    students={realStudents}
+                    academicClassStudents={academicClassStudents}
+                    userProfile={userProfile}
+                    userPermissions={safeUserPermissions}
+                    onSaveAssessment={onSaveAssessment || (async () => {
+                        addToast('Save assessment functionality not available', 'error');
+                        return false;
+                    })}
+                    onDeleteAssessment={onDeleteAssessment || (async () => {
+                        addToast('Delete assessment functionality not available', 'error');
+                        return false;
+                    })}
+                    onSaveScores={onSaveAssessmentScores || (async () => {
+                        addToast('Save scores functionality not available', 'error');
+                        return false;
+                    })}
+                    onCopyAssessment={onCopyAssessment || (async () => {
+                        addToast('Copy assessment functionality not available', 'error');
+                        return false;
+                    })}
+                    addToast={addToast}
+                />;
 
             case 'class_groups':
                 return <ClassAttendanceManager 
@@ -432,10 +532,44 @@ const TeachingWorkspaceModule: React.FC<TeachingWorkspaceModuleProps> = ({
                 />;
 
             case 'curriculum_map':
-                return <CurriculumManager />;
+                return <CurriculumManager 
+                    teachingAssignments={safeTeachingAssignments}
+                    curricula={curricula}
+                    curriculumWeeks={curriculumWeeks}
+                    onSave={onSaveCurriculum || (async () => {
+                        addToast('Save curriculum functionality not available', 'error');
+                        return false;
+                    })}
+                    userProfile={userProfile}
+                    teams={teams}
+                />;
 
             case 'workload_analysis':
-                return <TeachingAssignmentsContainer />;
+                return <TeachingAssignmentsContainer 
+                    users={safeUsers}
+                    assignments={academicAssignments}
+                    subjects={allSubjects}
+                    classes={allClasses}
+                    arms={allArms}
+                    classGroups={safeClassGroups}
+                    academicClasses={allClasses}
+                    terms={terms}
+                    students={realStudents}
+                    academicClassStudents={academicClassStudents}
+                    userProfile={userProfile}
+                    onCreateAssignment={onCreateTeachingAssignment || (async () => {
+                        addToast('Create teaching assignment functionality not available', 'error');
+                        return false;
+                    })}
+                    onDeleteAssignment={onDeleteTeachingAssignment || (async () => {
+                        addToast('Delete teaching assignment functionality not available', 'error');
+                        return false;
+                    })}
+                    onUpdateClassEnrollment={onUpdateClassEnrollment || (async () => {
+                        addToast('Update class enrollment functionality not available', 'error');
+                        return false;
+                    })}
+                />;
 
             default:
                 return (
