@@ -240,6 +240,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         }
 
         setSaving(true);
+        const supabase = requireSupabaseClient();
         try {
             const { error } = await supabase
                 .from('kudisms_settings')
