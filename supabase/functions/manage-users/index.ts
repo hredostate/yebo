@@ -154,6 +154,8 @@ serve(async (req) => {
    * @returns Username in firstname.lastname format (may have numeric suffix if needed)
    */
   function generateUsernameFromName(fullName: string, existingUsernames?: Set<string>): string {
+    const MAX_USERNAME_SUFFIX_ATTEMPTS = 100;
+    
     // Remove extra whitespace and split name into parts
     const nameParts = fullName.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
     
@@ -186,7 +188,7 @@ serve(async (req) => {
     // Add numeric suffix if username exists
     let counter = 1;
     let username = `${baseUsername}${counter}`;
-    while (existingUsernames.has(username) && counter < 100) {
+    while (existingUsernames.has(username) && counter < MAX_USERNAME_SUFFIX_ATTEMPTS) {
       counter++;
       username = `${baseUsername}${counter}`;
     }
