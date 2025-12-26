@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getAIClient } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import { TaskPriority, type UserProfile, type Student, type ReportRecord, type AssistantMessage } from '../types';
 import { WandIcon, PaperAirplaneIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -48,8 +48,12 @@ const AIAssistantView: React.FC<AIAssistantViewProps> = ({
     try {
         const aiClient = getAIClient();
         if (!aiClient) {
-            throw new Error("AI Client not available");
+            addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: "AI service is not configured. Please contact your administrator." }]);
+            return;
         }
+        
+        console.log('[AI] AIAssistantView: Starting request', { model: getCurrentModel() });
         
         const systemPrompt = `You are UPSS-GPT — the private AI assistant for University Preparatory Secondary School (UPSS), operating in "Guardian Command" mode.
 You are assisting ${userProfile.name}, a ${userProfile.role}.
@@ -67,21 +71,42 @@ Note: This is a simplified version. Advanced features like task creation and ann
                 content: m.text
             }));
 
-        const response = await aiClient.chat.completions.create({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                ...conversationHistory,
-                { role: 'user', content: currentInput }
-            ],
-            max_tokens: 500
-        });
+        const response = await safeAIRequest(
+            () => aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...conversationHistory,
+                    { role: 'user', content: currentInput }
+                ],
+                max_tokens: 500
+            }),
+            {
+                maxRetries: 2,
+                onRateLimited: (error) => {
+                    console.warn('[AI] AIAssistantView: Rate limit hit', error);
+                }
+            }
+        );
 
+        console.log('[AI] AIAssistantView: Request completed', { success: true });
         const aiResponse = textFromAI(response);
         setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: aiResponse }]);
-    } catch (error) {
-        console.error("AI Assistant error:", error);
-        setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: "Sorry, I encountered an error. Please try again." }]);
+    } catch (error: any) {
+        console.error('[AI] AIAssistantView: Request failed', { error: error.message });
+        let errorMessage = "Sorry, I encountered an error. Please try again.";
+        
+        if (error?.status === 429 || error?.message?.includes('rate limit')) {
+            addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            errorMessage = "I'm experiencing high demand right now. Please try again in a moment.";
+        } else if (error?.status === 401) {
+            addToast('AI authentication failed. Please check your API key.', 'error');
+            errorMessage = "Authentication failed. Please contact your administrator.";
+        } else {
+            addToast('AI request failed. Please try again.', 'error');
+        }
+        
+        setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: errorMessage }]);
     } finally {
         setIsLoading(false);
     }

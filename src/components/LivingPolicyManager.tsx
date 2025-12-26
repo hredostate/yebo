@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { LivingPolicySnippet, UserProfile } from '../types';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import { textFromAI } from '../utils/ai';
 import { WandIcon, BookOpenIcon } from './common/icons';
 import Spinner from './common/Spinner';
@@ -11,9 +11,10 @@ interface LivingPolicyManagerProps {
   onAddSnippet: (content: string) => Promise<void>;
   userProfile: UserProfile;
   onSaveDocument: (content: string) => Promise<boolean>;
+  addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippets, onAddSnippet, userProfile, onSaveDocument }) => {
+const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippets, onAddSnippet, userProfile, onSaveDocument, addToast }) => {
     const [input, setInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEnhancing, setIsEnhancing] = useState(false);
@@ -38,17 +39,38 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         setIsEnhancing(true);
         try {
             const aiClient = getAIClient();
-            if (!aiClient) throw new Error("AI Client not available.");
+            if (!aiClient) {
+                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                return;
+            }
+            
+            console.log('[AI] LivingPolicyManager: Starting enhance request', { model: getCurrentModel() });
+            
             const prompt = `You are an expert in writing clear, professional school policies. Enhance the following policy idea to be more formal and comprehensive.
             Original idea: "${input}"
             Enhanced version:`;
-            const response = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [{ role: 'user', content: prompt }],
-            });
+            
+            const response = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [{ role: 'user', content: prompt }],
+                }),
+                { maxRetries: 2 }
+            );
+            
+            console.log('[AI] LivingPolicyManager: Enhance request completed', { success: true });
             setInput(textFromAI(response));
-        } catch (error) {
-            console.error("AI enhancement failed:", error);
+        } catch (error: any) {
+            console.error('[AI] LivingPolicyManager: Enhance request failed', { error: error.message });
+            if (addToast) {
+                if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                    addToast('AI rate limit reached. Please try again in a moment.', 'error');
+                } else if (error?.status === 401) {
+                    addToast('AI authentication failed. Please check your API key.', 'error');
+                } else {
+                    addToast('AI request failed. Please try again.', 'error');
+                }
+            }
         } finally {
             setIsEnhancing(false);
         }
@@ -60,7 +82,13 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         setGeneratedDocument('');
         try {
             const aiClient = getAIClient();
-            if (!aiClient) throw new Error("AI Client not available.");
+            if (!aiClient) {
+                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                return;
+            }
+            
+            console.log('[AI] LivingPolicyManager: Starting document generation', { model: getCurrentModel() });
+            
             const snippetsText = policySnippets.map(s => `- ${s.content}`).join('\n');
             const prompt = `You are an expert in drafting official school documents.
             Based on the following collection of policy notes and ideas, synthesize them into a single, comprehensive, and well-structured 'Living Policy' document for a school.
@@ -80,9 +108,20 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
                 fullResponse += chunk.choices[0]?.delta?.content || '';
                 setGeneratedDocument(fullResponse);
             }
+            
+            console.log('[AI] LivingPolicyManager: Document generation completed', { success: true });
             await onSaveDocument(fullResponse);
-        } catch (error) {
-            console.error("Failed to generate policy document:", error);
+        } catch (error: any) {
+            console.error('[AI] LivingPolicyManager: Document generation failed', { error: error.message });
+            if (addToast) {
+                if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                    addToast('AI rate limit reached. Please try again in a moment.', 'error');
+                } else if (error?.status === 401) {
+                    addToast('AI authentication failed. Please check your API key.', 'error');
+                } else {
+                    addToast('AI request failed. Please try again.', 'error');
+                }
+            }
         } finally {
             setIsGenerating(false);
         }
@@ -94,7 +133,12 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         setQueryAnswer(''); // Use empty string for streaming
         try {
             const aiClient = getAIClient();
-            if (!aiClient) throw new Error("AI Client not available.");
+            if (!aiClient) {
+                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                return;
+            }
+            
+            console.log('[AI] LivingPolicyManager: Starting query request', { model: getCurrentModel() });
             
             const snippetsText = policySnippets.map(s => `- ${s.content}`).join('\n');
             const prompt = `You are an assistant for a school administrator. Your task is to answer questions based *only* on the provided school policy snippets. If the answer is not in the snippets, state that clearly. Do not invent information. Format your answer in simple markdown.
@@ -117,8 +161,19 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
             for await (const chunk of stream) {
                 setQueryAnswer(prev => (prev || '') + (chunk.choices[0]?.delta?.content || ''));
             }
-        } catch (error) {
-            console.error("Policy query failed:", error);
+            
+            console.log('[AI] LivingPolicyManager: Query request completed', { success: true });
+        } catch (error: any) {
+            console.error('[AI] LivingPolicyManager: Query request failed', { error: error.message });
+            if (addToast) {
+                if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                    addToast('AI rate limit reached. Please try again in a moment.', 'error');
+                } else if (error?.status === 401) {
+                    addToast('AI authentication failed. Please check your API key.', 'error');
+                } else {
+                    addToast('AI request failed. Please try again.', 'error');
+                }
+            }
             setQueryAnswer("Sorry, I encountered an error while trying to answer your question.");
         } finally {
             setIsQuerying(false);

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import OpenAI from 'openai';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import type { UserProfile, Student, ReportRecord, Task, RoleDetails, Announcement, AssistantMessage, RoleTitle, BaseDataObject, LivingPolicySnippet, NavigationContext, ScoreEntry, AttendanceRecord, InventoryItem, LeaveRequest, TeacherCheckin, LessonPlan } from '../types';
 import { TaskPriority } from '../types';
 import { WandIcon, CloseIcon, PaperAirplaneIcon } from './common/icons';
@@ -112,12 +112,21 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
   const draftParentMessage = async (topic: string) => {
       const aiClient = getAIClient();
       if (!aiClient) return JSON.stringify({ error: "AI client not available." });
-      const prompt = `Draft a professional and friendly message for parents about an upcoming school event: "${topic}". The message should be suitable for a school bulletin board or email. Include a placeholder for the date and time.`;
-      const response = await aiClient.chat.completions.create({
-          model: getCurrentModel(),
-          messages: [{ role: 'user', content: prompt }]
-      });
-      return JSON.stringify({ draft: textFromAI(response) });
+      
+      try {
+          const prompt = `Draft a professional and friendly message for parents about an upcoming school event: "${topic}". The message should be suitable for a school bulletin board or email. Include a placeholder for the date and time.`;
+          const response = await safeAIRequest(
+              () => aiClient.chat.completions.create({
+                  model: getCurrentModel(),
+                  messages: [{ role: 'user', content: prompt }]
+              }),
+              { maxRetries: 2 }
+          );
+          return JSON.stringify({ draft: textFromAI(response) });
+      } catch (error: any) {
+          console.error('[AI] AICopilot: draftParentMessage failed', error);
+          return JSON.stringify({ error: `Failed to draft message: ${error.message}` });
+      }
   };
   
   const handleNavigation = (viewName: string, contextData: any) => {
@@ -234,7 +243,13 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
 
     try {
         const aiClient = getAIClient();
-        if (!aiClient) throw new Error("AI Client not available");
+        if (!aiClient) {
+            props.addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: "AI service is not configured. Please contact your administrator." }]);
+            return;
+        }
+        
+        console.log('[AI] AICopilot: Starting request', { model: getCurrentModel() });
         
         const livingPolicyContext = props.livingPolicy.map(p => `- ${p.content}`).join('\n');
         
@@ -254,18 +269,20 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
         const systemInstruction = `
             ${PRINCIPAL_PERSONA_PROMPT}
 
-            You are now operating as the AI Copilot for the school. Your persona is that of the Principal described above.
-            Your mission is to assist staff by answering questions and executing tasks.
+            You are now operating as the AI Copilot for the school.
             
-            **CONCIERGE CAPABILITIES:**
-            - You can navigate the app for the user. If they say "I want to submit a report about John" or "Remind me to call Mrs. Smith", DO NOT just say you will do it. Call the \`navigate_app\` tool with the correct view and extracted data.
-            - For reports, extract the student name and the report details.
-            - For tasks, extract the title and description.
+            **CRITICAL TOOL USAGE INSTRUCTIONS:**
+            When the user asks you to DO something (not just ask about something), you MUST call the appropriate tool:
             
-            - Answer questions based on the context provided (recent reports, staff list, academic performance, attendance, inventory, etc.) and the Living Policy knowledge base.
-            - If a user asks you to do something that matches an available tool, use the tool.
-            - Keep your answers role-appropriate for the user you are talking to.
-            - If you don't know the answer or it's not in your context, say so clearly. Do not invent information.
+            - "Show me non-compliant teachers" or "Who hasn't submitted reports?" → CALL showNonCompliantTeachers
+            - "Give me a summary for [class]" or "How is [class] doing?" → CALL generateWeeklySummary with the class name
+            - "Draft a message about [topic]" or "Write to parents about [topic]" → CALL draftParentMessage with the topic
+            - "I want to submit a report" or "Create a report about [student]" → CALL navigate_app with viewName: 'submit_report'
+            - "Create a task" or "Remind me to [action]" → CALL navigate_app with viewName: 'create_task'
+            - "Go to [page]" or "Open [feature]" → CALL navigate_app with appropriate viewName
+            
+            DO NOT just describe what you would do. Actually CALL the tool function.
+            If you're unsure which tool to use, ask the user for clarification.
 
             CONTEXT:
             - You are assisting: ${props.userProfile.name}, a ${props.userProfile.role}.
@@ -294,13 +311,22 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
             }))
         ];
 
-        const response = await aiClient.chat.completions.create({
-            model: getCurrentModel(),
-            messages: [...history, { role: 'user', content: currentInput }],
-            tools: tools,
-            tool_choice: 'auto'
-        });
+        const response = await safeAIRequest(
+            () => aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [...history, { role: 'user', content: currentInput }],
+                tools: tools,
+                tool_choice: 'auto'
+            }),
+            {
+                maxRetries: 2,
+                onRateLimited: (error) => {
+                    console.warn('[AI] AICopilot: Rate limit hit', error);
+                }
+            }
+        );
 
+        console.log('[AI] AICopilot: Request completed', { success: true });
         const responseMessage = response.choices[0]?.message;
 
         if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
@@ -323,21 +349,24 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
                 setIsOpen(false);
             }
             
-            const secondResponse = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [
-                    ...history,
-                    { role: 'user', content: currentInput },
-                    responseMessage,
-                    {
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: toolResult
-                    }
-                ],
-                tools: tools,
-                tool_choice: 'auto'
-            });
+            const secondResponse = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [
+                        ...history,
+                        { role: 'user', content: currentInput },
+                        responseMessage,
+                        {
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: toolResult
+                        }
+                    ],
+                    tools: tools,
+                    tool_choice: 'auto'
+                }),
+                { maxRetries: 2 }
+            );
             
             const finalText = secondResponse.choices[0]?.message?.content || 'Done!';
             setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: finalText }]);
@@ -345,9 +374,21 @@ const AICopilot: React.FC<AICopilotProps> = (props) => {
             const assistantText = responseMessage?.content || 'I apologize, but I cannot process that request.';
             setMessages(prev => [...prev, { id: `${Date.now()}-ai`, sender: 'ai', text: assistantText }]);
         }
-    } catch (error) {
-        console.error("AI Copilot error:", error);
-        setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: "Sorry, I encountered an error. Please try again." }]);
+    } catch (error: any) {
+        console.error('[AI] AICopilot: Request failed', { error: error.message });
+        let errorMessage = "Sorry, I encountered an error. Please try again.";
+        
+        if (error?.status === 429 || error?.message?.includes('rate limit')) {
+            props.addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            errorMessage = "I'm experiencing high demand right now. Please try again in a moment.";
+        } else if (error?.status === 401) {
+            props.addToast('AI authentication failed. Please check your API key.', 'error');
+            errorMessage = "Authentication failed. Please contact your administrator.";
+        } else {
+            props.addToast('AI request failed. Please try again.', 'error');
+        }
+        
+        setMessages(prev => [...prev, { id: `${Date.now()}-error`, sender: 'ai', text: errorMessage }]);
     } finally {
         setIsLoading(false);
     }
