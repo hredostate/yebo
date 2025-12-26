@@ -412,9 +412,9 @@ const PublicReportView: React.FC = () => {
             
             // Use different names for the extracted values to avoid shadowing state setters
             const extractedPositionInArm = rpcData?.summary?.positionInArm ?? rpcData?.summary?.position_in_arm ?? report.position_in_class;
-            const extractedTotalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_students_in_arm;
+            const extractedTotalInArm = rpcData?.summary?.totalInArm ?? rpcData?.summary?.total_in_arm ?? rpcData?.ranking?.totalInArm ?? rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm;
             const extractedPositionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level;
-            const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_students_in_level;
+            const extractedTotalInLevel = rpcData?.summary?.totalInLevel ?? rpcData?.summary?.total_in_level ?? rpcData?.ranking?.totalInLevel ?? rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel;
             // Pre-formatted position string (e.g., "100th out of 167") - check both summary and ranking for backward compatibility
             const extractedPositionInLevelFormatted = rpcData?.summary?.positionInLevelFormatted ?? rpcData?.ranking?.positionInLevelFormatted;
             const extractedArmName = rpcData?.student?.armName ?? rpcData?.student?.arm_name;
