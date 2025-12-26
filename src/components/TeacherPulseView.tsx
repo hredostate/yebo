@@ -44,7 +44,7 @@ const AnomalyCard: React.FC<{ anomaly: CheckinAnomaly; onNavigate: (v: string) =
 };
 
 
-const TeacherPulseView: React.FC<TeacherPulseViewProps> = ({ addToast, checkinAnomalies, onAnalyzeCheckinAnomalies, onNavigate }) => {
+const TeacherPulseView: React.FC<TeacherPulseViewProps> = ({ addToast, checkinAnomalies = [], onAnalyzeCheckinAnomalies, onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
 
     const handleAnalyze = async () => {

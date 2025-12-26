@@ -19,6 +19,7 @@ export const VIEW_TO_PATH: Record<string, string> = {
   [VIEWS.CALENDAR]: '/workspace/calendar',
   [VIEWS.MY_LEAVE]: '/workspace/leave',
   [VIEWS.PROFILE]: '/workspace/profile',
+  [VIEWS.TEACHING_WORKSPACE]: '/workspace/teaching',
   
   // Communication
   [VIEWS.SUBMIT_REPORT]: '/communication/submit-report',
