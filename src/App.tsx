@@ -2119,11 +2119,14 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
     const generateTaskSuggestions = useCallback(async (allReports: ReportRecord[]) => {
         const aiClient = getAIClient();
         if (!aiClient) {
+            console.log('[AI Task Suggestions] AI client not available, using fallback suggestions');
             const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
             if (fallbackSuggestions.length > 0) {
                 setTaskSuggestions(fallbackSuggestions);
                 setAreFallbackSuggestions(true);
-                addToast('AI suggestions unavailable - showing recommended tasks instead.', 'warning');
+                addToast('AI suggestions unavailable - showing recommended tasks instead.', 'info');
+            } else {
+                console.log('[AI Task Suggestions] No fallback suggestions available');
             }
             logAiEvent('task-suggestions', { status: 'unavailable', detail: 'missing-client', suggestions: fallbackSuggestions.length });
             return;
@@ -2131,7 +2134,7 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
 
         // Check if AI is in cooldown
         if (isAiInCooldown()) {
-            console.log('AI in cooldown, using fallback task suggestions');
+            console.log('[AI Task Suggestions] AI in cooldown, using fallback suggestions');
             const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
             setTaskSuggestions(fallbackSuggestions);
             setAreFallbackSuggestions(true);
@@ -2181,11 +2184,20 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
                                    pendingLeaveRequests.length > 0 || overdueLessonPlans.length > 0 || atRiskCount > 0;
             
             if (!hasTaskableData) {
+                console.log('[AI Task Suggestions] No taskable data available');
                 setTaskSuggestions([]);
                 setAreFallbackSuggestions(false);
                 logAiEvent('task-suggestions', { status: 'fallback', detail: 'no-taskable-data', suggestions: 0 });
                 return;
             }
+            
+            console.log('[AI Task Suggestions] Generating AI suggestions with data:', {
+                urgentReports: urgentReports.length,
+                lowStock: lowStockItems.length,
+                pendingLeave: pendingLeaveRequests.length,
+                overduePlans: overdueLessonPlans.length,
+                atRiskStudents: atRiskCount
+            });
             
             const prompt = `Analyze the following school data and generate actionable task suggestions. Consider urgent reports, low inventory, pending leave requests, overdue lesson plans, and at-risk students. Return a JSON array of task objects with "reportId" (number or null), "title" (string, max 50 chars), "description" (string, max 150 chars), "priority" (string: 'Low', 'Medium', 'High', or 'Critical'), and "suggestedRole" (string: 'Admin', 'Principal', 'Counselor', 'Team Lead', 'Teacher', or 'Maintenance'). Prioritize high-impact tasks.
 
@@ -2198,6 +2210,7 @@ Context: ${JSON.stringify(contextData)}`;
             });
             const results = extractAndParseJson<Omit<SuggestedTask, 'id'>[]>(textFromAI(response));
             if (results && Array.isArray(results)) {
+                console.log('[AI Task Suggestions] Successfully generated', results.length, 'suggestions');
                 const suggestions: SuggestedTask[] = results.map((res, idx) => ({
                     ...res,
                     id: `sugg-${res.reportId || 'auto'}-${Date.now()}-${idx}`
@@ -2206,16 +2219,18 @@ Context: ${JSON.stringify(contextData)}`;
                 setAreFallbackSuggestions(false);
                 logAiEvent('task-suggestions', { status: 'success', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: suggestions.length });
             } else {
+                console.warn('[AI Task Suggestions] AI returned invalid response format, using fallback');
                 const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
                 setTaskSuggestions(fallbackSuggestions);
                 setAreFallbackSuggestions(true);
                 logAiEvent('task-suggestions', { status: 'fallback', detail: 'invalid-response', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             }
         } catch (e: any) {
-            console.error("Task suggestion generation failed:", e);
+            console.error('[AI Task Suggestions] Generation failed:', e);
             if (isRateLimitError(e)) {
+                console.log('[AI Task Suggestions] Rate limit detected, setting cooldown and using fallback');
                 setAiCooldown(); // Use default cooldown
-                addToast('AI suggestions temporarily unavailable - showing recommended tasks', 'warning');
+                addToast('AI suggestions temporarily unavailable - showing recommended tasks', 'info');
                 
                 // Provide fallback suggestions instead of leaving the user with nothing
                 const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
@@ -2224,10 +2239,15 @@ Context: ${JSON.stringify(contextData)}`;
                 logAiEvent('task-suggestions', { status: 'fallback', detail: 'rate-limit', durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             } else {
                 // For non-rate-limit errors, also provide fallback suggestions
-                console.warn('Using fallback suggestions due to error:', e.message);
+                console.warn('[AI Task Suggestions] Using fallback suggestions due to error:', e.message || e);
                 const fallbackSuggestions = generateFallbackTaskSuggestions(allReports, userProfile?.role);
-                setTaskSuggestions(fallbackSuggestions);
-                setAreFallbackSuggestions(true);
+                if (fallbackSuggestions.length > 0) {
+                    setTaskSuggestions(fallbackSuggestions);
+                    setAreFallbackSuggestions(true);
+                    // Don't show toast for non-rate-limit errors - silent fallback
+                } else {
+                    console.log('[AI Task Suggestions] No fallback suggestions available after error');
+                }
                 logAiEvent('task-suggestions', { status: 'error', error: e, durationMs: (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start, suggestions: fallbackSuggestions.length });
             }
         }
