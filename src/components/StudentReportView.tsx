@@ -325,7 +325,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       }
       
       // 2. Fetch grading scheme to calculate final grades if needed
-      if (data.schoolConfig.active_grading_scheme_id) {
+      if (data?.schoolConfig?.active_grading_scheme_id) {
           const { data: scheme } = await supabase.from('grading_schemes').select('*, rules:grading_scheme_rules(*)').eq('id', data.schoolConfig.active_grading_scheme_id).maybeSingle();
           if (scheme) {
               setActiveGradingScheme(scheme);

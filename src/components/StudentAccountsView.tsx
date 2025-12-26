@@ -24,7 +24,9 @@ interface StudentAccountsViewProps {
 }
 
 // Credentials Modal Component
-const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => void }> = ({ results, onClose }) => {
+const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => void; students?: Student[] }> = ({ results, onClose, students = [] }) => {
+    const [sendingWhatsApp, setSendingWhatsApp] = useState<number | null>(null);
+    
     const handleExport = () => {
         const exportData = results.map((res) => {
             const username = res.username || (res.email ? res.email.replace('@upsshub.com', '') : 'N/A');
@@ -44,6 +46,45 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
         });
         
         exportToCsv(exportData, 'student_credentials.csv');
+    };
+    
+    // Helper to get student by name
+    const getStudentByName = (name: string) => {
+        return students.find(s => s.name === name);
+    };
+    
+    // Helper to open WhatsApp with pre-filled message
+    const handleWhatsAppShare = (credential: CreatedCredential, phoneNumber: string, index: number) => {
+        setSendingWhatsApp(index);
+        
+        const username = credential.username || (credential.email ? credential.email.replace('@upsshub.com', '') : 'N/A');
+        const password = credential.password || 'N/A';
+        const studentName = credential.name;
+        
+        // Format message
+        const message = `Hello! Here are the login credentials for ${studentName}:
+
+🔐 Username: ${username}
+🔑 Password: ${password}
+
+📱 Login at: ${window.location.origin}/student-login
+
+Please keep these credentials secure and do not share them with anyone.
+
+Thank you!`;
+        
+        // Encode message for URL
+        const encodedMessage = encodeURIComponent(message);
+        
+        // Clean phone number (remove spaces, dashes, etc.)
+        const cleanPhone = phoneNumber.replace(/[\s\-()]/g, '');
+        
+        // Open WhatsApp with pre-filled message
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+        window.open(whatsappUrl, '_blank');
+        
+        // Reset sending state after a short delay
+        setTimeout(() => setSendingWhatsApp(null), 1000);
     };
     
     // Calculate messaging stats
@@ -93,6 +134,7 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                                 <th className="px-4 py-2">Password</th>
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">SMS</th>
+                                <th className="px-4 py-2">WhatsApp</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -101,6 +143,11 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                                 const sentCount = msgResults.filter(m => m.success).length;
                                 const failCount = msgResults.length - sentCount;
                                 const displayUsername = res.username || (res.email ? res.email.replace('@upsshub.com', '') : 'N/A');
+                                
+                                // Get student data to access phone numbers
+                                const student = getStudentByName(res.name);
+                                const phone1 = student?.parent_phone_number_1;
+                                const phone2 = student?.parent_phone_number_2;
                                 
                                 return (
                                     <tr key={index} className="border-b border-slate-200/60 dark:border-slate-700/60">
@@ -125,6 +172,37 @@ const CredentialsModal: React.FC<{ results: CreatedCredential[]; onClose: () => 
                                                     {sentCount > 0 && failCount > 0 && ' / '}
                                                     {failCount > 0 && <span className="text-red-600 dark:text-red-400">✗ {failCount}</span>}
                                                 </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            {res.status === 'Success' && res.password ? (
+                                                <div className="flex gap-1">
+                                                    {phone1 && (
+                                                        <button
+                                                            onClick={() => handleWhatsAppShare(res, phone1, index * 2)}
+                                                            disabled={sendingWhatsApp === index * 2}
+                                                            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
+                                                            title={`Send to ${phone1}`}
+                                                        >
+                                                            {sendingWhatsApp === index * 2 ? '...' : '📱1'}
+                                                        </button>
+                                                    )}
+                                                    {phone2 && (
+                                                        <button
+                                                            onClick={() => handleWhatsAppShare(res, phone2, index * 2 + 1)}
+                                                            disabled={sendingWhatsApp === index * 2 + 1}
+                                                            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 flex items-center gap-1"
+                                                            title={`Send to ${phone2}`}
+                                                        >
+                                                            {sendingWhatsApp === index * 2 + 1 ? '...' : '📱2'}
+                                                        </button>
+                                                    )}
+                                                    {!phone1 && !phone2 && (
+                                                        <span className="text-gray-500 text-xs">No phone</span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-500 text-xs">-</span>
                                             )}
                                         </td>
                                     </tr>
@@ -950,6 +1028,7 @@ const StudentAccountsView: React.FC<StudentAccountsViewProps> = ({
             {credentials && (
                 <CredentialsModal
                     results={credentials}
+                    students={students}
                     onClose={() => setCredentials(null)}
                 />
             )}

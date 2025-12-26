@@ -148,7 +148,56 @@ serve(async (req) => {
   }
 
   /**
-   * Helper function to generate a unique username from a name
+   * Helper function to generate a username in firstname.lastname format
+   * @param fullName - The student's full name
+   * @param existingUsernames - Optional set of existing usernames to check for uniqueness
+   * @returns Username in firstname.lastname format (may have numeric suffix if needed)
+   */
+  function generateUsernameFromName(fullName: string, existingUsernames?: Set<string>): string {
+    const MAX_USERNAME_SUFFIX_ATTEMPTS = 100;
+    
+    // Remove extra whitespace and split name into parts
+    const nameParts = fullName.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+    
+    if (nameParts.length === 0) {
+      // Fallback if name is empty or invalid
+      return `student${Date.now().toString().slice(-6)}`;
+    }
+    
+    let firstName = nameParts[0];
+    let lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    
+    // If only one name part, use it as both first and last
+    if (!lastName) {
+      lastName = firstName;
+    }
+    
+    // Generate base username
+    let baseUsername = `${firstName}.${lastName}`;
+    
+    // If no existing usernames provided, return base username
+    if (!existingUsernames) {
+      return baseUsername;
+    }
+    
+    // Check if username already exists
+    if (!existingUsernames.has(baseUsername)) {
+      return baseUsername;
+    }
+    
+    // Add numeric suffix if username exists
+    let counter = 1;
+    let username = `${baseUsername}${counter}`;
+    while (existingUsernames.has(username) && counter < MAX_USERNAME_SUFFIX_ATTEMPTS) {
+      counter++;
+      username = `${baseUsername}${counter}`;
+    }
+    
+    return username;
+  }
+
+  /**
+   * Helper function to generate a unique username from a name (legacy for staff)
    */
   function generateUsername(name: string, suffix?: string): string {
     const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -369,15 +418,11 @@ serve(async (req) => {
                 }
 
                 // Generate username and password
-                // Username format: admission number or name-based with student ID for guaranteed uniqueness
-                const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-                const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Username format: firstname.lastname
+                // For new students in bulk_create, we'll generate a temporary username first
+                // then update it with a unique version after getting the student ID
                 
-                // For new students in bulk_create, we need to insert first to get the ID
-                // So we'll use a temporary unique identifier and update after insertion
-                // Use timestamp + random to ensure uniqueness even for simultaneous creations
-                const tempSuffix = `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
-                let tempUsername = cleanAdmission || `${cleanName}${tempSuffix}`;
+                const tempUsername = generateUsernameFromName(studentName);
                 const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
                 
                 // Use provided email or generate one using temp username
@@ -480,12 +525,23 @@ serve(async (req) => {
                     }
                 }
 
-                // Now update username using the student ID for guaranteed uniqueness
-                const finalUsername = cleanAdmission || `${cleanName}${finalStudentId}`;
+                // Now update username with a unique version if needed
+                // Check if this username already exists in the school
+                const { data: existingUsers } = await supabaseAdmin
+                    .from('students')
+                    .select('email')
+                    .eq('school_id', student.school_id)
+                    .like('email', `${tempUsername}%@upsshub.com`);
+                
+                const existingUsernames = new Set(
+                    (existingUsers || []).map(u => u.email.replace('@upsshub.com', ''))
+                );
+                
+                const finalUsername = generateUsernameFromName(studentName, existingUsernames);
                 const finalEmail = providedEmail || `${finalUsername}@upsshub.com`;
                 
-                // Update auth user with final username and email
-                if (finalStudentId && !providedEmail) {
+                // Update auth user with final username and email if different
+                if (finalUsername !== tempUsername && !providedEmail) {
                     const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
                         newUser.user.id,
                         {
@@ -502,10 +558,12 @@ serve(async (req) => {
                         console.error(`Failed to update auth user with final username for ${studentName}:`, updateAuthError);
                     } else {
                         // Also update student record email if it was generated
-                        await supabaseAdmin
-                            .from('students')
-                            .update({ email: finalEmail })
-                            .eq('id', finalStudentId);
+                        if (finalStudentId) {
+                            await supabaseAdmin
+                                .from('students')
+                                .update({ email: finalEmail })
+                                .eq('id', finalStudentId);
+                        }
                     }
                 }
 
@@ -541,11 +599,21 @@ serve(async (req) => {
             throw new Error('This student already has a login account.');
         }
 
-        const cleanAdmission = studentRecord.admission_number ? studentRecord.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-        const cleanName = studentRecord.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const username = cleanAdmission || `${cleanName}${studentId}`; // Use student DB id for uniqueness
+        // Generate username in firstname.lastname format
+        // Check for existing usernames in the school
+        const { data: existingUsers } = await supabaseAdmin
+            .from('students')
+            .select('email')
+            .eq('school_id', studentRecord.school_id)
+            .ilike('email', '%.%@upsshub.com');
+        
+        const existingUsernames = new Set(
+            (existingUsers || []).map(u => u.email.replace('@upsshub.com', ''))
+        );
+        
+        const username = generateUsernameFromName(studentRecord.name, existingUsernames);
         const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-        const email = studentRecord.email || `${username}@upsshub.com`; // Email matches username
+        const email = studentRecord.email || `${username}@upsshub.com`;
 
         const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
@@ -604,6 +672,26 @@ serve(async (req) => {
             throw new Error("studentIds array is required");
         }
 
+        // Fetch all existing usernames in the school first for efficiency
+        const firstStudent = await supabaseAdmin
+            .from('students')
+            .select('school_id')
+            .eq('id', studentIds[0])
+            .single();
+        
+        let existingUsernames = new Set<string>();
+        if (firstStudent.data?.school_id) {
+            const { data: existingUsers } = await supabaseAdmin
+                .from('students')
+                .select('email')
+                .eq('school_id', firstStudent.data.school_id)
+                .ilike('email', '%.%@upsshub.com');
+            
+            existingUsernames = new Set(
+                (existingUsers || []).map(u => u.email.replace('@upsshub.com', ''))
+            );
+        }
+
         const results = [];
         for (const id of studentIds) {
              const { data: student, error: fetchError } = await supabaseAdmin
@@ -622,11 +710,12 @@ serve(async (req) => {
                  continue;
              }
 
-             const cleanAdmission = student.admission_number ? student.admission_number.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-             const cleanName = student.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-             const username = cleanAdmission || `${cleanName}${id}`; // Use student DB id for uniqueness
+             // Generate username in firstname.lastname format
+             const username = generateUsernameFromName(student.name, existingUsernames);
+             existingUsernames.add(username); // Add to set to prevent duplicates in this batch
+             
              const password = `Student${Math.floor(1000 + Math.random() * 9000)}!`;
-             const email = student.email || `${username}@upsshub.com`; // Email matches username
+             const email = student.email || `${username}@upsshub.com`;
 
              const { data: user, error: userError } = await supabaseAdmin.auth.admin.createUser({
                 email: email,
@@ -1614,6 +1703,101 @@ serve(async (req) => {
             success: true, 
             results,
             totalProcessed: results.length
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // ============================================================================
+    // BULK RETRIEVE PASSWORDS ACTION
+    // ============================================================================
+    
+    if (action === 'bulk_retrieve_passwords') {
+        if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+            throw new Error("studentIds array is required");
+        }
+
+        console.log(`Bulk retrieve passwords for ${studentIds.length} students`);
+        const results = [];
+
+        for (const id of studentIds) {
+            try {
+                // Get student record to fetch user_id
+                const { data: student, error: fetchError } = await supabaseAdmin
+                    .from('students')
+                    .select('id, name, user_id')
+                    .eq('id', id)
+                    .single();
+                
+                if (fetchError || !student) {
+                    results.push({ 
+                        id, 
+                        name: `ID: ${id}`, 
+                        status: 'Failed', 
+                        error: 'Student not found' 
+                    });
+                    continue;
+                }
+
+                if (!student.user_id) {
+                    results.push({ 
+                        id, 
+                        name: student.name, 
+                        status: 'Failed', 
+                        error: 'No account exists' 
+                    });
+                    continue;
+                }
+
+                // Get auth user to retrieve credentials from metadata
+                const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(student.user_id);
+                
+                if (authError || !authUser?.user) {
+                    results.push({ 
+                        id, 
+                        name: student.name, 
+                        status: 'Failed', 
+                        error: 'Auth user not found' 
+                    });
+                    continue;
+                }
+
+                const username = authUser.user.user_metadata?.username || authUser.user.email?.split('@')[0] || '';
+                const password = authUser.user.user_metadata?.initial_password;
+
+                if (!password) {
+                    results.push({ 
+                        id, 
+                        name: student.name, 
+                        username,
+                        status: 'Failed', 
+                        error: 'Password not found in metadata' 
+                    });
+                    continue;
+                }
+
+                results.push({
+                    id,
+                    name: student.name,
+                    username,
+                    password,
+                    status: 'Success'
+                });
+            } catch (error: any) {
+                console.error(`Error retrieving password for student ${id}:`, error);
+                results.push({ 
+                    id, 
+                    name: `ID: ${id}`, 
+                    status: 'Failed', 
+                    error: error.message 
+                });
+            }
+        }
+
+        return new Response(JSON.stringify({ 
+            success: true, 
+            credentials: results 
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
