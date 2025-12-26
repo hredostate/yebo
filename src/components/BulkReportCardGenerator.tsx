@@ -537,7 +537,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
     const rows = studentsToSummarize.map((s) => [
       `"${sanitizeString(s.name)}"`,
       `"${sanitizeString(s.admission_number || 'N/A')}"`,
-      s.averageScore !== undefined ? s.averageScore.toFixed(2) : '',
+      s.averageScore != null ? s.averageScore.toFixed(2) : '',
       s.hasDebt ? 'YES' : 'NO',
       s.reportExists ? 'YES' : 'NO',
     ]);
@@ -1174,7 +1174,7 @@ const BulkReportCardGenerator: React.FC<BulkReportCardGeneratorProps> = ({
                         </div>
                         <div className="flex gap-4 text-sm text-slate-600 dark:text-slate-400 mt-1">
                           <span>Adm: {student.admission_number || 'N/A'}</span>
-                          {student.averageScore !== undefined && (
+                          {student.averageScore != null && (
                             <span>Avg: {student.averageScore.toFixed(1)}%</span>
                           )}
                           {student.hasDebt && (
