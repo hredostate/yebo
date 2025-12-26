@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ReportType, type Student, type UserProfile } from '../types';
 import Spinner from './common/Spinner';
 import { CloseIcon, WandIcon } from './common/icons';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import { VIEWS } from '../constants';
 import { textFromAI } from '../utils/ai';
 
@@ -144,8 +144,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ students, users, onSubmit, onCa
     try {
       const aiClient = getAIClient();
       if (!aiClient) {
-        throw new Error("AI Client is not available.");
+        addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+        return;
       }
+      
+      console.log('[AI] ReportForm: Starting enhance request', { model: getCurrentModel() });
 
       const prompt = `You are an expert in writing school incident reports. Your task is to enhance the following report text.
       Make it more objective, clear, and professional. Add relevant details that could be logically inferred but DO NOT invent new facts or contradict the original report.
@@ -156,17 +159,27 @@ const ReportForm: React.FC<ReportFormProps> = ({ students, users, onSubmit, onCa
       
       Enhanced Report:`;
 
-      const response = await aiClient.chat.completions.create({
-        model: getCurrentModel(),
-        messages: [{ role: 'user', content: prompt }],
-      });
+      const response = await safeAIRequest(
+          () => aiClient.chat.completions.create({
+            model: getCurrentModel(),
+            messages: [{ role: 'user', content: prompt }],
+          }),
+          { maxRetries: 2 }
+      );
       
+      console.log('[AI] ReportForm: Enhance request completed', { success: true });
       setReportText(textFromAI(response));
       addToast('Report enhanced by AI.', 'success');
 
-    } catch (error) {
-      console.error("AI enhancement error:", error);
-      addToast('Failed to enhance report with AI.', 'error');
+    } catch (error: any) {
+      console.error('[AI] ReportForm: Enhance request failed', { error: error.message });
+      if (error?.status === 429 || error?.message?.includes('rate limit')) {
+          addToast('AI rate limit reached. Please try again in a moment.', 'error');
+      } else if (error?.status === 401) {
+          addToast('AI authentication failed. Please check your API key.', 'error');
+      } else {
+          addToast('Failed to enhance report with AI.', 'error');
+      }
     } finally {
       setIsEnhancing(false);
     }

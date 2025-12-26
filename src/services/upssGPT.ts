@@ -1,4 +1,4 @@
-import { getAIClient } from './aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from './aiClient';
 import type { UPSSGPTResponse, ReportRecord, Task } from '../types';
 import { extractAndParseJson } from '../utils/json';
 import { textFromAI } from '../utils/ai';
@@ -63,20 +63,32 @@ Return a JSON object with:
             throw new Error("AI client is not configured.");
         }
         
-        const response = await aiClient.chat.completions.create({
-            model: 'llama-3.1-8b-instant',
-            messages: [{ role: 'user', content: userPrompt }],
-            response_format: { type: 'json_object' }
-        });
+        console.log('[AI] UPSS-GPT: Starting request', { model: getCurrentModel() });
+        
+        const response = await safeAIRequest(
+            () => aiClient.chat.completions.create({
+                model: getCurrentModel(),
+                messages: [{ role: 'user', content: userPrompt }],
+                response_format: { type: 'json_object' }
+            }),
+            {
+                maxRetries: 2,
+                onRateLimited: (error) => {
+                    console.warn('[AI] UPSS-GPT: Rate limit hit', error);
+                }
+            }
+        );
 
+        console.log('[AI] UPSS-GPT: Request completed', { success: true });
         const parsed = extractAndParseJson<UPSSGPTResponse>(textFromAI(response));
         if (!parsed) {
+             console.error('[AI] UPSS-GPT: Failed to parse JSON response', textFromAI(response));
              throw new Error("Model returned invalid JSON structure.");
         }
         return parsed;
         
     } catch (e: any) {
-        console.error("UPSS-GPT Error:", e);
+        console.error('[AI] UPSS-GPT: Request failed', { error: e.message });
         return {
             answer: `An error occurred while processing your request: ${e.message}`,
             alerts: ["AI Service Error"],

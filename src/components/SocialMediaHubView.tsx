@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import { textFromAI } from '../utils/ai';
 import { extractAndParseJson } from '../utils/json';
 import type { SocialMediaAnalytics, SocialAccount, PlatformTask, VideoSuggestion, PerformanceAnalysis, UserProfile } from '../types';
@@ -315,71 +315,131 @@ const SocialMediaHubView: React.FC<SocialMediaHubViewProps> = ({
 
     const handleGeneratePlan = async (topic: string) => {
         const aiClient = getAIClient();
-        if (!aiClient) return;
+        if (!aiClient) {
+            addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            return;
+        }
+        
+        console.log('[AI] SocialMediaHubView: Starting plan generation', { model: getCurrentModel() });
+        
         const prompt = `You are a social media manager for a school. Create a content plan for an upcoming event: "${topic}".
         Provide a JSON array of objects, where each object has "platform" (Instagram, Facebook, or X) and "taskDescription" (a specific action for that platform).`;
         try {
-            const response = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: 'json_object' }
-            });
+            const response = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [{ role: 'user', content: prompt }],
+                    response_format: { type: 'json_object' }
+                }),
+                { maxRetries: 2 }
+            );
+            
+            console.log('[AI] SocialMediaHubView: Plan generation completed', { success: true });
+            
             const tasks = extractAndParseJson<PlatformTask[]>(textFromAI(response));
-            if (tasks && Array.isArray(tasks)) {
-                setPlatformTasks(tasks);
-                addToast('Content plan generated!', 'success');
-            } else {
-                throw new Error('Invalid JSON format from AI.');
+            if (!tasks || !Array.isArray(tasks)) {
+                console.error('[AI] SocialMediaHubView: Failed to parse JSON response', textFromAI(response));
+                addToast('AI returned an unexpected response format. Please try again.', 'error');
+                return;
             }
-        } catch (error) {
-            addToast('Failed to generate content plan.', 'error');
+            setPlatformTasks(tasks);
+            addToast('Content plan generated!', 'success');
+        } catch (error: any) {
+            console.error('[AI] SocialMediaHubView: Plan generation failed', { error: error.message });
+            if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            } else if (error?.status === 401) {
+                addToast('AI authentication failed. Please check your API key.', 'error');
+            } else {
+                addToast('Failed to generate content plan.', 'error');
+            }
         }
     };
 
     const handleGenerateIdeas = async () => {
         const aiClient = getAIClient();
-        if (!aiClient) return;
+        if (!aiClient) {
+            addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            return;
+        }
+        
+        console.log('[AI] SocialMediaHubView: Starting video ideas generation', { model: getCurrentModel() });
+        
         const prompt = `You are a creative strategist for a school's social media. Suggest 3 fresh and engaging short-form video ideas (for TikTok/Reels) that are relevant to school life.
         Provide a JSON array of objects, each with "trend" (the current trend it's based on), "idea" (the specific video concept for the school), and "example" (a brief script or shot list).`;
         try {
-            const response = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: 'json_object' }
-            });
+            const response = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [{ role: 'user', content: prompt }],
+                    response_format: { type: 'json_object' }
+                }),
+                { maxRetries: 2 }
+            );
+            
+            console.log('[AI] SocialMediaHubView: Video ideas generation completed', { success: true });
+            
             const suggestions = extractAndParseJson<VideoSuggestion[]>(textFromAI(response));
-            if (suggestions && Array.isArray(suggestions)) {
-                setVideoSuggestions(suggestions);
-                addToast('Video ideas generated!', 'success');
-            } else {
-                throw new Error('Invalid JSON format from AI.');
+            if (!suggestions || !Array.isArray(suggestions)) {
+                console.error('[AI] SocialMediaHubView: Failed to parse JSON response', textFromAI(response));
+                addToast('AI returned an unexpected response format. Please try again.', 'error');
+                return;
             }
-        } catch (error) {
-            addToast('Failed to generate video ideas.', 'error');
+            setVideoSuggestions(suggestions);
+            addToast('Video ideas generated!', 'success');
+        } catch (error: any) {
+            console.error('[AI] SocialMediaHubView: Video ideas generation failed', { error: error.message });
+            if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            } else if (error?.status === 401) {
+                addToast('AI authentication failed. Please check your API key.', 'error');
+            } else {
+                addToast('Failed to generate video ideas.', 'error');
+            }
         }
     };
 
     const handleAnalyzePerformance = async () => {
         const aiClient = getAIClient();
-        if (!aiClient || analyticsData.length === 0) return;
+        if (!aiClient || analyticsData.length === 0) {
+            if (!aiClient) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+            return;
+        }
+        
+        console.log('[AI] SocialMediaHubView: Starting performance analysis', { model: getCurrentModel() });
+        
         const prompt = `Analyze the following social media performance data for a school. Identify key strengths, weaknesses, and provide 3 actionable recommendations.
         Data: ${JSON.stringify(analyticsData)}
         Provide a JSON object with "strengths" (array of strings), "weaknesses" (array of strings), and "recommendations" (array of strings).`;
         try {
-            const response = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: 'json_object' }
-            });
+            const response = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [{ role: 'user', content: prompt }],
+                    response_format: { type: 'json_object' }
+                }),
+                { maxRetries: 2 }
+            );
+            
+            console.log('[AI] SocialMediaHubView: Performance analysis completed', { success: true });
+            
             const analysis = extractAndParseJson<PerformanceAnalysis>(textFromAI(response));
-            if (analysis) {
-                setPerformanceAnalysis(analysis);
-                addToast('Performance analysis complete!', 'success');
-            } else {
-                throw new Error('Invalid JSON format from AI.');
+            if (!analysis) {
+                console.error('[AI] SocialMediaHubView: Failed to parse JSON response', textFromAI(response));
+                addToast('AI returned an unexpected response format. Please try again.', 'error');
+                return;
             }
-        } catch (error) {
-            addToast('Failed to analyze performance.', 'error');
+            setPerformanceAnalysis(analysis);
+            addToast('Performance analysis complete!', 'success');
+        } catch (error: any) {
+            console.error('[AI] SocialMediaHubView: Performance analysis failed', { error: error.message });
+            if (error?.status === 429 || error?.message?.includes('rate limit')) {
+                addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            } else if (error?.status === 401) {
+                addToast('AI authentication failed. Please check your API key.', 'error');
+            } else {
+                addToast('Failed to analyze performance.', 'error');
+            }
         }
     };
     

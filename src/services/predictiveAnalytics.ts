@@ -1,4 +1,4 @@
-import { getAIClient } from './aiClient';
+import { getAIClient, getCurrentModel } from './aiClient';
 import type { RiskPrediction, RiskFactor, Student } from '../types';
 import { textFromAI } from '../utils/ai';
 
@@ -295,7 +295,7 @@ Provide a brief (2-3 sentences), compassionate analysis of this student's situat
     }
 
     const response = await aiClient.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: getCurrentModel(),
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 150
     });

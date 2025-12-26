@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import { getAIClient, getCurrentModel } from '../services/aiClient';
+import { getAIClient, getCurrentModel, safeAIRequest } from '../services/aiClient';
 import type { SurveyWithQuestions, DetailedSurveyResponse } from '../types';
 import Spinner from './common/Spinner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
@@ -123,15 +123,33 @@ const SurveyResultsView: React.FC<SurveyResultsViewProps> = ({ survey, onBack, a
         setSummarizingQuestionId(question.question_id);
         try {
             const aiClient = getAIClient();
-            if (!aiClient) throw new Error("AI client not ready");
+            if (!aiClient) {
+                addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                return;
+            }
+            
+            console.log('[AI] SurveyResultsView: Starting summary', { model: getCurrentModel() });
+            
             const prompt = `Please summarize the key themes and overall sentiment from the following list of short answer responses:\n\n${question.results.join('\n- ')}`;
-            const response = await aiClient.chat.completions.create({
-                model: getCurrentModel(),
-                messages: [{ role: 'user', content: prompt }],
-            });
+            const response = await safeAIRequest(
+                () => aiClient.chat.completions.create({
+                    model: getCurrentModel(),
+                    messages: [{ role: 'user', content: prompt }],
+                }),
+                { maxRetries: 2 }
+            );
+            
+            console.log('[AI] SurveyResultsView: Summary completed', { success: true });
             setSummaries(prev => ({ ...prev, [question.question_id]: textFromAI(response) }));
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            console.error('[AI] SurveyResultsView: Summary failed', { error: e.message });
+            if (e?.status === 429 || e?.message?.includes('rate limit')) {
+                addToast('AI rate limit reached. Please try again in a moment.', 'error');
+            } else if (e?.status === 401) {
+                addToast('AI authentication failed. Please check your API key.', 'error');
+            } else {
+                addToast('Failed to generate summary. Please try again.', 'error');
+            }
             setSummaries(prev => ({ ...prev, [question.question_id]: "Failed to generate summary." }));
         } finally {
             setSummarizingQuestionId(null);
