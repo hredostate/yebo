@@ -17,6 +17,8 @@ interface KudiSmsSettingsProps {
 
 type TabType = 'configuration' | 'channels' | 'sms-templates' | 'whatsapp-templates' | 'test';
 
+const SMS_PAGE_LENGTH = 160; // Characters per SMS page
+
 const NOTIFICATION_TYPES: Array<{ key: NotificationType; label: string }> = [
     { key: 'payment_receipt', label: 'Payment Receipt' },
     { key: 'homework_missing', label: 'Homework Missing' },
@@ -31,6 +33,13 @@ const NOTIFICATION_TYPES: Array<{ key: NotificationType; label: string }> = [
     { key: 'report_card_ready', label: 'Report Card Ready' },
     { key: 'emergency_broadcast', label: 'Emergency Broadcast' },
 ];
+
+/**
+ * Format a variable name for display (e.g., "student_name" -> "Student Name")
+ */
+const formatVariableName = (variable: string): string => {
+    return variable.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
 
 const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) => {
     const [activeTab, setActiveTab] = useState<TabType>('configuration');
@@ -455,7 +464,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
     const getCharacterCount = (text: string) => {
         const length = text.length;
-        const pages = Math.ceil(length / 160);
+        const pages = Math.ceil(length / SMS_PAGE_LENGTH);
         return { length, pages };
     };
 
@@ -977,7 +986,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                         {templates.find(t => t.template_name === testForm.template)?.variables?.map((variable) => (
                                             <div key={variable}>
                                                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                                    {variable.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
+                                                    {formatVariableName(variable)}:
                                                 </label>
                                                 <input
                                                     type="text"
@@ -1004,7 +1013,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                         </div>
                                         <div className="flex items-center justify-between text-xs text-slate-500">
                                             <span>{messagePreview.length} characters</span>
-                                            <span>{Math.ceil(messagePreview.length / 160)} page(s)</span>
+                                            <span>{Math.ceil(messagePreview.length / SMS_PAGE_LENGTH)} page(s)</span>
                                         </div>
                                     </div>
                                 )}
