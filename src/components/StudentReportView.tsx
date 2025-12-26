@@ -326,7 +326,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       
       // 2. Fetch grading scheme to calculate final grades if needed
       if (data?.schoolConfig?.active_grading_scheme_id) {
-          const { data: scheme } = await supabase.from('grading_schemes').select('*, rules:grading_scheme_rules(*)').eq('id', data.schoolConfig.active_grading_scheme_id).maybeSingle();
+          const { data: scheme } = await supabase.from('grading_schemes').select('*, rules:grading_scheme_rules(*)').eq('id', data?.schoolConfig?.active_grading_scheme_id).maybeSingle();
           if (scheme) {
               setActiveGradingScheme(scheme);
           }
@@ -371,7 +371,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
       // 4. Check if this is a "Third Term" or "3rd Term" to trigger composite logic
       const isThirdTerm = data.term.termLabel.toLowerCase().includes('third') || data.term.termLabel.toLowerCase().includes('3rd');
       
-      if (isThirdTerm && data.schoolConfig.term_weights) {
+      if (isThirdTerm && data?.schoolConfig?.term_weights) {
           await calculateComposite(data, data.schoolConfig.term_weights);
       }
 
