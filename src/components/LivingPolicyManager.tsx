@@ -11,7 +11,7 @@ interface LivingPolicyManagerProps {
   onAddSnippet: (content: string) => Promise<void>;
   userProfile: UserProfile;
   onSaveDocument: (content: string) => Promise<boolean>;
-  addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+  addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippets, onAddSnippet, userProfile, onSaveDocument, addToast }) => {
@@ -40,7 +40,7 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         try {
             const aiClient = getAIClient();
             if (!aiClient) {
-                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
                 return;
             }
             
@@ -83,7 +83,7 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         try {
             const aiClient = getAIClient();
             if (!aiClient) {
-                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
                 return;
             }
             
@@ -134,7 +134,7 @@ const LivingPolicyManager: React.FC<LivingPolicyManagerProps> = ({ policySnippet
         try {
             const aiClient = getAIClient();
             if (!aiClient) {
-                if (addToast) addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
+                addToast('AI service not configured. Please check Settings > AI Configuration.', 'error');
                 return;
             }
             
