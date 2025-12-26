@@ -155,6 +155,7 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         onSaveArm, onDeleteArm,
         onSaveInventoryItem, onDeleteInventoryItem,
         onSaveReward, onDeleteReward,
+        onSaveReportCardAnnouncement, onDeleteReportCardAnnouncement,
         onInviteUser, onUpdateUser, onDeleteUser, onDeactivateUser, onUpdateEmploymentStatus, onUpdateUserCampus,
         onSaveCampus, onDeleteCampus,
         onImportLegacyAssignments,
@@ -335,8 +336,8 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                 return <ReportCardAnnouncementsManager 
                     announcements={props.reportCardAnnouncements || []}
                     terms={terms}
-                    onSaveAnnouncement={props.onSaveReportCardAnnouncement}
-                    onDeleteAnnouncement={props.onDeleteReportCardAnnouncement}
+                    onSaveAnnouncement={onSaveReportCardAnnouncement}
+                    onDeleteAnnouncement={onDeleteReportCardAnnouncement}
                     addToast={addToast}
                 />;
             case 'Audit Log':
