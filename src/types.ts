@@ -2136,6 +2136,73 @@ export interface KudiSmsRecipient {
     name?: string;
 }
 
+// ============================================
+// Green-API Types for WhatsApp Integration
+// ============================================
+
+export interface GreenApiSettings {
+    id: number;
+    school_id: number;
+    campus_id: number | null;
+    instance_id: string;
+    api_token: string;
+    api_url: string;
+    media_url: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface GreenApiSendMessageParams {
+    chatId: string;
+    message: string;
+    quotedMessageId?: string;
+    linkPreview?: boolean;
+}
+
+export interface GreenApiSendFileParams {
+    chatId: string;
+    urlFile: string;
+    fileName: string;
+    caption?: string;
+    quotedMessageId?: string;
+}
+
+export interface GreenApiInteractiveButton {
+    type: 'copy' | 'call' | 'url' | 'reply';
+    buttonId: string;
+    buttonText: string;
+    copyCode?: string;
+    phoneNumber?: string;
+    url?: string;
+}
+
+export interface GreenApiSendButtonsParams {
+    chatId: string;
+    body: string;
+    buttons: GreenApiInteractiveButton[];
+    header?: string;
+    footer?: string;
+}
+
+export interface GreenApiForwardParams {
+    chatId: string;
+    chatIdFrom: string;
+    messages: string[];
+}
+
+export interface GreenApiResponse {
+    idMessage: string;
+}
+
+export interface GreenApiUploadResponse {
+    urlFile: string;
+}
+
+export interface GreenApiForwardResponse {
+    messages: string[];
+}
+
 export interface SmsMessageLog {
     id: number;
     school_id: number;

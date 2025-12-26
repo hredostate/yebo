@@ -16,6 +16,7 @@ interface SendSmsParams {
     referenceId?: number;
     notificationType: NotificationType;
     sentBy: string;
+    campusId?: number | null;
 }
 
 interface BulkSendResult {
@@ -26,44 +27,99 @@ interface BulkSendResult {
 
 /**
  * Send a notification via specific channel (SMS or WhatsApp)
+ * Now uses Green-API for WhatsApp if configured, falls back to KudiSMS
  */
-async function sendViaChannel(
-    channel: 'sms' | 'whatsapp',
-    recipientPhone: string,
-    messageContent: string,
-    schoolId: number,
-    templateCode?: string,
-    templateParams?: string
-): Promise<{ success: boolean; error?: string }> {
+async function sendViaChannel(options: {
+    channel: 'sms' | 'whatsapp';
+    recipientPhone: string;
+    messageContent: string;
+    schoolId: number;
+    templateCode?: string;
+    templateParams?: string;
+    campusId?: number | null;
+}): Promise<{ success: boolean; error?: string }> {
+    const { channel, recipientPhone, messageContent, schoolId, templateCode, templateParams, campusId } = options;
     const supabase = requireSupabaseClient();
     try {
-        const body: any = {
-            phone_number: recipientPhone,
-            school_id: schoolId,
-        };
-
         if (channel === 'whatsapp') {
-            body.gateway = '2';
-            body.template_code = templateCode || '';
-            body.params = templateParams || '';
-        } else {
-            body.gateway = '1';
-            body.message = messageContent;
-        }
+            // Check if Green-API is configured for this school
+            const { data: greenApiSettings } = await supabase
+                .from('greenapi_settings')
+                .select('*')
+                .eq('school_id', schoolId)
+                .eq('is_active', true)
+                .maybeSingle();
 
-        const { data: sendResult, error: sendError } = await supabase.functions.invoke(
-            'kudisms-send',
-            { body }
-        );
+            if (greenApiSettings) {
+                // Use Green-API for WhatsApp
+                const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+                    'greenapi-send',
+                    {
+                        body: {
+                            school_id: schoolId,
+                            campus_id: campusId,
+                            recipient_phone: recipientPhone,
+                            message: messageContent,
+                            send_type: 'text'
+                        }
+                    }
+                );
 
-        if (sendError || !sendResult?.success) {
-            return {
-                success: false,
-                error: sendError?.message || sendResult?.error || 'Unknown error'
+                if (sendError || !sendResult?.success) {
+                    return {
+                        success: false,
+                        error: sendError?.message || sendResult?.error || 'Green-API send failed'
+                    };
+                }
+
+                return { success: true };
+            }
+
+            // Fallback to KudiSMS WhatsApp
+            const body: any = {
+                phone_number: recipientPhone,
+                school_id: schoolId,
+                gateway: '2',
+                template_code: templateCode || '',
+                params: templateParams || '',
             };
-        }
 
-        return { success: true };
+            const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+                'kudisms-send',
+                { body }
+            );
+
+            if (sendError || !sendResult?.success) {
+                return {
+                    success: false,
+                    error: sendError?.message || sendResult?.error || 'KudiSMS WhatsApp send failed'
+                };
+            }
+
+            return { success: true };
+        } else {
+            // SMS - always use KudiSMS
+            const body: any = {
+                phone_number: recipientPhone,
+                school_id: schoolId,
+                gateway: '1',
+                message: messageContent,
+            };
+
+            const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+                'kudisms-send',
+                { body }
+            );
+
+            if (sendError || !sendResult?.success) {
+                return {
+                    success: false,
+                    error: sendError?.message || sendResult?.error || 'SMS send failed'
+                };
+            }
+
+            return { success: true };
+        }
     } catch (error: any) {
         return { success: false, error: error.message };
     }
@@ -83,7 +139,8 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
         variables = {},
         referenceId,
         notificationType,
-        sentBy
+        sentBy,
+        campusId
     } = params;
 
     try {
@@ -155,26 +212,39 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
         if (channel === 'whatsapp' || channel === 'both') {
             // Try WhatsApp first
             usedChannel = 'whatsapp';
-            sendResult = await sendViaChannel(
-                'whatsapp',
+            sendResult = await sendViaChannel({
+                channel: 'whatsapp',
                 recipientPhone,
                 messageContent,
                 schoolId,
-                whatsappTemplateCode,
-                templateParams
-            );
+                templateCode: whatsappTemplateCode,
+                templateParams,
+                campusId
+            });
 
             // Fallback to SMS if WhatsApp fails and fallback is enabled
             if (!sendResult.success && (channel === 'both' || enableFallback)) {
                 console.log('WhatsApp failed, falling back to SMS');
                 usedChannel = 'sms';
                 fallbackUsed = true;
-                sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId);
+                sendResult = await sendViaChannel({
+                    channel: 'sms',
+                    recipientPhone,
+                    messageContent,
+                    schoolId,
+                    campusId
+                });
             }
         } else {
             // Send via SMS directly
             usedChannel = 'sms';
-            sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId);
+            sendResult = await sendViaChannel({
+                channel: 'sms',
+                recipientPhone,
+                messageContent,
+                schoolId,
+                campusId
+            });
         }
 
         if (!sendResult.success) {
