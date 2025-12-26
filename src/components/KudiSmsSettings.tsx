@@ -17,6 +17,8 @@ interface KudiSmsSettingsProps {
 
 type TabType = 'configuration' | 'channels' | 'sms-templates' | 'whatsapp-templates' | 'test';
 
+const SMS_PAGE_LENGTH = 160; // Characters per SMS page
+
 const NOTIFICATION_TYPES: Array<{ key: NotificationType; label: string }> = [
     { key: 'payment_receipt', label: 'Payment Receipt' },
     { key: 'homework_missing', label: 'Homework Missing' },
@@ -31,6 +33,13 @@ const NOTIFICATION_TYPES: Array<{ key: NotificationType; label: string }> = [
     { key: 'report_card_ready', label: 'Report Card Ready' },
     { key: 'emergency_broadcast', label: 'Emergency Broadcast' },
 ];
+
+/**
+ * Format a variable name for display (e.g., "student_name" -> "Student Name")
+ */
+const formatVariableName = (variable: string): string => {
+    return variable.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
 
 const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) => {
     const [activeTab, setActiveTab] = useState<TabType>('configuration');
@@ -71,6 +80,9 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         params: ''
     });
     const [testResult, setTestResult] = useState<string>('');
+    const [testVariables, setTestVariables] = useState<Record<string, string>>({});
+    const [messagePreview, setMessagePreview] = useState<string>('');
+    const [providerType, setProviderType] = useState<'greenapi' | 'kudisms' | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -79,8 +91,17 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
     useEffect(() => {
         if (activeTab === 'sms-templates') {
             fetchTemplates();
+        } else if (activeTab === 'test') {
+            detectProvider();
         }
     }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab === 'test') {
+            detectProvider();
+            updateMessagePreview();
+        }
+    }, [testForm.messageType, testForm.template, testVariables]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -331,41 +352,109 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
         }
     };
 
+    const detectProvider = async () => {
+        if (testForm.messageType === 'sms') {
+            setProviderType('kudisms');
+            return;
+        }
+
+        // For WhatsApp, check if Green-API is configured
+        const supabase = requireSupabaseClient();
+        try {
+            const { data: greenApiSettings } = await supabase
+                .from('greenapi_settings')
+                .select('id')
+                .eq('school_id', schoolId)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            setProviderType(greenApiSettings ? 'greenapi' : 'kudisms');
+        } catch (error) {
+            console.error('Error detecting provider:', error);
+            setProviderType('kudisms');
+        }
+    };
+
+    const updateMessagePreview = () => {
+        if (!testForm.template) {
+            setMessagePreview('');
+            return;
+        }
+
+        const template = templates.find(t => t.template_name === testForm.template);
+        if (!template) {
+            setMessagePreview('');
+            return;
+        }
+
+        let preview = template.message_content;
+        
+        // Replace variables with values from testVariables
+        Object.entries(testVariables).forEach(([key, value]) => {
+            preview = preview.replace(new RegExp(`{{${key}}}`, 'g'), value || `{{${key}}}`);
+        });
+
+        setMessagePreview(preview);
+    };
+
+    const handleTemplateChange = (templateName: string) => {
+        setTestForm({ ...testForm, template: templateName });
+        
+        // Initialize variables for the selected template
+        const template = templates.find(t => t.template_name === templateName);
+        if (template && template.variables) {
+            const initialVariables: Record<string, string> = {};
+            template.variables.forEach(v => {
+                initialVariables[v] = '';
+            });
+            setTestVariables(initialVariables);
+        } else {
+            setTestVariables({});
+        }
+    };
+
     const handleSendTest = async () => {
         if (!testForm.recipient) {
             alert('Recipient phone number is required');
             return;
         }
 
-        const supabase = requireSupabaseClient();
+        if (!testForm.template) {
+            alert('Template is required');
+            return;
+        }
+
+        const template = templates.find(t => t.template_name === testForm.template);
+        if (!template) {
+            alert('Template not found');
+            return;
+        }
+
+        // Validate that all required variables are filled
+        const templateVariables = template.variables || [];
+        const missingVariables = templateVariables.filter(v => !testVariables[v] || testVariables[v].trim() === '');
+        if (missingVariables.length > 0) {
+            alert(`Please fill in all variables: ${missingVariables.join(', ')}`);
+            return;
+        }
+
         setTestResult('Sending...');
         try {
-            const template = templates.find(t => t.template_name === testForm.template);
-            if (!template && testForm.messageType === 'sms') {
-                throw new Error('Template not found');
-            }
+            const result = await testSendMessage({
+                schoolId,
+                recipientPhone: testForm.recipient,
+                messageType: testForm.messageType,
+                templateName: testForm.template,
+                variables: testVariables,
+                campusId: selectedCampus > 0 ? selectedCampus : undefined
+            });
 
-            const body: any = {
-                phone_number: testForm.recipient,
-                school_id: schoolId,
-            };
-
-            if (testForm.messageType === 'whatsapp') {
-                body.gateway = '2';
-                body.template_code = whatsappTemplates[testForm.template] || '';
-                body.params = testForm.params;
-            } else {
-                body.gateway = '1';
-                body.message = template?.message_content || 'Test message';
-            }
-
-            const { data, error } = await supabase.functions.invoke('kudisms-send', { body });
-
-            if (error || !data?.success) {
-                setTestResult(`❌ Failed: ${error?.message || data?.error || 'Unknown error'}`);
-            } else {
-                setTestResult(`✅ Success! Message sent via ${testForm.messageType.toUpperCase()}`);
+            if (result.success) {
+                const provider = providerType === 'greenapi' ? 'Green-API' : 'KudiSMS';
+                setTestResult(`✅ Success! Message sent via ${result.channel.toUpperCase()} using ${provider}`);
                 fetchBalance(); // Refresh balance after sending
+            } else {
+                setTestResult(`❌ Failed: ${result.error || 'Unknown error'}`);
             }
         } catch (error: any) {
             console.error('Test send error:', error);
@@ -375,7 +464,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
 
     const getCharacterCount = (text: string) => {
         const length = text.length;
-        const pages = Math.ceil(length / 160);
+        const pages = Math.ceil(length / SMS_PAGE_LENGTH);
         return { length, pages };
     };
 
@@ -832,6 +921,31 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                     </div>
                                 </div>
 
+                                {/* Provider Indicator */}
+                                {providerType && (
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                                Provider:
+                                            </span>
+                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                providerType === 'greenapi'
+                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                                            }`}>
+                                                {providerType === 'greenapi' ? 'Green-API (WhatsApp)' : 'KudiSMS'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                                            {testForm.messageType === 'whatsapp' && providerType === 'greenapi' 
+                                                ? 'Using Green-API with SMS templates for WhatsApp messaging'
+                                                : testForm.messageType === 'whatsapp'
+                                                ? 'Using KudiSMS WhatsApp (Green-API not configured)'
+                                                : 'Using KudiSMS for SMS messaging'}
+                                        </p>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                         Recipient Phone:
@@ -851,7 +965,7 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                     </label>
                                     <select
                                         value={testForm.template}
-                                        onChange={(e) => setTestForm({ ...testForm, template: e.target.value })}
+                                        onChange={(e) => handleTemplateChange(e.target.value)}
                                         className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                                     >
                                         <option value="">Select a template</option>
@@ -863,18 +977,44 @@ const KudiSmsSettingsComponent: React.FC<KudiSmsSettingsProps> = ({ schoolId }) 
                                     </select>
                                 </div>
 
-                                {testForm.messageType === 'whatsapp' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                            Parameters (comma-separated):
+                                {/* Per-variable input fields */}
+                                {testForm.template && templates.find(t => t.template_name === testForm.template)?.variables && (
+                                    <div className="space-y-3">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Template Variables:
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={testForm.params}
-                                            onChange={(e) => setTestForm({ ...testForm, params: e.target.value })}
-                                            placeholder="param1,param2,param3"
-                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                                        />
+                                        {templates.find(t => t.template_name === testForm.template)?.variables?.map((variable) => (
+                                            <div key={variable}>
+                                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                                    {formatVariableName(variable)}:
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={testVariables[variable] || ''}
+                                                    onChange={(e) => setTestVariables({ ...testVariables, [variable]: e.target.value })}
+                                                    placeholder={`Enter ${variable}`}
+                                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Message Preview */}
+                                {messagePreview && (
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Message Preview:
+                                        </label>
+                                        <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-lg">
+                                            <p className="text-sm text-slate-800 dark:text-white whitespace-pre-wrap">
+                                                {messagePreview}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-slate-500">
+                                            <span>{messagePreview.length} characters</span>
+                                            <span>{Math.ceil(messagePreview.length / SMS_PAGE_LENGTH)} page(s)</span>
+                                        </div>
                                     </div>
                                 )}
 
