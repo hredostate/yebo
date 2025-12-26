@@ -343,27 +343,94 @@ export async function sendSms(params: SendNotificationParams): Promise<SendResul
 }
 
 /**
- * Send WhatsApp message via Kudi SMS
+ * Send WhatsApp message via Green-API (preferred) or fallback to Kudi SMS
+ * 
+ * This function now prioritizes Green-API for WhatsApp messaging ($12/month)
+ * and falls back to Kudi SMS if Green-API is not configured.
  */
 export async function sendWhatsAppMessage(
     params: SendNotificationParams & { templateCode?: string }
 ): Promise<SendResult> {
     const supabase = requireSupabaseClient();
-    const { schoolId, recipientPhone, templateCode, variables, campusId } = params;
+    const { schoolId, recipientPhone, templateCode, variables, campusId, templateName } = params;
 
     try {
-        // Get settings to find WhatsApp template code
+        // Check if Green-API is configured
+        const { data: greenApiSettings } = await supabase
+            .from('greenapi_settings')
+            .select('*')
+            .eq('school_id', schoolId)
+            .eq('is_active', true)
+            .maybeSingle();
+
+        // If Green-API is configured, use it
+        if (greenApiSettings) {
+            // Get template to build message
+            const { data: template } = await supabase
+                .from('sms_templates')
+                .select('message_content')
+                .eq('school_id', schoolId)
+                .eq('template_name', templateName)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            if (!template) {
+                return {
+                    success: false,
+                    channel: 'whatsapp',
+                    error: 'Message template not found'
+                };
+            }
+
+            // Replace variables in message
+            let message = template.message_content;
+            Object.entries(variables).forEach(([key, value]) => {
+                message = message.replace(new RegExp(`{{${key}}}`, 'g'), value);
+            });
+
+            // Send via Green-API edge function
+            const { data: result, error: sendError } = await supabase.functions.invoke(
+                'greenapi-send',
+                {
+                    body: {
+                        school_id: schoolId,
+                        campus_id: campusId,
+                        recipient_phone: recipientPhone,
+                        message: message,
+                        send_type: 'text'
+                    }
+                }
+            );
+
+            if (sendError || !result?.success) {
+                console.error('Green-API send failed:', sendError || result);
+                // Don't fallback to Kudi SMS - return error
+                return {
+                    success: false,
+                    channel: 'whatsapp',
+                    error: sendError?.message || result?.error || 'Failed to send via Green-API'
+                };
+            }
+
+            return {
+                success: true,
+                channel: 'whatsapp',
+                message: 'WhatsApp message sent via Green-API'
+            };
+        }
+
+        // Fallback to Kudi SMS WhatsApp if Green-API not configured
         const settings = await getKudiSmsSettings(schoolId, campusId);
         
         if (!settings || !settings.whatsapp_template_codes) {
             return {
                 success: false,
                 channel: 'whatsapp',
-                error: 'WhatsApp templates not configured'
+                error: 'WhatsApp not configured (neither Green-API nor Kudi SMS)'
             };
         }
 
-        const finalTemplateCode = templateCode || settings.whatsapp_template_codes[params.templateName];
+        const finalTemplateCode = templateCode || settings.whatsapp_template_codes[templateName];
         
         if (!finalTemplateCode) {
             return {
@@ -393,14 +460,14 @@ export async function sendWhatsAppMessage(
             return {
                 success: false,
                 channel: 'whatsapp',
-                error: sendError?.message || result?.error || 'Failed to send WhatsApp'
+                error: sendError?.message || result?.error || 'Failed to send WhatsApp via Kudi SMS'
             };
         }
 
         return {
             success: true,
             channel: 'whatsapp',
-            message: 'WhatsApp message sent successfully'
+            message: 'WhatsApp message sent via Kudi SMS (fallback)'
         };
     } catch (error: any) {
         return {
