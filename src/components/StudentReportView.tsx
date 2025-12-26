@@ -818,7 +818,7 @@ const StudentReportView: React.FC<StudentReportViewProps> = ({ studentId, termId
                 </div>
                 {showLevelPosition && summary.positionInLevel && summary.levelSize && (
                     <p className="text-sm text-slate-600 mt-1">
-                        Level: {formatPercentile(calculatePercentile(summary.positionInLevel, summary.levelSize))} out of {summary.levelSize}
+                        Position in Class: {formatPercentile(calculatePercentile(summary.positionInLevel, summary.levelSize))} out of {summary.levelSize}
                     </p>
                 )}
                 <p className="text-xs text-slate-500 mt-1">Campus percentile: {summary.campusPercentile != null ? `${summary.campusPercentile.toFixed(0)}th` : 'N/A'}</p>

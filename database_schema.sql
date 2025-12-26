@@ -1936,48 +1936,56 @@ BEGIN
       AND acs.enrolled_term_id = p_term_id
     LIMIT 1;
 
-    -- 5. Cohort-level ranking with DYNAMIC AVERAGES from score_entries
-    WITH student_averages AS (
-        -- Compute average score for each student from their score_entries
+    -- 5. Cohort-level ranking with ALL ENROLLED STUDENTS (including those without scores)
+    -- FIXED: Use academic_class_students as base to count all enrolled students
+    WITH enrolled_students AS (
+        -- Get ALL enrolled students for accurate count
         SELECT 
-            se.student_id,
-            se.term_id,
-            se.academic_class_id,
-            AVG(se.total_score) as computed_average
-        FROM public.score_entries se
-        WHERE se.term_id = p_term_id
-        GROUP BY se.student_id, se.term_id, se.academic_class_id
+            acs.student_id,
+            acs.academic_class_id,
+            ac.arm,
+            ac.level,
+            s.campus_id,
+            t.session_label,
+            acs.enrolled_term_id as term_id,
+            COALESCE(AVG(se.total_score), 0) as computed_average
+        FROM public.academic_class_students acs
+        JOIN public.academic_classes ac ON ac.id = acs.academic_class_id
+        JOIN public.students s ON s.id = acs.student_id
+        JOIN public.terms t ON t.id = acs.enrolled_term_id
+        LEFT JOIN public.score_entries se ON se.student_id = acs.student_id 
+            AND se.term_id = acs.enrolled_term_id
+            AND se.academic_class_id = acs.academic_class_id
+        WHERE acs.enrolled_term_id = p_term_id
+          AND COALESCE(s.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
+        GROUP BY acs.student_id, acs.academic_class_id, ac.arm, ac.level, s.campus_id, t.session_label, acs.enrolled_term_id
     ),
     cohort AS (
         SELECT
-            sa.student_id,
+            es.student_id,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id, sa.academic_class_id, ac.arm
-                ORDER BY COALESCE(sa.computed_average, 0) DESC
+                PARTITION BY es.campus_id, es.session_label, es.term_id, es.academic_class_id, es.arm
+                ORDER BY es.computed_average DESC
             ) AS cohort_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id, sa.academic_class_id, ac.arm
+                PARTITION BY es.campus_id, es.session_label, es.term_id, es.academic_class_id, es.arm
             ) AS cohort_size,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id, ac.level
-                ORDER BY COALESCE(sa.computed_average, 0) DESC
+                PARTITION BY es.campus_id, es.session_label, es.term_id, es.level
+                ORDER BY es.computed_average DESC
             ) AS level_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id, ac.level
+                PARTITION BY es.campus_id, es.session_label, es.term_id, es.level
             ) AS level_size,
             DENSE_RANK() OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id
-                ORDER BY COALESCE(sa.computed_average, 0) DESC
+                PARTITION BY es.campus_id, es.session_label, es.term_id
+                ORDER BY es.computed_average DESC
             ) AS campus_rank,
             COUNT(*) OVER (
-                PARTITION BY s.campus_id, t.session_label, sa.term_id
+                PARTITION BY es.campus_id, es.session_label, es.term_id
             ) AS campus_total
-        FROM student_averages sa
-        JOIN public.students s ON sa.student_id = s.id
-        JOIN public.terms t ON t.id = sa.term_id
-        LEFT JOIN public.academic_classes ac ON ac.id = sa.academic_class_id
-        WHERE sa.term_id = p_term_id
-          AND COALESCE(s.status, 'Active') NOT IN ('Withdrawn', 'Graduated', 'Expelled', 'Inactive')
+        FROM enrolled_students es
+        WHERE es.term_id = p_term_id
     )
     SELECT
         c.cohort_rank,

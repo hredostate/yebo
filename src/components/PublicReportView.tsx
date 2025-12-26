@@ -792,7 +792,7 @@ const PublicReportView: React.FC = () => {
                                 </div>
                                 {showArmPosition && (
                                     <div>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Class</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Position in Arm</p>
                                         <p className="text-base font-semibold text-slate-900">
                                             {positionInArm ? `${positionInArm}${getOrdinalSuffix(positionInArm)}${totalInArm ? ` of ${totalInArm}` : ''}` : '—'}
                                         </p>
@@ -830,7 +830,7 @@ const PublicReportView: React.FC = () => {
                                         <p className="text-lg font-bold" style={{ color: themeColor }}>
                                             {positionInLevel ? `${positionInLevel}${getOrdinalSuffix(positionInLevel)}${totalInLevel ? ` / ${totalInLevel}` : ''}` : '—'}
                                         </p>
-                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Level</p>
+                                        <p className="text-xs text-slate-600 uppercase tracking-wider mt-1">Position in Class</p>
                                     </div>
                                 )}
                             </div>
