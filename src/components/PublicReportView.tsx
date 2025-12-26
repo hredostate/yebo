@@ -415,6 +415,7 @@ const PublicReportView: React.FC = () => {
             const extractedTotalInArm = rpcData?.summary?.cohortSize ?? rpcData?.summary?.totalStudentsInArm ?? rpcData?.summary?.total_students_in_arm;
             const extractedPositionInLevel = rpcData?.summary?.positionInLevel ?? rpcData?.summary?.position_in_level;
             const extractedTotalInLevel = rpcData?.summary?.levelSize ?? rpcData?.summary?.totalStudentsInLevel ?? rpcData?.summary?.total_students_in_level;
+            // Pre-formatted position string (e.g., "100th out of 167") - check both summary and ranking for backward compatibility
             const extractedPositionInLevelFormatted = rpcData?.summary?.positionInLevelFormatted ?? rpcData?.ranking?.positionInLevelFormatted;
             const extractedArmName = rpcData?.student?.armName ?? rpcData?.student?.arm_name;
             const extractedLevelName = rpcData?.student?.levelName ?? rpcData?.student?.level_name ?? rpcData?.student?.level;
