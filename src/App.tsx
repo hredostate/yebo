@@ -2180,6 +2180,9 @@ Student Data: ${JSON.stringify(studentDataForAI)}`;
                 atRiskStudentsCount: atRiskCount
             };
             
+            const hasTaskableData = urgentReports.length > 0 || lowStockItems.length > 0 || 
+                                   pendingLeaveRequests.length > 0 || overdueLessonPlans.length > 0 || atRiskCount > 0;
+            
             if (!hasTaskableData) {
                 console.log('[AI Task Suggestions] No taskable data available');
                 setTaskSuggestions([]);
