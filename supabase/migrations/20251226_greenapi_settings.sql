@@ -12,13 +12,14 @@ CREATE TABLE IF NOT EXISTS greenapi_settings (
   media_url TEXT DEFAULT 'https://media.green-api.com' NOT NULL,
   is_active BOOLEAN DEFAULT true NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  
-  -- Ensure only one active configuration per school/campus combination
-  CONSTRAINT unique_active_greenapi_per_school_campus 
-    UNIQUE (school_id, campus_id, is_active) 
-    DEFERRABLE INITIALLY DEFERRED
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Ensure only one active configuration per school/campus combination
+-- Using partial index to allow multiple inactive records
+CREATE UNIQUE INDEX unique_active_greenapi_per_school_campus 
+  ON greenapi_settings(school_id, campus_id) 
+  WHERE is_active = true;
 
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_greenapi_settings_school_id ON greenapi_settings(school_id);

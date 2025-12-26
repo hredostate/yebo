@@ -88,6 +88,20 @@ serve(async (req) => {
       throw new Error('file_data and file_name are required');
     }
 
+    // Validate file size (max 50MB)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+    const estimatedSize = (file_data.length * 3) / 4; // Approximate size after base64 decode
+    
+    if (estimatedSize > MAX_FILE_SIZE) {
+      return new Response(JSON.stringify({
+        error: 'File size exceeds maximum limit',
+        message: 'Maximum file size is 50MB'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
     if (!upload_only && !recipient_phone) {
       throw new Error('recipient_phone is required when not upload_only');
     }

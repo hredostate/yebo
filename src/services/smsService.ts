@@ -29,15 +29,16 @@ interface BulkSendResult {
  * Send a notification via specific channel (SMS or WhatsApp)
  * Now uses Green-API for WhatsApp if configured, falls back to KudiSMS
  */
-async function sendViaChannel(
-    channel: 'sms' | 'whatsapp',
-    recipientPhone: string,
-    messageContent: string,
-    schoolId: number,
-    templateCode?: string,
-    templateParams?: string,
-    campusId?: number | null
-): Promise<{ success: boolean; error?: string }> {
+async function sendViaChannel(options: {
+    channel: 'sms' | 'whatsapp';
+    recipientPhone: string;
+    messageContent: string;
+    schoolId: number;
+    templateCode?: string;
+    templateParams?: string;
+    campusId?: number | null;
+}): Promise<{ success: boolean; error?: string }> {
+    const { channel, recipientPhone, messageContent, schoolId, templateCode, templateParams, campusId } = options;
     const supabase = requireSupabaseClient();
     try {
         if (channel === 'whatsapp') {
@@ -211,27 +212,39 @@ export async function sendSmsNotification(params: SendSmsParams): Promise<boolea
         if (channel === 'whatsapp' || channel === 'both') {
             // Try WhatsApp first
             usedChannel = 'whatsapp';
-            sendResult = await sendViaChannel(
-                'whatsapp',
+            sendResult = await sendViaChannel({
+                channel: 'whatsapp',
                 recipientPhone,
                 messageContent,
                 schoolId,
-                whatsappTemplateCode,
+                templateCode: whatsappTemplateCode,
                 templateParams,
                 campusId
-            );
+            });
 
             // Fallback to SMS if WhatsApp fails and fallback is enabled
             if (!sendResult.success && (channel === 'both' || enableFallback)) {
                 console.log('WhatsApp failed, falling back to SMS');
                 usedChannel = 'sms';
                 fallbackUsed = true;
-                sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId, undefined, undefined, campusId);
+                sendResult = await sendViaChannel({
+                    channel: 'sms',
+                    recipientPhone,
+                    messageContent,
+                    schoolId,
+                    campusId
+                });
             }
         } else {
             // Send via SMS directly
             usedChannel = 'sms';
-            sendResult = await sendViaChannel('sms', recipientPhone, messageContent, schoolId, undefined, undefined, campusId);
+            sendResult = await sendViaChannel({
+                channel: 'sms',
+                recipientPhone,
+                messageContent,
+                schoolId,
+                campusId
+            });
         }
 
         if (!sendResult.success) {

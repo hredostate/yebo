@@ -14,9 +14,10 @@ interface GreenApiSettingsProps {
     schoolId: number;
     campusId?: number | null;
     onClose?: () => void;
+    addToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-export function GreenApiSettingsComponent({ schoolId, campusId, onClose }: GreenApiSettingsProps) {
+export function GreenApiSettingsComponent({ schoolId, campusId, onClose, addToast }: GreenApiSettingsProps) {
     const [settings, setSettings] = useState<GreenApiSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -109,10 +110,17 @@ export function GreenApiSettingsComponent({ schoolId, campusId, onClose }: Green
             }
 
             await loadSettings();
-            alert('Green-API settings saved successfully!');
+            
+            if (addToast) {
+                addToast('Green-API settings saved successfully!', 'success');
+            }
         } catch (error: any) {
             console.error('Error saving settings:', error);
-            alert(`Failed to save settings: ${error.message}`);
+            if (addToast) {
+                addToast(`Failed to save settings: ${error.message}`, 'error');
+            } else {
+                alert(`Failed to save settings: ${error.message}`);
+            }
         } finally {
             setSaving(false);
         }
@@ -120,7 +128,11 @@ export function GreenApiSettingsComponent({ schoolId, campusId, onClose }: Green
 
     const handleTestConnection = async () => {
         if (!formData.test_phone.trim()) {
-            alert('Please enter a test phone number');
+            if (addToast) {
+                addToast('Please enter a test phone number', 'error');
+            } else {
+                alert('Please enter a test phone number');
+            }
             return;
         }
 

@@ -98,6 +98,7 @@ async function makeGreenApiRequest<T>(
     retries: number = 2
 ): Promise<T> {
     let lastError: Error | null = null;
+    const MAX_DELAY = 3000; // Cap at 3 seconds
     
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
@@ -116,8 +117,8 @@ async function makeGreenApiRequest<T>(
             
             // Don't retry on the last attempt
             if (attempt < retries) {
-                // Exponential backoff: 1s, 2s, 4s
-                const delay = Math.pow(2, attempt) * 1000;
+                // Exponential backoff with cap: 1s, 2s (capped at 3s)
+                const delay = Math.min(Math.pow(2, attempt) * 1000, MAX_DELAY);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
