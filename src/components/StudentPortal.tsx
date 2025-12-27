@@ -655,12 +655,16 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                     );
                                 })}
                             </div>
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
-            )}
+                        </div>
+                    );
+                })()}
+            </div>
+            </>
+        )}
+    </>
+)}
+</div>
+)}
 
             {activeTab === 'goals' && (
                 <div className="animate-fade-in">
