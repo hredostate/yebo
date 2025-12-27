@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
-import type { StudentProfile, AcademicClass } from '../types';
+import type { StudentProfile, AcademicClass, SubjectGroup, SubjectGroupMember } from '../types';
 import Spinner from './common/Spinner';
 import { SunIcon, MoonIcon, BookOpenIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
 import StudentAcademicGoalEditor from './StudentAcademicGoalEditor';
 import { lockStudentChoices, getElectiveCapacityInfo, type ElectiveCapacityInfo } from '../services/studentSubjectChoiceService';
+import { getSubjectGroupsForClass, validateStudentSelections } from '../services/subjectGroupService';
 
 interface StudentPortalProps {
     studentProfile: StudentProfile;
@@ -27,6 +28,11 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     const [schoolId, setSchoolId] = useState<number | null>(null);
     const [isLocked, setIsLocked] = useState(false);
     const [electiveCapacity, setElectiveCapacity] = useState<Map<number, ElectiveCapacityInfo>>(new Map());
+    
+    // Subject Groups state
+    const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
+    const [subjectGroupMembers, setSubjectGroupMembers] = useState<SubjectGroupMember[]>([]);
+    const [groupValidationErrors, setGroupValidationErrors] = useState<string[]>([]);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -93,6 +99,18 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 })).sort((a,b) => a.subject_name.localeCompare(b.subject_name)) : [];
                 setAvailableSubjects(fetchedSubjects);
             }
+            
+            // 2b. Fetch subject groups for the class
+            if (studentProfile.class_id && schoolIdLocal) {
+                const groupsData = await getSubjectGroupsForClass(studentProfile.class_id, schoolIdLocal);
+                if (groupsData) {
+                    setSubjectGroups(groupsData.groups);
+                    setSubjectGroupMembers(groupsData.members);
+                } else {
+                    setSubjectGroups([]);
+                    setSubjectGroupMembers([]);
+                }
+            }
 
             // 3. Fetch existing choices & Merge Compulsory & Check Lock Status
             const { data: choices, error: choicesError } = await supabase
@@ -141,6 +159,50 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+    
+    // Memoized group data structures
+    const groupMembersMap = useMemo(() => {
+        const map = new Map<number, number[]>();
+        subjectGroupMembers.forEach(m => {
+            if (!map.has(m.group_id)) {
+                map.set(m.group_id, []);
+            }
+            map.get(m.group_id)!.push(m.subject_id);
+        });
+        return map;
+    }, [subjectGroupMembers]);
+    
+    const subjectToGroupMap = useMemo(() => {
+        const map = new Map<number, SubjectGroup>();
+        subjectGroups.forEach(group => {
+            const members = groupMembersMap.get(group.id) || [];
+            members.forEach(subjectId => {
+                map.set(subjectId, group);
+            });
+        });
+        return map;
+    }, [subjectGroups, groupMembersMap]);
+    
+    // Validate selections against group constraints in real-time
+    useEffect(() => {
+        const validateGroups = async () => {
+            if (!studentProfile.class_id || !schoolId || selectedSubjectIds.size === 0) {
+                setGroupValidationErrors([]);
+                return;
+            }
+            
+            const result = await validateStudentSelections(
+                studentProfile.student_record_id,
+                studentProfile.class_id,
+                schoolId,
+                Array.from(selectedSubjectIds)
+            );
+            
+            setGroupValidationErrors(result.errors);
+        };
+        
+        validateGroups();
+    }, [selectedSubjectIds, studentProfile, schoolId]);
 
     const handleToggleSubject = (subjectId: number, isCompulsory: boolean) => {
         if (isCompulsory) return; // Prevent toggling compulsory subjects
@@ -153,6 +215,19 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
         if (isAdding && capacity && capacity.isFull) {
             addToast(`${capacity.subjectName} is at full capacity. Cannot select.`, 'error');
             return;
+        }
+        
+        // Check group constraints
+        const group = subjectToGroupMap.get(subjectId);
+        if (group && isAdding) {
+            // Check if adding this subject would exceed max
+            const groupMembers = groupMembersMap.get(group.id) || [];
+            const selectedFromGroup = Array.from(selectedSubjectIds).filter(id => groupMembers.includes(id));
+            
+            if (selectedFromGroup.length >= group.max_selections) {
+                addToast(`You can only select ${group.max_selections} subject${group.max_selections > 1 ? 's' : ''} from "${group.group_name}"`, 'error');
+                return;
+            }
         }
 
         const newSet = new Set(selectedSubjectIds);
@@ -169,6 +244,17 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
         
         if (isLocked) {
             addToast('Your choices are locked. Contact your teacher to make changes.', 'error');
+            return;
+        }
+        
+        // Validate group constraints before saving
+        if (groupValidationErrors.length > 0) {
+            addToast('Please fix group selection errors before saving', 'error');
+            return;
+        }
+        
+        if (!studentProfile.student_record_id) {
+            addToast('Invalid student record.', 'error');
             return;
         }
         
@@ -319,6 +405,19 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                     </div>
                                 </div>
                             )}
+                            
+                            {/* Group validation errors */}
+                            {groupValidationErrors.length > 0 && (
+                                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <p className="font-semibold text-red-800 dark:text-red-100 mb-2">Group Selection Errors:</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        {groupValidationErrors.map((error, idx) => (
+                                            <li key={idx} className="text-sm text-red-700 dark:text-red-300">{error}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            
                             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
@@ -345,8 +444,116 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {availableSubjects.length > 0 ? availableSubjects.map(sub => {
+                            {/* Render subjects organized by groups */}
+                            <div className="space-y-6">
+                                {/* Render each subject group */}
+                                {subjectGroups.map(group => {
+                                    const groupMembers = groupMembersMap.get(group.id) || [];
+                                    const groupSubjects = availableSubjects.filter(s => groupMembers.includes(s.subject_id));
+                                    const selectedFromGroup = Array.from(selectedSubjectIds).filter(id => groupMembers.includes(id));
+                                    
+                                    if (groupSubjects.length === 0) return null;
+                                    
+                                    return (
+                                        <div key={group.id} className="space-y-3">
+                                            <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 px-4 py-3 rounded-lg border border-purple-200 dark:border-purple-800">
+                                                <div>
+                                                    <h3 className="font-semibold text-purple-900 dark:text-purple-100">
+                                                        📦 {group.group_name}
+                                                    </h3>
+                                                    <p className="text-sm text-purple-700 dark:text-purple-300">
+                                                        Select {group.min_selections === group.max_selections 
+                                                            ? `${group.max_selections}`
+                                                            : `${group.min_selections}-${group.max_selections}`
+                                                        } subject{group.max_selections > 1 ? 's' : ''} from this group
+                                                    </p>
+                                                </div>
+                                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                                    selectedFromGroup.length >= group.min_selections && selectedFromGroup.length <= group.max_selections
+                                                        ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100'
+                                                }`}>
+                                                    {selectedFromGroup.length}/{group.max_selections} selected
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {groupSubjects.map(sub => {
+                                                    const isSelected = selectedSubjectIds.has(sub.subject_id);
+                                                    const isCompulsory = sub.is_compulsory;
+                                                    const capacity = electiveCapacity.get(sub.subject_id);
+                                                    const isFull = !isCompulsory && capacity && capacity.isFull && !isSelected;
+                                                    const isDisabled = isCompulsory || isLocked || isFull;
+                                                    
+                                                    return (
+                                                        <div 
+                                                            key={sub.subject_id} 
+                                                            onClick={() => !isDisabled && handleToggleSubject(sub.subject_id, isCompulsory)}
+                                                            className={`p-4 border rounded-lg transition-all shadow-sm flex items-start justify-between 
+                                                                ${isDisabled 
+                                                                    ? 'cursor-not-allowed opacity-75' 
+                                                                    : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'
+                                                                }
+                                                                ${isCompulsory 
+                                                                    ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600' 
+                                                                    : ''
+                                                                }
+                                                                ${isFull 
+                                                                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800' 
+                                                                    : ''
+                                                                }
+                                                                ${isSelected && !isCompulsory && !isFull ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-500 ring-1 ring-purple-500' : ''}
+                                                                ${!isCompulsory && !isFull && !isSelected ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : ''}
+                                                            `}
+                                                        >
+                                                            <div className="flex flex-col flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className={`font-semibold ${isSelected ? 'text-purple-800 dark:text-purple-100' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                                        {sub.subject_name}
+                                                                    </p>
+                                                                    {isFull && (
+                                                                        <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold uppercase rounded">Full</span>
+                                                                    )}
+                                                                </div>
+                                                                {isCompulsory && <span className="text-[10px] font-bold uppercase text-slate-500 mt-1">Compulsory</span>}
+                                                                {!isCompulsory && capacity && capacity.maxStudents !== null && (
+                                                                    <span className={`text-xs mt-1 ${capacity.isFull ? 'text-red-600 dark:text-red-400 font-bold' : 'text-purple-600 dark:text-purple-400'}`}>
+                                                                        {capacity.currentEnrollment}/{capacity.maxStudents} enrolled
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-slate-300 dark:border-slate-500'} ${isCompulsory ? 'bg-slate-500 border-slate-500' : ''} ${isFull ? 'bg-red-600 border-red-600' : ''}`}>
+                                                                {isSelected && <CheckCircleIcon className="w-4 h-4 text-white" />}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                
+                                {/* Render ungrouped subjects */}
+                                {(() => {
+                                    const groupedSubjectIds = new Set(
+                                        subjectGroupMembers.map(m => m.subject_id)
+                                    );
+                                    const ungroupedSubjects = availableSubjects.filter(
+                                        s => !groupedSubjectIds.has(s.subject_id)
+                                    );
+                                    
+                                    if (ungroupedSubjects.length === 0) return null;
+                                    
+                                    return (
+                                        <div className="space-y-3">
+                                            {ungroupedSubjects.length > 0 && subjectGroups.length > 0 && (
+                                                <h3 className="font-semibold text-slate-900 dark:text-white px-2">
+                                                    Other Subjects
+                                                </h3>
+                                            )}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {ungroupedSubjects.map(sub => {
                                     const isSelected = selectedSubjectIds.has(sub.subject_id);
                                     const isCompulsory = sub.is_compulsory;
                                     const capacity = electiveCapacity.get(sub.subject_id);
@@ -401,13 +608,19 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                                 )}
                                             </div>
                                         </div>
-                                    )
-                                }) : (
-                                    <div className="col-span-full p-8 text-center text-slate-500 border-2 border-dashed rounded-xl">
-                                        No subjects available for selection. Please contact your administrator.
-                                    </div>
-                                )}
+                                    );
+                                })}
                             </div>
+                        </div>
+                    );
+                })()}
+            </div>
+            
+            {availableSubjects.length === 0 && (
+                <div className="col-span-full p-8 text-center text-slate-500 border-2 border-dashed rounded-xl">
+                    No subjects available for selection. Please contact your administrator.
+                </div>
+            )}
                         </>
                     )}
                 </div>
