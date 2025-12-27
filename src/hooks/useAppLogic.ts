@@ -368,6 +368,7 @@ export const useAppLogic = () => {
                      supabase.from('quiz_responses').select('quiz_id').eq('user_id', userProfile.id),
                      supabase.from('announcements').select('*, author:user_profiles(name)').eq('school_id', userProfile.school_id).order('created_at', { ascending: false }),
                      supabase.from('students').select('*').eq('id', studentProfile.student_record_id).maybeSingle(),
+                     supabase.from('terms').select('*').eq('school_id', userProfile.school_id).order('start_date', { ascending: false }),
                  ]);
                  // Helper to safely extract data from result - always returns array
                  const getData = (index: number): any[] => {
@@ -398,6 +399,7 @@ export const useAppLogic = () => {
                  if (studentRecord) {
                      setStudents([studentRecord]);
                  }
+                 setTerms(getData(5));
                  
                  // Update last refreshed timestamp
                  setLastRefreshed(new Date());
