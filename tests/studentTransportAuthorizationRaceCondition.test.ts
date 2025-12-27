@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { isStudentAllowedView } from '../src/hooks/useInitialView.js';
 
 /**
  * Test for Student Transport Sign-Up Authorization Race Condition Fix
@@ -267,32 +268,6 @@ function testUnauthorizedViewRedirect(): void {
     );
 
     console.log('✅ Test 5 passed: Unauthorized views still get redirected');
-}
-
-// Helper function that mimics the actual implementation
-function isStudentAllowedView(view: string): boolean {
-    const STUDENT_ALLOWED_VIEWS = [
-        'My Subjects',
-        'Rate My Teacher',
-        'Student Surveys',
-        'Student Reports',
-        'Student Dashboard',
-        'Student Finances',
-        'Student Profile Edit',
-        'My Strikes & Appeals',
-        'Student Lessons',
-        'Timetable',
-        'My Homework',
-        'Absence Requests',
-        'School Store',
-        'Transport Sign-Up', // The view in question
-    ];
-
-    return (
-        STUDENT_ALLOWED_VIEWS.includes(view) ||
-        view.startsWith('Student Report/') ||
-        view.startsWith('Take Quiz/')
-    );
 }
 
 // Run all tests
