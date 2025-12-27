@@ -199,11 +199,11 @@ export default function StudentLoginPage({ onNavigate, isDarkMode, toggleTheme }
                   required 
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
-                  placeholder={authView === 'signup' ? 'your-email@school.com' : 'e.g., firstname.lastname'} 
+                  placeholder={authView === 'signup' ? 'your-email@school.com' : 'Enter your username'} 
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-slate-900 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" 
                 />
                 {authView === 'login' && (
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Use your username in firstname.lastname format</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Enter your username exactly as provided in your credentials</span>
                 )}
               </label>
 
