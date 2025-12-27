@@ -3,8 +3,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { requireSupabaseClient } from '../services/supabaseClient';
 import type { StudentProfile, AcademicClass, SubjectGroup, SubjectGroupMember } from '../types';
 import Spinner from './common/Spinner';
-import { SunIcon, MoonIcon, BookOpenIcon, CheckCircleIcon, LockClosedIcon } from './common/icons';
+import { SunIcon, MoonIcon, BookOpenIcon, CheckCircleIcon, LockClosedIcon, ClipboardIcon, Squares2x2Icon } from './common/icons';
 import StudentAcademicGoalEditor from './StudentAcademicGoalEditor';
+import SubjectSelectionReceipt from './SubjectSelectionReceipt';
 import { lockStudentChoices, getElectiveCapacityInfo, type ElectiveCapacityInfo } from '../services/studentSubjectChoiceService';
 import { getSubjectGroupsForClass, validateStudentSelections } from '../services/subjectGroupService';
 
@@ -18,6 +19,7 @@ interface StudentPortalProps {
 
 const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast, onLogout, isDarkMode, toggleTheme }) => {
     const [activeTab, setActiveTab] = useState<'subjects' | 'goals'>('subjects');
+    const [viewMode, setViewMode] = useState<'selection' | 'receipt'>('selection');
     const [availableSubjects, setAvailableSubjects] = useState<{subject_id: number, subject_name: string, is_compulsory: boolean}[]>([]);
     const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<number>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +29,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
     const [activeTermId, setActiveTermId] = useState<number | null>(null);
     const [schoolId, setSchoolId] = useState<number | null>(null);
     const [isLocked, setIsLocked] = useState(false);
+    const [lockedAt, setLockedAt] = useState<string | null>(null);
     const [electiveCapacity, setElectiveCapacity] = useState<Map<number, ElectiveCapacityInfo>>(new Map());
     
     // Subject Groups state
@@ -115,7 +118,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
             // 3. Fetch existing choices & Merge Compulsory & Check Lock Status
             const { data: choices, error: choicesError } = await supabase
                 .from('student_subject_choices')
-                .select('subject_id, locked')
+                .select('subject_id, locked, locked_at')
                 .eq('student_id', studentProfile.student_record_id);
             
             if (choicesError) {
@@ -126,6 +129,15 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 // Check if any choices are locked
                 const anyLocked = (choices || []).some((c: any) => c.locked === true);
                 setIsLocked(anyLocked);
+                
+                // If locked, default to receipt view and get locked timestamp
+                if (anyLocked) {
+                    setViewMode('receipt');
+                    const lockedChoice = choices?.find((c: any) => c.locked && c.locked_at);
+                    if (lockedChoice) {
+                        setLockedAt(lockedChoice.locked_at);
+                    }
+                }
                 
                 // Automatically include compulsory subjects in the selection state
                 const compulsoryIds = fetchedSubjects.filter(s => s.is_compulsory).map(s => s.subject_id);
@@ -312,6 +324,8 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                 addToast('Subjects saved and locked successfully!', 'success');
                 setHasSaved(true);
                 setIsLocked(true); // Update UI state
+                setLockedAt(new Date().toISOString());
+                setViewMode('receipt'); // Transition to receipt view
             } else {
                 addToast('Subjects saved but failed to lock. Please contact administrator.', 'error');
             }
@@ -385,54 +399,84 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                         </div>
                     ) : (
                         <>
-                            {/* Lock Status Banner */}
+                            {/* View Mode Toggle - Only show when locked */}
                             {isLocked && (
-                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-3">
-                                    <LockClosedIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                    <div>
-                                        <p className="font-semibold text-amber-800 dark:text-amber-100">🔒 Your subject selections are locked</p>
-                                        <p className="text-sm text-amber-700 dark:text-amber-300">Contact your class teacher or admin to request changes to your subject choices.</p>
-                                    </div>
+                                <div className="flex justify-center gap-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <button
+                                        onClick={() => setViewMode('receipt')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                                            viewMode === 'receipt'
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600'
+                                        }`}
+                                    >
+                                        <ClipboardIcon className="w-4 h-4" />
+                                        Receipt View
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('selection')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                                            viewMode === 'selection'
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600'
+                                        }`}
+                                    >
+                                        <Squares2x2Icon className="w-4 h-4" />
+                                        Subject List View
+                                    </button>
                                 </div>
                             )}
-                            
-                            {hasSaved && !isLocked && (
-                                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-3">
-                                    <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                    <div>
-                                        <p className="font-semibold text-green-800 dark:text-green-100">Selections Saved</p>
-                                        <p className="text-sm text-green-700 dark:text-green-300">Your subject choices have been saved successfully.</p>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Group validation errors */}
-                            {groupValidationErrors.length > 0 && (
-                                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                                    <p className="font-semibold text-red-800 dark:text-red-100 mb-2">Group Selection Errors:</p>
-                                    <ul className="list-disc list-inside space-y-1">
-                                        {groupValidationErrors.map((error, idx) => (
-                                            <li key={idx} className="text-sm text-red-700 dark:text-red-300">{error}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        {isLocked ? 'Your selections are locked. Contact admin to make changes.' : 'Select the subjects you are taking this term.'}
-                                        {!isLocked && minLimit > 0 && ` Minimum: ${minLimit}.`} 
-                                        {!isLocked && maxLimit < 99 && ` Maximum: ${maxLimit}.`}
-                                    </p>
-                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                        * {compulsoryCount} subjects are compulsory and cannot be removed.
-                                    </p>
-                                    <p className={`text-sm font-bold mt-1 ${isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        Total Selected: {selectionCount}
-                                    </p>
-                                </div>
+
+                            {/* Receipt View */}
+                            {isLocked && viewMode === 'receipt' ? (
+                                <SubjectSelectionReceipt
+                                    studentProfile={studentProfile}
+                                    compulsorySubjects={availableSubjects.filter(s => s.is_compulsory && selectedSubjectIds.has(s.subject_id))}
+                                    electiveSubjects={availableSubjects.filter(s => !s.is_compulsory && selectedSubjectIds.has(s.subject_id))}
+                                    lockedAt={lockedAt}
+                                    termName="First Term" // TODO: Get from active term
+                                    sessionLabel="2024/2025" // TODO: Get from session
+                                    onRequestChange={() => {
+                                        addToast('To request changes, please contact your class teacher or school administrator.', 'info');
+                                    }}
+                                />
+                            ) : (
+                                <>
+                                    {/* Lock Status Banner */}
+                                    {isLocked && (
+                                        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-3">
+                                            <LockClosedIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                                            <div>
+                                                <p className="font-semibold text-amber-800 dark:text-amber-100">🔒 Your subject selections are locked</p>
+                                                <p className="text-sm text-amber-700 dark:text-amber-300">Contact your class teacher or admin to request changes to your subject choices.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {hasSaved && !isLocked && (
+                                        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-3">
+                                            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                            <div>
+                                                <p className="font-semibold text-green-800 dark:text-green-100">Selections Saved</p>
+                                                <p className="text-sm text-green-700 dark:text-green-300">Your subject choices have been saved successfully.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                        <div>
+                                            <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Subject Selection</h2>
+                                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                                {isLocked ? 'Your selections are locked. Contact admin to make changes.' : 'Select the subjects you are taking this term.'}
+                                                {!isLocked && minLimit > 0 && ` Minimum: ${minLimit}.`} 
+                                                {!isLocked && maxLimit < 99 && ` Maximum: ${maxLimit}.`}
+                                            </p>
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                * {compulsoryCount} subjects are compulsory and cannot be removed.
+                                            </p>
+                                            <p className={`text-sm font-bold mt-1 ${isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                Total Selected: {selectionCount}
+                                            </p>
+                                        </div>
                                 {!isLocked && (
                                     <button 
                                         onClick={handleSaveChoices} 
@@ -611,16 +655,8 @@ const StudentPortal: React.FC<StudentPortalProps> = ({ studentProfile, addToast,
                                     );
                                 })}
                             </div>
-                        </div>
-                    );
-                })()}
-            </div>
-            
-            {availableSubjects.length === 0 && (
-                <div className="col-span-full p-8 text-center text-slate-500 border-2 border-dashed rounded-xl">
-                    No subjects available for selection. Please contact your administrator.
-                </div>
-            )}
+                                </>
+                            )}
                         </>
                     )}
                 </div>
