@@ -936,6 +936,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 classes={data.allClasses}
                 arms={data.allArms}
                 classSubjects={data.classSubjects}
+                subjectGroups={data.subjectGroups}
+                subjectGroupMembers={data.subjectGroupMembers}
                 inventory={data.inventory}
                 rewards={data.rewards}
                 reportCardAnnouncements={data.reportCardAnnouncements}

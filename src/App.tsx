@@ -1506,8 +1506,12 @@ const App: React.FC = () => {
                             setInventory(getData(11));
                             setAllSubjects(getData(12));
                             setClassSubjects(getData(13));
-                            setSubjectGroups(getData(14));
-                            setSubjectGroupMembers(getData(15));
+                            const subjectGroupsData = getData(14);
+                            const subjectGroupMembersData = getData(15);
+                            console.log('[Data Fetch] Subject groups fetched:', subjectGroupsData.length);
+                            console.log('[Data Fetch] Subject group members fetched:', subjectGroupMembersData.length);
+                            setSubjectGroups(subjectGroupsData);
+                            setSubjectGroupMembers(subjectGroupMembersData);
                             setAllClasses(getData(16));
                             setAllArms(getData(17));
                             setSurveys(getData(18));
