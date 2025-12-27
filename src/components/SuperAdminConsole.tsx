@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment, Subject, ReportCardAnnouncement } from '../types';
+import type { SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, UserProfile, RoleDetails, RoleTitle, AuditLog, BaseDataObject, InventoryItem, RewardStoreItem, Campus, AssessmentStructure, TeachingAssignment, Student, AcademicClassStudent, ClassSubject, TeacherShift, LeaveType, StudentSubjectEnrollment, Subject, ReportCardAnnouncement, SubjectGroup, SubjectGroupMember } from '../types';
 import { EmploymentStatus } from '../types';
 import RoleManager from './RoleManager';
 import AuditLogView from './AuditLogView';
@@ -38,6 +38,8 @@ interface SuperAdminConsoleProps {
     classes: BaseDataObject[];
     arms: BaseDataObject[];
     classSubjects: ClassSubject[];
+    subjectGroups: SubjectGroup[];
+    subjectGroupMembers: SubjectGroupMember[];
     inventory: InventoryItem[];
     rewards: RewardStoreItem[];
     assessmentStructures: AssessmentStructure[];
@@ -137,6 +139,8 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
         subjects = [],
         classes = [],
         arms = [],
+        subjectGroups = [],
+        subjectGroupMembers = [],
         inventory = [],
         rewards = [],
         campuses = [],
@@ -285,8 +289,13 @@ const SuperAdminConsole: React.FC<SuperAdminConsoleProps> = (props) => {
                                     classes={classes} 
                                     subjects={subjects} 
                                     classSubjects={props.classSubjects}
+                                    subjectGroups={subjectGroups}
+                                    subjectGroupMembers={subjectGroupMembers}
+                                    schoolId={schoolConfig?.school_id || 1}
                                     onSave={props.onSaveClassSubject} 
-                                    onDelete={props.onDeleteClassSubject} 
+                                    onDelete={props.onDeleteClassSubject}
+                                    onRefreshData={onRefreshData}
+                                    addToast={addToast}
                                 />
                             )}
                             {structureSubTab === 'student_subject_enrollment' && (
