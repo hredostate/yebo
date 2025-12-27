@@ -164,6 +164,8 @@ export const VIEWS = {
   TRANSPORT_SIGN_UP: 'Transport Sign-Up',
   TEACHER_TRANSPORT_GROUPS: 'Transport Groups',
   TEACHER_TRANSPORT_ATTENDANCE: 'Transport Attendance',
+  // Student Credentials
+  STUDENT_CREDENTIALS_BULK_SEND: 'Student Credentials Bulk Send',
 } as const;
 
 export const STUDENT_STATUSES = [

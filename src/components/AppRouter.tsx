@@ -75,6 +75,7 @@ const TimetableView = lazy(() => import('./TimetableView'));
 const SurveyListView = lazy(() => import('./SurveyListView'));
 const StudentListView = lazy(() => import('./StudentListView'));
 const StudentAccountsView = lazy(() => import('./StudentAccountsView'));
+const StudentCredentialsBulkSend = lazy(() => import('./StudentCredentialsBulkSend'));
 const AnalyticsView = lazy(() => import('./AnalyticsView'));
 const SuperAdminConsole = lazy(() => import('./SuperAdminConsole'));
 const HRPayrollModule = lazy(() => import('./HRPayrollModule'));
@@ -396,6 +397,12 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentView, data, actions }) => 
                 addToast={actions.addToast}
                 onViewStudent={actions.setSelectedStudent}
             />;
+        case VIEWS.STUDENT_CREDENTIALS_BULK_SEND:
+            return (
+                <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+                    <StudentCredentialsBulkSend />
+                </Suspense>
+            );
         case VIEWS.STUDENT_PROFILE:
             if (param1) {
                  const student = data.students.find((s: any) => s.id === Number(param1));

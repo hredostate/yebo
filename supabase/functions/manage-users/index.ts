@@ -1976,6 +1976,40 @@ serve(async (req) => {
         });
     }
 
+    // Get password from auth user metadata
+    if (action === 'get_password') {
+        const { user_id } = body;
+
+        if (!user_id) {
+            throw new Error('user_id is required');
+        }
+
+        console.log(`Getting password for user_id: ${user_id}`);
+
+        // Get user from auth
+        const { data: authUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(user_id);
+
+        if (getUserError || !authUser.user) {
+            console.error('Error getting user:', getUserError);
+            throw new Error('User not found');
+        }
+
+        // Get password from user metadata
+        const password = authUser.user.user_metadata?.initial_password;
+
+        if (!password) {
+            throw new Error('Password not found in user metadata. Please reset the password.');
+        }
+
+        return new Response(JSON.stringify({
+            success: true,
+            password: password
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
     throw new Error(`Unknown action: ${action}`);
 
   } catch (error) {
