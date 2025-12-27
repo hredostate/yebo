@@ -110,7 +110,7 @@ const StudentCredentialsBulkSend: React.FC = () => {
           mother_phone,
           user_id,
           school_id,
-          academic_classes(name)
+          class:classes(name)
         `)
         .eq('school_id', profile.school_id)
         .not('user_id', 'is', null)
@@ -123,7 +123,7 @@ const StudentCredentialsBulkSend: React.FC = () => {
         id: student.id,
         name: student.name,
         email: student.email,
-        class_name: student.academic_classes?.name || null,
+        class_name: student.class?.name || null,
         parent_phone_number_1: student.parent_phone_number_1,
         parent_phone_number_2: student.parent_phone_number_2,
         father_phone: student.father_phone,
