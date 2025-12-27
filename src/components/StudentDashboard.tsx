@@ -15,7 +15,11 @@ import {
   CheckCircleIcon,
   PencilIcon,
   GiftIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  LockClosedIcon,
+  CloseIcon,
+  EyeIcon,
+  EyeOffIcon
 } from './common/icons';
 import { VIEWS } from '../constants';
 
@@ -42,6 +46,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
   });
   const [recentAbsenceRequests, setRecentAbsenceRequests] = useState<AbsenceRequest[]>([]);
   const [strikes, setStrikes] = useState<StudentStrike[]>([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!studentProfile.student_record_id) {
@@ -231,6 +241,44 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     }
   };
 
+  const handleChangePassword = async () => {
+    // Validate passwords
+    if (!newPassword || !confirmPassword) {
+      addToast('Please fill in all fields', 'error');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      addToast('Password must be at least 8 characters long', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      addToast('Passwords do not match', 'error');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const supabase = requireSupabaseClient();
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+      if (error) throw error;
+
+      addToast('Password changed successfully', 'success');
+      setShowPasswordModal(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      addToast('Failed to change password: ' + error.message, 'error');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'Severe': return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
@@ -364,6 +412,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   <span className="p-2 rounded-lg bg-white dark:bg-slate-900"><ShieldIcon className="w-5 h-5 text-red-500" /></span>
                   <span className="text-sm font-semibold text-slate-900 dark:text-white">Strikes & appeals</span>
                 </button>
+                <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                  <span className="p-2 rounded-lg bg-white dark:bg-slate-900"><LockClosedIcon className="w-5 h-5 text-amber-500" /></span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">Change password</span>
+                </button>
               </div>
             </div>
           </div>
@@ -417,6 +469,91 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
           )}
         </div>
       </section>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPasswordModal(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">Change Password</h2>
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                >
+                  <CloseIcon className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  New Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  >
+                    {showNewPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Minimum 8 characters
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  >
+                    {showConfirmPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium"
+                  disabled={isChangingPassword}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isChangingPassword ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
