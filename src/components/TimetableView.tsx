@@ -555,19 +555,43 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
         }
     }, [localCampuses, userProfile]);
 
+    // Helper function to fetch timetable entries with fallback
+    const fetchTimetableEntries = async (termId: number): Promise<TimetableEntry[]> => {
+        const supabase = requireSupabaseClient();
+        
+        // First try with location join
+        const { data: entriesWithLocation, error: entriesError } = await supabase
+            .from('timetable_entries')
+            .select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)')
+            .eq('term_id', termId);
+        
+        if (entriesError) {
+            // Fallback: try without location join if it fails
+            console.warn('Failed to fetch timetable entries with location, trying without location:', entriesError);
+            const { data: entriesWithoutLocation } = await supabase
+                .from('timetable_entries')
+                .select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name)')
+                .eq('term_id', termId);
+            return entriesWithoutLocation || [];
+        }
+        
+        return entriesWithLocation || [];
+    };
+
     // Fetch Data
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
             const supabase = requireSupabaseClient();
-            const [pRes, eRes, lRes] = await Promise.all([
+            
+            const [pRes, entriesData, lRes] = await Promise.all([
                 supabase.from('timetable_periods').select('*'),
-                selectedTermId ? supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId) : { data: [] },
+                selectedTermId ? fetchTimetableEntries(selectedTermId) : Promise.resolve([]),
                 supabase.from('timetable_locations').select('*, campus:campuses(name)')
             ]);
             
             if (pRes.data) setPeriods(pRes.data);
-            if (eRes.data) setEntries(eRes.data);
+            setEntries(entriesData);
             if (lRes.data) setLocations(lRes.data);
             setIsLoading(false);
         };
@@ -675,11 +699,8 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
         }
 
         addToast('Timetable updated', 'success');
-        const { data } = await supabase
-            .from('timetable_entries')
-            .select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)')
-            .eq('term_id', selectedTermId!);
-        if (data) setEntries(data);
+        const data = await fetchTimetableEntries(selectedTermId!);
+        setEntries(data);
     };
 
     const handleDeleteEntry = async (id: number) => {
@@ -688,8 +709,8 @@ const TimetableView: React.FC<TimetableViewProps> = ({ userProfile, users = [], 
         if (error) {
             addToast('Failed to delete entry', 'error');
         } else {
-            const { data } = await supabase.from('timetable_entries').select('*, academic_class:academic_classes(name), subject:subjects(name, priority, is_solo, can_co_run), teacher:user_profiles(name), location:timetable_locations(name, capacity)').eq('term_id', selectedTermId!);
-            if(data) setEntries(data);
+            const data = await fetchTimetableEntries(selectedTermId!);
+            setEntries(data);
             addToast('Entry deleted', 'success');
         }
     }
