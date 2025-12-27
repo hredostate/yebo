@@ -197,7 +197,11 @@ serve(async (req) => {
   }
 
   /**
-   * Helper function to generate a unique username from a name (legacy for staff)
+   * Helper function to generate a unique username from a name
+   * @deprecated Use generateUsernameFromName() for students. This function is for STAFF ACCOUNTS ONLY.
+   * Generates username in format: cleanname + timestamp (e.g., "johndoe1234")
+   * DO NOT use this for student accounts as it creates usernames that don't match the 
+   * expected firstname.lastname format required for student login.
    */
   function generateUsername(name: string, suffix?: string): string {
     const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1798,6 +1802,174 @@ serve(async (req) => {
         return new Response(JSON.stringify({ 
             success: true, 
             credentials: results 
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+    }
+
+    // ============================================================================
+    // REPAIR USERNAMES ACTION
+    // ============================================================================
+    
+    if (action === 'repair_usernames') {
+        console.log('repair_usernames action called');
+        
+        const { school_id } = body;
+        
+        if (!school_id) {
+            throw new Error('school_id is required');
+        }
+        
+        console.log(`Repairing usernames for school ${school_id}`);
+        
+        // Find all student accounts where email doesn't match firstname.lastname@upsshub.com pattern
+        // Pattern check: should have exactly one dot before @upsshub.com
+        const { data: students, error: studentsError } = await supabaseAdmin
+            .from('students')
+            .select('id, name, email, user_id, school_id')
+            .eq('school_id', school_id)
+            .not('user_id', 'is', null)
+            .like('email', '%@upsshub.com');
+        
+        if (studentsError) {
+            throw new Error(`Failed to fetch students: ${studentsError.message}`);
+        }
+        
+        console.log(`Found ${students?.length || 0} students with @upsshub.com emails`);
+        
+        // Filter students with legacy username format (no dot in username or numeric suffix without dot)
+        // Proper format: firstname.lastname or firstname.lastname1 (optional numeric suffix)
+        const legacyStudents = (students || []).filter(student => {
+            const emailUsername = student.email.replace('@upsshub.com', '');
+            // Check if username matches firstname.lastname pattern (optional numeric suffix for duplicates)
+            const hasProperFormat = /^[a-z]+\.[a-z]+(\d+)?$/.test(emailUsername);
+            return !hasProperFormat;
+        });
+        
+        console.log(`Identified ${legacyStudents.length} students with legacy username format`);
+        
+        const results = [];
+        
+        // Collect existing usernames to avoid duplicates
+        const existingUsernames = new Set<string>(
+            (students || []).map(s => s.email.replace('@upsshub.com', ''))
+        );
+        
+        // Fetch all auth user metadata upfront to avoid N+1 queries
+        const userMetadataMap = new Map<string, any>();
+        for (const student of legacyStudents) {
+            try {
+                const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(student.user_id);
+                if (authUser?.user) {
+                    userMetadataMap.set(student.user_id, authUser.user.user_metadata || {});
+                }
+            } catch (e) {
+                console.error(`Failed to fetch metadata for user ${student.user_id}:`, e);
+                userMetadataMap.set(student.user_id, {});
+            }
+        }
+        
+        for (const student of legacyStudents) {
+            try {
+                console.log(`Processing student: ${student.name}, current email: ${student.email}`);
+                
+                // Generate new username using generateUsernameFromName
+                const newUsername = generateUsernameFromName(student.name, existingUsernames);
+                const newEmail = `${newUsername}@upsshub.com`;
+                
+                // Skip if the new email is the same as current
+                if (newEmail === student.email) {
+                    console.log(`Skipping ${student.name} - already has correct format`);
+                    results.push({
+                        name: student.name,
+                        oldEmail: student.email,
+                        newEmail: newEmail,
+                        status: 'Skipped',
+                        reason: 'Already correct format'
+                    });
+                    continue;
+                }
+                
+                // Get existing metadata
+                const existingMetadata = userMetadataMap.get(student.user_id) || {};
+                
+                // Update auth user email and metadata
+                const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
+                    student.user_id,
+                    {
+                        email: newEmail,
+                        email_confirm: true,
+                        user_metadata: {
+                            ...existingMetadata,
+                            username: newUsername
+                        }
+                    }
+                );
+                
+                if (updateAuthError) {
+                    console.error(`Failed to update auth user for ${student.name}:`, updateAuthError);
+                    results.push({
+                        name: student.name,
+                        oldEmail: student.email,
+                        newEmail: newEmail,
+                        status: 'Failed',
+                        error: updateAuthError.message
+                    });
+                    continue;
+                }
+                
+                // Update student record email
+                const { error: updateStudentError } = await supabaseAdmin
+                    .from('students')
+                    .update({ email: newEmail })
+                    .eq('id', student.id);
+                
+                if (updateStudentError) {
+                    console.error(`Failed to update student record for ${student.name}:`, updateStudentError);
+                    results.push({
+                        name: student.name,
+                        oldEmail: student.email,
+                        newEmail: newEmail,
+                        status: 'Partial',
+                        error: `Auth updated but student record failed: ${updateStudentError.message}`
+                    });
+                } else {
+                    console.log(`Successfully updated ${student.name}: ${student.email} -> ${newEmail}`);
+                    results.push({
+                        name: student.name,
+                        oldEmail: student.email,
+                        newEmail: newEmail,
+                        status: 'Success'
+                    });
+                    
+                    // Add to existing usernames set to prevent duplicates in this batch
+                    existingUsernames.add(newUsername);
+                }
+                
+            } catch (error: any) {
+                console.error(`Error repairing username for ${student.name}:`, error);
+                results.push({
+                    name: student.name,
+                    oldEmail: student.email,
+                    status: 'Error',
+                    error: error.message
+                });
+            }
+        }
+        
+        const successCount = results.filter(r => r.status === 'Success').length;
+        console.log(`Username repair completed. ${successCount}/${legacyStudents.length} repaired successfully`);
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            results,
+            summary: {
+                total: legacyStudents.length,
+                repaired: successCount,
+                failed: results.filter(r => r.status === 'Failed' || r.status === 'Error').length,
+                skipped: results.filter(r => r.status === 'Skipped').length
+            }
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200
