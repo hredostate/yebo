@@ -684,6 +684,23 @@ export interface ElectiveSubjectLimit {
     updated_at: string;
 }
 
+export interface SubjectGroup {
+    id: number;
+    school_id: number;
+    class_id: number;
+    group_name: string;
+    min_selections: number;
+    max_selections: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface SubjectGroupMember {
+    id: number;
+    group_id: number;
+    subject_id: number;
+}
+
 // Using Quiz structures for Surveys as well, as noted in SurveyManager
 export type QuizQuestionType = 'multiple_choice' | 'short_answer' | 'true_false' | 'ranking';
 export type SurveyQuestionType = QuizQuestionType;

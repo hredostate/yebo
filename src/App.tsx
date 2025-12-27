@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo, Com
 import type { Session, User } from '@supabase/auth-js';
 import { initializeAIClient, getAIClient, getAIClientError, getCurrentModel } from './services/aiClient';
 import type { OpenAI } from 'openai';
-import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment, ReportCardAnnouncement, ParentProfile, LinkedChild, ParentStudentLink } from './types';
+import { Team, TeamFeedback, TeamPulse, Task, TaskPriority, TaskStatus, ReportType, CoverageStatus, RoleTitle, Student, UserProfile, ReportRecord, ReportComment, Announcement, Notification, ToastMessage, RoleDetails, PositiveBehaviorRecord, StudentAward, StaffAward, StaffCertification, AIProfileInsight, AtRiskStudent, Alert, StudentInterventionPlan, SIPLog, SchoolHealthReport, SchoolSettings, PolicyInquiry, LivingPolicySnippet, AtRiskTeacher, InventoryItem, CalendarEvent, LessonPlan, CurriculumReport, LessonPlanAnalysis, DailyBriefing, StudentProfile, TeachingAssignment, BaseDataObject, Subject, Survey, SurveyWithQuestions, TeacherRatingWeekly, SuggestedTask, SchoolImprovementPlan, Curriculum, CurriculumWeek, CoverageDeviation, ClassGroup, AttendanceSchedule, AttendanceRecord, UPSSGPTResponse, SchoolConfig, Term, AcademicClass, AcademicTeachingAssignment, GradingScheme, GradingSchemeRule, AcademicClassStudent, StudentSubjectEnrollment, ScoreEntry, StudentTermReport, AuditLog, Assessment, AssessmentScore, CoverageVote, RewardStoreItem, PayrollRun, PayrollItem, PayrollAdjustment, Campus, TeacherCheckin, CheckinAnomaly, LeaveType, LeaveRequest, LeaveRequestStatus, TeacherShift, FutureRiskPrediction, AssessmentStructure, SocialMediaAnalytics, SocialAccount, CreatedCredential, NavigationContext, TeacherMood, Order, OrderStatus, StudentTermReportSubject, UserRoleAssignment, StudentFormData, PayrollUpdateData, CommunicationLogData, ZeroScoreEntry, ZeroScoreStudent, AbsenceRequest, AbsenceRequestType, ClassSubject, EmploymentStatus, PolicyStatement, PolicyAcknowledgment, ReportCardAnnouncement, ParentProfile, LinkedChild, ParentStudentLink, SubjectGroup, SubjectGroupMember } from './types';
 
 import { MOCK_SOCIAL_ACCOUNTS, MOCK_TOUR_CONTENT, MOCK_SOCIAL_ANALYTICS } from './services/mockData';
 import { extractAndParseJson } from './utils/json';
@@ -433,6 +433,8 @@ const App: React.FC = () => {
     const [allClasses, setAllClasses] = useState<BaseDataObject[]>([]);
     const [allArms, setAllArms] = useState<BaseDataObject[]>([]);
     const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+    const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
+    const [subjectGroupMembers, setSubjectGroupMembers] = useState<SubjectGroupMember[]>([]);
     const [surveys, setSurveys] = useState<SurveyWithQuestions[]>([]);
     const [takenSurveys, setTakenSurveys] = useState<Set<number>>(new Set());
     const [weeklyRatings, setWeeklyRatings] = useState<TeacherRatingWeekly[]>([]);
@@ -1345,6 +1347,8 @@ const App: React.FC = () => {
                             supabase.from('inventory_items').select('*'),
                             supabase.from('subjects').select('*'),
                             supabase.from('class_subjects').select('*'),
+                            supabase.from('subject_groups').select('*'),
+                            supabase.from('subject_group_members').select('*'),
                             supabase.from('classes').select('*'),
                             supabase.from('arms').select('*'),
                             supabase.from('quizzes').select('*, questions:quiz_questions(*)').order('created_at', { ascending: false }),
@@ -1502,49 +1506,51 @@ const App: React.FC = () => {
                             setInventory(getData(11));
                             setAllSubjects(getData(12));
                             setClassSubjects(getData(13));
-                            setAllClasses(getData(14));
-                            setAllArms(getData(15));
-                            setSurveys(getData(16));
-                            setTakenSurveys(new Set(getData(17).map((r: any) => r.quiz_id)));
-                            setWeeklyRatings(getData(18));
-                            setTeams(getData(19));
-                            setTeamFeedback(getData(20));
-                            setCurricula(getData(21));
-                            setCurriculumWeeks(getData(22));
-                            const classGroupsData = getData(23);
+                            setSubjectGroups(getData(14));
+                            setSubjectGroupMembers(getData(15));
+                            setAllClasses(getData(16));
+                            setAllArms(getData(17));
+                            setSurveys(getData(18));
+                            setTakenSurveys(new Set(getData(19).map((r: any) => r.quiz_id)));
+                            setWeeklyRatings(getData(20));
+                            setTeams(getData(21));
+                            setTeamFeedback(getData(22));
+                            setCurricula(getData(23));
+                            setCurriculumWeeks(getData(24));
+                            const classGroupsData = getData(25);
                             console.log('Class groups fetched:', classGroupsData);
                             // Map student_name from joined student data using utility function
                             setClassGroups(transformClassGroupsWithStudentNames(classGroupsData));
-                            setSchoolConfig(getSingleData(24));
-                            setTerms(getData(25));
-                            setAcademicClasses(getData(26));
-                            setAcademicAssignments(getData(27));
-                            const schemesData = getData(28);
-                            const rulesData = getData(29);
-                            setAcademicClassStudents(getData(30));
-                            setStudentSubjectEnrollments(getData(31));
-                            setScoreEntries(getData(32));
-                            setStudentTermReports(getData(33));
-                            setAuditLogs(getData(34));
-                            setAssessments(getData(35));
-                            setAssessmentScores(getData(36));
-                            setStudentTermReportSubjects(getData(37));
-                            setCoverageVotes(getData(38));
-                            setRewards(getData(39));
-                            setPayrollRuns(getData(40));
-                            setPayrollItems(getData(41));
-                            setPayrollAdjustments(getData(42));
-                            setCampuses(getData(43));
-                            setTeacherCheckins(getData(44));
-                            setLeaveTypes(getData(45));
-                            setLeaveRequests(getData(46));
-                            setAbsenceRequests(getData(47));
-                            setTeacherShifts(getData(48));
-                            setAssessmentStructures(getData(49));
-                            setTeachingEntities(getData(50));
-                            setOrders(getData(51));
-                            setStaffCertifications(getData(52));
-                            setReportCardAnnouncements(getData(53));
+                            setSchoolConfig(getSingleData(26));
+                            setTerms(getData(27));
+                            setAcademicClasses(getData(28));
+                            setAcademicAssignments(getData(29));
+                            const schemesData = getData(30);
+                            const rulesData = getData(31);
+                            setAcademicClassStudents(getData(32));
+                            setStudentSubjectEnrollments(getData(33));
+                            setScoreEntries(getData(34));
+                            setStudentTermReports(getData(35));
+                            setAuditLogs(getData(36));
+                            setAssessments(getData(37));
+                            setAssessmentScores(getData(38));
+                            setStudentTermReportSubjects(getData(39));
+                            setCoverageVotes(getData(40));
+                            setRewards(getData(41));
+                            setPayrollRuns(getData(42));
+                            setPayrollItems(getData(43));
+                            setPayrollAdjustments(getData(44));
+                            setCampuses(getData(45));
+                            setTeacherCheckins(getData(46));
+                            setLeaveTypes(getData(47));
+                            setLeaveRequests(getData(48));
+                            setAbsenceRequests(getData(49));
+                            setTeacherShifts(getData(50));
+                            setAssessmentStructures(getData(51));
+                            setTeachingEntities(getData(52));
+                            setOrders(getData(53));
+                            setStaffCertifications(getData(54));
+                            setReportCardAnnouncements(getData(55));
 
                             const combinedSchemes = (schemesData as GradingScheme[]).map(scheme => ({
                                 ...scheme,
@@ -1818,9 +1824,11 @@ const App: React.FC = () => {
     
     // Redirect students only when they try to access unauthorized views
     // This should only trigger after authentication is complete (not during boot)
+    // and after the initial navigation has been handled to avoid race conditions
     useEffect(() => {
         // Redirect student if they're trying to access an unauthorized view
-        if (userType === 'student' && !booting && userProfile && !isStudentAllowedView(currentView)) {
+        // Guard against race condition: don't run during initial navigation setup
+        if (userType === 'student' && !booting && userProfile && hasHandledInitialNavigation.current && !isStudentAllowedView(currentView)) {
             console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
             setCurrentView(VIEWS.STUDENT_DASHBOARD);
         }
@@ -7195,6 +7203,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                         allClasses,
                                         allArms,
                                         classSubjects,
+                                        subjectGroups,
+                                        subjectGroupMembers,
                                         surveys,
                                         classGroups,
                                         roles,
@@ -7472,6 +7482,8 @@ Focus on assignments with low completion rates or coverage issues. Return an emp
                                     allClasses,
                                     allArms,
                                     classSubjects,
+                                    subjectGroups,
+                                    subjectGroupMembers,
                                     surveys,
                                     classGroups,
                                     roles,
