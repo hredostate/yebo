@@ -72,6 +72,39 @@ BEGIN
     WHERE subject_id IN (
         SELECT id FROM public.subjects WHERE name ILIKE '%Mathematics%' OR name ILIKE '%English%'
     );
+    
+    -- Create subject_groups table for mutually exclusive subject selection
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='subject_groups') THEN
+        CREATE TABLE public.subject_groups (
+            id SERIAL PRIMARY KEY,
+            school_id INTEGER NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+            class_id INTEGER NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+            group_name TEXT NOT NULL,
+            min_selections INTEGER DEFAULT 1,
+            max_selections INTEGER DEFAULT 1,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(school_id, class_id, group_name)
+        );
+        
+        ALTER TABLE public.subject_groups ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY "Auth read subject_groups" ON public.subject_groups FOR SELECT TO authenticated USING (true);
+        CREATE POLICY "Auth write subject_groups" ON public.subject_groups FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
+    
+    -- Create subject_group_members table for group membership
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='subject_group_members') THEN
+        CREATE TABLE public.subject_group_members (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER NOT NULL REFERENCES public.subject_groups(id) ON DELETE CASCADE,
+            subject_id INTEGER NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+            UNIQUE(group_id, subject_id)
+        );
+        
+        ALTER TABLE public.subject_group_members ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY "Auth read subject_group_members" ON public.subject_group_members FOR SELECT TO authenticated USING (true);
+        CREATE POLICY "Auth write subject_group_members" ON public.subject_group_members FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    END IF;
 END $$;
 
 -- Make sure to reload schema
