@@ -2001,6 +2001,11 @@ serve(async (req) => {
             throw new Error('Password not found in user metadata. Please reset the password.');
         }
 
+        // Basic validation - password should be a string with reasonable length
+        if (typeof password !== 'string' || password.length < 6) {
+            throw new Error('Invalid password format in metadata. Please reset the password.');
+        }
+
         return new Response(JSON.stringify({
             success: true,
             password: password

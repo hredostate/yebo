@@ -3,6 +3,10 @@ import { requireSupabaseClient } from '../services/supabaseClient';
 import { sendNotificationWithChannel } from '../services/kudiSmsService';
 import Spinner from './common/Spinner';
 
+// Constants
+const TEMPLATE_NAME = 'student_credentials';
+const RATE_LIMIT_DELAY_MS = 120;
+
 interface StudentWithAuth {
   id: number;
   name: string;
@@ -268,16 +272,16 @@ const StudentCredentialsBulkSend: React.FC = () => {
         for (const phone of parentPhones) {
           try {
             const result = await sendNotificationWithChannel(
-              'student_credentials',
+              TEMPLATE_NAME,
               {
                 schoolId: schoolId,
                 recipientPhone: phone,
-                templateName: 'student_credentials',
+                templateName: TEMPLATE_NAME,
                 variables: {
                   student_name: student.name,
                   username: username,
                   password: password,
-                  school_name: 'UPSS', // Will be replaced by template system
+                  school_name: 'UPSS', // Placeholder - will be replaced by template system from school data
                 },
                 studentId: student.id,
               }
@@ -290,7 +294,7 @@ const StudentCredentialsBulkSend: React.FC = () => {
             }
 
             // Add delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 120));
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
           } catch (err) {
             console.error(`Error sending to ${phone}:`, err);
             phonesFailed.push(phone);
