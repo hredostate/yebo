@@ -78,7 +78,7 @@ After running the repair:
 ## Changes Made
 
 ### 1. `supabase/functions/manage-users/index.ts`
-- Added `repair_usernames` action (lines 1807-1961)
+- Added `repair_usernames` action (lines 1815-1978)
 - Enhanced documentation for `generateUsername()` function to mark it as staff-only
 - Added clear deprecation warning to prevent future misuse
 

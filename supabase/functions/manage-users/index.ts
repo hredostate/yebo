@@ -1830,7 +1830,7 @@ serve(async (req) => {
             .select('id, name, email, user_id, school_id')
             .eq('school_id', school_id)
             .not('user_id', 'is', null)
-            .ilike('email', '%@upsshub.com');
+            .like('email', '%@upsshub.com');
         
         if (studentsError) {
             throw new Error(`Failed to fetch students: ${studentsError.message}`);
@@ -1839,9 +1839,10 @@ serve(async (req) => {
         console.log(`Found ${students?.length || 0} students with @upsshub.com emails`);
         
         // Filter students with legacy username format (no dot in username or numeric suffix without dot)
+        // Proper format: firstname.lastname or firstname.lastname1 (optional numeric suffix)
         const legacyStudents = (students || []).filter(student => {
             const emailUsername = student.email.replace('@upsshub.com', '');
-            // Check if username matches firstname.lastname pattern (has exactly one dot and no numbers at the end)
+            // Check if username matches firstname.lastname pattern (optional numeric suffix for duplicates)
             const hasProperFormat = /^[a-z]+\.[a-z]+(\d+)?$/.test(emailUsername);
             return !hasProperFormat;
         });
@@ -1854,6 +1855,20 @@ serve(async (req) => {
         const existingUsernames = new Set<string>(
             (students || []).map(s => s.email.replace('@upsshub.com', ''))
         );
+        
+        // Fetch all auth user metadata upfront to avoid N+1 queries
+        const userMetadataMap = new Map<string, any>();
+        for (const student of legacyStudents) {
+            try {
+                const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(student.user_id);
+                if (authUser?.user) {
+                    userMetadataMap.set(student.user_id, authUser.user.user_metadata || {});
+                }
+            } catch (e) {
+                console.error(`Failed to fetch metadata for user ${student.user_id}:`, e);
+                userMetadataMap.set(student.user_id, {});
+            }
+        }
         
         for (const student of legacyStudents) {
             try {
@@ -1876,6 +1891,9 @@ serve(async (req) => {
                     continue;
                 }
                 
+                // Get existing metadata
+                const existingMetadata = userMetadataMap.get(student.user_id) || {};
+                
                 // Update auth user email and metadata
                 const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
                     student.user_id,
@@ -1883,7 +1901,7 @@ serve(async (req) => {
                         email: newEmail,
                         email_confirm: true,
                         user_metadata: {
-                            ...((await supabaseAdmin.auth.admin.getUserById(student.user_id)).data.user?.user_metadata || {}),
+                            ...existingMetadata,
                             username: newUsername
                         }
                     }
