@@ -1818,9 +1818,11 @@ const App: React.FC = () => {
     
     // Redirect students only when they try to access unauthorized views
     // This should only trigger after authentication is complete (not during boot)
+    // and after the initial navigation has been handled to avoid race conditions
     useEffect(() => {
         // Redirect student if they're trying to access an unauthorized view
-        if (userType === 'student' && !booting && userProfile && !isStudentAllowedView(currentView)) {
+        // Guard against race condition: don't run during initial navigation setup
+        if (userType === 'student' && !booting && userProfile && hasHandledInitialNavigation.current && !isStudentAllowedView(currentView)) {
             console.log('[App] Student accessing unauthorized view, redirecting to My Subjects');
             setCurrentView(VIEWS.STUDENT_DASHBOARD);
         }
