@@ -293,7 +293,7 @@ const SubjectSelectionReceipt: React.FC<SubjectSelectionReceiptProps> = ({
                                 <p>• <strong>Changes:</strong> To modify your subject selection, please contact your class teacher or school administrator using the "Request Change" button.</p>
                                 <p>• <strong>Confirmation:</strong> Keep this receipt for your records. You can print or download it anytime from the student portal.</p>
                                 {studentProfile.email && (
-                                    <p>• <strong>Email:</strong> A copy has been sent to {studentProfile.email}</p>
+                                    <p>• <strong>Email:</strong> Use the "Email Copy" button above to send this receipt to {studentProfile.email}</p>
                                 )}
                             </div>
                         </div>

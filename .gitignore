@@ -27,3 +27,6 @@ build-tests
 school-guardian-*.zip
 updated-code-files.zip
 /tmp
+
+# Test files
+test-*.html
